@@ -20,6 +20,10 @@ module Documentation.Haddock (
   processModules,
 
   -- * Export items & declarations
+  DocMap,
+  ArgMap,
+  AliasMap,
+  Documentation(..),
   ExportItem(..),
   DocForDecl,
   FnArgsDoc,
