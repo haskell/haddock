@@ -539,6 +539,10 @@ $ pdflatex <replaceable>package</replaceable>.tex</screen>
 	  <indexterm><primary><option>--source-entity</option></primary></indexterm>
           <option>--source-entity</option>=<replaceable>URL</replaceable>
         </term>
+        <term>
+	  <indexterm><primary><option>--source-entity-line</option></primary></indexterm>
+	  <option>--source-entity-line</option>=<replaceable>URL</replaceable>
+        </term>
 	<listitem>
 	  <para>Include links to the source files in the generated
 	  documentation. Use the <option>--source-base</option> option to add a
@@ -547,6 +551,9 @@ $ pdflatex <replaceable>package</replaceable>.tex</screen>
 	  the header bar of each module page. Use the
 	  <option>--source-entity</option> option to add a source code link
 	  next to the documentation for every value and type in each module.
+	  <option>--source-entity-line</option> is a flag that gets used for
+	  entities that need to link to an exact source location rather than a
+	  name, eg. since they were defined inside a Template Haskell splice.
 	  </para>
 
 	  <para>In each case <replaceable>URL</replaceable> is the base URL
@@ -1218,6 +1225,29 @@ data R a b =
         Haddock - for example doc comments can appear before or after
         the comma in separated lists such as the list of record fields
         above.</para>
+
+        <para>In case that more than one constructor exports a field
+        with the same name, the documentation attached to the first
+        occurence of the field will be used, even if a comment is not
+        present.
+        </para>
+
+<programlisting>
+data T a = A { someField :: a -- ^ Doc for someField of A
+             }
+         | B { someField :: a -- ^ Doc for someField of B
+             }
+</programlisting>
+
+        <para>In the above example, all occurences of
+        <literal>someField</literal> in the documentation are going to
+        be documented with <literal>Doc for someField of A</literal>.
+        Note that Haddock versions 2.14.0 and before would join up
+        documentation of each field and render the result. The reason
+        for this seemingly weird behaviour is the fact that
+        <literal>someField</literal> is actually the same (partial)
+        function.</para>
+
       </section>
 
       <section>

@@ -32,7 +32,6 @@ module Haddock.Options (
 ) where
 
 
-import Data.Maybe
 import Distribution.Verbosity
 import Haddock.Utils
 import Haddock.Types
@@ -52,9 +51,10 @@ data Flag
   | Flag_Lib String
   | Flag_OutputDir FilePath
   | Flag_Prologue FilePath
-  | Flag_SourceBaseURL   String
-  | Flag_SourceModuleURL String
-  | Flag_SourceEntityURL String
+  | Flag_SourceBaseURL    String
+  | Flag_SourceModuleURL  String
+  | Flag_SourceEntityURL  String
+  | Flag_SourceLEntityURL String
   | Flag_WikiBaseURL   String
   | Flag_WikiModuleURL String
   | Flag_WikiEntityURL String
@@ -115,6 +115,8 @@ options backwardsCompat =
       "URL for a source code link for each module\n(using the %{FILE} or %{MODULE} vars)",
     Option []  ["source-entity"]  (ReqArg Flag_SourceEntityURL "URL")
       "URL for a source code link for each entity\n(using the %{FILE}, %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
+    Option []  ["source-entity-line"] (ReqArg Flag_SourceLEntityURL "URL")
+      "URL for a source code link for each entity.\nUsed if name links are unavailable, eg. for TH splices.",
     Option []  ["comments-base"]   (ReqArg Flag_WikiBaseURL "URL")
       "URL for a comments link on the contents\nand index pages",
     Option []  ["comments-module"]  (ReqArg Flag_WikiModuleURL "URL")
@@ -217,18 +219,19 @@ optCssFile :: [Flag] -> Maybe FilePath
 optCssFile flags = optLast [ str | Flag_CSS str <- flags ]
 
 
-sourceUrls :: [Flag] -> (Maybe String, Maybe String, Maybe String)
+sourceUrls :: [Flag] -> (Maybe String, Maybe String, Maybe String, Maybe String)
 sourceUrls flags =
-  (listToMaybe [str | Flag_SourceBaseURL   str <- flags]
-  ,listToMaybe [str | Flag_SourceModuleURL str <- flags]
-  ,listToMaybe [str | Flag_SourceEntityURL str <- flags])
+  (optLast [str | Flag_SourceBaseURL    str <- flags]
+  ,optLast [str | Flag_SourceModuleURL  str <- flags]
+  ,optLast [str | Flag_SourceEntityURL  str <- flags]
+  ,optLast [str | Flag_SourceLEntityURL str <- flags])
 
 
 wikiUrls :: [Flag] -> (Maybe String, Maybe String, Maybe String)
 wikiUrls flags =
-  (listToMaybe [str | Flag_WikiBaseURL   str <- flags]
-  ,listToMaybe [str | Flag_WikiModuleURL str <- flags]
-  ,listToMaybe [str | Flag_WikiEntityURL str <- flags])
+  (optLast [str | Flag_WikiBaseURL   str <- flags]
+  ,optLast [str | Flag_WikiModuleURL str <- flags]
+  ,optLast [str | Flag_WikiEntityURL str <- flags])
 
 
 optDumpInterfaceFile :: [Flag] -> Maybe FilePath

@@ -18,6 +18,7 @@
 module Haddock.Types (
   module Haddock.Types
   , HsDocString, LHsDocString
+  , Fixity(..)
  ) where
 
 import Data.Foldable
@@ -28,6 +29,7 @@ import Control.DeepSeq
 import Data.Typeable
 import Data.Map (Map)
 import qualified Data.Map as Map
+import BasicTypes (Fixity(..))
 import GHC hiding (NoLink)
 import DynFlags (ExtensionFlag, Language)
 import OccName
@@ -47,6 +49,7 @@ type ArgMap a      = Map Name (Map Int (Doc a))
 type SubMap        = Map Name [Name]
 type DeclMap       = Map Name [LHsDecl Name]
 type InstMap       = Map SrcSpan Name
+type FixMap        = Map Name Fixity
 type SrcMap        = Map PackageId FilePath
 type DocPaths      = (FilePath, Maybe FilePath) -- paths to HTML and sources
 
@@ -97,6 +100,7 @@ data Interface = Interface
   , ifaceRnArgMap        :: !(ArgMap DocName)
 
   , ifaceSubMap          :: !(Map Name [Name])
+  , ifaceFixMap          :: !(Map Name Fixity)
 
   , ifaceExportItems     :: ![ExportItem Name]
   , ifaceRnExportItems   :: ![ExportItem DocName]
@@ -155,6 +159,7 @@ data InstalledInterface = InstalledInterface
   , instOptions        :: [DocOption]
 
   , instSubMap         :: Map Name [Name]
+  , instFixMap         :: Map Name Fixity
   }
 
 
@@ -169,6 +174,7 @@ toInstalledIface interface = InstalledInterface
   , instVisibleExports = ifaceVisibleExports interface
   , instOptions        = ifaceOptions        interface
   , instSubMap         = ifaceSubMap         interface
+  , instFixMap         = ifaceFixMap         interface
   }
 
 
@@ -195,6 +201,13 @@ data ExportItem name
         -- | Instances relevant to this declaration, possibly with
         -- documentation.
       , expItemInstances :: ![DocInstance name]
+
+        -- | Fixity decls relevant to this declaration (including subordinates).
+      , expItemFixities :: ![(name, Fixity)]
+
+        -- | Whether the ExportItem is from a TH splice or not, for generating
+        -- the appropriate type of Source link.
+      , expItemSpliced :: !Bool
       }
 
   -- | An exported entity for which we have no documentation (perhaps because it
