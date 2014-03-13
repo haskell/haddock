@@ -177,7 +177,7 @@ string_txt (LStr s1 _) s2 = unpackLitString s1 ++ s2
 
 
 exportListItem :: ExportItem DocName -> LaTeX
-exportListItem (ExportDecl decl _doc subdocs _insts _fixities _splice)
+exportListItem ExportDecl { expItemDecl = decl, expItemSubDocs = subdocs }
   = sep (punctuate comma . map ppDocBinder $ declNames decl) <>
      case subdocs of
        [] -> empty
@@ -211,8 +211,8 @@ processExports (e : es) =
 
 
 isSimpleSig :: ExportItem DocName -> Maybe ([DocName], HsType DocName)
-isSimpleSig (ExportDecl (L _ (SigD (TypeSig lnames (L _ t))))
-                        (Documentation Nothing Nothing, argDocs) _ _ _ _)
+isSimpleSig ExportDecl { expItemDecl = L _ (SigD (TypeSig lnames (L _ t)))
+                       , expItemMbDoc = (Documentation Nothing Nothing, argDocs) }
   | Map.null argDocs = Just (map unLoc lnames, t)
 isSimpleSig _ = Nothing
 
@@ -563,7 +563,8 @@ ppInstDecl unicode instHead = keyword "instance" <+> ppInstHead unicode instHead
 ppInstHead :: Bool -> InstHead DocName -> LaTeX
 ppInstHead unicode (n, ks, ts, ClassInst ctx) = ppContextNoLocs ctx unicode <+> ppAppNameTypes n ks ts unicode
 ppInstHead unicode (n, ks, ts, TypeInst rhs) = keyword "type"
-  <+> ppAppNameTypes n ks ts unicode <+> equals <+> ppType unicode rhs
+  <+> ppAppNameTypes n ks ts unicode
+  <+> maybe empty (\t -> equals <+> ppType unicode t) rhs
 ppInstHead _unicode (_n, _ks, _ts, DataInst _dd) =
   error "data instances not supported by --latex yet"
 

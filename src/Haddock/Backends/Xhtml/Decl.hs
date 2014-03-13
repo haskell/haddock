@@ -28,7 +28,7 @@ import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Doc (combineDocumentation)
 
-import           Data.List             ( intersperse )
+import           Data.List             ( intersperse, sort )
 import qualified Data.Map as Map
 import           Data.Maybe
 import           Data.Monoid           ( mempty )
@@ -37,6 +37,7 @@ import           Text.XHtml hiding     ( name, title, p, quote )
 import GHC
 import GHC.Exts
 import Name
+import BooleanFormula
 
 
 ppDecl :: Bool -> LinksInfo -> LHsDecl DocName
@@ -406,7 +407,7 @@ ppShortClassDecl :: Bool -> LinksInfo -> TyClDecl DocName -> SrcSpan
 ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, tcdTyVars = tvs
                                           , tcdFDs = fds, tcdSigs = sigs, tcdATs = ats }) loc
     subdocs splice unicode qual =
-  if null sigs && null ats
+  if not (any isVanillaLSig sigs) && null ats
     then (if summary then id else topDeclElem links loc splice [nm]) hdr
     else (if summary then id else topDeclElem links loc splice [nm]) (hdr <+> keyword "where")
       +++ shortSubDecls
@@ -441,11 +442,11 @@ ppClassDecl summary links instances fixities loc d subdocs
             splice unicode qual
   | summary = ppShortClassDecl summary links decl loc subdocs splice unicode qual
   | otherwise = classheader +++ docSection qual d
-                  +++ atBit +++ methodBit  +++ instancesBit
+                  +++ minimalBit +++ atBit +++ methodBit +++ instancesBit
   where
     classheader
-      | null lsigs = topDeclElem links loc splice [nm] (hdr unicode qual <+> fixs)
-      | otherwise  = topDeclElem links loc splice [nm] (hdr unicode qual <+> keyword "where" <+> fixs)
+      | any isVanillaLSig lsigs = topDeclElem links loc splice [nm] (hdr unicode qual <+> keyword "where" <+> fixs)
+      | otherwise = topDeclElem links loc splice [nm] (hdr unicode qual <+> fixs)
 
     -- Only the fixity relevant to the class header
     fixs = ppFixities [ f | f@(n,_) <- fixities, n == unLoc lname ] qual
@@ -472,6 +473,23 @@ ppClassDecl summary links instances fixities loc d subdocs
                            -- there are different subdocs for different names in a single
                            -- type signature?
 
+    minimalBit = case [ s | L _ (MinimalSig s) <- lsigs ] of
+      -- Miminal complete definition = every method
+      And xs : _ | sort [getName n | Var (L _ n) <- xs] ==
+                   sort [getName n | L _ (TypeSig ns _) <- lsigs, L _ n <- ns]
+        -> noHtml
+
+      -- Minimal complete definition = nothing
+      And [] : _ -> subMinimal $ toHtml "Nothing"
+
+      m : _  -> subMinimal $ ppMinimal False m
+      _ -> noHtml
+
+    ppMinimal _ (Var (L _ n)) = ppDocName qual Prefix True n
+    ppMinimal _ (And fs) = foldr1 (\a b -> a+++", "+++b) $ map (ppMinimal True) fs
+    ppMinimal p (Or fs) = wrap $ foldr1 (\a b -> a+++" | "+++b) $ map (ppMinimal False) fs
+      where wrap | p = parens | otherwise = id
+
     instancesBit = ppInstances instances nm unicode qual
 
 ppClassDecl _ _ _ _ _ _ _ _ _ _ _ = error "declaration type not supported by ppShortClassDecl"
@@ -488,7 +506,7 @@ ppInstances instances baseName unicode qual
         <+> ppAppNameTypes n ks ts unicode qual
     instHead (n, ks, ts, TypeInst rhs) = keyword "type"
         <+> ppAppNameTypes n ks ts unicode qual
-        <+> equals <+> ppType unicode qual rhs
+        <+> maybe noHtml (\t -> equals <+> ppType unicode qual t) rhs
     instHead (n, ks, ts, DataInst dd) = keyword "data"
         <+> ppAppNameTypes n ks ts unicode qual
         <+> ppShortDataDecl False True dd unicode qual
@@ -769,10 +787,10 @@ ppCtxType    unicode qual ty = ppr_mono_ty pREC_CTX ty unicode qual
 ppParendType unicode qual ty = ppr_mono_ty pREC_CON ty unicode qual
 ppFunLhType  unicode qual ty = ppr_mono_ty pREC_FUN ty unicode qual
 
-ppLKind :: Unicode -> Qualification-> LHsKind DocName -> Html
+ppLKind :: Unicode -> Qualification -> LHsKind DocName -> Html
 ppLKind unicode qual y = ppKind unicode qual (unLoc y)
 
-ppKind :: Unicode -> Qualification-> HsKind DocName -> Html
+ppKind :: Unicode -> Qualification -> HsKind DocName -> Html
 ppKind unicode qual ki = ppr_mono_ty pREC_TOP ki unicode qual
 
 -- Drop top-level for-all type variables in user style
@@ -797,6 +815,11 @@ ppr_mono_ty :: Int -> HsType DocName -> Unicode -> Qualification -> Html
 ppr_mono_ty ctxt_prec (HsForAllTy expl tvs ctxt ty) unicode qual
   = maybeParen ctxt_prec pREC_FUN $
     hsep [ppForAll expl tvs ctxt unicode qual, ppr_mono_lty pREC_TOP ty unicode qual]
+
+-- UnicodeSyntax alternatives
+ppr_mono_ty _ (HsTyVar name) True _
+  | getOccString (getName name) == "*"    = toHtml "★"
+  | getOccString (getName name) == "(->)" = toHtml "(→)"
 
 ppr_mono_ty _         (HsBangTy b ty)     u q = ppBang b +++ ppLParendType u q ty
 ppr_mono_ty _         (HsTyVar name)      _ q = ppDocName q Prefix True name

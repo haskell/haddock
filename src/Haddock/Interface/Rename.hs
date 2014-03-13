@@ -264,7 +264,7 @@ renameInstHead (className, k, types, rest) = do
   types' <- mapM renameType types
   rest' <- case rest of
     ClassInst cs -> ClassInst <$> mapM renameType cs
-    TypeInst  ts -> TypeInst  <$> renameType ts
+    TypeInst  ts -> TypeInst  <$> traverse renameType ts
     DataInst  dd -> DataInst  <$> renameTyClD dd
   return (className', k', types', rest')
 
@@ -414,6 +414,7 @@ renameSig sig = case sig of
   FixSig (FixitySig lname fixity) -> do
     lname' <- renameL lname
     return $ FixSig (FixitySig lname' fixity)
+  MinimalSig s -> MinimalSig <$> traverse renameL s
   -- we have filtered out all other kinds of signatures in Interface.Create
   _ -> error "expected TypeSig"
 

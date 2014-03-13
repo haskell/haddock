@@ -73,8 +73,9 @@ tyThingToLHsDecl t = noLoc $ case t of
          , tcdFDs = map (\ (l,r) -> noLoc
                         (map getName l, map getName r) ) $
                          snd $ classTvsFds cl
-         , tcdSigs = map (noLoc . synifyIdSig DeleteTopLevelQuantification)
-                         (classMethods cl)
+         , tcdSigs = noLoc (MinimalSig . fmap noLoc $ classMinimalDef cl) :
+                      map (noLoc . synifyIdSig DeleteTopLevelQuantification)
+                        (classMethods cl)
          , tcdMeths = emptyBag --ignore default method definitions, they don't affect signature
          -- class associated-types are a subset of TyCon:
          , tcdATs = atFamDecls
@@ -380,13 +381,14 @@ synifyInstHead (_, preds, cls, types) =
   where (ks,ts) = break (not . isKind) types
 
 -- Convert a family instance, this could be a type family or data family
-synifyFamInst :: FamInst -> InstHead Name
-synifyFamInst fi =
+synifyFamInst :: FamInst -> Bool -> InstHead Name
+synifyFamInst fi opaque =
   ( fi_fam fi
   , map (unLoc . synifyType WithinType) ks
   , map (unLoc . synifyType WithinType) ts
   , case fi_flavor fi of
-      SynFamilyInst -> TypeInst . unLoc . synifyType WithinType $ fi_rhs fi
+      SynFamilyInst | opaque -> TypeInst Nothing
+      SynFamilyInst -> TypeInst . Just . unLoc . synifyType WithinType $ fi_rhs fi
       DataFamilyInst c -> DataInst $ synifyTyCon (Just $ famInstAxiom fi) c
   )
   where (ks,ts) = break (not . isKind) $ fi_tys fi
