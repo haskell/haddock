@@ -3,13 +3,13 @@
 ><head
   ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
      /><title
-    >Bold</title
+    >Bug201</title
     ><link href="ocean.css" rel="stylesheet" type="text/css" title="Ocean"
      /><script src="haddock-util.js" type="text/javascript"
     ></script
     ><script type="text/javascript"
     >//<![CDATA[
-window.onload = function () {pageLoad();setSynopsis("mini_Bold.html");};
+window.onload = function () {pageLoad();setSynopsis("mini_Bug201.html");};
 //]]>
 </script
     ></head
@@ -17,11 +17,11 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bold.html");};
   ><div id="package-header"
     ><ul class="links" id="page-menu"
       ><li
-	><a href="index.html"
+	><a href=""
 	  >Contents</a
 	  ></li
 	><li
-	><a href="doc-index.html"
+	><a href=""
 	  >Index</a
 	  ></li
 	></ul
@@ -39,16 +39,20 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bold.html");};
 	    ></tr
 	  ></table
 	><p class="caption"
-	>Bold</p
+	>Bug201</p
 	></div
       ><div id="synopsis"
       ><p id="control.syn" class="caption expander" onclick="toggleSection('syn')"
 	>Synopsis</p
 	><ul id="section.syn" class="hide" onclick="toggleSection('syn')"
 	><li class="src short"
-	  ><a href="#v:foo"
-	    >foo</a
-	    > ::  t</li
+	  ><a href=""
+	    >f</a
+	    > :: ()</li
+	  ><li class="src short"
+	  ><a href=""
+	    >g</a
+	    > :: ()</li
 	  ></ul
 	></div
       ><div id="interface"
@@ -56,41 +60,40 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bold.html");};
 	>Documentation</h1
 	><div class="top"
 	><p class="src"
-	  ><a name="v:foo" class="def"
-	    >foo</a
-	    > ::  t</p
+	  ><a name="v:f" class="def"
+	    >f</a
+	    > :: ()</p
 	  ><div class="doc"
-	  ><p
-	    >Some <strong
-	      >bold text</strong
-	      >.</p
-	    ><ul
-	    ><li
-	      ><strong
-		>Bold</strong
-		> in a list</li
-	      ></ul
-	    ><dl
-	    ><dt
-	      ><strong
-		>bold in a definition</strong
-		></dt
-	      ><dd
-	      >list</dd
-	      ></dl
+	  ><pre
+	    >This leading whitespace
+should be dropped
+</pre
+	    ></div
+	  ></div
+	><div class="top"
+	><p class="src"
+	  ><a name="v:g" class="def"
+	    >g</a
+	    > :: ()</p
+	  ><div class="doc"
+	  ><pre
+	    > But this one
+ should not
+</pre
 	    ><pre
-	    > bold <strong
-	      >in</strong
-	      > a <strong
-	      >code</strong
-	      > block</pre
+	    >this should
+be dropped</pre
+	    ><pre
+	    >and so should this
+because there's a space before closing @
+</pre
 	    ></div
 	  ></div
 	></div
       ></div
     ><div id="footer"
     ><p
-      >Produced by <a href="http://www.haskell.org/haddock/"
+      >Produced by <a href=""
 	>Haddock</a
 	> version 2.14.2</p
       ></div
