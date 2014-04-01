@@ -1,3 +1,7 @@
+Changes in version 2.14.2
+
+ * Print kind signatures GADTs (#85)
+
 Changes in version 2.14.1
 
  * Render * and -> with their UnicodeSyntax equivalents if -U is enabled
