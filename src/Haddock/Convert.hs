@@ -94,10 +94,10 @@ tyThingToLHsDecl t = noLoc $ case t of
     (synifyType ImplicitizeForAll (dataConUserType dc)))
 
   AConLike (PatSynCon ps) ->
-      let (_, _, req_theta, prov_theta, _, res_ty) = patSynSig ps
+      let (_, _, (req_theta, prov_theta)) = patSynSig ps
       in SigD $ PatSynSig (synifyName ps)
                           (fmap (synifyType WithinType) (patSynTyDetails ps))
-                          (synifyType WithinType res_ty)
+                          (synifyType WithinType (patSynType ps))
                           (synifyCtx req_theta)
                           (synifyCtx prov_theta)
 
