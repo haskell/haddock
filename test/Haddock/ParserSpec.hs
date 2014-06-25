@@ -185,6 +185,13 @@ spec = before initStaticOpts $ do
       it "does not accept newlines in anchors" $ do
         "#foo\nbar#" `shouldParseTo` "#foo\nbar#"
 
+      it "accepts anchors mid-paragraph" $ do
+        "Hello #someAnchor# world!"
+          `shouldParseTo` "Hello " <> DocAName "someAnchor" <> " world!"
+
+      it "does not accept empty anchors" $ do
+        "##" `shouldParseTo` "##"
+
     context "when parsing emphasised text" $ do
       it "emphasises a word on its own" $ do
         "/foo/" `shouldParseTo` DocEmphasis "foo"
@@ -307,6 +314,12 @@ spec = before initStaticOpts $ do
 
       it "treats empty module name as regular double quotes" $ do
         "\"\"" `shouldParseTo` "\"\""
+
+      it "accepts anchor reference syntax as DocModule" $ do
+        "\"Foo#bar\"" `shouldParseTo` DocModule "Foo#bar"
+
+      it "accepts old anchor reference syntax as DocModule" $ do
+        "\"Foo\\#bar\"" `shouldParseTo` DocModule "Foo\\#bar"
 
   describe "parseParas" $ do
     let infix 1 `shouldParseTo`

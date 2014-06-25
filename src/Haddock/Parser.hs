@@ -85,8 +85,11 @@ encodedChar = "&#" *> c <* ";"
     num = hex <|> decimal
     hex = ("x" <|> "X") *> hexadecimal
 
+-- | List of characters that we use to delimit any special markup.
+-- Once we have checked for any of these and tried to parse the
+-- relevant markup, we can assume they are used as regular text.
 specialChar :: [Char]
-specialChar = "_/<@\"&'`"
+specialChar = "_/<@\"&'`#"
 
 -- | Plain, regular parser for text. Called as one of the last parsers
 -- to ensure that we have already given a chance to more meaningful parsers
@@ -140,7 +143,8 @@ takeWhile1_ = mfilter (not . BS.null) . takeWhile_
 -- >>> parseOnly anchor "#Hello world#"
 -- Right (DocAName "Hello world")
 anchor :: Parser (Doc a)
-anchor = DocAName . decodeUtf8 <$> ("#" *> takeWhile1 (`notElem` "#\n") <* "#")
+anchor = DocAName . decodeUtf8 <$>
+         disallowNewline ("#" *> takeWhile1_ (/= '#') <* "#")
 
 -- | Monospaced strings.
 --
@@ -158,7 +162,8 @@ moduleName = DocModule <$> (char '"' *> modid <* char '"')
       -- NOTE: According to Haskell 2010 we shouldd actually only
       -- accept {small | large | digit | ' } here.  But as we can't
       -- match on unicode characters, this is currently not possible.
-      <*> (decodeUtf8 <$> takeWhile (`notElem` " .&[{}(=*)+]!#|@/;,^?\"\n"))
+      -- Note that we allow ‘#’ to suport anchors.
+      <*> (decodeUtf8 <$> takeWhile (`notElem` " .&[{}(=*)+]!|@/;,^?\"\n"))
 
 -- | Picture parser, surrounded by \<\< and \>\>. It's possible to specify
 -- a title for the picture.
