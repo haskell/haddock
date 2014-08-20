@@ -1,4 +1,4 @@
-name:                 haddock
+name:                 haddock-api
 version:              2.14.4
 synopsis:             A documentation-generation tool for Haskell libraries
 description:          Haddock is a documentation-generation tool for Haskell
@@ -54,6 +54,11 @@ flag in-ghc-tree
   default: False
   manual: True
 
+flag build-executable
+  description: Build the haddock executable?
+  default: False
+  manual: True
+
 -- Using this disables -O2, and hence allows to use --disable-optimization,
 -- which is about twice as fast.  This should probably be the default, but we
 -- need some benchmarks first..
@@ -64,11 +69,14 @@ flag dev
 executable haddock
   default-language:     Haskell2010
   main-is:              Main.hs
-  hs-source-dirs:       driver
+  hs-source-dirs:       haddock-executable/driver
   if flag(dev)
     ghc-options:          -funbox-strict-fields -Wall -fwarn-tabs
   else
     ghc-options:          -funbox-strict-fields -Wall -fwarn-tabs -O2
+
+  if(!flag(build-executable) && !flag(in-ghc-tree))
+    buildable: False
 
   build-depends:
     base >= 4.3 && < 4.8
@@ -134,7 +142,7 @@ executable haddock
       Haddock.GhcUtils
       Haddock.Convert
   else
-    build-depends:  haddock, haddock-library
+    build-depends:  haddock-api, haddock-library
 
 library
   default-language:     Haskell2010
@@ -176,7 +184,7 @@ library
       Documentation.Haddock.Parser.Util
 
   else
-    build-depends: ghc-paths, haddock-library
+    build-depends: ghc-paths, haddock-library == 1.1.*
     hs-source-dirs:       src
 
 
@@ -217,7 +225,7 @@ library
     Haddock.Options
     Haddock.GhcUtils
     Haddock.Convert
-    Paths_haddock
+    Paths_haddock_api
 
   if flag(in-ghc-tree)
     buildable: False
