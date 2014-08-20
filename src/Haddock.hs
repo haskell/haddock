@@ -54,7 +54,7 @@ import Data.Int
 import System.FilePath
 #else
 import qualified GHC.Paths as GhcPaths
-import Paths_haddock
+import Paths_haddock_api
 #endif
 
 import GHC hiding (verbosity)
