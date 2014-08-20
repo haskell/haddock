@@ -1,4 +1,5 @@
 /dist/
+/haddock-executable/dist
 /haddock-library/dist
 /html-test/out/
 /latex-test/out/

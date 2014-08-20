@@ -12,6 +12,7 @@ import           Test.Hspec
 import           Test.QuickCheck
 
 infixr 6 <>
+(<>) :: DocH mod id -> DocH mod id -> DocH mod id
 (<>) = docAppend
 
 type Doc id = DocH () id
