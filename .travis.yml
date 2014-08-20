@@ -17,4 +17,4 @@ before_install:
  - cd ..
 
 script:
- - cabal configure --enable-tests --ghc-options=-Werror && cabal build && cabal test
+ - cabal configure --enable-tests -fbuild-executable --ghc-options=-Werror && cabal build && cabal test
