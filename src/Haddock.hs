@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wwarn #-}
-{-# LANGUAGE CPP, ScopedTypeVariables #-}
+{-# LANGUAGE CPP, ScopedTypeVariables, Rank2Types #-}
 {-# LANGUAGE LambdaCase #-}
 -----------------------------------------------------------------------------
 -- |
@@ -17,7 +17,13 @@
 --
 -- Program entry point and top-level code.
 -----------------------------------------------------------------------------
-module Haddock (haddock, readPackagesAndProcessModules, withGhc') where
+module Haddock (
+  haddock,
+  haddockWithGhc,
+  getGhcDirs,
+  readPackagesAndProcessModules,
+  withGhc'
+) where
 
 
 import Haddock.Backends.Xhtml
@@ -129,7 +135,10 @@ handleGhcExceptions =
 --
 -- > main = getArgs >>= haddock
 haddock :: [String] -> IO ()
-haddock args = handleTopExceptions $ do
+haddock args = haddockWithGhc withGhc' args
+
+haddockWithGhc :: (forall a. [Flag] -> Ghc a -> IO a) -> [String] -> IO ()
+haddockWithGhc ghc args = handleTopExceptions $ do
 
   -- Parse command-line flags and handle some of them initially.
   -- TODO: unify all of this (and some of what's in the 'render' function),
@@ -140,7 +149,7 @@ haddock args = handleTopExceptions $ do
   qual <- case qualification flags of {Left msg -> throwE msg; Right q -> return q}
 
   -- inject dynamic-too into flags before we proceed
-  flags' <- withGhc' flags $ do
+  flags' <- ghc flags $ do
         df <- getDynFlags
         case lookup "GHC Dynamic" (compilerInfo df) of
           Just "YES" -> return $ Flag_OptGhc "-dynamic-too" : flags
@@ -150,7 +159,7 @@ haddock args = handleTopExceptions $ do
     forM_ (warnings args) $ \warning -> do
       hPutStrLn stderr warning
 
-  withGhc' flags' $ do
+  ghc flags' $ do
 
     dflags <- getDynFlags
 
