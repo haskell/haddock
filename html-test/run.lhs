@@ -22,7 +22,7 @@ import System.FilePath
 import System.Process (ProcessHandle, runProcess, waitForProcess, system)
 
 
-packageRoot, dataDir, haddockPath, baseDir, testDir, outDir :: FilePath
+packageRoot, dataDir, haddockPath, baseDir, refDir, testDir, outDir :: FilePath
 baseDir = takeDirectory __FILE__
 testDir       = baseDir </> "src"
 refDir        = baseDir </> "ref"
@@ -41,7 +41,7 @@ main = do
 test :: IO ()
 test = do
   x <- doesFileExist haddockPath
-  unless x $ die "you need to run 'cabal build' successfully first"
+  unless x $ die "you need to run 'cabal configure -fbuild-execuable && cabal build' successfully first"
 
   contents <- getDirectoryContents testDir
   args <- getArgs
@@ -156,7 +156,7 @@ stripLinks str =
   case stripPrefix prefix str of
     Just str' -> case dropWhile (/= '>') (dropWhile (/= '"') str') of
       [] -> []
-      x:xs -> stripLinks (stripHrefEnd xs)
+      _:xs -> stripLinks (stripHrefEnd xs)
     Nothing ->
       case str of
         [] -> []
@@ -168,7 +168,7 @@ stripHrefEnd s =
   case stripPrefix pref s of
     Just str' -> case dropWhile (/= '>') str' of
       [] -> []
-      x:xs -> xs
+      _:xs -> xs
     Nothing ->
       case s of
         [] -> []

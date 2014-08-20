@@ -12,8 +12,8 @@ module Haddock.Version (
   projectName, projectVersion, projectUrl
 ) where
 
-import Paths_haddock ( version )
-import Data.Version  ( showVersion )
+import Paths_haddock_api ( version )
+import Data.Version      ( showVersion )
 
 projectName, projectUrl :: String
 projectName = "Haddock"

@@ -57,8 +57,12 @@ module Documentation.Haddock (
   Flag(..),
   DocOption(..),
 
+  HaddockException(..),
+
   -- * Program entry point
   haddock,
+  haddockWithGhc,
+  getGhcDirs
 ) where
 
 

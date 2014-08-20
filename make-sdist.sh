@@ -1,19 +1,20 @@
 # Put the Happy-generated .hs files in the right place in the source dist.
 set -e
-rm -f dist/haddock-*.tar.gz
-rm -rf dist/haddock-*/
+rm -f dist/haddock-api-*.tar.gz
+rm -rf dist/haddock-api-*/
 ./Setup sdist
 cd dist
 tar xvzf haddock-*.tar.gz
-cd haddock-*/
+cd haddock-api-*/
 mkdir dist
 mkdir dist/build
-mv haddock dist/build
+mv haddock-api dist/build
 cd ..
-tar cvzf haddock-*.tar.gz haddock-*/
+tar cvzf haddock-api-*.tar.gz haddock-api-*/
 
 # Steps for doing a release:
-#  * Update version number in .cabal, doc/haddock.xml, haddock.spec
+#  * Update version number in .cabal, haddock-executable/haddock.cabal,
+#      doc/haddock.xml, haddock.spec
 #  * Update CHANGES
 #  * Source:
 #    - do the above
