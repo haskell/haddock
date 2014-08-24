@@ -822,8 +822,8 @@ ppr_mono_lty ctxt_prec ty = ppr_mono_ty ctxt_prec (unLoc ty)
 
 ppr_mono_ty :: Int -> HsType DocName -> Unicode -> Qualification -> Html
 ppr_mono_ty ctxt_prec (HsForAllTy expl tvs ctxt ty) unicode qual
-  = maybeParen ctxt_prec pREC_FUN $
-    hsep [ppForAll expl tvs ctxt unicode qual, ppr_mono_lty pREC_TOP ty unicode qual]
+  = maybeParen ctxt_prec pREC_FUN $ ppForAll expl tvs ctxt unicode qual
+                                    <+> ppr_mono_lty pREC_TOP ty unicode qual
 
 -- UnicodeSyntax alternatives
 ppr_mono_ty _ (HsTyVar name) True _
