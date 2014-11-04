@@ -18,22 +18,26 @@ import Haddock.Types
 import Haddock.Convert
 import Haddock.GhcUtils
 
-import Control.Arrow
+import Control.Arrow hiding ((<+>))
 import Data.List
 import Data.Ord (comparing)
 import Data.Function (on)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Bag (listToBag)
 import Class
+import DynFlags
+import ErrUtils
 import FamInstEnv
 import FastString
 import GHC
-import GhcMonad (withSession)
+import GhcMonad (withSession, logWarnings)
 import Id
 import InstEnv
 import MonadUtils (liftIO)
 import Name
+import Outputable (text, sep, (<+>))
 import PrelNames
 import TcRnDriver (tcRnGetInfo)
 import TcType (tcSplitSigmaTy)
@@ -60,32 +64,37 @@ attachInstances expInfo ifaces instIfaceMap = mapM attach ifaces
       return $ iface { ifaceExportItems = newItems }
 
 
-attachToExportItem :: ExportInfo -> Interface -> IfaceMap -> InstIfaceMap -> ExportItem Name -> Ghc (ExportItem Name)
+attachToExportItem :: ExportInfo -> Interface -> IfaceMap -> InstIfaceMap
+                   -> ExportItem Name
+                   -> Ghc (ExportItem Name)
 attachToExportItem expInfo iface ifaceMap instIfaceMap export =
   case attachFixities export of
     e@ExportDecl { expItemDecl = L _ (TyClD d) } -> do
       mb_info <- getAllInfo (tcdName d)
-      let export' =
-            e {
-              expItemInstances =
-                case mb_info of
-                  Just (_, _, cls_instances, fam_instances) ->
-                    let fam_insts = [ (synifyFamInst i opaque, n)
-                                    | i <- sortBy (comparing instFam) fam_instances
-                                    , let n = instLookup instDocMap (getName i) iface ifaceMap instIfaceMap
-                                    , not $ isNameHidden expInfo (fi_fam i)
-                                    , not $ any (isTypeHidden expInfo) (fi_tys i)
-                                    , let opaque = isTypeHidden expInfo (fi_rhs i)
-                                    ]
-                        cls_insts = [ (synifyInstHead i, instLookup instDocMap n iface ifaceMap instIfaceMap)
-                                    | let is = [ (instanceHead' i, getName i) | i <- cls_instances ]
-                                    , (i@(_,_,cls,tys), n) <- sortBy (comparing $ first instHead) is
-                                    , not $ isInstanceHidden expInfo cls tys
-                                    ]
-                    in cls_insts ++ fam_insts
-                  Nothing -> []
-            }
-      return export'
+      insts <- case mb_info of
+        Just (_, _, cls_instances, fam_instances) ->
+          let fam_insts = [ (synifyFamInst i opaque, n)
+                          | i <- sortBy (comparing instFam) fam_instances
+                          , let n = instLookup instDocMap (getName i) iface ifaceMap instIfaceMap
+                          , not $ isNameHidden expInfo (fi_fam i)
+                          , not $ any (isTypeHidden expInfo) (fi_tys i)
+                          , let opaque = isTypeHidden expInfo (fi_rhs i)
+                          ]
+              cls_insts = [ (synifyInstHead i, instLookup instDocMap n iface ifaceMap instIfaceMap)
+                          | let is = [ (instanceHead' i, getName i) | i <- cls_instances ]
+                          , (i@(_,_,cls,tys), n) <- sortBy (comparing $ first instHead) is
+                          , not $ isInstanceHidden expInfo cls tys
+                          ]
+              -- fam_insts but with failing type fams filtered out
+              cleanFamInsts = [ (fi, n) | (Right fi, n) <- fam_insts ]
+              famInstErrs = [ errm | (Left errm, _) <- fam_insts ]
+          in do
+            dfs <- getDynFlags
+            let mkBug = (text "haddock-bug:" <+>) . text
+            liftIO $ putMsg dfs (sep $ map mkBug famInstErrs)
+            return $ cls_insts ++ cleanFamInsts
+        Nothing -> return []
+      return $ e { expItemInstances = insts }
     e -> return e
   where
     attachFixities e@ExportDecl{ expItemDecl = L _ d } = e { expItemFixities =
@@ -126,7 +135,7 @@ dropSilentArgs dfun theta = drop (dfunNSilent dfun) theta
 -- | Like GHC's getInfo but doesn't cut things out depending on the
 -- interative context, which we don't set sufficiently anyway.
 getAllInfo :: GhcMonad m => Name -> m (Maybe (TyThing,Fixity,[ClsInst],[FamInst]))
-getAllInfo name = withSession $ \hsc_env -> do 
+getAllInfo name = withSession $ \hsc_env -> do
    (_msgs, r) <- liftIO $ tcRnGetInfo hsc_env name
    return r
 

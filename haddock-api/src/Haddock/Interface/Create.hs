@@ -45,7 +45,7 @@ import Bag
 import RdrName
 import TcRnTypes
 import FastString (concatFS)
-
+import qualified Outputable as O
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological
@@ -618,8 +618,15 @@ hiDecl dflags t = do
     Nothing -> do
       liftErrMsg $ tell ["Warning: Not found in environment: " ++ pretty dflags t]
       return Nothing
-    Just x -> return (Just (tyThingToLHsDecl x))
-
+    Just x -> case tyThingToLHsDecl x of
+      Left m -> liftErrMsg (tell [bugWarn m]) >> return Nothing
+      Right (m, t) -> liftErrMsg (tell $ map bugWarn m)
+                      >> return (Just $ noLoc t)
+    where
+      warnLine x = O.text "haddock-bug:" O.<+> O.text x O.<>
+                   O.comma O.<+> O.quotes (O.ppr t) O.<+>
+                   O.text "-- Please report this on Haddock issue tracker!"
+      bugWarn = O.showSDoc dflags . warnLine
 
 hiValExportItem :: DynFlags -> Name -> DocForDecl Name -> Bool -> Maybe Fixity -> ErrMsgGhc (ExportItem Name)
 hiValExportItem dflags name doc splice fixity = do
