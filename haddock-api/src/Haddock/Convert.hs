@@ -138,18 +138,18 @@ synifyAxiom ax@(CoAxiom { co_ax_tc = tc })
 
 synifyTyCon :: Maybe (CoAxiom br) -> TyCon -> TyClDecl Name
 synifyTyCon coax tc
-  | isFunTyCon tc || isPrimTyCon tc 
+  | isFunTyCon tc || isPrimTyCon tc
   = DataDecl { tcdLName = synifyName tc
              , tcdTyVars =       -- tyConTyVars doesn't work on fun/prim, but we can make them up:
-                         let mk_hs_tv realKind fakeTyVar 
-                                = noLoc $ KindedTyVar (getName fakeTyVar) 
+                         let mk_hs_tv realKind fakeTyVar
+                                = noLoc $ KindedTyVar (getName fakeTyVar)
                                                       (synifyKindSig realKind)
                          in HsQTvs { hsq_kvs = []   -- No kind polymorphism
                                    , hsq_tvs = zipWith mk_hs_tv (fst (splitKindFunTys (tyConKind tc)))
                                                                 alphaTyVars --a, b, c... which are unfortunately all kind *
                                    }
-                            
-           , tcdDataDefn = HsDataDefn { dd_ND = DataType  -- arbitrary lie, they are neither 
+
+           , tcdDataDefn = HsDataDefn { dd_ND = DataType  -- arbitrary lie, they are neither
                                                     -- algebraic data nor newtype:
                                       , dd_ctxt = noLoc []
                                       , dd_cType = Nothing
@@ -159,7 +159,7 @@ synifyTyCon coax tc
                                       , dd_derivs = Nothing }
            , tcdFVs = placeHolderNames }
 
-  | isSynFamilyTyCon tc 
+  | isSynFamilyTyCon tc
   = case synTyConRhs_maybe tc of
       Just rhs ->
         let info = case rhs of
@@ -173,7 +173,7 @@ synifyTyCon coax tc
                                , fdKindSig = Just (synifyKindSig (synTyConResKind tc)) })
       Nothing -> error "synifyTyCon: impossible open type synonym?"
 
-  | isDataFamilyTyCon tc 
+  | isDataFamilyTyCon tc
   = --(why no "isOpenAlgTyCon"?)
     case algTyConRhs tc of
         DataFamilyTyCon ->
@@ -223,7 +223,7 @@ synifyTyCon coax tc
                     , dd_ctxt    = alg_ctx
                     , dd_cType   = Nothing
                     , dd_kindSig = fmap synifyKindSig kindSig
-                    , dd_cons    = cons 
+                    , dd_cons    = cons
                     , dd_derivs  = alg_deriv }
  in DataDecl { tcdLName = name, tcdTyVars = tyvars, tcdDataDefn = defn
              , tcdFVs = placeHolderNames }
@@ -299,7 +299,7 @@ synifyTyVars ktvs = HsQTvs { hsq_kvs = map tyVarName kvs
                            , hsq_tvs = map synifyTyVar tvs }
   where
     (kvs, tvs) = partition isKindVar ktvs
-    synifyTyVar tv 
+    synifyTyVar tv
       | isLiftedTypeKind kind = noLoc (UserTyVar name)
       | otherwise             = noLoc (KindedTyVar name (synifyKindSig kind))
       where
