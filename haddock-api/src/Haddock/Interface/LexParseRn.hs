@@ -21,7 +21,7 @@ module Haddock.Interface.LexParseRn
 import Control.Applicative
 import Data.IntSet (toList)
 import Data.List
-import Documentation.Haddock.Doc (docConcat)
+import Documentation.Haddock.Doc (metaDocConcat)
 import DynFlags (ExtensionFlag(..), languageExtensions)
 import FastString
 import GHC
@@ -32,31 +32,26 @@ import Name
 import Outputable (showPpr)
 import RdrName
 
-processDocStrings :: DynFlags -> GlobalRdrEnv -> [HsDocString] -> Maybe (Doc Name)
+processDocStrings :: DynFlags -> GlobalRdrEnv -> [HsDocString]
+                  -> Maybe (MDoc Name)
 processDocStrings dflags gre strs =
-  case docConcat $ map (processDocStringParas dflags gre) strs of
-    DocEmpty -> Nothing
+  case metaDocConcat $ map (processDocStringParas dflags gre) strs of
+    -- We check that we don't have any version info to render instead
+    -- of just checking if there is no comment: there may not be a
+    -- comment but we still want to pass through any meta data.
+    MetaDoc { _meta = Meta { _version = Nothing }, _doc = DocEmpty } -> Nothing
     x -> Just x
 
-
-processDocStringParas :: DynFlags -> GlobalRdrEnv -> HsDocString -> Doc Name
-processDocStringParas = process parseParas
-
+processDocStringParas :: DynFlags -> GlobalRdrEnv -> HsDocString -> MDoc Name
+processDocStringParas dflags gre (HsDocString fs) =
+  overDoc (rename dflags gre) $ parseParas dflags (unpackFS fs)
 
 processDocString :: DynFlags -> GlobalRdrEnv -> HsDocString -> Doc Name
-processDocString = process parseString
-
-process :: (DynFlags -> String -> Doc RdrName)
-        -> DynFlags
-        -> GlobalRdrEnv
-        -> HsDocString
-        -> Doc Name
-process parse dflags gre (HsDocString fs) =
-  rename dflags gre $ parse dflags (unpackFS fs)
-
+processDocString dflags gre (HsDocString fs) =
+  rename dflags gre $ parseString dflags (unpackFS fs)
 
 processModuleHeader :: DynFlags -> GlobalRdrEnv -> SafeHaskellMode -> Maybe LHsDocString
-                    -> ErrMsgM (HaddockModInfo Name, Maybe (Doc Name))
+                    -> ErrMsgM (HaddockModInfo Name, Maybe (MDoc Name))
 processModuleHeader dflags gre safety mayStr = do
   (hmi, doc) <-
     case mayStr of
@@ -66,7 +61,7 @@ processModuleHeader dflags gre safety mayStr = do
             (hmi, doc) = parseModuleHeader dflags str
             !descr = rename dflags gre <$> hmi_description hmi
             hmi' = hmi { hmi_description = descr }
-            doc' = rename dflags gre doc
+            doc' = overDoc (rename dflags gre) doc
         return (hmi', Just doc')
 
   let flags :: [ExtensionFlag]

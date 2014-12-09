@@ -12,7 +12,7 @@
 module Haddock.Interface.Rename (renameInterface) where
 
 
-import Data.Traversable (traverse)
+import Data.Traversable (traverse, Traversable)
 
 import Haddock.GhcUtils
 import Haddock.Types
@@ -160,9 +160,8 @@ renameLDocHsSyn :: LHsDocString -> RnM LHsDocString
 renameLDocHsSyn = return
 
 
-renameDoc :: Doc Name -> RnM (Doc DocName)
+renameDoc :: Traversable t => t Name -> RnM (t DocName)
 renameDoc = traverse rename
-
 
 renameFnArgsDoc :: FnArgsDoc Name -> RnM (FnArgsDoc DocName)
 renameFnArgsDoc = mapM renameDoc

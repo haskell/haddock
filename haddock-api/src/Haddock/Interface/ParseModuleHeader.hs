@@ -25,7 +25,7 @@ import RdrName
 -- NB.  The headers must be given in the order Module, Description,
 -- Copyright, License, Maintainer, Stability, Portability, except that
 -- any or all may be omitted.
-parseModuleHeader :: DynFlags -> String -> (HaddockModInfo RdrName, Doc RdrName)
+parseModuleHeader :: DynFlags -> String -> (HaddockModInfo RdrName, MDoc RdrName)
 parseModuleHeader dflags str0 =
    let
       getKey :: String -> String -> (Maybe String,String)
