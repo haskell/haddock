@@ -234,7 +234,7 @@ processExport (ExportNoDecl y subs)
 processExport (ExportModule mdl)
   = declWithDoc (text "module" <+> text (moduleString mdl)) Nothing
 processExport (ExportDoc doc)
-  = docToLaTeX doc
+  = docToLaTeX $ _doc doc
 
 
 ppDocGroup :: Int -> LaTeX -> LaTeX
@@ -393,7 +393,7 @@ ppTypeOrFunSig _ _ typ (doc, argDocs) (pref1, pref2, sep0)
   where
      do_largs n leader (L _ t) = do_args n leader t
 
-     arg_doc n = rDoc (Map.lookup n argDocs)
+     arg_doc n = rDoc . fmap _doc $ Map.lookup n argDocs
 
      do_args :: Int -> LaTeX -> (HsType DocName) -> LaTeX
      do_args n leader (HsForAllTy Explicit tvs lctxt ltype)
@@ -553,7 +553,7 @@ isUndocdInstance _ = Nothing
 -- style.
 ppDocInstance :: Bool -> DocInstance DocName -> LaTeX
 ppDocInstance unicode (instHead, doc) =
-  declWithDoc (ppInstDecl unicode instHead) (fmap docToLaTeX doc)
+  declWithDoc (ppInstDecl unicode instHead) (fmap docToLaTeX $ fmap _doc doc)
 
 
 ppInstDecl :: Bool -> InstHead DocName -> LaTeX
@@ -674,7 +674,8 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
     forall  = con_explicit con
     -- don't use "con_doc con", in case it's reconstructed from a .hi file,
     -- or also because we want Haddock to do the doc-parsing, not GHC.
-    mbDoc = lookup (unLoc $ con_name con) subdocs >>= combineDocumentation . fst
+    mbDoc = lookup (unLoc $ con_name con) subdocs
+            >>= fmap _doc . combineDocumentation . fst
     mkFunTy a b = noLoc (HsFunTy a b)
 
 
@@ -684,7 +685,7 @@ ppSideBySideField subdocs unicode (ConDeclField (L _ name) ltype _) =
     <+> dcolon unicode <+> ppLType unicode ltype) <-> rDoc mbDoc
   where
     -- don't use cd_fld_doc for same reason we don't use con_doc above
-    mbDoc = lookup name subdocs >>= combineDocumentation . fst
+    mbDoc = lookup name subdocs >>= fmap _doc . combineDocumentation . fst
 
 -- {-
 -- ppHsFullConstr :: HsConDecl -> LaTeX
@@ -1105,7 +1106,7 @@ docToLaTeX doc = markup latexMarkup doc Plain
 
 
 documentationToLaTeX :: Documentation DocName -> Maybe LaTeX
-documentationToLaTeX = fmap docToLaTeX . combineDocumentation
+documentationToLaTeX = fmap docToLaTeX . fmap _doc . combineDocumentation
 
 
 rdrDocToLaTeX :: Doc RdrName -> LaTeX

@@ -207,12 +207,14 @@ ppCtor dflags dat subdocs con = lookupCon dflags subdocs (con_name con)
 -- DOCUMENTATION
 
 ppDocumentation :: Outputable o => DynFlags -> Documentation o -> [String]
-ppDocumentation dflags (Documentation d w) = doc dflags d ++ doc dflags w
+ppDocumentation dflags (Documentation d w) = mdoc dflags d ++ doc dflags w
 
 
 doc :: Outputable o => DynFlags -> Maybe (Doc o) -> [String]
 doc dflags = docWith dflags ""
 
+mdoc :: Outputable o => DynFlags -> Maybe (MDoc o) -> [String]
+mdoc dflags = docWith dflags "" . fmap _doc
 
 docWith :: Outputable o => DynFlags -> String -> Maybe (Doc o) -> [String]
 docWith _ [] Nothing = []

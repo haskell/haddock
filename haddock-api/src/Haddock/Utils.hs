@@ -39,6 +39,7 @@ module Haddock.Utils (
   -- * Doc markup
   markup,
   idMarkup,
+  mkMeta,
 
   -- * List utilities
   replace,
@@ -56,6 +57,7 @@ module Haddock.Utils (
  ) where
 
 
+import Documentation.Haddock.Doc (emptyMetaDoc)
 import Haddock.Types
 import Haddock.GhcUtils
 
@@ -110,14 +112,16 @@ out progVerbosity msgVerbosity msg
 
 
 -- | Extract a module's short description.
-toDescription :: Interface -> Maybe (Doc Name)
-toDescription = hmi_description . ifaceInfo
+toDescription :: Interface -> Maybe (MDoc Name)
+toDescription = fmap mkMeta . hmi_description . ifaceInfo
 
 
 -- | Extract a module's short description.
-toInstalledDescription :: InstalledInterface -> Maybe (Doc Name)
-toInstalledDescription = hmi_description . instInfo
+toInstalledDescription :: InstalledInterface -> Maybe (MDoc Name)
+toInstalledDescription = fmap mkMeta . hmi_description . instInfo
 
+mkMeta :: Doc a -> MDoc a
+mkMeta x = emptyMetaDoc { _doc = x }
 
 --------------------------------------------------------------------------------
 -- * Making abstract declarations

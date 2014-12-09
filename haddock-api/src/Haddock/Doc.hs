@@ -7,11 +7,14 @@ module Haddock.Doc ( module Documentation.Haddock.Doc
 import Data.Maybe
 import Documentation.Haddock.Doc
 import Haddock.Types
+import Haddock.Utils (mkMeta)
 
-combineDocumentation :: Documentation name -> Maybe (Doc name)
+combineDocumentation :: Documentation name -> Maybe (MDoc name)
 combineDocumentation (Documentation Nothing Nothing) = Nothing
 combineDocumentation (Documentation mDoc mWarning)   =
-  Just (fromMaybe DocEmpty mWarning `docAppend` fromMaybe DocEmpty mDoc)
+  Just (maybe emptyMetaDoc mkMeta mWarning
+        `metaDocAppend`
+        fromMaybe emptyMetaDoc mDoc)
 
 -- Drop trailing whitespace from @..@ code blocks.  Otherwise this:
 --
