@@ -82,7 +82,7 @@ data Flag
   | Flag_NoTmpCompDir
   | Flag_Qualification String
   | Flag_PrettyHtml
-  | Flag_PrintMissingDocs
+  | Flag_NoPrintMissingDocs
   deriving (Eq)
 
 
@@ -170,8 +170,8 @@ options backwardsCompat =
       "do not re-direct compilation output to a temporary directory",
     Option [] ["pretty-html"] (NoArg Flag_PrettyHtml)
       "generate html with newlines and indenting (for use with --html)",
-    Option [] ["print-missing-docs"] (NoArg Flag_PrintMissingDocs)
-      "print information about any undocumented entities"
+    Option [] ["no-print-missing-docs"] (NoArg Flag_NoPrintMissingDocs)
+      "don't print information about any undocumented entities"
   ]
 
 
