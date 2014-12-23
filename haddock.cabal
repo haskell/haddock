@@ -1,5 +1,5 @@
 name:                 haddock
-version:              2.15.0
+version:              2.15.0.1
 synopsis:             A documentation-generation tool for Haskell libraries
 description:          Haddock is a documentation-generation tool for Haskell
                       libraries
@@ -57,7 +57,7 @@ executable haddock
       array,
       xhtml >= 3000.2 && < 3000.3,
       Cabal >= 1.10,
-      ghc == 7.8.3,
+      ghc >= 7.8.2 && <= 7.8.4,
       bytestring
 
     other-modules:
@@ -108,7 +108,7 @@ executable haddock
       Haddock.GhcUtils
       Haddock.Convert
   else
-    build-depends:  haddock-api == 2.15.0
+    build-depends:  haddock-api == 2.15.0.1
 
 test-suite html-test
   type:             exitcode-stdio-1.0
