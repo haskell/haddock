@@ -1,11 +1,13 @@
-Haddock, a Haskell Documentation Tool
-=====================================
+# Haddock, a Haskell Documentation Tool
 
+
+#### About haddock
+  
 This is Haddock, a tool for automatically generating documentation
 from annotated Haskell source code.  It is primary intended for
 documenting library interfaces, but it should be useful for any kind
 of Haskell code.
-
+  
 Haddock lets you write documentation annotations next to the
 definitions of functions and types in the source code, in a syntax
 that is easy on the eye when writing the source code (no heavyweight
@@ -26,12 +28,20 @@ generated.  Abstract types and classes are handled correctly.  In
 fact, even without any documentation annotations, Haddock can generate
 useful documentation from your source code.
 
+
+#### Documentation formats  
+  
 Haddock can generate documentation in multiple formats; currently HTML
 is implemented, and there is partial support for generating LaTeX and
 Hoogle.
 
+
+#### Source code documentation
+  
 Full documentation can be found in the doc/ subdirectory, in DocBook
 format.
 
-Please create issues when you have any problems and pull requests if
-you have some code.
+
+#### Contributing
+  
+Please create issues when you have any problems and pull requests if you have some code.
