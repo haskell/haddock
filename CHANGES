@@ -1,3 +1,8 @@
+Changes in version 2.15.0.2
+
+ * This release is identical to 2.15.0.2 except the GHC version bound
+   which was made more lenient.
+
 Changes in version 2.15.0.1
 
  * This release is identical to 2.15.0 except the GHC version bound.
