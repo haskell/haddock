@@ -18,7 +18,6 @@ module Haddock.Backends.Xhtml.Themes (
 
 import Haddock.Options
 
-import Control.Applicative
 import Control.Monad (liftM)
 import Data.Char (toLower)
 import Data.Either (lefts, rights)
@@ -206,4 +205,3 @@ liftEither f = either Left (Right . f)
 
 concatEither :: [Either a [b]] -> Either a [b]
 concatEither = liftEither concat . sequenceEither
-
