@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -----------------------------------------------------------------------------
 -- |
@@ -34,6 +35,8 @@ import GHC hiding (NoLink)
 import DynFlags (ExtensionFlag, Language)
 import OccName
 import Outputable
+import NameSet (NameSet)
+import Coercion (Coercion)
 import Control.Applicative (Applicative(..))
 import Control.Monad (ap)
 
@@ -279,6 +282,15 @@ data DocName
      -- documentation, as far as Haddock knows.
   deriving Eq
 
+type instance PostRn DocName Name     = DocName
+type instance PostRn DocName NameSet  = PlaceHolder
+type instance PostRn DocName Fixity   = PlaceHolder
+type instance PostRn DocName Bool     = PlaceHolder
+type instance PostRn DocName [Name]   = PlaceHolder
+
+type instance PostTc DocName Kind     = PlaceHolder
+type instance PostTc DocName Type     = PlaceHolder
+type instance PostTc DocName Coercion = PlaceHolder
 
 instance NamedThing DocName where
   getName (Documented name _) = name
