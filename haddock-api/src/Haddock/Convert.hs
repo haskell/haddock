@@ -30,6 +30,7 @@ import Haddock.Types
 import HsSyn
 import Kind ( splitKindFunTys, synTyConResKind, isKind )
 import Name
+import RdrName ( mkVarUnqual )
 import PatSyn
 import PrelNames (ipClassName)
 import SrcLoc ( Located, noLoc, unLoc, noSrcSpan )
@@ -274,9 +275,12 @@ synifyDataCon use_gadt_syntax dc =
             -- HsNoBang never appears, it's implied instead.
           )
           arg_tys (dataConSrcBangs dc)
-  field_tys = zipWith (\field synTy -> noLoc $ ConDeclField
-                                               [synifyName field] synTy Nothing)
-                (dataConFieldLabels dc) linear_tys
+
+  field_tys = zipWith con_decl_field (dataConFieldLabels dc) linear_tys
+  con_decl_field fl synTy = noLoc $
+    ConDeclField [(noLoc $ mkVarUnqual $ flLabel fl, flSelector fl)] synTy
+                 Nothing
+
   hs_arg_tys = case (use_named_field_syntax, use_infix_syntax) of
           (True,True) -> Left "synifyDataCon: contradiction!"
           (True,False) -> return $ RecCon (noLoc field_tys)

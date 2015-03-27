@@ -686,12 +686,12 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
 
 ppSideBySideField :: [(DocName, DocForDecl DocName)] -> Bool -> ConDeclField DocName ->  LaTeX
 ppSideBySideField subdocs unicode (ConDeclField names ltype _) =
-  decltt (cat (punctuate comma (map (ppBinder . nameOccName . getName . unL) names))
+  decltt (cat (punctuate comma (map (ppBinder . rdrNameOcc . unLoc . fst) names))
     <+> dcolon unicode <+> ppLType unicode ltype) <-> rDoc mbDoc
   where
     -- don't use cd_fld_doc for same reason we don't use con_doc above
     -- Where there is more than one name, they all have the same documentation
-    mbDoc = lookup (unL $ head names) subdocs >>= fmap _doc . combineDocumentation . fst
+    mbDoc = lookup (snd $ head names) subdocs >>= fmap _doc . combineDocumentation . fst
 
 -- {-
 -- ppHsFullConstr :: HsConDecl -> LaTeX

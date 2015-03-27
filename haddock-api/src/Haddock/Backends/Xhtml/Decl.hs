@@ -727,18 +727,18 @@ ppSideBySideConstr subdocs fixities unicode qual (L _ con) = (decl, mbDoc, field
 ppSideBySideField :: [(DocName, DocForDecl DocName)] -> Unicode -> Qualification
                   -> ConDeclField DocName -> SubDecl
 ppSideBySideField subdocs unicode qual (ConDeclField names ltype _) =
-  (hsep (punctuate comma (map ((ppBinder False) . nameOccName . getName . unL) names)) <+> dcolon unicode <+> ppLType unicode qual ltype,
+  (hsep (punctuate comma (map ((ppBinder False) . nameOccName . getName . snd) names)) <+> dcolon unicode <+> ppLType unicode qual ltype,
     mbDoc,
     [])
   where
     -- don't use cd_fld_doc for same reason we don't use con_doc above
     -- Where there is more than one name, they all have the same documentation
-    mbDoc = lookup (unL $ head names) subdocs >>= combineDocumentation . fst
+    mbDoc = lookup (snd $ head names) subdocs >>= combineDocumentation . fst
 
 
 ppShortField :: Bool -> Unicode -> Qualification -> ConDeclField DocName -> Html
 ppShortField summary unicode qual (ConDeclField names ltype _)
-  = hsep (punctuate comma (map ((ppBinder summary) . nameOccName . getName . unL) names))
+  = hsep (punctuate comma (map ((ppBinder summary) . nameOccName . getName . snd) names))
     <+> dcolon unicode <+> ppLType unicode qual ltype
 
 
