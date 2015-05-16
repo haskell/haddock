@@ -68,6 +68,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupAName                = \aname -> namedAnchor aname << "",
   markupPic                  = \(Picture uri t) -> image ! ([src uri] ++ fromMaybe [] (return . title <$> t)),
   markupMathInline           = \mathjax -> toHtml ("\\(" ++ mathjax ++ "\\)"),
+  markupMathDisplay          = \mathjax -> toHtml ("\\[" ++ mathjax ++ "\\]"),
   markupProperty             = pre . toHtml,
   markupExample              = examplesToHtml,
   markupHeader               = \(Header l t) -> makeHeader l t
