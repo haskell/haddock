@@ -620,6 +620,10 @@ hiDecl dflags t = do
                    O.text "-- Please report this on Haddock issue tracker!"
       bugWarn = O.showSDoc dflags . warnLine
 
+-- | This function is called for top-level bindings without type signatures.
+-- It gets the type signature from GHC and that means it's not going to
+-- have a meaningful 'SrcSpan'. So we pass down 'SrcSpan' for the
+-- declaration and use it instead - 'nLoc' here.
 hiValExportItem :: DynFlags -> Name -> SrcSpan -> DocForDecl Name -> Bool
                 -> Maybe Fixity -> ErrMsgGhc (ExportItem Name)
 hiValExportItem dflags name nLoc doc splice fixity = do
@@ -628,8 +632,6 @@ hiValExportItem dflags name nLoc doc splice fixity = do
     Nothing -> return (ExportNoDecl name [])
     Just decl -> return (ExportDecl (fixSpan decl) doc [] [] fixities splice)
   where
-    -- inferred type signatures have UnhelpfulSpans, so we have to use one
-    -- from the declaration (nLoc here)
     fixSpan (L l t) = L (SrcLoc.combineSrcSpans l nLoc) t
     fixities = case fixity of
       Just f  -> [(name, f)]
