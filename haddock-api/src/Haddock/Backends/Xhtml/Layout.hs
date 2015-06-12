@@ -44,7 +44,6 @@ import Haddock.Backends.Xhtml.Types
 import Haddock.Backends.Xhtml.Utils
 import Haddock.Types
 import Haddock.Utils (makeAnchorId)
-import Haddock.GhcUtils
 import qualified Data.Map as Map
 import Text.XHtml hiding ( name, title, p, quote )
 
@@ -232,7 +231,7 @@ links ((_,_,sourceMap,lineMap), (_,_,maybe_wiki_url)) loc splice (Documented n m
                                         -- Use the lineUrl as a backup
                            | otherwise = maybe lineUrl Just nameUrl in
           case mUrl of
-            Nothing  -> paragraph << moduleString origMod
+            Nothing  -> noHtml
             Just url -> let url' = spliceURL (Just fname) (Just origMod)
                                                (Just n) (Just loc) url
                           in anchor ! [href url', theclass "link"] << "Source"
