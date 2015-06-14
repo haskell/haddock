@@ -25,6 +25,7 @@ module Haddock.Options (
   wikiUrls,
   optDumpInterfaceFile,
   optLaTeXStyle,
+  optMathjax,
   qualification,
   verbosity,
   ghcFlags,
@@ -66,6 +67,7 @@ data Flag
   | Flag_WikiEntityURL String
   | Flag_LaTeX
   | Flag_LaTeXStyle String
+  | Flag_Mathjax String
   | Flag_Help
   | Flag_Verbosity String
   | Flag_Version
@@ -113,6 +115,7 @@ options backwardsCompat =
       "output in HTML (XHTML 1.0)",
     Option []  ["latex"]  (NoArg Flag_LaTeX) "use experimental LaTeX rendering",
     Option []  ["latex-style"]  (ReqArg Flag_LaTeXStyle "FILE") "provide your own LaTeX style in FILE",
+    Option []  ["mathjax"]  (ReqArg Flag_Mathjax "URL") "URL FOR mathjax",
     Option ['U'] ["use-unicode"] (NoArg Flag_UseUnicode) "use Unicode in HTML output",
     Option []  ["hoogle"]     (NoArg Flag_Hoogle)
       "output for Hoogle; you may want --package-name and --package-version too",
@@ -261,6 +264,10 @@ optDumpInterfaceFile flags = optLast [ str | Flag_DumpInterface str <- flags ]
 
 optLaTeXStyle :: [Flag] -> Maybe String
 optLaTeXStyle flags = optLast [ str | Flag_LaTeXStyle str <- flags ]
+
+
+optMathjax :: [Flag] -> Maybe String
+optMathjax flags = optLast [ str | Flag_Mathjax str <- flags ]
 
 
 qualification :: [Flag] -> Either String QualOption
