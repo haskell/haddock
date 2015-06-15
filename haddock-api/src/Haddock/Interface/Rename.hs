@@ -231,8 +231,7 @@ renameType t = case t of
   HsExplicitListTy  a b   -> HsExplicitListTy  a <$> mapM renameLType b
   HsExplicitTupleTy a b   -> HsExplicitTupleTy a <$> mapM renameLType b
   HsSpliceTy _ _          -> error "renameType: HsSpliceTy"
-  HsWildcardTy            -> pure HsWildcardTy
-  HsNamedWildcardTy a     -> HsNamedWildcardTy <$> rename a
+  HsWildCardTy a          -> HsWildCardTy <$> renameWildCardInfo a
 
 renameLTyVarBndrs :: LHsTyVarBndrs Name -> RnM (LHsTyVarBndrs DocName)
 renameLTyVarBndrs (HsQTvs { hsq_kvs = _, hsq_tvs = tvs })
@@ -253,6 +252,10 @@ renameLContext :: Located [LHsType Name] -> RnM (Located [LHsType DocName])
 renameLContext (L loc context) = do
   context' <- mapM renameLType context
   return (L loc context')
+
+renameWildCardInfo :: HsWildCardInfo Name -> RnM (HsWildCardInfo DocName)
+renameWildCardInfo (AnonWildCard  name) = AnonWildCard  <$> rename name
+renameWildCardInfo (NamedWildCard name) = NamedWildCard <$> rename name
 
 renameInstHead :: InstHead Name -> RnM (InstHead DocName)
 renameInstHead (className, k, types, rest) = do
@@ -344,7 +347,7 @@ renameFamilyInfo :: FamilyInfo Name -> RnM (FamilyInfo DocName)
 renameFamilyInfo DataFamily     = return DataFamily
 renameFamilyInfo OpenTypeFamily = return OpenTypeFamily
 renameFamilyInfo (ClosedTypeFamily eqns)
-  = do { eqns' <- mapM renameLTyFamInstEqn eqns
+  = do { eqns' <- mapM (mapM renameLTyFamInstEqn) eqns
        ; return $ ClosedTypeFamily eqns' }
 
 renameDataDefn :: HsDataDefn Name -> RnM (HsDataDefn DocName)
