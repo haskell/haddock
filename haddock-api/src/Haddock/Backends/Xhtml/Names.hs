@@ -110,16 +110,21 @@ ppName notation name = wrapInfix notation (getOccName name) $ toHtml (getOccStri
 
 
 ppBinder :: Bool -> OccName -> Html
--- The Bool indicates whether we are generating the summary, in which case
--- the binder will be a link to the full definition.
-ppBinder True n = linkedAnchor (nameAnchorId n) << ppBinder' Prefix n
-ppBinder False n = namedAnchor (nameAnchorId n) ! [theclass "def"]
-                        << ppBinder' Prefix n
+ppBinder = ppBinderWith Prefix
 
 ppBinderInfix :: Bool -> OccName -> Html
-ppBinderInfix True n = linkedAnchor (nameAnchorId n) << ppBinder' Infix n
-ppBinderInfix False n = namedAnchor (nameAnchorId n) ! [theclass "def"]
-                             << ppBinder' Infix n
+ppBinderInfix = ppBinderWith Infix
+
+ppBinderWith :: Notation -> Bool -> OccName -> Html
+-- 'isRef' indicates whether this is merely a reference from another part of
+-- the documentation or is the actual definition; in the latter case, we also
+-- set the 'id' and 'class' attributes.
+ppBinderWith notation isRef n =
+  linkedAnchor name ! attributes << ppBinder' notation n
+  where
+    name = nameAnchorId n
+    attributes | isRef     = []
+               | otherwise = [identifier name, theclass "def"]
 
 ppBinder' :: Notation -> OccName -> Html
 ppBinder' notation n = wrapInfix notation n $ ppOccName n
