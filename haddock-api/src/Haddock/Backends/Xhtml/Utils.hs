@@ -14,7 +14,7 @@ module Haddock.Backends.Xhtml.Utils (
   renderToString,
 
   namedAnchor, linkedAnchor,
-  spliceURL,
+  spliceURL, spliceURL',
   groupId,
 
   (<+>), (<=>), char,
@@ -29,7 +29,6 @@ module Haddock.Backends.Xhtml.Utils (
 ) where
 
 
-import Haddock.GhcUtils
 import Haddock.Utils
 
 import Data.Maybe
@@ -38,18 +37,23 @@ import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 
 import GHC      ( SrcSpan(..), srcSpanStartLine, Name )
-import Module   ( Module )
+import Module   ( Module, ModuleName, moduleName, moduleNameString )
 import Name     ( getOccString, nameOccName, isValOcc )
 
 
 spliceURL :: Maybe FilePath -> Maybe Module -> Maybe GHC.Name ->
              Maybe SrcSpan -> String -> String
-spliceURL maybe_file maybe_mod maybe_name maybe_loc = run
+spliceURL mfile mmod = spliceURL' mfile (moduleName <$> mmod)
+
+
+spliceURL' :: Maybe FilePath -> Maybe ModuleName -> Maybe GHC.Name ->
+              Maybe SrcSpan -> String -> String
+spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
  where
   file = fromMaybe "" maybe_file
   mdl = case maybe_mod of
           Nothing           -> ""
-          Just m -> moduleString m
+          Just m -> moduleNameString m
 
   (name, kind) =
     case maybe_name of
