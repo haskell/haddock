@@ -9,7 +9,7 @@
 -- Stability   :  experimental
 -- Portability :  portable
 -----------------------------------------------------------------------------
-module Haddock.Version ( 
+module Haddock.Version (
   projectName, projectVersion, projectUrl
 ) where
 
