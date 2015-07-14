@@ -389,11 +389,15 @@ renameCon decl@(ConDecl { con_names = lnames, con_qvars = ltyvars
 
 renameConDeclFieldField :: LConDeclField Name -> RnM (LConDeclField DocName)
 renameConDeclFieldField (L l (ConDeclField names t doc)) = do
-  names' <- mapM (traverse rename) names
+  names' <- mapM renameLFieldOcc names
   t'   <- renameLType t
   doc' <- mapM renameLDocHsSyn doc
   return $ L l (ConDeclField names' t' doc')
 
+renameLFieldOcc :: LFieldOcc Name -> RnM (LFieldOcc DocName)
+renameLFieldOcc (L l (FieldOcc lbl sel)) = do
+  sel' <- rename sel
+  return $ L l (FieldOcc lbl sel')
 
 renameSig :: Sig Name -> RnM (Sig DocName)
 renameSig sig = case sig of
@@ -481,7 +485,6 @@ renameDataFamInstD (DataFamInstDecl { dfid_tycon = tc, dfid_pats = pats_w_bndrs,
        ; pats' <- mapM renameLType (hswb_cts pats_w_bndrs)
        ; defn' <- renameDataDefn defn
        ; return (DataFamInstDecl { dfid_tycon = tc'
-                                 , dfid_rep_tycon = Nothing
                                  , dfid_pats
                                        = HsWB pats' PlaceHolder PlaceHolder PlaceHolder
                                  , dfid_defn = defn', dfid_fvs = placeHolderNames }) }

@@ -563,6 +563,7 @@ type instance PostRn DocName Fixity   = PlaceHolder
 type instance PostRn DocName Bool     = PlaceHolder
 type instance PostRn DocName Name     = DocName
 type instance PostRn DocName [Name]   = PlaceHolder
+type instance PostRn DocName DocName  = DocName
 
 type instance PostTc DocName Kind     = PlaceHolder
 type instance PostTc DocName Type     = PlaceHolder

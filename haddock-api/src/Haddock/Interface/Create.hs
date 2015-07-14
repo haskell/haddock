@@ -334,10 +334,10 @@ subordinates instMap decl = case decl of
         cons = map unL $ (dd_cons dd)
         constrs = [ (unL cname, maybeToList $ fmap unL $ con_doc c, M.empty)
                   | c <- cons, cname <- con_names c ]
-        fields  = [ (snd n, maybeToList $ fmap unL doc, M.empty)
+        fields  = [ (selectorFieldOcc n, maybeToList $ fmap unL doc, M.empty)
                   | RecCon flds <- map con_details cons
                   , L _ (ConDeclField ns _ doc) <- (unLoc flds)
-                  , n <- ns ]
+                  , L _ n <- ns ]
 
 -- | Extract function argument docs from inside types.
 typeDocs :: HsDecl Name -> Map Int HsDocString
@@ -787,8 +787,8 @@ extractDecl name mdl decl
         let matches = [ d | L _ d <- insts
                           , L _ ConDecl { con_details = RecCon rec } <- dd_cons (dfid_defn d)
                           , ConDeclField { cd_fld_names = ns } <- map unLoc (unLoc rec)
-                          , n <- ns
-                          , snd n == name
+                          , L _ n <- ns
+                          , selectorFieldOcc n == name
                       ]
         in case matches of
           [d0] -> extractDecl name mdl (noLoc . InstD $ DataFamInstD d0)
@@ -819,12 +819,13 @@ extractRecSel _ _ _ _ [] = error "extractRecSel: selector not found"
 
 extractRecSel nm mdl t tvs (L _ con : rest) =
   case con_details con of
-    RecCon (L _ fields) | ((n,L _ (ConDeclField _nn ty _)) : _) <- matching_fields fields ->
-      L (getLoc n) (TypeSig [noLoc nm] (noLoc (HsFunTy data_ty (getBangType ty))) [])
+    RecCon (L _ fields) | ((l,L _ (ConDeclField _nn ty _)) : _) <- matching_fields fields ->
+      L l (TypeSig [noLoc nm] (noLoc (HsFunTy data_ty (getBangType ty))) [])
     _ -> extractRecSel nm mdl t tvs rest
  where
-  matching_fields :: [LConDeclField Name] -> [(Located RdrName, LConDeclField Name)]
-  matching_fields flds = [ (fst n,f) | f@(L _ (ConDeclField ns _ _)) <- flds, n <- ns, snd n == nm ]
+  matching_fields :: [LConDeclField Name] -> [(SrcSpan, LConDeclField Name)]
+  matching_fields flds = [ (l,f) | f@(L _ (ConDeclField ns _ _)) <- flds
+                                 , L l n <- ns, selectorFieldOcc n == nm ]
   data_ty
     | ResTyGADT _ ty <- con_res con = ty
     | otherwise = foldl' (\x y -> noLoc (HsAppTy x y)) (noLoc (HsTyVar t)) tvs
