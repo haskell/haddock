@@ -1,7 +1,11 @@
 module Haddock.Backends.Hyperlinker.Utils
     ( hypSrcDir, hypSrcModuleFile, hypSrcModuleFile'
-    , hypSrcModuleUrl, hypSrcModuleUrl', hypSrcNameUrl, hypSrcModuleNameUrl
-    , hypSrcModuleUrlFormat, hypSrcModuleNameUrlFormat,
+    , hypSrcModuleUrl, hypSrcModuleUrl'
+    , hypSrcNameUrl
+    , hypSrcLineUrl
+    , hypSrcModuleNameUrl, hypSrcModuleLineUrl
+    , hypSrcModuleUrlFormat
+    , hypSrcModuleNameUrlFormat, hypSrcModuleLineUrlFormat
     ) where
 
 
@@ -31,8 +35,15 @@ hypSrcNameUrl :: Name -> String
 hypSrcNameUrl name = spliceURL
     Nothing Nothing (Just name) Nothing nameFormat
 
+hypSrcLineUrl :: SrcSpan -> String
+hypSrcLineUrl spn = spliceURL
+    Nothing Nothing Nothing (Just spn) lineFormat
+
 hypSrcModuleNameUrl :: Module -> Name -> String
 hypSrcModuleNameUrl mdl name = hypSrcModuleUrl mdl ++ "#" ++ hypSrcNameUrl name
+
+hypSrcModuleLineUrl :: Module -> SrcSpan -> String
+hypSrcModuleLineUrl mdl spn = hypSrcModuleUrl mdl ++ "#" ++ hypSrcLineUrl spn
 
 hypSrcModuleUrlFormat :: String
 hypSrcModuleUrlFormat = hypSrcDir </> moduleFormat
@@ -40,8 +51,14 @@ hypSrcModuleUrlFormat = hypSrcDir </> moduleFormat
 hypSrcModuleNameUrlFormat :: String
 hypSrcModuleNameUrlFormat = hypSrcModuleUrlFormat ++ "#" ++ nameFormat
 
+hypSrcModuleLineUrlFormat :: String
+hypSrcModuleLineUrlFormat = hypSrcModuleUrlFormat ++ "#" ++ lineFormat
+
 moduleFormat :: String
 moduleFormat = "%{MODULE}.html"
 
 nameFormat :: String
 nameFormat = "%{NAME}"
+
+lineFormat :: String
+lineFormat = "%{LINE}"
