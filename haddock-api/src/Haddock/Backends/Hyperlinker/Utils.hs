@@ -12,6 +12,7 @@ module Haddock.Backends.Hyperlinker.Utils
 import Haddock.Backends.Xhtml.Utils
 
 import GHC
+import FastString
 import System.FilePath.Posix ((</>))
 
 
@@ -35,15 +36,18 @@ hypSrcNameUrl :: Name -> String
 hypSrcNameUrl name = spliceURL
     Nothing Nothing (Just name) Nothing nameFormat
 
-hypSrcLineUrl :: SrcSpan -> String
-hypSrcLineUrl spn = spliceURL
+hypSrcLineUrl :: Int -> String
+hypSrcLineUrl line = spliceURL
     Nothing Nothing Nothing (Just spn) lineFormat
+  where
+    loc = mkSrcLoc nilFS line 1
+    spn = mkSrcSpan loc loc
 
 hypSrcModuleNameUrl :: Module -> Name -> String
 hypSrcModuleNameUrl mdl name = hypSrcModuleUrl mdl ++ "#" ++ hypSrcNameUrl name
 
-hypSrcModuleLineUrl :: Module -> SrcSpan -> String
-hypSrcModuleLineUrl mdl spn = hypSrcModuleUrl mdl ++ "#" ++ hypSrcLineUrl spn
+hypSrcModuleLineUrl :: Module -> Int -> String
+hypSrcModuleLineUrl mdl line = hypSrcModuleUrl mdl ++ "#" ++ hypSrcLineUrl line
 
 hypSrcModuleUrlFormat :: String
 hypSrcModuleUrlFormat = hypSrcDir </> moduleFormat
@@ -61,4 +65,4 @@ nameFormat :: String
 nameFormat = "%{NAME}"
 
 lineFormat :: String
-lineFormat = "%{LINE}"
+lineFormat = "line-%{LINE}"
