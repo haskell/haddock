@@ -1,6 +1,3 @@
-#!/usr/bin/env runhaskell
-{-# LANGUAGE CPP #-}
-
 
 import Control.Monad
 
