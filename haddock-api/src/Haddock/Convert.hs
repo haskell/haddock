@@ -28,19 +28,19 @@ import DataCon
 import FamInstEnv
 import Haddock.Types
 import HsSyn
-import Kind ( splitKindFunTys, synTyConResKind, isKind )
+import Kind ( splitKindFunTys, tyConResKind, isKind )
 import Name
 import RdrName ( mkVarUnqual )
 import PatSyn
-import PrelNames (ipClassName)
 import SrcLoc ( Located, noLoc, unLoc, noSrcSpan )
 import TcType ( tcSplitSigmaTy )
 import TyCon
 import Type (isStrLitTy, mkFunTys)
 import TypeRep
 import TysPrim ( alphaTyVars )
-import TysWiredIn ( listTyConName, eqTyCon )
+import TysWiredIn ( listTyConName, eqTyCon, ipTyCon )
 import Unique ( getUnique )
+import Util ( filterByList )
 import Var
 
 
@@ -167,33 +167,38 @@ synifyTyCon coax tc
   | isTypeFamilyTyCon tc
   = case famTyConFlav_maybe tc of
       Just rhs ->
-        let info = case rhs of
+        let resultVar = famTcResVar tc
+            info = case rhs of
               OpenSynFamilyTyCon -> return OpenTypeFamily
               ClosedSynFamilyTyCon mb -> case mb of
                   Just (CoAxiom { co_ax_branches = branches })
                           -> return $ ClosedTypeFamily $ Just $
-                               brListMap (noLoc . synifyAxBranch tc) branches
+                               map (noLoc . synifyAxBranch tc) (fromBranches branches)
                   Nothing -> return $ ClosedTypeFamily $ Just []
               BuiltInSynFamTyCon {}
                 -> return $ ClosedTypeFamily $ Just []
               AbstractClosedSynFamilyTyCon {}
                 -> return $ ClosedTypeFamily Nothing
         in info >>= \i ->
-           return (FamDecl
-                   (FamilyDecl { fdInfo = i
-                               , fdLName = synifyName tc
-                               , fdTyVars = synifyTyVars (tyConTyVars tc)
-                               , fdKindSig =
-                                 Just (synifyKindSig (synTyConResKind tc))
-                               }))
+           return (FamDecl (FamilyDecl { fdInfo = i
+                          , fdLName = synifyName tc
+                          , fdTyVars = synifyTyVars (tyConTyVars tc)
+                          , fdResultSig =
+                              synifyFamilyResultSig resultVar (tyConResKind tc)
+                          , fdInjectivityAnn =
+                              synifyInjectivityAnn  resultVar (tyConTyVars tc)
+                                               (familyTyConInjectivityInfo tc)
+                          }))
       Nothing -> Left "synifyTyCon: impossible open type synonym?"
 
   | isDataFamilyTyCon tc
   = --(why no "isOpenAlgTyCon"?)
     case algTyConRhs tc of
         DataFamilyTyCon -> return $
-          FamDecl (FamilyDecl DataFamily (synifyName tc) (synifyTyVars (tyConTyVars tc))
-                              Nothing) --always kind '*'
+          FamDecl (FamilyDecl DataFamily (synifyName tc)
+                              (synifyTyVars (tyConTyVars tc))
+                              (noLoc NoSig) -- always kind '*'
+                              Nothing)      -- no injectivity
         _ -> Left "synifyTyCon: impossible open data type?"
   | Just ty <- synTyConRhs_maybe tc
   = return $ SynDecl { tcdLName = synifyName tc
@@ -244,6 +249,20 @@ synifyTyCon coax tc
                  , tcdFVs = placeHolderNamesTc }
   dataConErrs -> Left $ unlines dataConErrs
 
+synifyInjectivityAnn :: Maybe Name -> [TyVar] -> Injectivity
+                     -> Maybe (LInjectivityAnn Name)
+synifyInjectivityAnn Nothing _ _            = Nothing
+synifyInjectivityAnn _       _ NotInjective = Nothing
+synifyInjectivityAnn (Just lhs) tvs (Injective inj) =
+    let rhs = map (noLoc . tyVarName) (filterByList inj tvs)
+    in Just $ noLoc $ InjectivityAnn (noLoc lhs) rhs
+
+synifyFamilyResultSig :: Maybe Name -> Kind -> LFamilyResultSig Name
+synifyFamilyResultSig  Nothing    kind =
+   noLoc $ KindSig  (synifyKindSig kind)
+synifyFamilyResultSig (Just name) kind =
+   noLoc $ TyVarSig (noLoc $ KindedTyVar (noLoc name) (synifyKindSig kind))
+
 -- User beware: it is your responsibility to pass True (use_gadt_syntax)
 -- for any constructor that would be misrepresented by omitting its
 -- result-type.
@@ -267,24 +286,18 @@ synifyDataCon use_gadt_syntax dc =
   -- skip any EqTheta, use 'orig'inal syntax
   ctx = synifyCtx theta
 
-  linear_tys = zipWith (\ty bang ->
-            let tySyn = synifyType WithinType ty
-                src_bang = case bang of
-                             HsUnpack {} -> HsSrcBang Nothing (Just True) True
-                             HsStrict    -> HsSrcBang Nothing (Just False) True
-                             _           -> bang
-            in case src_bang of
-                 HsNoBang -> tySyn
-                 _        -> noLoc $ HsBangTy bang tySyn
-            -- HsNoBang never appears, it's implied instead.
-          )
-          arg_tys (dataConSrcBangs dc)
+  linear_tys =
+    zipWith (\ty bang ->
+               let tySyn = synifyType WithinType ty
+               in case bang of
+                    (HsSrcBang _ NoSrcUnpack NoSrcStrict) -> tySyn
+                    bang' -> noLoc $ HsBangTy bang' tySyn)
+            arg_tys (dataConSrcBangs dc)
 
   field_tys = zipWith con_decl_field (dataConFieldLabels dc) linear_tys
   con_decl_field fl synTy = noLoc $
     ConDeclField [noLoc $ FieldOcc (mkVarUnqual $ flLabel fl) (flSelector fl)] synTy
                  Nothing
-
   hs_arg_tys = case (use_named_field_syntax, use_infix_syntax) of
           (True,True) -> Left "synifyDataCon: contradiction!"
           (True,False) -> return $ RecCon (noLoc field_tys)
@@ -357,7 +370,7 @@ synifyType _ (TyConApp tc tys)
   | getName tc == listTyConName, [ty] <- tys =
      noLoc $ HsListTy (synifyType WithinType ty)
   -- ditto for implicit parameter tycons
-  | tyConName tc == ipClassName
+  | tc == ipTyCon
   , [name, ty] <- tys
   , Just x <- isStrLitTy name
   = noLoc $ HsIParamTy (HsIPName x) (synifyType WithinType ty)

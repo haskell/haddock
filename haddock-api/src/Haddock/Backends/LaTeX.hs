@@ -822,9 +822,10 @@ pp_hs_context cxt unicode = parenList (map (ppType unicode) cxt)
 -------------------------------------------------------------------------------
 
 
-ppBang :: HsBang -> LaTeX
-ppBang HsNoBang = empty
-ppBang _        = char '!' -- Unpacked args is an implementation detail,
+ppBang :: HsSrcBang -> LaTeX
+ppBang (HsSrcBang _ _ SrcStrict) = char '!'
+ppBang (HsSrcBang _ _ SrcLazy)   = char '~'
+ppBang _                         = empty
 
 
 tupleParens :: HsTupleSort -> [LaTeX] -> LaTeX
