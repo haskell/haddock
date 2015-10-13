@@ -24,9 +24,10 @@ import qualified Pretty
 import GHC
 import OccName
 import Name                 ( nameOccName )
-import RdrName              ( rdrNameOcc )
+import RdrName              ( rdrNameOcc, mkRdrUnqual )
 import FastString           ( unpackFS, unpackLitString, zString )
 import Outputable           ( panic)
+import PrelNames            ( mkUnboundName )
 
 import qualified Data.Map as Map
 import System.Directory
@@ -900,7 +901,9 @@ ppr_mono_ty ctxt_prec (HsForAllTy expl extra tvs ctxt ty) unicode
   = maybeParen ctxt_prec pREC_FUN $
     hsep [ppForAll expl tvs ctxt' unicode, ppr_mono_lty pREC_TOP ty unicode]
  where
-   anonWC = HsWildCardTy (AnonWildCard (error "ppr_mono_ty: anonWC")) -- AMG TODO is this okay?
+   anonWC :: HsType DocName
+   anonWC = HsWildCardTy (AnonWildCard (Undocumented underscore))
+   underscore = mkUnboundName (mkRdrUnqual (mkTyVarOcc "_"))
    ctxt'
      | Just loc <- extra = (++ [L loc anonWC]) `fmap` ctxt
      | otherwise         = ctxt

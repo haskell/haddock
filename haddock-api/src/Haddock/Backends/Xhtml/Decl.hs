@@ -38,7 +38,8 @@ import GHC
 import GHC.Exts
 import Name
 import BooleanFormula
-import RdrName ( rdrNameOcc )
+import RdrName ( rdrNameOcc, mkRdrUnqual )
+import PrelNames            ( mkUnboundName )
 
 ppDecl :: Bool -> LinksInfo -> LHsDecl DocName
        -> DocForDecl DocName -> [DocInstance DocName] -> [(DocName, Fixity)]
@@ -875,7 +876,8 @@ ppr_mono_ty ctxt_prec (HsForAllTy expl extra tvs ctxt ty) unicode qual
   = maybeParen ctxt_prec pREC_FUN $ ppForAllCon expl tvs ctxt' unicode qual
                                     <+> ppr_mono_lty pREC_TOP ty unicode qual
  where
-   anonWC = HsWildCardTy (AnonWildCard (error "ppr_mono_ty: anonWC")) -- AMG TODO ?
+   anonWC = HsWildCardTy (AnonWildCard (Undocumented underscore))
+   underscore = mkUnboundName (mkRdrUnqual (mkTyVarOcc "_"))
    ctxt'
      | Just loc <- extra = (++ [L loc anonWC]) `fmap` ctxt
      | otherwise         = ctxt
