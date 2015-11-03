@@ -64,7 +64,8 @@ dropHsDocTy :: HsType a -> HsType a
 dropHsDocTy = f
     where
         g (L src x) = L src (f x)
-        f (HsForAllTy a b c d e) = HsForAllTy a b c d (g e)
+        f (HsForAllTy a e) = HsForAllTy a (g e)
+        f (HsQualTy a e) = HsQualTy a (g e)
         f (HsBangTy a b) = HsBangTy a (g b)
         f (HsAppTy a b) = HsAppTy (g a) (g b)
         f (HsFunTy a b) = HsFunTy (g a) (g b)
@@ -79,14 +80,6 @@ dropHsDocTy = f
 
 outHsType :: OutputableBndr a => DynFlags -> HsType a -> String
 outHsType dflags = out dflags . dropHsDocTy
-
-
-makeExplicit :: HsType a -> HsType a
-makeExplicit (HsForAllTy _ a b c d) = HsForAllTy Explicit a b c d
-makeExplicit x = x
-
-makeExplicitL :: LHsType a -> LHsType a
-makeExplicitL (L src x) = L src (makeExplicit x)
 
 
 dropComment :: String -> String
@@ -120,40 +113,29 @@ ppExport dflags ExportDecl { expItemDecl    = L _ decl
         f (TyClD d@DataDecl{})  = ppData dflags d subdocs
         f (TyClD d@SynDecl{})   = ppSynonym dflags d
         f (TyClD d@ClassDecl{}) = ppClass dflags d
-        f (ForD (ForeignImport name typ _ _)) = ppSig dflags $ TypeSig [name] typ []
-        f (ForD (ForeignExport name typ _ _)) = ppSig dflags $ TypeSig [name] typ []
+        f (ForD (ForeignImport name typ _ _)) = pp_sig dflags [name] (hsSigType typ)
+        f (ForD (ForeignExport name typ _ _)) = pp_sig dflags [name] (hsSigType typ)
         f (SigD sig) = ppSig dflags sig
         f _ = []
 ppExport _ _ = []
 
 
 ppSig :: DynFlags -> Sig Name -> [String]
-ppSig dflags (TypeSig names sig _)
-    = [operator prettyNames ++ " :: " ++ outHsType dflags typ]
-    where
-        prettyNames = intercalate ", " $ map (out dflags) names
-        typ = case unL sig of
-                   HsForAllTy Explicit a b c d  -> HsForAllTy Implicit a b c d
-                   HsForAllTy Qualified a b c d -> HsForAllTy Implicit a b c d
-                   x -> x
+ppSig dflags (TypeSig names sig) = pp_sig dflags names (hsSigWcType sig)
 ppSig _ _ = []
 
+pp_sig :: DynFlags -> [Located Name] -> LHsType Name -> [String]
+pp_sig dflags names (L _ typ)
+  = [operator prettyNames ++ " :: " ++ outHsType dflags typ]
+  where
+    prettyNames = intercalate ", " $ map (out dflags) names
 
 -- note: does not yet output documentation for class methods
 ppClass :: DynFlags -> TyClDecl Name -> [String]
 ppClass dflags x = out dflags x{tcdSigs=[]} :
-            concatMap (ppSig dflags . addContext . unL) (tcdSigs x)
-    where
-        addContext (TypeSig name (L l sig) nwcs) = TypeSig name (L l $ f sig) nwcs
-        addContext (MinimalSig src sig) = MinimalSig src sig
-        addContext _ = error "expected TypeSig"
-
-        f (HsForAllTy a b c con d) = HsForAllTy a b c (reL (context : unLoc con)) d
-        f t = HsForAllTy Implicit Nothing emptyHsQTvs (reL [context]) (reL t)
-
-        context = nlHsTyConApp (tcdName x)
-            (map (reL . HsTyVar . hsTyVarName . unL) (hsQTvBndrs (tyClDeclTyVars x)))
-
+                   concatMap (ppSig dflags . unL . add_ctxt) (tcdSigs x)
+  where
+    add_ctxt = addClassContext (tcdName x) (tyClDeclTyVars x)
 
 ppInstance :: DynFlags -> ClsInst -> [String]
 ppInstance dflags x = [dropComment $ out dflags x]
@@ -194,10 +176,10 @@ ppCtor dflags dat subdocs con
                            [out dflags (map (selectorFieldOcc . unLoc) $ cd_fld_names r) `typeSig` [resType, cd_fld_type r]]
                           | r <- map unLoc recs]
 
-        funs = foldr1 (\x y -> reL $ HsFunTy (makeExplicitL x) (makeExplicitL y))
+        funs = foldr1 (\x y -> reL $ HsFunTy x y)
         apps = foldl1 (\x y -> reL $ HsAppTy x y)
 
-        typeSig nm flds = operator nm ++ " :: " ++ outHsType dflags (makeExplicit $ unL $ funs flds)
+        typeSig nm flds = operator nm ++ " :: " ++ outHsType dflags (unL $ funs flds)
         name = out dflags $ map unL $ con_names con
 
         resType = case con_res con of
