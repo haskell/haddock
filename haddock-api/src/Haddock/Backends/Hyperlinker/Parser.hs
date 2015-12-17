@@ -39,7 +39,9 @@ processCPP dflags fpath s = addSrc (go start (groupCPP (lines s)))
     go pos xs =
       let (cs, cpps, rest) = gather xs
       in case L.lexTokenStream (stringToStringBuffer (unlines cs)) pos dflags of
-           L.PFailed ss msg -> error "Lexical error"
+           L.PFailed ss msg ->
+            let (new_loc, token) = mkComment (pos, []) (unlines cs)
+            in token ++ go new_loc rest
            L.POk ss toks ->
             let (new_loc, cpp) = foldl' mkComment (L.loc ss, []) cpps
             in toks ++ reverse cpp ++ go new_loc rest
