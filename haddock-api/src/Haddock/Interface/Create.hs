@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, TupleSections, BangPatterns, LambdaCase #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -Wwarn #-}
 -----------------------------------------------------------------------------
 -- |
@@ -57,6 +58,8 @@ import FastString (concatFS)
 import BasicTypes ( StringLiteral(..), SourceText(..) )
 import qualified Outputable as O
 import HsDecls ( getConDetails )
+
+import System.IO
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological
@@ -1115,11 +1118,11 @@ mkMaybeTokenizedSrc dflags flags tm
     summary = pm_mod_summary . tm_parsed_module $ tm
 
 mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [RichToken]
-mkTokenizedSrc dflags ms src =
-  Hyperlinker.enrich src . Hyperlinker.parse dflags filepath <$> rawSrc
+mkTokenizedSrc dflags ms src = do
+  (force -> file) <- readFile filepath
+  return $ Hyperlinker.enrich src (Hyperlinker.parse dflags filepath file)
   where
     filepath = msHsFilePath ms
-    rawSrc = readFile filepath
 
 -- | Find a stand-alone documentation comment by its name.
 findNamedDoc :: String -> [HsDecl Name] -> ErrMsgM (Maybe HsDocString)
