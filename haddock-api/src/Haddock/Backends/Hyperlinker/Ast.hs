@@ -60,18 +60,15 @@ mkDetailsMap xs =
     -- favour token details which appear earlier in the list
     select_details _new old = old
 
-lookupBySpan :: Span -> DetailsMap -> Maybe TokenDetails
-lookupBySpan span details = do
-  (_, (tok_span, tok_details)) <- Map.lookupLE (spStart span) details
-  guard (tok_span `containsSpan` span )
-  return tok_details
-
 ghcSrcSpanToSpan :: GHC.SrcSpan -> Maybe Span
 ghcSrcSpanToSpan (GHC.RealSrcSpan span) =
   Just (Span { spStart = Position (GHC.srcSpanStartLine span) (GHC.srcSpanStartCol span)
              , spEnd   = Position (GHC.srcSpanEndLine span) (GHC.srcSpanEndCol span)
              })
 ghcSrcSpanToSpan _ = Nothing
+
+lookupBySpan :: GHC.SrcSpan -> DetailsMap -> Maybe TokenDetails
+lookupBySpan = lookup
 
 enrichToken :: Token -> DetailsMap -> Maybe TokenDetails
 enrichToken (Token typ _ spn) dm

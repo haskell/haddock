@@ -10,19 +10,7 @@ import qualified Data.Map as Map
 data Token = Token
     { tkType :: TokenType
     , tkValue :: String
-    , tkSpan :: {-# UNPACK #-} !Span
-    }
-    deriving (Show)
-
-data Position = Position
-    { posRow :: !Int
-    , posCol :: !Int
-    }
-    deriving (Eq, Ord, Show)
-
-data Span = Span
-    { spStart :: !Position
-    , spEnd   :: !Position
+    , tkSpan :: GHC.SrcSpan
     }
     deriving (Show)
 
@@ -31,6 +19,12 @@ data Span = Span
 containsSpan :: Span -> Span -> Bool
 containsSpan s1 s2 =
   spStart s1 <= spStart s2 && spEnd s1 >= spEnd s2
+
+spStart = GHC.srcSpanStart
+spEnd = GHC.srcSpanEnd
+
+posRow (GHC.RealSrcLoc rl) = GHC.srcLocLine rl
+posCol (GHC.RealSrcLoc rl) = GHC.srcLocCol rl
 
 data TokenType
     = TkIdentifier

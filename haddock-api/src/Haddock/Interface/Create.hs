@@ -1101,7 +1101,7 @@ mkMaybeTokenizedSrc :: [Flag] -> TypecheckedModule
 mkMaybeTokenizedSrc flags tm
     | Flag_HyperlinkedSource `elem` flags = case renamedSource tm of
         Just src -> do
-            tokens <- liftGhcToErrMsgGhc . liftIO $ mkTokenizedSrc summary src
+            tokens <- liftGhcToErrMsgGhc (mkTokenizedSrc summary src)
             return $ Just tokens
         Nothing -> do
             liftErrMsg . tell . pure $ concat
@@ -1114,12 +1114,12 @@ mkMaybeTokenizedSrc flags tm
   where
     summary = pm_mod_summary . tm_parsed_module $ tm
 
-mkTokenizedSrc :: ModSummary -> RenamedSource -> IO [RichToken]
+mkTokenizedSrc :: ModSummary -> RenamedSource -> Ghc [RichToken]
 mkTokenizedSrc ms src = do
-  -- make sure to read the whole file at once otherwise
-  -- we run out of file descriptors (see #495)
-  rawSrc <- BS.readFile (msHsFilePath ms) >>= evaluate
-  return $ Hyperlinker.enrich src (Hyperlinker.parse (decodeUtf8 rawSrc))
+    tokens <- getRichTokenStream (ms_mod ms)
+    return (Hyperlinker.enrich src (Hyperlinker.parse tokens))
+--  where
+--    rawSrc = readFile $ msHsFilePath ms
 
 -- | Find a stand-alone documentation comment by its name.
 findNamedDoc :: String -> [HsDecl Name] -> ErrMsgM (Maybe HsDocString)
