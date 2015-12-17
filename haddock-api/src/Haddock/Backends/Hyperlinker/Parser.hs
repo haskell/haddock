@@ -6,9 +6,11 @@ import Data.List
 import Data.Maybe
 import qualified Lexer as L
 import Lexer (Token(..))
-import qualified GHC as GHC
+import qualified GHC
 import SrcLoc
 import FastString
+import Data.Either
+import StringBuffer
 
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Types as T
@@ -20,8 +22,45 @@ import Haddock.Backends.Hyperlinker.Types as T
 -- etc.), i.e. the following "law" should hold:
 --
 -- @concat . map 'tkValue' . 'parse' = id@
-parse :: [(Located L.Token, String)] -> [T.Token]
-parse = ghcToks
+parse :: GHC.DynFlags -> String -> [T.Token]
+parse dflags s = ghcToks (processCPP s dflags)
+
+-- | Remove CPP lines and reinsert as comments
+processCPP :: String -> GHC.DynFlags -> [(Located L.Token, String)]
+processCPP s dflags = addSrc (go start (traceShowId (groupCPP (lines s))))
+  where
+    start = mkRealSrcLoc (mkFastString "lexing") 1 1
+
+    addSrc = GHC.addSourceToTokens start (stringToStringBuffer s)
+
+
+    go :: GHC.RealSrcLoc -> [Either String String] -> [Located L.Token]
+    go _   [] = []
+    go pos xs =
+      let (cs, cpps, rest) = gather xs
+      in case L.lexTokenStream (stringToStringBuffer (unlines cs)) pos dflags of
+           L.PFailed ss msg -> error "Lexical error"
+           L.POk ss toks ->
+            let (new_loc, cpp) = foldl' mkComment (L.loc ss, []) cpps
+            in toks ++ reverse cpp ++ go new_loc rest
+
+    gather :: [Either String String] -> ([String], [String], [Either String String])
+    gather xs =
+      let (cs,rest) = span isRight xs
+          (cpps, rest') = span isLeft rest
+      in ([x | Right x <- cs], [x | Left x <- cpps], rest')
+
+    mkComment (start, cpp) str =
+      let end = foldl' advanceSrcLoc start str
+          new = advanceSrcLoc end '\n'
+      in (new, L (RealSrcSpan $ mkRealSrcSpan start end) (ITlineComment str) : cpp)
+
+
+-- | Find lines which start with a hash and remove them
+groupCPP :: [String] -> [Either String String]
+groupCPP [] = []
+groupCPP (line@('#':_):lines) = Left line : groupCPP lines
+groupCPP (l:ls)                = Right l : groupCPP ls
 
 ghcToks :: [(Located L.Token, String)] -> [T.Token]
 ghcToks = reverse . snd . foldl' go (start, [])
