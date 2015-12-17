@@ -1116,9 +1116,10 @@ mkMaybeTokenizedSrc dflags flags tm
 
 mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [RichToken]
 mkTokenizedSrc dflags ms src =
-  Hyperlinker.enrich src . Hyperlinker.parse dflags <$> rawSrc
+  Hyperlinker.enrich src . Hyperlinker.parse dflags filepath <$> rawSrc
   where
-    rawSrc = readFile $ msHsFilePath ms
+    filepath = msHsFilePath ms
+    rawSrc = readFile filepath
 
 -- | Find a stand-alone documentation comment by its name.
 findNamedDoc :: String -> [HsDecl Name] -> ErrMsgM (Maybe HsDocString)

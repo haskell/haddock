@@ -22,14 +22,14 @@ import Haddock.Backends.Hyperlinker.Types as T
 -- etc.), i.e. the following "law" should hold:
 --
 -- @concat . map 'tkValue' . 'parse' = id@
-parse :: GHC.DynFlags -> String -> [T.Token]
-parse dflags s = ghcToks (processCPP s dflags)
+parse :: GHC.DynFlags -> FilePath -> String -> [T.Token]
+parse dflags fp s = ghcToks (processCPP dflags fp s)
 
 -- | Remove CPP lines and reinsert as comments
-processCPP :: String -> GHC.DynFlags -> [(Located L.Token, String)]
-processCPP s dflags = addSrc (go start (traceShowId (groupCPP (lines s))))
+processCPP :: GHC.DynFlags -> FilePath -> String -> [(Located L.Token, String)]
+processCPP dflags fpath s = addSrc (go start (groupCPP (lines s)))
   where
-    start = mkRealSrcLoc (mkFastString "lexing") 1 1
+    start = mkRealSrcLoc (mkFastString fpath) 1 1
 
     addSrc = GHC.addSourceToTokens start (stringToStringBuffer s)
 
@@ -68,21 +68,22 @@ where
     start = mkRealSrcLoc (mkFastString "lexing") 1 1
     go ::  (RealSrcLoc, [T.Token]) -> (Located L.Token, String) -> (RealSrcLoc, [T.Token])
     go (pos, toks) (L l tok, raw) =
-        (next, [Token (classify tok) raw l | not (null raw)]  ++
-               maybe [] (:[]) whitespace
+        (next, [Token (classify tok) raw rss | RealSrcSpan rss <- [l], not (null raw)]
+                ++ maybeToList whitespace
                 ++ toks)
         where
-          (next, whitespace) = delta pos l
+          (next, whitespace) = mkWhitespace pos l
 
-delta :: RealSrcLoc -> SrcSpan -> (RealSrcLoc, Maybe T.Token)
-delta prev span
+-- | Find the correct amount of whitespace between tokens.
+mkWhitespace :: RealSrcLoc -> SrcSpan -> (RealSrcLoc, Maybe T.Token)
+mkWhitespace prev span
     = case span of
         UnhelpfulSpan _ -> (prev,Nothing)
         RealSrcSpan s   -> (end, Just (Token TkSpace wsstring wsspan))
           where
             start = realSrcSpanStart s
             end = realSrcSpanEnd s
-            wsspan = RealSrcSpan (mkRealSrcSpan prev start)
+            wsspan = mkRealSrcSpan prev start
             nls = srcLocLine start - srcLocLine prev
             spaces = if nls == 0 then srcLocCol start - srcLocCol prev
                                  else srcLocCol start - 1

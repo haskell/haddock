@@ -10,21 +10,9 @@ import qualified Data.Map as Map
 data Token = Token
     { tkType :: TokenType
     , tkValue :: String
-    , tkSpan :: GHC.SrcSpan
+    , tkSpan :: GHC.RealSrcSpan
     }
     deriving (Show)
-
--- | Tests whether the first span "contains" the other span, meaning
--- that it covers at least as much source code. True where spans are equal.
-containsSpan :: Span -> Span -> Bool
-containsSpan s1 s2 =
-  spStart s1 <= spStart s2 && spEnd s1 >= spEnd s2
-
-spStart = GHC.srcSpanStart
-spEnd = GHC.srcSpanEnd
-
-posRow (GHC.RealSrcLoc rl) = GHC.srcLocLine rl
-posCol (GHC.RealSrcLoc rl) = GHC.srcLocCol rl
 
 data TokenType
     = TkIdentifier

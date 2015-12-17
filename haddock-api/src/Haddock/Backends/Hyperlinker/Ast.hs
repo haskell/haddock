@@ -72,7 +72,7 @@ lookupBySpan = lookup
 
 enrichToken :: Token -> DetailsMap -> Maybe TokenDetails
 enrichToken (Token typ _ spn) dm
-    | typ `elem` [TkIdentifier, TkOperator] = lookupBySpan spn dm
+    | typ `elem` [TkIdentifier, TkOperator] = lookupBySpan (GHC.RealSrcSpan spn) dm
 enrichToken _ _ = Nothing
 
 -- | Obtain details map for variables ("normally" used identifiers).

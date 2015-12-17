@@ -82,7 +82,7 @@ header mcss mjs =
 
 tokenGroup :: SrcMap -> TokenGroup -> Html
 tokenGroup _ (GrpNormal tok@(Token { .. }))
-    | tkType == TkSpace = renderSpace (posRow . spStart $ tkSpan) tkValue
+    | tkType == TkSpace = renderSpace (GHC.srcSpanStartLine tkSpan) tkValue
     | otherwise = tokenSpan tok ! attrs
   where
     attrs = [ multiclass . tokenStyle $ tkType ]
