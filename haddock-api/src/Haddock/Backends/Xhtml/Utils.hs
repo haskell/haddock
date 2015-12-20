@@ -14,14 +14,14 @@ module Haddock.Backends.Xhtml.Utils (
   renderToString,
 
   namedAnchor, linkedAnchor,
-  spliceURL,
+  spliceURL, spliceURL',
   groupId,
 
   (<+>), (<=>), char,
   keyword, punctuate,
 
   braces, brackets, pabrackets, parens, parenList, ubxParenList,
-  arrow, comma, dcolon, dot, darrow, equals, forallSymbol, quote,
+  arrow, comma, dcolon, dot, darrow, equals, forallSymbol, quote, promoQuote,
 
   hsep, vcat,
 
@@ -29,7 +29,6 @@ module Haddock.Backends.Xhtml.Utils (
 ) where
 
 
-import Haddock.GhcUtils
 import Haddock.Utils
 
 import Data.Maybe
@@ -38,18 +37,31 @@ import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 
 import GHC      ( SrcSpan(..), srcSpanStartLine, Name )
-import Module   ( Module )
+import Module   ( Module, ModuleName, moduleName, moduleNameString )
 import Name     ( getOccString, nameOccName, isValOcc )
 
 
+-- | Replace placeholder string elements with provided values.
+--
+-- Used to generate URL for customized external paths, usually provided with
+-- @--source-module@, @--source-entity@ and related command-line arguments.
+--
+-- >>> spliceURL Nothing mmod mname Nothing "output/%{MODULE}.hs#%{NAME}"
+-- "output/Foo.hs#foo"
 spliceURL :: Maybe FilePath -> Maybe Module -> Maybe GHC.Name ->
              Maybe SrcSpan -> String -> String
-spliceURL maybe_file maybe_mod maybe_name maybe_loc = run
+spliceURL mfile mmod = spliceURL' mfile (moduleName <$> mmod)
+
+
+-- | Same as 'spliceURL' but takes 'ModuleName' instead of 'Module'.
+spliceURL' :: Maybe FilePath -> Maybe ModuleName -> Maybe GHC.Name ->
+              Maybe SrcSpan -> String -> String
+spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
  where
   file = fromMaybe "" maybe_file
   mdl = case maybe_mod of
           Nothing           -> ""
-          Just m -> moduleString m
+          Just m -> moduleNameString m
 
   (name, kind) =
     case maybe_name of
@@ -138,6 +150,11 @@ quote :: Html -> Html
 quote h = char '`' +++ h +++ '`'
 
 
+-- | Promoted type quote (e.g. @'[a, b]@, @'(a, b, c)@).
+promoQuote :: Html -> Html
+promoQuote h = char '\'' +++ h
+
+
 parens, brackets, pabrackets, braces :: Html -> Html
 parens h        = char '(' +++ h +++ char ')'
 brackets h      = char '[' +++ h +++ char ']'
@@ -203,7 +220,7 @@ collapseSection id_ state classes = [ identifier sid, theclass cs ]
 collapseToggle :: String -> [HtmlAttr]
 collapseToggle id_ = [ strAttr "onclick" js ]
   where js = "toggleSection('" ++ id_ ++ "')";
-  
+
 -- | Attributes for an area that toggles a collapsed area,
 -- and displays a control.
 collapseControl :: String -> Bool -> String -> [HtmlAttr]

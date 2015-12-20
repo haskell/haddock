@@ -40,7 +40,7 @@ ppIfaces mods
   where
      do_mod (Module mod, iface)
         =  text "<sect1 id=\"sec-" <> text mod <> text "\">"
-        $$ text "<title><literal>" 
+        $$ text "<title><literal>"
 	   <> text mod
 	   <> text "</literal></title>"
 	$$ text "<indexterm><primary><literal>"
@@ -50,10 +50,10 @@ ppIfaces mods
 	$$ vcat (map (do_export mod) (eltsFM (iface_decls iface)))
 	$$ text "</variablelist>"
 	$$ text "</sect1>"
- 
+
      do_export mod decl | (nm:_) <- declBinders decl
 	=  text "<varlistentry id=" <> ppLinkId mod nm <> char '>'
-	$$ text "<term><literal>" 
+	$$ text "<term><literal>"
 		<> do_decl decl
 		<> text "</literal></term>"
 	$$ text "<listitem>"
@@ -63,11 +63,11 @@ ppIfaces mods
 	$$ text "</varlistentry>"
      do_export _ _ = empty
 
-     do_decl (HsTypeSig _ [nm] ty _) 
+     do_decl (HsTypeSig _ [nm] ty _)
 	=  ppHsName nm <> text " :: " <> ppHsType ty
      do_decl (HsTypeDecl _ nm args ty _)
 	=  hsep ([text "type", ppHsName nm ]
-		 ++ map ppHsName args 
+		 ++ map ppHsName args
 		 ++ [equals, ppHsType ty])
      do_decl (HsNewTypeDecl loc ctx nm args con drv _)
 	= hsep ([text "data", ppHsName nm] -- data, not newtype
@@ -87,7 +87,7 @@ ppHsConstr :: HsConDecl -> Doc
 ppHsConstr (HsRecDecl pos name tvs ctxt fieldList maybe_doc) =
 	 ppHsName name
 	 <> (braces . hsep . punctuate comma . map ppField $ fieldList)
-ppHsConstr (HsConDecl pos name tvs ctxt typeList maybe_doc) = 
+ppHsConstr (HsConDecl pos name tvs ctxt typeList maybe_doc) =
 	 hsep (ppHsName name : map ppHsBangType typeList)
 
 ppField (HsFieldDecl ns ty doc)
@@ -100,7 +100,7 @@ ppHsBangType (HsUnBangedTy ty) = ppHsType ty
 
 ppHsContext :: HsContext -> Doc
 ppHsContext []      = empty
-ppHsContext context = parenList (map (\ (a,b) -> ppHsQName a <+> 
+ppHsContext context = parenList (map (\ (a,b) -> ppHsQName a <+>
 					 hsep (map ppHsAType b)) context)
 
 ppHsType :: HsType -> Doc
@@ -109,7 +109,7 @@ ppHsType (HsForAllType Nothing context htype) =
 ppHsType (HsForAllType (Just tvs) [] htype) =
      hsep (text "forall" : map ppHsName tvs ++ text "." : [ppHsType htype])
 ppHsType (HsForAllType (Just tvs) context htype) =
-     hsep (text "forall" : map ppHsName tvs ++ text "." : 
+     hsep (text "forall" : map ppHsName tvs ++ text "." :
 	   ppHsContext context : text "=>" : [ppHsType htype])
 ppHsType (HsTyFun a b) = fsep [ppHsBType a, text "-&gt;", ppHsType b]
 ppHsType (HsTyIP n t)  = fsep [(char '?' <> ppHsName n), text "::", ppHsType t]
@@ -135,7 +135,7 @@ ppHsQName (UnQual str)			= ppHsName str
 ppHsQName n@(Qual (Module mod) str)
 	 | n == unit_con_name		= ppHsName str
 	 | isSpecial str 		= ppHsName str
-	 | otherwise 
+	 | otherwise
 		=  text "<link linkend=" <> ppLinkId mod str <> char '>'
 		<> ppHsName str
 		<> text "</link>"
