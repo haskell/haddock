@@ -3,13 +3,13 @@
 ><head
   ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
      /><title
-    >Bug85</title
+    >PromotedTypes</title
     ><link href="ocean.css" rel="stylesheet" type="text/css" title="Ocean"
      /><script src="haddock-util.js" type="text/javascript"
     ></script
     ><script type="text/javascript"
     >//<![CDATA[
-window.onload = function () {pageLoad();setSynopsis("mini_Bug85.html");};
+window.onload = function () {pageLoad();setSynopsis("mini_PromotedTypes.html");};
 //]]>
 </script
     ></head
@@ -39,7 +39,7 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bug85.html");};
 	    ></tr
 	  ></table
 	><p class="caption"
-	>Bug85</p
+	>PromotedTypes</p
 	></div
       ><div id="interface"
       ><h1
@@ -48,22 +48,28 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bug85.html");};
 	><p class="src"
 	  ><span class="keyword"
 	    >data</span
-	    > <a href="" id="t:Foo" class="def"
-	    >Foo</a
-	    > :: (* -&gt; *) -&gt; * -&gt; * <span class="keyword"
-	    >where</span
-	    ></p
+	    > <a href="" id="t:RevList" class="def"
+	    >RevList</a
+	    > a</p
 	  ><div class="subs constructors"
 	  ><p class="caption"
 	    >Constructors</p
 	    ><table
 	    ><tr
 	      ><td class="src"
-		><a href="" id="v:Bar" class="def"
-		  >Bar</a
-		  > ::  f x -&gt; <a href=""
-		  >Foo</a
-		  > f (f x)</td
+		><a href="" id="v:RNil" class="def"
+		  >RNil</a
+		  ></td
+		><td class="doc empty"
+		>&nbsp;</td
+		></tr
+	      ><tr
+	      ><td class="src"
+		>(<a href=""
+		  >RevList</a
+		  > a) <a href="" id="v::-62-" class="def"
+		  >:&gt;</a
+		  > a</td
 		><td class="doc empty"
 		>&nbsp;</td
 		></tr
@@ -74,9 +80,9 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bug85.html");};
 	><p class="src"
 	  ><span class="keyword"
 	    >data</span
-	    > <a href="" id="t:Baz" class="def"
-	    >Baz</a
-	    > :: * <span class="keyword"
+	    > <a href="" id="t:Pattern" class="def"
+	    >Pattern</a
+	    > :: [*] -&gt; * <span class="keyword"
 	    >where</span
 	    ></p
 	  ><div class="subs constructors"
@@ -85,11 +91,25 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bug85.html");};
 	    ><table
 	    ><tr
 	      ><td class="src"
-		><a href="" id="v:Baz-39-" class="def"
-		  >Baz'</a
+		><a href="" id="v:Nil" class="def"
+		  >Nil</a
 		  > ::  <a href=""
-		  >Baz</a
-		  ></td
+		  >Pattern</a
+		  > '[]</td
+		><td class="doc empty"
+		>&nbsp;</td
+		></tr
+	      ><tr
+	      ><td class="src"
+		><a href="" id="v:Cons" class="def"
+		  >Cons</a
+		  > ::  <a href=""
+		  >Maybe</a
+		  > h -&gt; <a href=""
+		  >Pattern</a
+		  > t -&gt; <a href=""
+		  >Pattern</a
+		  > (h ': t)</td
 		><td class="doc empty"
 		>&nbsp;</td
 		></tr
@@ -100,9 +120,11 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bug85.html");};
 	><p class="src"
 	  ><span class="keyword"
 	    >data</span
-	    > <a href="" id="t:Qux" class="def"
-	    >Qux</a
-	    > <span class="keyword"
+	    > <a href="" id="t:RevPattern" class="def"
+	    >RevPattern</a
+	    > :: <a href=""
+	    >RevList</a
+	    > * -&gt; * <span class="keyword"
 	    >where</span
 	    ></p
 	  ><div class="subs constructors"
@@ -111,11 +133,55 @@ window.onload = function () {pageLoad();setSynopsis("mini_Bug85.html");};
 	    ><table
 	    ><tr
 	      ><td class="src"
-		><a href="" id="v:Quux" class="def"
-		  >Quux</a
+		><a href="" id="v:RevNil" class="def"
+		  >RevNil</a
 		  > ::  <a href=""
-		  >Qux</a
+		  >RevPattern</a
+		  > <a href=""
+		  >RNil</a
 		  ></td
+		><td class="doc empty"
+		>&nbsp;</td
+		></tr
+	      ><tr
+	      ><td class="src"
+		><a href="" id="v:RevCons" class="def"
+		  >RevCons</a
+		  > ::  <a href=""
+		  >Maybe</a
+		  > h -&gt; <a href=""
+		  >RevPattern</a
+		  > t -&gt; <a href=""
+		  >RevPattern</a
+		  > (t <a href=""
+		  >:&gt;</a
+		  > h)</td
+		><td class="doc empty"
+		>&nbsp;</td
+		></tr
+	      ></table
+	    ></div
+	  ></div
+	><div class="top"
+	><p class="src"
+	  ><span class="keyword"
+	    >data</span
+	    > <a href="" id="t:Tuple" class="def"
+	    >Tuple</a
+	    > :: (*, *) -&gt; * <span class="keyword"
+	    >where</span
+	    ></p
+	  ><div class="subs constructors"
+	  ><p class="caption"
+	    >Constructors</p
+	    ><table
+	    ><tr
+	      ><td class="src"
+		><a href="" id="v:Tuple" class="def"
+		  >Tuple</a
+		  > ::  a -&gt; b -&gt; <a href=""
+		  >Tuple</a
+		  > '(a, b)</td
 		><td class="doc empty"
 		>&nbsp;</td
 		></tr

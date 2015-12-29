@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RecordWildCards #-}
 ----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Interface.Rename
@@ -21,8 +21,6 @@ import Haddock.Types
 import Bag (emptyBag)
 import GHC hiding (NoLink)
 import Name
-import NameSet
-import Coercion
 
 import Control.Applicative
 import Control.Monad hiding (mapM)
@@ -261,16 +259,24 @@ renameLContext (L loc context) = do
   return (L loc context')
 
 renameInstHead :: InstHead Name -> RnM (InstHead DocName)
-renameInstHead (className, k, types, rest) = do
-  className' <- rename className
-  k' <- mapM renameType k
-  types' <- mapM renameType types
-  rest' <- case rest of
-    ClassInst cs -> ClassInst <$> mapM renameType cs
+renameInstHead InstHead {..} = do
+  cname <- rename ihdClsName
+  kinds <- mapM renameType ihdKinds
+  types <- mapM renameType ihdTypes
+  itype <- case ihdInstType of
+    ClassInst { .. } -> ClassInst
+        <$> mapM renameType clsiCtx
+        <*> renameLTyVarBndrs clsiTyVars
+        <*> mapM renameSig clsiSigs
+        <*> mapM renamePseudoFamilyDecl clsiAssocTys
     TypeInst  ts -> TypeInst  <$> traverse renameType ts
     DataInst  dd -> DataInst  <$> renameTyClD dd
-  return (className', k', types', rest')
-
+  return InstHead
+    { ihdClsName = cname
+    , ihdKinds = kinds
+    , ihdTypes = types
+    , ihdInstType = itype
+    }
 
 renameLDecl :: LHsDecl Name -> RnM (LHsDecl DocName)
 renameLDecl (L loc d) = return . L loc =<< renameDecl d
@@ -345,6 +351,16 @@ renameFamilyDecl (FamilyDecl { fdInfo = info, fdLName = lname
     tckind'  <- renameMaybeLKind tckind
     return (FamilyDecl { fdInfo = info', fdLName = lname'
                        , fdTyVars = ltyvars', fdKindSig = tckind' })
+
+
+renamePseudoFamilyDecl :: PseudoFamilyDecl Name
+                       -> RnM (PseudoFamilyDecl DocName)
+renamePseudoFamilyDecl (PseudoFamilyDecl { .. }) =  PseudoFamilyDecl
+    <$> renameFamilyInfo pfdInfo
+    <*> renameL pfdLName
+    <*> mapM renameLType pfdTyVars
+    <*> renameMaybeLKind pfdKindSig
+
 
 renameFamilyInfo :: FamilyInfo Name -> RnM (FamilyInfo DocName)
 renameFamilyInfo DataFamily     = return DataFamily
@@ -521,12 +537,3 @@ renameSub (n,doc) = do
   n' <- rename n
   doc' <- renameDocForDecl doc
   return (n', doc')
-
-type instance PostRn DocName NameSet  = PlaceHolder
-type instance PostRn DocName Fixity   = PlaceHolder
-type instance PostRn DocName Bool     = PlaceHolder
-type instance PostRn DocName [Name]   = PlaceHolder
-
-type instance PostTc DocName Kind     = PlaceHolder
-type instance PostTc DocName Type     = PlaceHolder
-type instance PostTc DocName Coercion = PlaceHolder

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -----------------------------------------------------------------------------
 -- |
@@ -27,11 +27,15 @@ import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
 import Data.Typeable
 import Data.Map (Map)
+import Data.Data (Data)
 import qualified Data.Map as Map
 import Documentation.Haddock.Types
 import BasicTypes (Fixity(..))
+
 import GHC hiding (NoLink)
 import DynFlags (ExtensionFlag, Language)
+import Coercion
+import NameSet
 import OccName
 import Outputable
 import Control.Monad (ap)
@@ -280,12 +284,38 @@ data DocName
   | Undocumented Name
      -- ^ This thing is not part of the (existing or resulting)
      -- documentation, as far as Haddock knows.
-  deriving Eq
+  deriving (Eq, Data)
+
+type instance PostRn DocName NameSet  = PlaceHolder
+type instance PostRn DocName Fixity   = PlaceHolder
+type instance PostRn DocName Bool     = PlaceHolder
+type instance PostRn DocName [Name]   = PlaceHolder
+
+type instance PostTc DocName Kind     = PlaceHolder
+type instance PostTc DocName Type     = PlaceHolder
+type instance PostTc DocName Coercion = PlaceHolder
 
 
 instance NamedThing DocName where
   getName (Documented name _) = name
   getName (Undocumented name) = name
+
+
+class NamedThing name => SetName name where
+
+    setName :: Name -> name -> name
+
+
+instance SetName Name where
+
+    setName name' _ = name'
+
+
+instance SetName DocName where
+
+    setName name' (Documented _ mdl) = Documented name' mdl
+    setName name' (Undocumented _) = Undocumented name'
+
 
 
 -----------------------------------------------------------------------------
@@ -294,21 +324,83 @@ instance NamedThing DocName where
 
 -- | The three types of instances
 data InstType name
-  = ClassInst [HsType name]         -- ^ Context
+  = ClassInst
+      { clsiCtx :: [HsType name]
+      , clsiTyVars :: LHsTyVarBndrs name
+      , clsiSigs :: [Sig name]
+      , clsiAssocTys :: [PseudoFamilyDecl name]
+      }
   | TypeInst  (Maybe (HsType name)) -- ^ Body (right-hand side)
   | DataInst (TyClDecl name)        -- ^ Data constructors
 
 instance OutputableBndr a => Outputable (InstType a) where
-  ppr (ClassInst a) = text "ClassInst" <+> ppr a
+  ppr (ClassInst { .. }) = text "ClassInst"
+      <+> ppr clsiCtx
+      <+> ppr clsiTyVars
+      <+> ppr clsiSigs
   ppr (TypeInst  a) = text "TypeInst"  <+> ppr a
   ppr (DataInst  a) = text "DataInst"  <+> ppr a
+
+
+-- | Almost the same as 'FamilyDecl' except for type binders.
+--
+-- In order to perform type specialization for class instances, we need to
+-- substitute class variables to appropriate type. However, type variables in
+-- associated type are specified using 'LHsTyVarBndrs' instead of 'HsType'.
+-- This makes type substitution impossible and to overcome this issue,
+-- 'PseudoFamilyDecl' type is introduced.
+data PseudoFamilyDecl name = PseudoFamilyDecl
+    { pfdInfo :: FamilyInfo name
+    , pfdLName :: Located name
+    , pfdTyVars :: [LHsType name]
+    , pfdKindSig :: Maybe (LHsKind name)
+    }
+
+
+mkPseudoFamilyDecl :: FamilyDecl name -> PseudoFamilyDecl name
+mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
+    { pfdInfo = fdInfo
+    , pfdLName = fdLName
+    , pfdTyVars = [ L loc (mkType bndr) | L loc bndr <- hsq_tvs fdTyVars ]
+    , pfdKindSig = fdKindSig
+    }
+  where
+    mkType (KindedTyVar (L loc name) lkind) =
+        HsKindSig tvar lkind
+      where
+        tvar = L loc (HsTyVar name)
+    mkType (UserTyVar name) = HsTyVar name
+
 
 -- | An instance head that may have documentation and a source location.
 type DocInstance name = (InstHead name, Maybe (MDoc name), Located name)
 
 -- | The head of an instance. Consists of a class name, a list of kind
 -- parameters, a list of type parameters and an instance type
-type InstHead name = (name, [HsType name], [HsType name], InstType name)
+data InstHead name = InstHead
+    { ihdClsName :: name
+    , ihdKinds :: [HsType name]
+    , ihdTypes :: [HsType name]
+    , ihdInstType :: InstType name
+    }
+
+
+-- | An instance origin information.
+--
+-- This is used primarily in HTML backend to generate unique instance
+-- identifiers (for expandable sections).
+data InstOrigin name
+    = OriginClass name
+    | OriginData name
+    | OriginFamily name
+
+
+instance NamedThing name => NamedThing (InstOrigin name) where
+
+    getName (OriginClass name) = getName name
+    getName (OriginData name) = getName name
+    getName (OriginFamily name) = getName name
+
 
 -----------------------------------------------------------------------------
 -- * Documentation comments

@@ -14,7 +14,7 @@ module Haddock.Backends.Xhtml.Layout (
   miniBody,
 
   divPackageHeader, divContent, divModuleHeader, divFooter,
-  divTableOfContents, divDescription, divSynposis, divInterface,
+  divTableOfContents, divDescription, divSynopsis, divInterface,
   divIndex, divAlphabet, divModuleList,
 
   sectionName,
@@ -31,7 +31,7 @@ module Haddock.Backends.Xhtml.Layout (
   subConstructors,
   subEquations,
   subFields,
-  subInstances,
+  subInstances, subInstHead, subInstDetails,
   subMethods,
   subMinimal,
 
@@ -76,7 +76,7 @@ nonEmptySectionName c
 
 
 divPackageHeader, divContent, divModuleHeader, divFooter,
-  divTableOfContents, divDescription, divSynposis, divInterface,
+  divTableOfContents, divDescription, divSynopsis, divInterface,
   divIndex, divAlphabet, divModuleList
     :: Html -> Html
 
@@ -86,7 +86,7 @@ divModuleHeader     = sectionDiv "module-header"
 divFooter           = sectionDiv "footer"
 divTableOfContents  = sectionDiv "table-of-contents"
 divDescription      = sectionDiv "description"
-divSynposis         = sectionDiv "synopsis"
+divSynopsis         = sectionDiv "synopsis"
 divInterface        = sectionDiv "interface"
 divIndex            = sectionDiv "index"
 divAlphabet         = sectionDiv "alphabet"
@@ -127,14 +127,12 @@ divSubDecls cssClass captionName = maybe noHtml wrap
 
 subDlist :: Qualification -> [SubDecl] -> Maybe Html
 subDlist _ [] = Nothing
-subDlist qual decls = Just $ dlist << map subEntry decls +++ clearDiv
+subDlist qual decls = Just $ ulist << map subEntry decls
   where
     subEntry (decl, mdoc, subs) =
-      dterm ! [theclass "src"] << decl
-      +++
-      docElement ddef << (fmap (docToHtml Nothing qual) mdoc +++ subs)
-
-    clearDiv = thediv ! [ theclass "clear" ] << noHtml
+      li <<
+        (define ! [theclass "src"] << decl +++
+         docElement thediv << (fmap (docToHtml Nothing qual) mdoc +++ subs))
 
 
 subTable :: Qualification -> [SubDecl] -> Maybe Html
@@ -201,6 +199,30 @@ subInstances qual nm lnks splice = maybe noHtml wrap . instTable
     subSection = thediv ! [theclass "subs instances"]
     subCaption = paragraph ! collapseControl id_ True "caption" << "Instances"
     id_ = makeAnchorId $ "i:" ++ nm
+
+ 
+subInstHead :: String -- ^ Instance unique id (for anchor generation)
+            -> Html -- ^ Header content (instance name and type)
+            -> Html
+subInstHead iid hdr =
+    expander noHtml <+> hdr
+  where
+    expander = thespan ! collapseControl (instAnchorId iid) False "instance"
+
+
+subInstDetails :: String -- ^ Instance unique id (for anchor generation)
+               -> [Html] -- ^ Associated type contents
+               -> [Html] -- ^ Method contents (pretty-printed signatures)
+               -> Html
+subInstDetails iid ats mets =
+    section << (subAssociatedTypes ats <+> subMethods mets)
+  where
+    section = thediv ! collapseSection (instAnchorId iid) False "inst-details"
+
+
+instAnchorId :: String -> String
+instAnchorId iid = makeAnchorId $ "i:" ++ iid
+
 
 subMethods :: [Html] -> Html
 subMethods = divSubDecls "methods" "Methods" . subBlock

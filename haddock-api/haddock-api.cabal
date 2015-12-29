@@ -43,6 +43,7 @@ library
     , filepath
     , directory
     , containers
+    , transformers
     , deepseq
     , array
     , xhtml >= 3000.2 && < 3000.3
@@ -68,6 +69,7 @@ library
     Haddock.Interface.AttachInstances
     Haddock.Interface.LexParseRn
     Haddock.Interface.ParseModuleHeader
+    Haddock.Interface.Specialize
     Haddock.Parser
     Haddock.Utils
     Haddock.Backends.Xhtml
@@ -94,6 +96,7 @@ library
     Haddock.InterfaceFile
     Haddock.Options
     Haddock.GhcUtils
+    Haddock.Syb
     Haddock.Convert
     Paths_haddock_api
 

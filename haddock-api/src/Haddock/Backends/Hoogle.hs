@@ -20,8 +20,11 @@ import InstEnv (ClsInst(..))
 import Haddock.GhcUtils
 import Haddock.Types hiding (Version)
 import Haddock.Utils hiding (out)
+
+import Bag
 import GHC
 import Outputable
+import NameSet
 
 import Data.Char
 import Data.List
@@ -120,6 +123,7 @@ ppExport :: DynFlags -> ExportItem Name -> [String]
 ppExport dflags ExportDecl { expItemDecl    = L _ decl
                            , expItemMbDoc   = (dc, _)
                            , expItemSubDocs = subdocs
+                           , expItemFixities = fixities
                            } = ppDocumentation dflags dc ++ f decl
     where
         f (TyClD d@DataDecl{})  = ppData dflags d subdocs
@@ -127,8 +131,10 @@ ppExport dflags ExportDecl { expItemDecl    = L _ decl
         f (TyClD d@ClassDecl{}) = ppClass dflags d subdocs
         f (ForD (ForeignImport name typ _ _)) = ppSig dflags $ TypeSig [name] typ []
         f (ForD (ForeignExport name typ _ _)) = ppSig dflags $ TypeSig [name] typ []
-        f (SigD sig) = ppSig dflags sig
+        f (SigD sig) = ppSig dflags sig ++ ppFixities
         f _ = []
+
+        ppFixities = concatMap (ppFixity dflags) fixities
 ppExport _ _ = []
 
 ppSigWithDoc :: DynFlags -> Sig Name -> [(Name, DocForDecl Name)] -> [String]
@@ -154,9 +160,29 @@ ppSig dflags x  = ppSigWithDoc dflags x []
 
 -- note: does not yet output documentation for class methods
 ppClass :: DynFlags -> TyClDecl Name -> [(Name, DocForDecl Name)] -> [String]
-ppClass dflags x subdocs = out dflags x{tcdSigs=[]} :
-            concatMap (flip (ppSigWithDoc dflags) subdocs . addContext . unL) (tcdSigs x)
+ppClass dflags decl subdocs = (out dflags decl' ++ ppTyFams) : ppMethods
     where
+        decl' = decl
+            { tcdSigs = [], tcdMeths = emptyBag
+            , tcdATs = [], tcdATDefs = []
+            }
+
+        ppMethods = concat . map (ppSig' . unLoc) $ tcdSigs decl
+        ppSig' = flip (ppSigWithDoc dflags) subdocs . addContext
+
+        ppTyFams
+            | null $ tcdATs decl = ""
+            | otherwise = (" " ++) . showSDocUnqual dflags . whereWrapper $ concat
+                [ map ppr (tcdATs decl)
+                , map (ppr . tyFamEqnToSyn . unLoc) (tcdATDefs decl)
+                ]
+
+        whereWrapper elems = vcat'
+            [ text "where" <+> lbrace
+            , nest 4 . vcat . map (<> semi) $ elems
+            , rbrace
+            ]
+
         addContext (TypeSig name (L l sig) nwcs) = TypeSig name (L l $ f sig) nwcs
         addContext (MinimalSig src sig) = MinimalSig src sig
         addContext _ = error "expected TypeSig"
@@ -164,8 +190,16 @@ ppClass dflags x subdocs = out dflags x{tcdSigs=[]} :
         f (HsForAllTy a b c con d) = HsForAllTy a b c (reL (context : unLoc con)) d
         f t = HsForAllTy Implicit Nothing emptyHsQTvs (reL [context]) (reL t)
 
-        context = nlHsTyConApp (tcdName x)
-            (map (reL . HsTyVar . hsTyVarName . unL) (hsQTvBndrs (tyClDeclTyVars x)))
+        context = nlHsTyConApp (tcdName decl)
+            (map (reL . HsTyVar . hsTyVarName . unL) (hsQTvBndrs (tyClDeclTyVars decl)))
+
+        tyFamEqnToSyn :: TyFamDefltEqn Name -> TyClDecl Name
+        tyFamEqnToSyn tfe = SynDecl
+            { tcdLName = tfe_tycon tfe
+            , tcdTyVars = tfe_pats tfe
+            , tcdRhs = tfe_rhs tfe
+            , tcdFVs = emptyNameSet
+            }
 
 
 ppInstance :: DynFlags -> ClsInst -> [String]
@@ -228,6 +262,10 @@ ppCtor dflags dat subdocs con
             ResTyH98 -> apps $ map (reL . HsTyVar) $
                         (tcdName dat) : [hsTyVarName v | L _ v@(UserTyVar _) <- hsQTvBndrs $ tyClDeclTyVars dat]
             ResTyGADT _ x -> x
+
+
+ppFixity :: DynFlags -> (Name, Fixity) -> [String]
+ppFixity dflags (name, fixity) = [out dflags (FixitySig [noLoc name] fixity)]
 
 
 ---------------------------------------------------------------------
@@ -358,3 +396,8 @@ escape = concatMap f
         f '>' = "&gt;"
         f '&' = "&amp;"
         f x = [x]
+
+
+-- | Just like 'vcat' but uses '($+$)' instead of '($$)'.
+vcat' :: [SDoc] -> SDoc
+vcat' = foldr ($+$) empty
