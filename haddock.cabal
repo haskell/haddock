@@ -47,7 +47,7 @@ executable haddock
   ghc-options:          -funbox-strict-fields -Wall -fwarn-tabs -O2 -threaded
 
   build-depends:
-    base >= 4.3 && < 4.9
+    base >= 4.3 && < 4.10
   if flag(in-ghc-tree)
     hs-source-dirs: haddock-api/src, haddock-library/vendor/attoparsec-0.12.1.1, haddock-library/src
     cpp-options: -DIN_GHC_TREE
@@ -59,7 +59,8 @@ executable haddock
       array,
       xhtml >= 3000.2 && < 3000.3,
       Cabal >= 1.10,
-      ghc >= 7.9 && < 7.12,
+      ghc-boot,
+      ghc >= 7.11 && < 8.1,
       bytestring,
       transformers
 
@@ -125,24 +126,31 @@ executable haddock
 test-suite html-test
   type:             exitcode-stdio-1.0
   default-language: Haskell2010
-  main-is:          run.lhs
+  main-is:          Main.hs
   hs-source-dirs:   html-test
-  build-depends:    base, directory, process, filepath, Cabal
+  build-depends:    base, filepath, haddock-test
 
 test-suite hypsrc-test
   type:             exitcode-stdio-1.0
   default-language: Haskell2010
-  main-is:          run.hs
+  main-is:          Main.hs
   hs-source-dirs:   hypsrc-test
-  build-depends:    base, directory, process, filepath, Cabal
+  build-depends:    base, filepath, haddock-test
   ghc-options:      -Wall -fwarn-tabs
 
 test-suite latex-test
   type:             exitcode-stdio-1.0
   default-language: Haskell2010
-  main-is:          run.lhs
+  main-is:          Main.hs
   hs-source-dirs:   latex-test
-  build-depends:    base, directory, process, filepath, Cabal
+  build-depends:    base, filepath, haddock-test
+
+test-suite hoogle-test
+  type:             exitcode-stdio-1.0
+  default-language: Haskell2010
+  main-is:          Main.hs
+  hs-source-dirs:   hoogle-test
+  build-depends:    base, filepath, haddock-test
 
 source-repository head
   type:     git

@@ -33,11 +33,13 @@ import Documentation.Haddock.Types
 import BasicTypes (Fixity(..))
 
 import GHC hiding (NoLink)
-import DynFlags (ExtensionFlag, Language)
+import DynFlags (Language)
+import qualified GHC.LanguageExtensions as LangExt
 import Coercion
 import NameSet
 import OccName
 import Outputable
+import Control.Applicative (Applicative(..))
 import Control.Monad (ap)
 
 import Haddock.Backends.Hyperlinker.Types
@@ -123,6 +125,10 @@ data Interface = Interface
     -- | Instances exported by the module.
   , ifaceInstances       :: ![ClsInst]
   , ifaceFamInstances    :: ![FamInst]
+
+    -- | Orphan instances
+  , ifaceOrphanInstances :: ![DocInstance Name]
+  , ifaceRnOrphanInstances :: ![DocInstance DocName]
 
     -- | The number of haddockable and haddocked items in the module, as a
     -- tuple. Haddockable items are the exports and the module itself.
@@ -295,11 +301,18 @@ type instance PostTc DocName Kind     = PlaceHolder
 type instance PostTc DocName Type     = PlaceHolder
 type instance PostTc DocName Coercion = PlaceHolder
 
-
 instance NamedThing DocName where
   getName (Documented name _) = name
   getName (Undocumented name) = name
 
+-- | Useful for debugging
+instance Outputable DocName where
+  ppr = ppr . getName
+
+instance OutputableBndr DocName where
+  pprBndr _ = ppr . getName
+  pprPrefixOcc = pprPrefixOcc . getName
+  pprInfixOcc = pprInfixOcc . getName
 
 class NamedThing name => SetName name where
 
@@ -326,7 +339,7 @@ instance SetName DocName where
 data InstType name
   = ClassInst
       { clsiCtx :: [HsType name]
-      , clsiTyVars :: LHsTyVarBndrs name
+      , clsiTyVars :: LHsQTyVars name
       , clsiSigs :: [Sig name]
       , clsiAssocTys :: [PseudoFamilyDecl name]
       }
@@ -353,7 +366,7 @@ data PseudoFamilyDecl name = PseudoFamilyDecl
     { pfdInfo :: FamilyInfo name
     , pfdLName :: Located name
     , pfdTyVars :: [LHsType name]
-    , pfdKindSig :: Maybe (LHsKind name)
+    , pfdKindSig :: LFamilyResultSig name
     }
 
 
@@ -361,14 +374,14 @@ mkPseudoFamilyDecl :: FamilyDecl name -> PseudoFamilyDecl name
 mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     { pfdInfo = fdInfo
     , pfdLName = fdLName
-    , pfdTyVars = [ L loc (mkType bndr) | L loc bndr <- hsq_tvs fdTyVars ]
-    , pfdKindSig = fdKindSig
+    , pfdTyVars = [ L loc (mkType bndr) | L loc bndr <- hsq_explicit fdTyVars ]
+    , pfdKindSig = fdResultSig
     }
   where
     mkType (KindedTyVar (L loc name) lkind) =
         HsKindSig tvar lkind
       where
-        tvar = L loc (HsTyVar name)
+        tvar = L loc (HsTyVar (L loc name))
     mkType (UserTyVar name) = HsTyVar name
 
 
@@ -432,6 +445,8 @@ instance (NFData a, NFData mod)
     DocCodeBlock a            -> a `deepseq` ()
     DocHyperlink a            -> a `deepseq` ()
     DocPic a                  -> a `deepseq` ()
+    DocMathInline a           -> a `deepseq` ()
+    DocMathDisplay a          -> a `deepseq` ()
     DocAName a                -> a `deepseq` ()
     DocProperty a             -> a `deepseq` ()
     DocExamples a             -> a `deepseq` ()
@@ -479,6 +494,8 @@ data DocMarkup id a = Markup
   , markupHyperlink            :: Hyperlink -> a
   , markupAName                :: String -> a
   , markupPic                  :: Picture -> a
+  , markupMathInline           :: String -> a
+  , markupMathDisplay          :: String -> a
   , markupProperty             :: String -> a
   , markupExample              :: [Example] -> a
   , markupHeader               :: Header a -> a
@@ -494,7 +511,7 @@ data HaddockModInfo name = HaddockModInfo
   , hmi_portability :: Maybe String
   , hmi_safety      :: Maybe String
   , hmi_language    :: Maybe Language
-  , hmi_extensions  :: [ExtensionFlag]
+  , hmi_extensions  :: [LangExt.Extension]
   }
 
 
@@ -517,7 +534,6 @@ emptyHaddockModInfo = HaddockModInfo
 -----------------------------------------------------------------------------
 
 
-{-! for DocOption derive: Binary !-}
 -- | Source-level options for controlling the documentation.
 data DocOption
   = OptHide            -- ^ This module should not appear in the docs.
@@ -586,11 +602,11 @@ instance Functor ErrMsgM where
         fmap f (Writer (a, msgs)) = Writer (f a, msgs)
 
 instance Applicative ErrMsgM where
-    pure = return
-    (<*>) = ap
+    pure a = Writer (a, [])
+    (<*>)  = ap
 
 instance Monad ErrMsgM where
-        return a = Writer (a, [])
+        return   = pure
         m >>= k  = Writer $ let
                 (a, w)  = runWriter m
                 (b, w') = runWriter (k a)
@@ -639,10 +655,27 @@ instance Functor ErrMsgGhc where
   fmap f (WriterGhc x) = WriterGhc (fmap (first f) x)
 
 instance Applicative ErrMsgGhc where
-    pure = return
+    pure a = WriterGhc (return (a, []))
     (<*>) = ap
 
 instance Monad ErrMsgGhc where
-  return a = WriterGhc (return (a, []))
+  return = pure
   m >>= k = WriterGhc $ runWriterGhc m >>= \ (a, msgs1) ->
                fmap (second (msgs1 ++)) (runWriterGhc (k a))
+
+
+-----------------------------------------------------------------------------
+-- * Pass sensitive types
+-----------------------------------------------------------------------------
+
+type instance PostRn DocName NameSet        = PlaceHolder
+type instance PostRn DocName Fixity         = PlaceHolder
+type instance PostRn DocName Bool           = PlaceHolder
+type instance PostRn DocName Name           = DocName
+type instance PostRn DocName (Located Name) = Located DocName
+type instance PostRn DocName [Name]         = PlaceHolder
+type instance PostRn DocName DocName        = DocName
+
+type instance PostTc DocName Kind     = PlaceHolder
+type instance PostTc DocName Type     = PlaceHolder
+type instance PostTc DocName Coercion = PlaceHolder
