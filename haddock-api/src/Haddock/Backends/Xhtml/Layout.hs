@@ -31,7 +31,7 @@ module Haddock.Backends.Xhtml.Layout (
   subConstructors,
   subEquations,
   subFields,
-  subInstances, subInstHead, subInstDetails,
+  subInstances, subOrphanInstances, subInstHead, subInstDetails,
   subMethods,
   subMinimal,
 
@@ -200,7 +200,17 @@ subInstances qual nm lnks splice = maybe noHtml wrap . instTable
     subCaption = paragraph ! collapseControl id_ True "caption" << "Instances"
     id_ = makeAnchorId $ "i:" ++ nm
 
- 
+
+subOrphanInstances :: Qualification
+                   -> LinksInfo -> Bool
+                   -> [(SubDecl,Located DocName)] -> Html
+subOrphanInstances qual lnks splice  = maybe noHtml wrap . instTable
+  where
+    wrap = ((h1 << "Orphan instances") +++)
+    instTable = fmap (thediv ! collapseSection id_ True [] <<) . subTableSrc qual lnks splice
+    id_ = makeAnchorId $ "orphans"
+
+
 subInstHead :: String -- ^ Instance unique id (for anchor generation)
             -> Html -- ^ Header content (instance name and type)
             -> Html
@@ -271,7 +281,7 @@ links ((_,_,sourceMap,lineMap), (_,_,maybe_wiki_url)) loc splice (Documented n m
         -- TODO: do something about type instances. They will point to
         -- the module defining the type family, which is wrong.
         origMod = nameModule n
-        origPkg = modulePackageKey origMod
+        origPkg = moduleUnitId origMod
 
         fname = case loc of
           RealSrcSpan l -> unpackFS (srcSpanFile l)

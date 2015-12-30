@@ -22,17 +22,18 @@ import Control.Arrow hiding ((<+>))
 import Data.List
 import Data.Ord (comparing)
 import Data.Function (on)
+import Data.Maybe ( maybeToList, mapMaybe )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Class
 import DynFlags
+import CoreSyn (isOrphan)
 import ErrUtils
 import FamInstEnv
 import FastString
 import GHC
 import GhcMonad (withSession)
-import Id
 import InstEnv
 import MonadUtils (liftIO)
 import Name
@@ -40,9 +41,8 @@ import Outputable (text, sep, (<+>))
 import PrelNames
 import SrcLoc
 import TcRnDriver (tcRnGetInfo)
-import TcType (tcSplitSigmaTy)
 import TyCon
-import TypeRep
+import TyCoRep
 import TysPrim( funTyCon )
 import Var hiding (varName)
 #define FSLIT(x) (mkFastString# (x#))
@@ -61,7 +61,18 @@ attachInstances expInfo ifaces instIfaceMap = mapM attach ifaces
     attach iface = do
       newItems <- mapM (attachToExportItem expInfo iface ifaceMap instIfaceMap)
                        (ifaceExportItems iface)
-      return $ iface { ifaceExportItems = newItems }
+      let orphanInstances = attachOrphanInstances expInfo iface ifaceMap instIfaceMap (ifaceInstances iface)
+      return $ iface { ifaceExportItems = newItems
+                     , ifaceOrphanInstances = orphanInstances
+                     }
+
+attachOrphanInstances :: ExportInfo -> Interface -> IfaceMap -> InstIfaceMap -> [ClsInst] -> [DocInstance Name]
+attachOrphanInstances expInfo iface ifaceMap instIfaceMap cls_instances =
+  [ (synifyInstHead i, instLookup instDocMap n iface ifaceMap instIfaceMap, (L (getSrcSpan n) n))
+  | let is = [ (instanceSig i, getName i) | i <- cls_instances, isOrphan (is_orphan i) ]
+  , (i@(_,_,cls,tys), n) <- sortBy (comparing $ first instHead) is
+  , not $ isInstanceHidden expInfo cls tys
+  ]
 
 
 attachToExportItem :: ExportInfo -> Interface -> IfaceMap -> InstIfaceMap
@@ -82,7 +93,7 @@ attachToExportItem expInfo iface ifaceMap instIfaceMap export =
                           , let opaque = isTypeHidden expInfo (fi_rhs i)
                           ]
               cls_insts = [ (synifyInstHead i, instLookup instDocMap n iface ifaceMap instIfaceMap, spanName n (synifyInstHead i) (L eSpan (tcdName d)))
-                          | let is = [ (instanceHead' i, getName i) | i <- cls_instances ]
+                          | let is = [ (instanceSig i, getName i) | i <- cls_instances ]
                           , (i@(_,_,cls,tys), n) <- sortBy (comparing $ first instHead) is
                           , not $ isInstanceHidden expInfo cls tys
                           ]
@@ -131,20 +142,6 @@ instLookup f name iface ifaceMap instIfaceMap =
       iface' <- Map.lookup (nameModule name) ifaceMaps
       Map.lookup name (f iface')
 
--- | Like GHC's 'instanceHead' but drops "silent" arguments.
-instanceHead' :: ClsInst -> ([TyVar], ThetaType, Class, [Type])
-instanceHead' ispec = (tvs, dropSilentArgs dfun theta, cls, tys)
-  where
-    dfun = is_dfun ispec
-    (tvs, cls, tys) = instanceHead ispec
-    (_, theta, _) = tcSplitSigmaTy (idType dfun)
-
--- | Drop "silent" arguments. See GHC Note [Silent superclass
--- arguments].
-dropSilentArgs :: DFunId -> ThetaType -> ThetaType
-dropSilentArgs dfun theta = drop (dfunNSilent dfun) theta
-
-
 -- | Like GHC's getInfo but doesn't cut things out depending on the
 -- interative context, which we don't set sufficiently anyway.
 getAllInfo :: GhcMonad m => Name -> m (Maybe (TyThing,Fixity,[ClsInst],[FamInst]))
@@ -174,18 +171,26 @@ instHead (_, _, cls, args)
 argCount :: Type -> Int
 argCount (AppTy t _) = argCount t + 1
 argCount (TyConApp _ ts) = length ts
-argCount (FunTy _ _ ) = 2
+argCount (ForAllTy (Anon _) _ ) = 2
 argCount (ForAllTy _ t) = argCount t
+argCount (CastTy t _) = argCount t
 argCount _ = 0
 
 simplify :: Type -> SimpleType
+simplify (ForAllTy (Anon t1) t2) = SimpleType funTyConName [simplify t1, simplify t2]
 simplify (ForAllTy _ t) = simplify t
-simplify (FunTy t1 t2) = SimpleType funTyConName [simplify t1, simplify t2]
-simplify (AppTy t1 t2) = SimpleType s (ts ++ [simplify t2])
+simplify (AppTy t1 t2) = SimpleType s (ts ++ maybeToList (simplify_maybe t2))
   where (SimpleType s ts) = simplify t1
 simplify (TyVarTy v) = SimpleType (tyVarName v) []
-simplify (TyConApp tc ts) = SimpleType (tyConName tc) (map simplify ts)
+simplify (TyConApp tc ts) = SimpleType (tyConName tc)
+                                       (mapMaybe simplify_maybe ts)
 simplify (LitTy l) = SimpleTyLit l
+simplify (CastTy ty _) = simplify ty
+simplify (CoercionTy _) = error "simplify:Coercion"
+
+simplify_maybe :: Type -> Maybe SimpleType
+simplify_maybe (CoercionTy {}) = Nothing
+simplify_maybe ty              = Just (simplify ty)
 
 -- Used for sorting
 instFam :: FamInst -> ([Int], Name, [SimpleType], Int, SimpleType)
@@ -235,9 +240,10 @@ isTypeHidden expInfo = typeHidden
         TyVarTy {} -> False
         AppTy t1 t2 -> typeHidden t1 || typeHidden t2
         TyConApp tcon args -> nameHidden (getName tcon) || any typeHidden args
-        FunTy t1 t2 -> typeHidden t1 || typeHidden t2
-        ForAllTy _ ty -> typeHidden ty
+        ForAllTy bndr ty -> typeHidden (binderType bndr) || typeHidden ty
         LitTy _ -> False
+        CastTy ty _ -> typeHidden ty
+        CoercionTy {} -> False
 
     nameHidden :: Name -> Bool
     nameHidden = isNameHidden expInfo

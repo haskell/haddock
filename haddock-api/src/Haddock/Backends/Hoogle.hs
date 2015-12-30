@@ -21,7 +21,6 @@ import Haddock.GhcUtils
 import Haddock.Types hiding (Version)
 import Haddock.Utils hiding (out)
 
-import Bag
 import GHC
 import Outputable
 import NameSet
@@ -30,6 +29,8 @@ import Data.Char
 import Data.List
 import Data.Maybe
 import Data.Version
+
+import System.Directory
 import System.FilePath
 import System.IO
 
@@ -48,6 +49,7 @@ ppHoogle dflags package version synopsis prologue ifaces odir = do
                    ["@version " ++ showVersion version
                    | not (null (versionBranch version)) ] ++
                    concat [ppModule dflags i | i <- ifaces, OptHide `notElem` ifaceOptions i]
+    createDirectoryIfMissing True odir
     h <- openFile (odir </> filename) WriteMode
     hSetEncoding h utf8
     hPutStr h (unlines contents)
@@ -68,7 +70,8 @@ dropHsDocTy :: HsType a -> HsType a
 dropHsDocTy = f
     where
         g (L src x) = L src (f x)
-        f (HsForAllTy a b c d e) = HsForAllTy a b c d (g e)
+        f (HsForAllTy a e) = HsForAllTy a (g e)
+        f (HsQualTy a e) = HsQualTy a (g e)
         f (HsBangTy a b) = HsBangTy a (g b)
         f (HsAppTy a b) = HsAppTy (g a) (g b)
         f (HsFunTy a b) = HsFunTy (g a) (g b)
@@ -83,14 +86,6 @@ dropHsDocTy = f
 
 outHsType :: OutputableBndr a => DynFlags -> HsType a -> String
 outHsType dflags = out dflags . dropHsDocTy
-
-
-makeExplicit :: HsType a -> HsType a
-makeExplicit (HsForAllTy _ a b c d) = HsForAllTy Explicit a b c d
-makeExplicit x = x
-
-makeExplicitL :: LHsType a -> LHsType a
-makeExplicitL (L src x) = L src (makeExplicit x)
 
 
 dropComment :: String -> String
@@ -129,8 +124,8 @@ ppExport dflags ExportDecl { expItemDecl    = L _ decl
         f (TyClD d@DataDecl{})  = ppData dflags d subdocs
         f (TyClD d@SynDecl{})   = ppSynonym dflags d
         f (TyClD d@ClassDecl{}) = ppClass dflags d subdocs
-        f (ForD (ForeignImport name typ _ _)) = ppSig dflags $ TypeSig [name] typ []
-        f (ForD (ForeignExport name typ _ _)) = ppSig dflags $ TypeSig [name] typ []
+        f (ForD (ForeignImport name typ _ _)) = [pp_sig dflags [name] (hsSigType typ)]
+        f (ForD (ForeignExport name typ _ _)) = [pp_sig dflags [name] (hsSigType typ)]
         f (SigD sig) = ppSig dflags sig ++ ppFixities
         f _ = []
 
@@ -138,37 +133,35 @@ ppExport dflags ExportDecl { expItemDecl    = L _ decl
 ppExport _ _ = []
 
 ppSigWithDoc :: DynFlags -> Sig Name -> [(Name, DocForDecl Name)] -> [String]
-ppSigWithDoc dflags (TypeSig names sig _) subdocs
+ppSigWithDoc dflags (TypeSig names sig) subdocs
     = concatMap mkDocSig names
     where
         mkDocSig n = concatMap (ppDocumentation dflags) (getDoc n)
-                     ++ [mkSig n]
-        mkSig n = operator (out dflags n) ++ " :: " ++ outHsType dflags typ
+                     ++ [pp_sig dflags names (hsSigWcType sig)]
 
         getDoc :: Located Name -> [Documentation Name]
         getDoc n = maybe [] (return . fst) (lookup (unL n) subdocs)
 
-        typ = case unL sig of
-                   HsForAllTy Explicit a b c d  -> HsForAllTy Implicit a b c d
-                   HsForAllTy Qualified a b c d -> HsForAllTy Implicit a b c d
-                   x -> x
 ppSigWithDoc _ _ _ = []
 
 ppSig :: DynFlags -> Sig Name -> [String]
 ppSig dflags x  = ppSigWithDoc dflags x []
 
+pp_sig :: DynFlags -> [Located Name] -> LHsType Name -> String
+pp_sig dflags names (L _ typ)  =
+    operator prettyNames ++ " :: " ++ outHsType dflags typ
+    where
+      prettyNames = intercalate ", " $ map (out dflags) names
 
 -- note: does not yet output documentation for class methods
 ppClass :: DynFlags -> TyClDecl Name -> [(Name, DocForDecl Name)] -> [String]
-ppClass dflags decl subdocs = (out dflags decl' ++ ppTyFams) : ppMethods
+ppClass dflags decl subdocs = (out dflags decl{tcdSigs=[]} ++ ppTyFams) :  ppMethods
     where
-        decl' = decl
-            { tcdSigs = [], tcdMeths = emptyBag
-            , tcdATs = [], tcdATDefs = []
-            }
 
-        ppMethods = concat . map (ppSig' . unLoc) $ tcdSigs decl
-        ppSig' = flip (ppSigWithDoc dflags) subdocs . addContext
+        ppMethods = concat . map (ppSig' . unLoc . add_ctxt) $ tcdSigs decl
+        ppSig' = flip (ppSigWithDoc dflags) subdocs
+
+        add_ctxt = addClassContext (tcdName decl) (tyClDeclTyVars decl)
 
         ppTyFams
             | null $ tcdATs decl = ""
@@ -182,16 +175,6 @@ ppClass dflags decl subdocs = (out dflags decl' ++ ppTyFams) : ppMethods
             , nest 4 . vcat . map (<> semi) $ elems
             , rbrace
             ]
-
-        addContext (TypeSig name (L l sig) nwcs) = TypeSig name (L l $ f sig) nwcs
-        addContext (MinimalSig src sig) = MinimalSig src sig
-        addContext _ = error "expected TypeSig"
-
-        f (HsForAllTy a b c con d) = HsForAllTy a b c (reL (context : unLoc con)) d
-        f t = HsForAllTy Implicit Nothing emptyHsQTvs (reL [context]) (reL t)
-
-        context = nlHsTyConApp (tcdName decl)
-            (map (reL . HsTyVar . hsTyVarName . unL) (hsQTvBndrs (tyClDeclTyVars decl)))
 
         tyFamEqnToSyn :: TyFamDefltEqn Name -> TyClDecl Name
         tyFamEqnToSyn tfe = SynDecl
@@ -239,29 +222,36 @@ lookupCon dflags subdocs (L _ name) = case lookup name subdocs of
   _ -> []
 
 ppCtor :: DynFlags -> TyClDecl Name -> [(Name, DocForDecl Name)] -> ConDecl Name -> [String]
-ppCtor dflags dat subdocs con
-   = concatMap (lookupCon dflags subdocs) (con_names con) ++ f (con_details con)
+ppCtor dflags dat subdocs con@ConDeclH98 {}
+  -- AZ:TODO get rid of the concatMap
+   = concatMap (lookupCon dflags subdocs) [con_name con] ++ f (getConDetails con)
     where
         f (PrefixCon args) = [typeSig name $ args ++ [resType]]
         f (InfixCon a1 a2) = f $ PrefixCon [a1,a2]
         f (RecCon (L _ recs)) = f (PrefixCon $ map cd_fld_type (map unLoc recs)) ++ concat
-                          [(concatMap (lookupCon dflags subdocs) (cd_fld_names r)) ++
-                           [out dflags (map unL $ cd_fld_names r) `typeSig` [resType, cd_fld_type r]]
+                          [(concatMap (lookupCon dflags subdocs . noLoc . selectorFieldOcc . unLoc) (cd_fld_names r)) ++
+                           [out dflags (map (selectorFieldOcc . unLoc) $ cd_fld_names r) `typeSig` [resType, cd_fld_type r]]
                           | r <- map unLoc recs]
 
-        funs = foldr1 (\x y -> reL $ HsFunTy (makeExplicitL x) (makeExplicitL y))
+        funs = foldr1 (\x y -> reL $ HsFunTy x y)
         apps = foldl1 (\x y -> reL $ HsAppTy x y)
 
-        typeSig nm flds = operator nm ++ " :: " ++ outHsType dflags (makeExplicit $ unL $ funs flds)
+        typeSig nm flds = operator nm ++ " :: " ++ outHsType dflags (unL $ funs flds)
 
         -- We print the constructors as comma-separated list. See GHC
         -- docs for con_names on why it is a list to begin with.
-        name = commaSeparate dflags . map unL $ con_names con
+        name = commaSeparate dflags . map unL $ getConNames con
 
-        resType = case con_res con of
-            ResTyH98 -> apps $ map (reL . HsTyVar) $
-                        (tcdName dat) : [hsTyVarName v | L _ v@(UserTyVar _) <- hsQTvBndrs $ tyClDeclTyVars dat]
-            ResTyGADT _ x -> x
+        resType = apps $ map (reL . HsTyVar . reL) $
+                        (tcdName dat) : [hsTyVarName v | L _ v@(UserTyVar _) <- hsQTvExplicit $ tyClDeclTyVars dat]
+
+ppCtor dflags _dat subdocs con@ConDeclGADT {}
+   = concatMap (lookupCon dflags subdocs) (getConNames con) ++ f
+    where
+        f = [typeSig name (hsib_body $ con_type con)]
+
+        typeSig nm ty = operator nm ++ " :: " ++ outHsType dflags (unL ty)
+        name = out dflags $ map unL $ getConNames con
 
 
 ppFixity :: DynFlags -> (Name, Fixity) -> [String]
@@ -321,6 +311,8 @@ markupTag dflags = Markup {
   markupBold                 = box (TagInline "b"),
   markupMonospaced           = box (TagInline "tt"),
   markupPic                  = const $ str " ",
+  markupMathInline           = const $ str "<math>",
+  markupMathDisplay          = const $ str "<math>",
   markupUnorderedList        = box (TagL 'u'),
   markupOrderedList          = box (TagL 'o'),
   markupDefList              = box (TagL 'u') . map (\(a,b) -> TagInline "i" a : Str " " : b),

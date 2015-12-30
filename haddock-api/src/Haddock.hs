@@ -121,11 +121,8 @@ handleGhcExceptions =
   -- error messages propagated as exceptions
   handleGhcException $ \e -> do
     hFlush stdout
-    case e of
-      PhaseFailed _ code -> exitWith code
-      _ -> do
-        print (e :: GhcException)
-        exitFailure
+    print (e :: GhcException)
+    exitFailure
 
 
 -------------------------------------------------------------------------------
@@ -250,6 +247,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
     odir                 = outputDir         flags
     opt_latex_style      = optLaTeXStyle     flags
     opt_source_css       = optSourceCssFile  flags
+    opt_mathjax          = optMathjax        flags
 
     visibleIfaces    = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
 
@@ -258,8 +256,8 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
     allVisibleIfaces = [ i | i <- allIfaces, OptHide `notElem` instOptions i ]
 
     pkgMod           = ifaceMod (head ifaces)
-    pkgKey           = modulePackageKey pkgMod
-    pkgStr           = Just (packageKeyString pkgKey)
+    pkgKey           = moduleUnitId pkgMod
+    pkgStr           = Just (unitIdString pkgKey)
     pkgNameVer       = modulePackageInfo dflags flags pkgMod
 
     (srcBase, srcModule, srcEntity, srcLEntity) = sourceUrls flags
@@ -272,7 +270,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
       (Map.map SrcExternal extSrcMap)
       (Map.fromList [ (ifaceMod iface, SrcLocal) | iface <- ifaces ])
 
-    pkgSrcMap = Map.mapKeys modulePackageKey extSrcMap
+    pkgSrcMap = Map.mapKeys moduleUnitId extSrcMap
     pkgSrcMap'
       | Flag_HyperlinkedSource `elem` flags =
           Map.insert pkgKey hypSrcModuleNameUrlFormat pkgSrcMap
@@ -300,7 +298,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
 
   when (Flag_GenContents `elem` flags) $ do
     ppHtmlContents dflags odir title pkgStr
-                   themes opt_index_url sourceUrls' opt_wiki_urls
+                   themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
                    allVisibleIfaces True prologue pretty
                    (makeContentsQual qual)
     copyHtmlBits odir libDir themes
@@ -308,7 +306,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
   when (Flag_Html `elem` flags) $ do
     ppHtml dflags title pkgStr visibleIfaces odir
                 prologue
-                themes sourceUrls' opt_wiki_urls
+                themes opt_mathjax sourceUrls' opt_wiki_urls
                 opt_contents_url opt_index_url unicode qual
                 pretty
     copyHtmlBits odir libDir themes
@@ -356,7 +354,7 @@ modulePackageInfo dflags flags modu =
     cmdline <|> pkgDb
   where
     cmdline = (,) <$> optPackageName flags <*> optPackageVersion flags
-    pkgDb = (\pkg -> (packageName pkg, packageVersion pkg)) <$> lookupPackage dflags (modulePackageKey modu)
+    pkgDb = (\pkg -> (packageName pkg, packageVersion pkg)) <$> lookupPackage dflags (moduleUnitId modu)
 
 
 -------------------------------------------------------------------------------

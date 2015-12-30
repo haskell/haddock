@@ -21,14 +21,15 @@ module Haddock.Interface.LexParseRn
 import Data.IntSet (toList)
 import Data.List
 import Documentation.Haddock.Doc (metaDocConcat)
-import DynFlags (ExtensionFlag(..), languageExtensions)
+import DynFlags (languageExtensions)
+import qualified GHC.LanguageExtensions as LangExt
 import FastString
 import GHC
 import Haddock.Interface.ParseModuleHeader
 import Haddock.Parser
 import Haddock.Types
 import Name
-import Outputable (showPpr)
+import Outputable ( showPpr )
 import RdrName
 import RnEnv (dataTcOccs)
 
@@ -64,7 +65,7 @@ processModuleHeader dflags gre safety mayStr = do
             doc' = overDoc (rename dflags gre) doc
         return (hmi', Just doc')
 
-  let flags :: [ExtensionFlag]
+  let flags :: [LangExt.Extension]
       -- We remove the flags implied by the language setting and we display the language instead
       flags = map toEnum (toList $ extensionFlags dflags) \\ languageExtensions (language dflags)
   return (hmi { hmi_safety = Just $ showPpr dflags safety
@@ -131,6 +132,8 @@ rename dflags gre = rn
       DocModule str -> DocModule str
       DocHyperlink l -> DocHyperlink l
       DocPic str -> DocPic str
+      DocMathInline str -> DocMathInline str
+      DocMathDisplay str -> DocMathDisplay str
       DocAName str -> DocAName str
       DocProperty p -> DocProperty p
       DocExamples e -> DocExamples e

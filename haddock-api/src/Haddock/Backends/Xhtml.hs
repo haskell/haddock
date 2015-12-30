@@ -63,6 +63,7 @@ ppHtml :: DynFlags
        -> FilePath                     -- ^ Destination directory
        -> Maybe (MDoc GHC.RdrName)     -- ^ Prologue text, maybe
        -> Themes                       -- ^ Themes
+       -> Maybe String                 -- ^ The mathjax URL (--mathjax)
        -> SourceURLs                   -- ^ The source URL (--source)
        -> WikiURLs                     -- ^ The wiki URL (--wiki)
        -> Maybe String                 -- ^ The contents URL (--use-contents)
@@ -73,7 +74,7 @@ ppHtml :: DynFlags
        -> IO ()
 
 ppHtml dflags doctitle maybe_package ifaces odir prologue
-        themes maybe_source_url maybe_wiki_url
+        themes maybe_mathjax_url maybe_source_url maybe_wiki_url
         maybe_contents_url maybe_index_url unicode
         qual debug =  do
   let
@@ -82,7 +83,7 @@ ppHtml dflags doctitle maybe_package ifaces odir prologue
 
   when (isNothing maybe_contents_url) $
     ppHtmlContents dflags odir doctitle maybe_package
-        themes maybe_index_url maybe_source_url maybe_wiki_url
+        themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
         (map toInstalledIface visible_ifaces)
         False -- we don't want to display the packages in a single-package contents
         prologue debug (makeContentsQual qual)
@@ -107,13 +108,14 @@ copyHtmlBits odir libdir themes = do
   mapM_ copyLibFile [ jsFile, framesFile ]
 
 
-headHtml :: String -> Maybe String -> Themes -> Html
-headHtml docTitle miniPage themes =
+headHtml :: String -> Maybe String -> Themes -> Maybe String -> Html
+headHtml docTitle miniPage themes mathjax_url =
   header << [
     meta ! [httpequiv "Content-Type", content "text/html; charset=UTF-8"],
     thetitle << docTitle,
     styleSheet themes,
     script ! [src jsFile, thetype "text/javascript"] << noHtml,
+    script ! [src mjUrl, thetype "text/javascript"] << noHtml,
     script ! [thetype "text/javascript"]
         -- NB: Within XHTML, the content of script tags needs to be
         -- a <![CDATA[ section. Will break if the miniPage name could
@@ -124,6 +126,7 @@ headHtml docTitle miniPage themes =
     ]
   where
     setSynopsis = maybe "" (\p -> "setSynopsis(\"" ++ p ++ "\");") miniPage
+    mjUrl = maybe "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" id mathjax_url
 
 
 srcButton :: SourceURLs -> Maybe Interface -> Maybe Html
@@ -242,6 +245,7 @@ ppHtmlContents
    -> Maybe String
    -> Themes
    -> Maybe String
+   -> Maybe String
    -> SourceURLs
    -> WikiURLs
    -> [InstalledInterface] -> Bool -> Maybe (MDoc GHC.RdrName)
@@ -249,12 +253,12 @@ ppHtmlContents
    -> Qualification  -- ^ How to qualify names
    -> IO ()
 ppHtmlContents dflags odir doctitle _maybe_package
-  themes maybe_index_url
+  themes mathjax_url maybe_index_url
   maybe_source_url maybe_wiki_url ifaces showPkgs prologue debug qual = do
   let tree = mkModuleTree dflags showPkgs
          [(instMod iface, toInstalledDescription iface) | iface <- ifaces]
       html =
-        headHtml doctitle Nothing themes +++
+        headHtml doctitle Nothing themes mathjax_url +++
         bodyHtml doctitle Nothing
           maybe_source_url maybe_wiki_url
           Nothing maybe_index_url << [
@@ -304,7 +308,7 @@ mkNode qual ss p (Node s leaf pkg srcPkg short ts) =
 
     htmlModule = thespan ! modAttrs << (cBtn +++
       if leaf
-        then ppModule (mkModule (stringToPackageKey (fromMaybe "" pkg))
+        then ppModule (mkModule (stringToUnitId (fromMaybe "" pkg))
                                        (mkModuleName mdl))
         else toHtml s
       )
@@ -343,7 +347,7 @@ ppHtmlContentsFrame :: FilePath -> String -> Themes
 ppHtmlContentsFrame odir doctitle themes ifaces debug = do
   let mods = flatModuleTree ifaces
       html =
-        headHtml doctitle Nothing themes +++
+        headHtml doctitle Nothing themes Nothing +++
         miniBody << divModuleList <<
           (sectionName << "Modules" +++
            ulist << [ li ! [theclass "module"] << m | m <- mods ])
@@ -383,7 +387,7 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
   where
     indexPage showLetters ch items =
-      headHtml (doctitle ++ " (" ++ indexName ch ++ ")") Nothing themes +++
+      headHtml (doctitle ++ " (" ++ indexName ch ++ ")") Nothing themes Nothing +++
       bodyHtml doctitle Nothing
         maybe_source_url maybe_wiki_url
         maybe_contents_url Nothing << [
@@ -495,7 +499,7 @@ ppHtmlModule odir doctitle themes
       mdl_str = moduleString mdl
       real_qual = makeModuleQual qual aliases mdl
       html =
-        headHtml mdl_str (Just $ "mini_" ++ moduleHtmlFile mdl) themes +++
+        headHtml mdl_str (Just $ "mini_" ++ moduleHtmlFile mdl) themes Nothing +++
         bodyHtml doctitle (Just iface)
           maybe_source_url maybe_wiki_url
           maybe_contents_url maybe_index_url << [
@@ -512,7 +516,7 @@ ppHtmlModuleMiniSynopsis :: FilePath -> String -> Themes
 ppHtmlModuleMiniSynopsis odir _doctitle themes iface unicode qual debug = do
   let mdl = ifaceMod iface
       html =
-        headHtml (moduleString mdl) Nothing themes +++
+        headHtml (moduleString mdl) Nothing themes Nothing +++
         miniBody <<
           (divModuleHeader << sectionName << moduleString mdl +++
            miniSynopsis mdl iface unicode qual)
@@ -522,10 +526,10 @@ ppHtmlModuleMiniSynopsis odir _doctitle themes iface unicode qual debug = do
 
 ifaceToHtml :: SourceURLs -> WikiURLs -> Interface -> Bool -> Qualification -> Html
 ifaceToHtml maybe_source_url maybe_wiki_url iface unicode qual
-  = ppModuleContents qual exports +++
+  = ppModuleContents qual exports (not . null $ ifaceRnOrphanInstances iface) +++
     description +++
     synopsis +++
-    divInterface (maybe_doc_hdr +++ bdy)
+    divInterface (maybe_doc_hdr +++ bdy +++ orphans)
   where
     exports = numberSectionHeadings (ifaceRnExportItems iface)
 
@@ -564,6 +568,9 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode qual
       foldr (+++) noHtml $
         mapMaybe (processExport False linksInfo unicode qual) exports
 
+    orphans =
+      ppOrphanInstances linksInfo (ifaceRnOrphanInstances iface) False unicode qual
+
     linksInfo = (maybe_source_url, maybe_wiki_url)
 
 
@@ -583,7 +590,7 @@ processForMiniSynopsis mdl unicode qual ExportDecl { expItemDecl = L _loc decl0 
         (DataDecl{})   -> [keyword "data" <+> b]
         (SynDecl{})    -> [keyword "type" <+> b]
         (ClassDecl {}) -> [keyword "class" <+> b]
-    SigD (TypeSig lnames (L _ _) _) ->
+    SigD (TypeSig lnames _) ->
       map (ppNameMini Prefix mdl . nameOccName . getName . unLoc) lnames
     _ -> []
 processForMiniSynopsis _ _ qual (ExportGroup lvl _id txt) =
@@ -604,16 +611,22 @@ ppTyClBinderWithVarsMini mdl decl =
       ns = tyvarNames $ tcdTyVars decl -- it's safe to use tcdTyVars, see code above
   in ppTypeApp n [] ns (\is_infix -> ppNameMini is_infix mdl . nameOccName . getName) ppTyName
 
-ppModuleContents :: Qualification -> [ExportItem DocName] -> Html
-ppModuleContents qual exports
-  | null sections = noHtml
-  | otherwise     = contentsDiv
+ppModuleContents :: Qualification
+                 -> [ExportItem DocName]
+                 -> Bool -- ^ Orphans sections
+                 -> Html
+ppModuleContents qual exports orphan
+  | null sections && not orphan  = noHtml
+  | otherwise                    = contentsDiv
  where
   contentsDiv = divTableOfContents << (
     sectionName << "Contents" +++
-    unordList sections)
+    unordList (sections ++ orphanSection))
 
   (sections, _leftovers{-should be []-}) = process 0 exports
+  orphanSection
+    | orphan =  [ linkedAnchor "section.orphans" << "Orphan instances" ]
+    | otherwise = []
 
   process :: Int -> [ExportItem DocName] -> ([Html],[ExportItem DocName])
   process _ [] = ([], [])
