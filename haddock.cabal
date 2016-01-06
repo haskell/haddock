@@ -64,6 +64,8 @@ executable haddock
       transformers
 
     other-modules:
+      ResponseFile,
+
       Documentation.Haddock.Parser
       Documentation.Haddock.Parser.Monad
       Documentation.Haddock.Types
