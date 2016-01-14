@@ -17,7 +17,7 @@ module Haddock.Convert where
 -- instance heads, which aren't TyThings, so just export everything.
 
 import Bag ( emptyBag )
-import BasicTypes ( TupleSort(..) )
+import BasicTypes ( TupleSort(..), AllowedInTypes(..) )
 import Class
 import CoAxiom
 import ConLike
@@ -199,7 +199,8 @@ synifyTyCon coax tc
   alg_nd = if isNewTyCon tc then NewType else DataType
   alg_ctx = synifyCtx (tyConStupidTheta tc)
   allowedInTerms | isPromotedDataCon tc
-                 , dataConAllowedInTerms (promTyConDataCon tc)
+                 , AllowedInTypesOnly <-
+                     dataConAllowedInTerms (promTyConDataCon tc)
                  = AllowedInTypesOnly
                  | otherwise = AllowedInTerms
   name = case coax of
