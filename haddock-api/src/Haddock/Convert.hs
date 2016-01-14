@@ -147,6 +147,7 @@ synifyTyCon _coax tc
 
            , tcdDataDefn = HsDataDefn { dd_ND = DataType  -- arbitrary lie, they are neither
                                                     -- algebraic data nor newtype:
+                                      , dd_kindOnly = AllowedInTerms
                                       , dd_ctxt = noLoc []
                                       , dd_cType = Nothing
                                       , dd_kindSig = Just (synifyKindSig (tyConKind tc))
@@ -197,6 +198,10 @@ synifyTyCon coax tc
   let
   alg_nd = if isNewTyCon tc then NewType else DataType
   alg_ctx = synifyCtx (tyConStupidTheta tc)
+  allowedInTerms | PromotedDataCon { dataCon = dc } <- tc
+                 , MkData { dcAllowedInTerms = AllowedInTypesOnly } <- dc
+                 = AllowedInTypesOnly
+                 | otherwise = AllowedInTerms
   name = case coax of
     Just a -> synifyName a -- Data families are named according to their
                            -- CoAxioms, not their TyCons
@@ -224,12 +229,13 @@ synifyTyCon coax tc
   cons = rights consRaw
   -- "deriving" doesn't affect the signature, no need to specify any.
   alg_deriv = Nothing
-  defn = HsDataDefn { dd_ND      = alg_nd
-                    , dd_ctxt    = alg_ctx
-                    , dd_cType   = Nothing
-                    , dd_kindSig = fmap synifyKindSig kindSig
-                    , dd_cons    = cons
-                    , dd_derivs  = alg_deriv }
+  defn = HsDataDefn { dd_ND       = alg_nd
+                    , dd_kindOnly = allowedInTerms
+                    , dd_ctxt     = alg_ctx
+                    , dd_cType    = Nothing
+                    , dd_kindSig  = fmap synifyKindSig kindSig
+                    , dd_cons     = cons
+                    , dd_derivs   = alg_deriv }
  in case lefts consRaw of
   [] -> return $
         DataDecl { tcdLName = name, tcdTyVars = tyvars, tcdDataDefn = defn
