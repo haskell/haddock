@@ -405,13 +405,15 @@ renameFamilyInfo (ClosedTypeFamily eqns)
        ; return $ ClosedTypeFamily eqns' }
 
 renameDataDefn :: HsDataDefn Name -> RnM (HsDataDefn DocName)
-renameDataDefn (HsDataDefn { dd_ND = nd, dd_ctxt = lcontext, dd_cType = cType
+renameDataDefn (HsDataDefn { dd_ND = nd, dd_kindOnly = allowed_in_terms
+                           , dd_ctxt = lcontext, dd_cType = cType
                            , dd_kindSig = k, dd_cons = cons }) = do
     lcontext' <- renameLContext lcontext
     k'        <- renameMaybeLKind k
     cons'     <- mapM (mapM renameCon) cons
     -- I don't think we need the derivings, so we return Nothing
-    return (HsDataDefn { dd_ND = nd, dd_ctxt = lcontext', dd_cType = cType
+    return (HsDataDefn { dd_ND = nd, dd_kindOnly = allowed_in_terms
+                       , dd_ctxt = lcontext', dd_cType = cType
                        , dd_kindSig = k', dd_cons = cons', dd_derivs = Nothing })
 
 renameCon :: ConDecl Name -> RnM (ConDecl DocName)
