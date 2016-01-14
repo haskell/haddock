@@ -198,8 +198,8 @@ synifyTyCon coax tc
   let
   alg_nd = if isNewTyCon tc then NewType else DataType
   alg_ctx = synifyCtx (tyConStupidTheta tc)
-  allowedInTerms | PromotedDataCon { dataCon = dc } <- tc
-                 , MkData { dcAllowedInTerms = AllowedInTypesOnly } <- dc
+  allowedInTerms | isPromotedDataCon tc
+                 , dataConAllowedInTerms (promTyConDataCon tc)
                  = AllowedInTypesOnly
                  | otherwise = AllowedInTerms
   name = case coax of
