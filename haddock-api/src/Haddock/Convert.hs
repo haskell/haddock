@@ -17,7 +17,7 @@ module Haddock.Convert where
 -- instance heads, which aren't TyThings, so just export everything.
 
 import Bag ( emptyBag )
-import BasicTypes ( TupleSort(..), AllowedInTypes(..) )
+import BasicTypes ( TupleSort(..), AllowedInTerms(..) )
 import Class
 import CoAxiom
 import ConLike
