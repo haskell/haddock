@@ -47,11 +47,6 @@ enrich src =
 
 -- | A map containing association between source locations and "details" of
 -- this location.
---
--- For the time being, it is just a list of pairs. However, looking up things
--- in such structure has linear complexity. We cannot use any hashmap-like
--- stuff because source locations are not ordered. In the future, this should
--- be replaced with interval tree data structure.
 type DetailsMap = DList (GHC.SrcSpan, TokenDetails)
 type OldDetailsMap = M.Map GHC.SrcSpan TokenDetails
 
