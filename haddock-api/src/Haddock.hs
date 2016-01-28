@@ -77,7 +77,6 @@ import Packages
 import Panic (handleGhcException)
 import Module
 import FastString
-import Pipes
 
 --------------------------------------------------------------------------------
 -- * Exception handling
@@ -166,9 +165,9 @@ haddockWithGhc ghc args = handleTopExceptions $ do
     forM_ (warnings args) $ \warning -> do
       hPutStrLn stderr warning
 
-  ghc flags' $ runEffect $ do
+  ghc flags' $ do
 
-    dflags <- lift getDynFlags
+    dflags <- getDynFlags
 
     forM_ (optShowInterfaceFile flags) $ \path -> liftIO $ do
       mIfaceFile <- readInterfaceFiles freshNameCache [(("", Nothing), path)]
@@ -186,15 +185,14 @@ haddockWithGhc ghc args = handleTopExceptions $ do
           }
 
       -- Render the interfaces.
-      lift $ liftIO $ renderStep dflags flags qual packages ifaces
+      liftIO $ renderStep dflags flags qual packages ifaces
 
     else do
       when (any (`elem` [Flag_Html, Flag_Hoogle, Flag_LaTeX]) flags) $
         throwE "No input file(s)."
 
       -- Get packages supplied with --read-interface.
-      readInterfaceFiles freshNameCache (readIfaceArgs flags)
-      let packages = undefined
+      packages <- liftIO $ readInterfaceFiles freshNameCache (readIfaceArgs flags)
 
       -- Render even though there are no input files (usually contents/index).
       liftIO $ renderStep dflags flags qual packages []
@@ -219,12 +217,16 @@ withGhc flags action = do
 
 
 readPackagesAndProcessModules :: [Flag] -> [String]
-                              -> Producer' Interface (StateT LinkEnv Ghc) ()
+                              -> Ghc ([(DocPaths, InterfaceFile)], [Interface], LinkEnv)
 readPackagesAndProcessModules flags files = do
     -- Get packages supplied with --read-interface.
-    readInterfaceFiles nameCacheFromGhc (readIfaceArgs flags)
-    >-> map snd
-    >-> processModules (verbosity flags) files flags
+    packages <- readInterfaceFiles nameCacheFromGhc (readIfaceArgs flags)
+
+    -- Create the interfaces -- this is the core part of Haddock.
+    let ifaceFiles = map snd packages
+    (ifaces, homeLinks) <- processModules (verbosity flags) files flags ifaceFiles
+
+    return (packages, ifaces, homeLinks)
 
 
 renderStep :: DynFlags -> [Flag] -> QualOption -> [(DocPaths, InterfaceFile)] -> [Interface] -> IO ()
@@ -397,18 +399,19 @@ modulePackageInfo dflags flags modu =
 readInterfaceFiles :: MonadIO m
                    => NameCacheAccessor m
                    -> [(DocPaths, FilePath)]
-                   -> Producer' (DocPaths, InterfaceFile) m ()
+                   -> m [(DocPaths, InterfaceFile)]
 readInterfaceFiles name_cache_accessor pairs = do
-  mapM_ tryReadIface pairs
+  catMaybes `liftM` mapM tryReadIface pairs
   where
     -- try to read an interface, warn if we can't
     tryReadIface (paths, file) =
-      lift (readInterfaceFile name_cache_accessor file) >>= \case
+      readInterfaceFile name_cache_accessor file >>= \case
         Left err -> liftIO $ do
           putStrLn ("Warning: Cannot read " ++ file ++ ":")
           putStrLn ("   " ++ err)
           putStrLn "Skipping this interface."
-        Right f -> yield (paths, f)
+          return Nothing
+        Right f -> return $ Just (paths, f)
 
 
 -------------------------------------------------------------------------------
@@ -427,7 +430,6 @@ withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
     ghcLink   = NoLink
     }
   let dynflags'' = updOptLevel 0 $ gopt_unset dynflags' Opt_SplitObjs
-
   -- ignore the following return-value, which is a list of packages
   -- that may need to be re-linked: Haddock doesn't do any
   -- dynamic or static linking at all!

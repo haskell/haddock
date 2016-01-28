@@ -80,8 +80,7 @@ executable haddock
       ghc-boot,
       ghc == 8.2.*,
       bytestring,
-      transformers,
-      pipes
+      transformers
 
     other-modules:
       ResponseFile,
@@ -143,7 +142,6 @@ executable haddock
       Haddock.Options
       Haddock.GhcUtils
       Haddock.Syb
-      Haddock.Pipes
       Haddock.Convert
       
       Paths_haddock
