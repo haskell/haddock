@@ -155,7 +155,7 @@ internalHyperlink name content =
     Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
 
 externalNameHyperlink :: SrcMap -> GHC.Name -> Html -> Html
-externalNameHyperlink (srcs, _) name content = case Map.lookup mdl srcs of
+externalNameHyperlink srcs name content = case Map.lookup mdl srcs of
     Just SrcLocal -> Html.anchor content !
         [ Html.href $ hypSrcModuleNameUrl mdl name ]
     Just (SrcExternal path) -> Html.anchor content !
@@ -164,13 +164,21 @@ externalNameHyperlink (srcs, _) name content = case Map.lookup mdl srcs of
   where
     mdl = GHC.nameModule name
 
+-- When hyperlinking modules in import lists we have no
+-- 'GHC.Module' available. On the other hand, we can't just use map with
+-- 'GHC.ModuleName' as indices because certain modules may have common name
+-- but originate in different packages. This is why the srcs arre different
+-- in externalNameHyperlink and externalModHyperlink.
+
 externalModHyperlink :: SrcMap -> GHC.ModuleName -> Html -> Html
-externalModHyperlink (_, srcs) name content = case Map.lookup name srcs of
-    Just SrcLocal -> Html.anchor content !
+externalModHyperlink srcs name content =
+    let srcs' = Map.mapKeys GHC.moduleName srcs in
+    case Map.lookup name srcs' of
+      Just SrcLocal -> Html.anchor content !
         [ Html.href $ hypSrcModuleUrl' name ]
-    Just (SrcExternal path) -> Html.anchor content !
+      Just (SrcExternal path) -> Html.anchor content !
         [ Html.href $ path </> hypSrcModuleUrl' name ]
-    Nothing -> content
+      Nothing -> content
 
 
 renderSpace :: Int -> String -> Html
