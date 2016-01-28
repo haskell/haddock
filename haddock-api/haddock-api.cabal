@@ -46,6 +46,8 @@ library
                , ghc-paths       ^>= 0.1.0.9
                , haddock-library ^>= 1.4.6
                , xhtml           ^>= 3000.2.2
+               , haddock-library == 1.2.*
+               , pipes
 
   -- Versions for the dependencies below are transitively pinned by
   -- the non-reinstallable `ghc` package and hence need no version
@@ -57,6 +59,7 @@ library
                , directory
                , filepath
                , ghc-boot
+               , ghc-paths
                , transformers
 
   hs-source-dirs: src
