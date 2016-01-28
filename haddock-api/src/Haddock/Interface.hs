@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE RankNTypes #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Interface
@@ -66,6 +67,7 @@ import GHC.IO.Encoding.Failure (CodingFailureMode(TransliterateCodingFailure))
 #endif
 
 import Pipes
+import Control.Monad.State
 
 -- | Create 'Interface's and a link environment by typechecking the list of
 -- modules using the GHC API and processing the resulting syntax trees.
