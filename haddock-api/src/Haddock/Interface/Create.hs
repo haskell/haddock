@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TupleSections, BangPatterns, LambdaCase #-}
+{-# LANGUAGE CPP, TupleSections, BangPatterns, LambdaCase, ViewPatterns #-}
 {-# OPTIONS_GHC -Wwarn #-}
 -----------------------------------------------------------------------------
 -- |
@@ -45,6 +45,7 @@ import HscTypes
 import Name
 import Bag
 import RdrName
+import System.IO
 import TcRnTypes
 import FastString (concatFS)
 import BasicTypes ( StringLiteral(..) )
@@ -882,10 +883,9 @@ mkMaybeTokenizedSrc flags tm
     summary = pm_mod_summary . tm_parsed_module $ tm
 
 mkTokenizedSrc :: ModSummary -> RenamedSource -> IO [RichToken]
-mkTokenizedSrc ms src =
-    Hyperlinker.enrich src . Hyperlinker.parse <$> rawSrc
-  where
-    rawSrc = readFile $ msHsFilePath ms
+mkTokenizedSrc ms src = do
+    (force -> !file) <- readFile (msHsFilePath ms)
+    return $ Hyperlinker.enrich src (Hyperlinker.parse file)
 
 -- | Find a stand-alone documentation comment by its name.
 findNamedDoc :: String -> [HsDecl Name] -> ErrMsgM (Maybe HsDocString)
