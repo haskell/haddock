@@ -117,8 +117,7 @@ ul.links li {
 }
 
 @media print {
-  .noprint
-  { display: none; }
+  #footer { display: none; }
 }
 
 #package-header {

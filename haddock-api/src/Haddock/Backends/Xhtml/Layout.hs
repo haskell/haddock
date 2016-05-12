@@ -85,7 +85,7 @@ divPackageHeader, divContent, divModuleHeader, divFooter,
 divPackageHeader    = sectionDiv "package-header"
 divContent          = sectionDiv "content"
 divModuleHeader     = sectionDiv "module-header"
-divFooter           = sectionDiv "footer" ! [theclass "noprint"]
+divFooter           = sectionDiv "footer"
 divTableOfContents  = sectionDiv "table-of-contents"
 divDescription      = sectionDiv "description"
 divSynopsis         = sectionDiv "synopsis"

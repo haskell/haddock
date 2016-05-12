@@ -184,10 +184,8 @@ pre {
 .def { font-weight: bold; }
 
 @media print {
-  .noprint
-  { display: none; }
+  #footer { display: none; }
 }
-
 
 /* @end */
 
