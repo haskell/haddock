@@ -508,9 +508,11 @@ renameInstD (DataFamInstD { dfid_inst = d }) = do
 
 renameDerivD :: DerivDecl Name -> RnM (DerivDecl DocName)
 renameDerivD (DerivDecl { deriv_type = ty
+                        , deriv_pragma = prag
                         , deriv_overlap_mode = omode }) = do
   ty' <- renameLSigType ty
   return (DerivDecl { deriv_type = ty'
+                    , deriv_pragma = prag
                     , deriv_overlap_mode = omode })
 
 renameClsInstD :: ClsInstDecl Name -> RnM (ClsInstDecl DocName)
