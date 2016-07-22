@@ -342,10 +342,6 @@ instance (NFData a, NFData mod)
     DocHeader a               -> a `deepseq` ()
 
 
-instance NFData Name where rnf x = seq x ()
-instance NFData OccName where rnf x = seq x ()
-instance NFData ModuleName where rnf x = seq x ()
-
 instance NFData id => NFData (Header id) where
   rnf (Header a b) = a `deepseq` b `deepseq` ()
 
