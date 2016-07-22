@@ -1,4 +1,7 @@
-{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-} -- Note [Pass sensitive types]
+                                      -- in module GHC.PlaceHolder
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -----------------------------------------------------------------------------
 -- |
@@ -447,10 +450,13 @@ instance (NFData a, NFData mod)
     DocExamples a             -> a `deepseq` ()
     DocHeader a               -> a `deepseq` ()
 
-
+#if 0
+-- These were added to GHC itself in 8.2.1
+-- and they are cherry-picked for ghc-8.0-facebook branch
 instance NFData Name where rnf x = seq x ()
 instance NFData OccName where rnf x = seq x ()
 instance NFData ModuleName where rnf x = seq x ()
+#endif
 
 instance NFData id => NFData (Header id) where
   rnf (Header a b) = a `deepseq` b `deepseq` ()
