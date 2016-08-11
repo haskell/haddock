@@ -1,3 +1,8 @@
+## Changes in version 2.19.0
+
+ * A --reexport flag, which can be used to add extra modules to the
+   top-level module tree
+
 ## Changes in version 2.18.0
 
  * Synopsis is working again (#599)
@@ -26,7 +31,7 @@
 
  * Remove framed view of the HTML documentation
 
-## Changes in version 2.17.2
+Changes in version 2.17.2
 
  * Fix portability of documentation building within GHC
 
