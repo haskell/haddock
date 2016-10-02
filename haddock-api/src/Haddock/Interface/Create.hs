@@ -504,10 +504,12 @@ mkExportItems
     Nothing -> fullModuleContents dflags warnings gre maps fixMap splices decls
     Just exports -> liftM concat $ mapM lookupExport exports
   where
-    lookupExport (IEVar (L _ x))         = declWith x
-    lookupExport (IEThingAbs (L _ t))    = declWith t
-    lookupExport (IEThingAll (L _ t))    = declWith t
-    lookupExport (IEThingWith (L _ t) _ _ _) = declWith t
+    lookupExport (IEVar (L _ x))         = declWith x Nothing
+    lookupExport (IEThingAbs (L _ t))    = declWith t Nothing
+    lookupExport (IEThingAll (L _ t))    = declWith t Nothing
+    lookupExport (IEThingWith (L _ t) _ cs _) = do
+      csDecls <- mapM (bundledPatToCon . unLoc) cs
+      declWith t (Just (concat csDecls))
     lookupExport (IEModuleContents (L _ m)) =
       moduleExports thisMod m dflags warnings gre exportedNames decls modMap instIfaceMap maps fixMap splices
     lookupExport (IEGroup lev docStr)  = return $
@@ -521,8 +523,12 @@ mkExportItems
         Nothing -> []
         Just doc -> return . ExportDoc $ processDocStringParas dflags gre doc
 
-    declWith :: Name -> ErrMsgGhc [ ExportItem Name ]
-    declWith t =
+    declWith :: Name
+             -> Maybe [(LConDecl Name,(Name, DocForDecl Name))]
+             -- ^ "Maybe" a list of bundled pattern synonyms, including their
+             -- documentation, encoded as GADT constructors.
+             -> ErrMsgGhc [ ExportItem Name ]
+    declWith t csM =
       case findDecl t of
         ([L l (ValD _)], (doc, _)) -> do
           -- Top-level binding without type signature
@@ -558,15 +564,15 @@ mkExportItems
                     -- fromJust is safe since we already checked in guards
                     -- that 't' is a name declared in this declaration.
                     let newDecl = L loc . SigD . fromJust $ filterSigNames (== t) sig
-                    in return [ mkExportDecl t newDecl docs_ ]
+                    in return [ mkExportDecl t csM newDecl docs_ ]
 
                   L loc (TyClD cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
                     let sig = maybeToList $ fmap (noLoc . MinimalSig mempty . noLoc . fmap noLoc) mdef
-                    return [ mkExportDecl t
+                    return [ mkExportDecl t csM
                       (L loc $ TyClD cl { tcdSigs = sig ++ tcdSigs cl }) docs_ ]
 
-                  _ -> return [ mkExportDecl t decl docs_ ]
+                  _ -> return [ mkExportDecl t csM decl docs_ ]
 
         -- Declaration from another package
         ([], _) -> do
@@ -581,15 +587,19 @@ mkExportItems
                    liftErrMsg $ tell
                       ["Warning: Couldn't find .haddock for export " ++ pretty dflags t]
                    let subs_ = [ (n, noDocForDecl) | (n, _, _) <- subordinates instMap (unLoc decl) ]
-                   return [ mkExportDecl t decl (noDocForDecl, subs_) ]
+                   return [ mkExportDecl t csM decl (noDocForDecl, subs_) ]
                 Just iface ->
-                   return [ mkExportDecl t decl (lookupDocs t warnings (instDocMap iface) (instArgMap iface) (instSubMap iface)) ]
+                   return [ mkExportDecl t csM decl (lookupDocs t warnings (instDocMap iface) (instArgMap iface) (instSubMap iface)) ]
 
         _ -> return []
 
 
-    mkExportDecl :: Name -> LHsDecl Name -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
-    mkExportDecl name decl (doc, subs) = decl'
+    mkExportDecl :: Name
+                 -> Maybe [(LConDecl Name,(Name, DocForDecl Name))]
+                 -- ^ "Maybe" a list of bundled pattern synonyms, including their
+                 -- documentation, encoded as GADT constructors.
+                 -> LHsDecl Name -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
+    mkExportDecl name csM decl (doc, subs) = addPatSynCons decl' csM
       where
         decl' = ExportDecl (restrictTo sub_names (extractDecl name mdl decl)) doc subs' [] fixities False
         mdl = nameModule name
@@ -599,6 +609,34 @@ mkExportItems
 
 
     isExported = (`elem` exportedNames)
+
+
+    -- Convert a bundled pattern to a GADT constructor
+    bundledPatToCon :: Name -> ErrMsgGhc [(LConDecl Name,(Name, DocForDecl Name))]
+    bundledPatToCon t = case findDecl t of
+      ([L l (ValD (PatSynBind _))], (doc, _)) -> do
+        export <- hiValExportItem dflags t l doc (l `elem` splices) $ M.lookup t fixMap
+        case export of
+          (ExportDecl (L l' (SigD (PatSynSig (L _ n) ty))) doc' _ _ _ _) ->
+            return [(L l' (ConDeclGADT [L l' n] ty Nothing),(n,doc'))]
+          _ -> return []
+      ([L _ (SigD (PatSynSig (L l' n) ty))], (doc, _)) ->
+        return [(L l' (ConDeclGADT [L l' n] ty Nothing),(n,doc))]
+      _ -> return []
+
+
+    -- Add bundled-pattens-converted-to-constructors to a data type declaration
+    addPatSynCons :: ExportItem Name -> Maybe [(LConDecl Name,(Name, DocForDecl Name))] -> ExportItem Name
+    addPatSynCons d@(ExportDecl (L s (TyClD tcd@(DataDecl {}))) _ subs _ _ _) (Just cs@(_:_)) =
+        d {expItemDecl = L s (TyClD (addCons tcd cons)), expItemSubDocs = subs ++ subs'}
+      where
+        (cons,subs') = unzip cs
+
+        addCons :: TyClDecl Name -> [LConDecl Name] -> TyClDecl Name
+        addCons dd@(DataDecl {tcdDataDefn = dfn}) cons' = dd {tcdDataDefn = dfn {dd_cons = dd_cons dfn ++ cons'}}
+        addCons tcd' _ = tcd'
+
+    addPatSynCons d _ = d
 
 
     findDecl :: Name -> ([LHsDecl Name], (DocForDecl Name, [(Name, DocForDecl Name)]))
