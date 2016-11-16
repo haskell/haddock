@@ -511,10 +511,10 @@ mkExportItems
     Nothing -> fullModuleContents dflags warnings gre maps fixMap splices decls
     Just exports -> liftM concat $ mapM lookupExport exports
   where
-    lookupExport (IEVar (L _ x))         = declWith x
-    lookupExport (IEThingAbs (L _ t))    = declWith t
-    lookupExport (IEThingAll (L _ t))    = declWith t
-    lookupExport (IEThingWith (L _ t) _ _ _) = declWith t
+    lookupExport (IEVar (L _ x))         = declWith False x
+    lookupExport (IEThingAbs (L _ t))    = declWith False t
+    lookupExport (IEThingAll (L _ t))    = declWith True t
+    lookupExport (IEThingWith (L _ t) _ _ _) = declWith False t
     lookupExport (IEModuleContents (L _ m)) =
       moduleExports thisMod m dflags warnings gre exportedNames decls modMap instIfaceMap maps fixMap splices
     lookupExport (IEGroup lev docStr)  = return $
@@ -528,8 +528,8 @@ mkExportItems
         Nothing -> []
         Just doc -> return . ExportDoc $ processDocStringParas dflags gre doc
 
-    declWith :: Name -> ErrMsgGhc [ ExportItem Name ]
-    declWith t =
+    declWith :: Bool -> Name -> ErrMsgGhc [ ExportItem Name ]
+    declWith withAllSubs t =
       case findDecl t of
         ([L l (ValD _)], (doc, _)) -> do
           -- Top-level binding without type signature
@@ -565,15 +565,15 @@ mkExportItems
                     -- fromJust is safe since we already checked in guards
                     -- that 't' is a name declared in this declaration.
                     let newDecl = L loc . SigD . fromJust $ filterSigNames (== t) sig
-                    in return [ mkExportDecl t newDecl docs_ ]
+                    in return [ mkExportDecl withAllSubs t newDecl docs_ ]
 
                   L loc (TyClD cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
                     let sig = maybeToList $ fmap (noLoc . MinimalSig mempty . noLoc . fmap noLoc) mdef
-                    return [ mkExportDecl t
+                    return [ mkExportDecl withAllSubs t
                       (L loc $ TyClD cl { tcdSigs = sig ++ tcdSigs cl }) docs_ ]
 
-                  _ -> return [ mkExportDecl t decl docs_ ]
+                  _ -> return [ mkExportDecl withAllSubs t decl docs_ ]
 
         -- Declaration from another package
         ([], _) -> do
@@ -588,23 +588,31 @@ mkExportItems
                    liftErrMsg $ tell
                       ["Warning: Couldn't find .haddock for export " ++ pretty dflags t]
                    let subs_ = [ (n, noDocForDecl) | (n, _, _) <- subordinates instMap (unLoc decl) ]
-                   return [ mkExportDecl t decl (noDocForDecl, subs_) ]
+                   return [ mkExportDecl withAllSubs t decl (noDocForDecl, subs_) ]
                 Just iface ->
-                   return [ mkExportDecl t decl (lookupDocs t warnings (instDocMap iface) (instArgMap iface) (instSubMap iface)) ]
+                   return [ mkExportDecl withAllSubs t decl (lookupDocs t warnings (instDocMap iface) (instArgMap iface) (instSubMap iface)) ]
 
         _ -> return []
 
 
-    mkExportDecl :: Name -> LHsDecl Name -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
-    mkExportDecl name decl (doc, subs) = decl'
+    mkExportDecl :: Bool -> Name -> LHsDecl Name -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
+    mkExportDecl withAllSubs name decl (doc, subs) = decl'
       where
         decl' = ExportDecl (restrictTo sub_names (extractDecl name mdl decl)) doc subs' [] fixities False
         mdl = nameModule name
-        subs' = filter (isExported . fst) subs
+        subs' = if withAllSubs
+          then subs
+          else filter (isExported . fst) subs
         sub_names = map fst subs'
         fixities = [ (n, f) | n <- name:sub_names, Just f <- [M.lookup n fixMap] ]
 
-
+    -- For types that export all constructors we skip this check. The reason
+    -- is that when DuplicateRecordFields is enabled the record field selectors
+    -- don't appear in the list of exported names. Record field selectors
+    -- are included in the documentation only when all of them are exported.
+    --
+    -- TODO: what about types that export all fields of some but not all
+    -- constructors?
     isExported = (`elem` exportedNames)
 
 
