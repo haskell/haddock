@@ -646,7 +646,7 @@ ppInstanceSigs links splice unicode qual sigs = do
     TypeSig lnames typ <- sigs
     let names = map unLoc lnames
         L loc rtyp = get_type typ
-    return $ ppSimpleSig links splice unicode qual loc names rtyp
+    return $ ppSimpleSig links splice unicode qual (getLoc $ head $ lnames) names rtyp
     where
       get_type = hswc_body . hsib_body
 
