@@ -53,6 +53,11 @@ data Example = Example
   , exampleResult     :: [String]
   } deriving (Eq, Show)
 
+data Table id = Table
+  { tableHeader :: Maybe [id]
+  , tableBody   :: [[id]]
+  } deriving (Eq, Show, Functor, Foldable, Traversable)
+
 data DocH mod id
   = DocEmpty
   | DocAppend (DocH mod id) (DocH mod id)
@@ -76,5 +81,6 @@ data DocH mod id
   | DocAName String
   | DocProperty String
   | DocExamples [Example]
+  | DocTable (Table (DocH mod id))
   | DocHeader (Header (DocH mod id))
   deriving (Eq, Show, Functor, Foldable, Traversable)

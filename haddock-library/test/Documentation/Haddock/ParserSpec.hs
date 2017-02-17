@@ -649,6 +649,50 @@ spec = do
             , " bar"
             ] `shouldParseTo` DocExamples [Example "foo" [" bar"]]
 
+    context "when parsing tables" $ do
+      let simpleTable :: Maybe [DocH () String] -> [[DocH () String]] -> Doc String
+          simpleTable header rows = DocTable (Table header rows)
+          table :: Maybe [DocH () a] -> [[DocH () a]] -> Doc a
+          table header rows = DocTable (Table header rows)
+
+      it "parses a table with a header" $
+        "+----------+----------+\n\
+        \|  32bit   |   64bit  |\n\
+        \+==========+==========+\n\
+        \|  0x0000  |  0x0000  |\n\
+        \+----------+----------+"
+          `shouldParseTo`
+            simpleTable (Just ["32bit", "64bit"]) [["0x0000", "0x0000"]]
+
+      it "parses a table without header" $
+        "+----------+----------+\n\
+        \|  32bit   |   64bit  |\n\
+        \+----------+----------+\n\
+        \|  0x0000  |  0x0000  |\n\
+        \+----------+----------+"
+          `shouldParseTo`
+            simpleTable Nothing [["32bit", "64bit"], ["0x0000", "0x0000"]]
+
+      it "parses a table that contains formatted elements" $
+        "+----------+----------+\n\
+        \| /32bit/  |   64bit  |\n\
+        \+----------+----------+\n\
+        \|  0x0000  | @0x0000@ |\n\
+        \+----------+----------+"
+          `shouldParseTo`
+            table Nothing [
+                [ DocEmphasis (DocString "32bit"), DocString "64bit" ]
+              , [ DocString "0x0000", DocMonospaced (DocString "0x0000") ]
+              ]
+
+      it "can deal with whitespace before and after each line" $
+        "  +----------+----------+  \n\
+        \  |  32bit   |   64bit  |  \n\
+        \  +----------+----------+  \n\
+        \  |  0x0000  |  0x0000  |  \n\
+        \  +----------+----------+  "
+          `shouldParseTo`
+            simpleTable Nothing [["32bit", "64bit"], ["0x0000", "0x0000"]]
 
     context "when parsing paragraphs nested in lists" $ do
       it "can nest the same type of list" $ do
