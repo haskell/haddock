@@ -1114,7 +1114,8 @@ parLatexMarkup ppId = Markup {
   markupAName                = \_ _ -> empty,
   markupProperty             = \p _ -> quote $ verb $ text p,
   markupExample              = \e _ -> quote $ verb $ text $ unlines $ map exampleToString e,
-  markupHeader               = \(Header l h) p -> header l (h p)
+  markupHeader               = \(Header l h) p -> header l (h p),
+  markupTable                = \(Table _ _) _ -> text "TODO: TABLE"
   }
   where
     header 1 d = text "\\section*" <> braces d
