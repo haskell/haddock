@@ -72,7 +72,8 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupMathDisplay          = \mathjax -> toHtml ("\\[" ++ mathjax ++ "\\]"),
   markupProperty             = pre . toHtml,
   markupExample              = examplesToHtml,
-  markupHeader               = \(Header l t) -> makeHeader l t
+  markupHeader               = \(Header l t) -> makeHeader l t,
+  markupTable                = \(Table h c) -> makeTable h c
   }
   where
     makeHeader :: Int -> Html -> Html
@@ -83,6 +84,11 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
     makeHeader 5 mkup = h5 mkup
     makeHeader 6 mkup = h6 mkup
     makeHeader l _ = error $ "Somehow got a header level `" ++ show l ++ "' in DocMarkup!"
+    makeTable :: Maybe [Html] -> [[Html]] -> Html
+    makeTable mHeaderElements bodyElements = table << (tblHeader +++ tblBody)
+      where
+        tblHeader = maybe noHtml ((thead <<) . besides . map th) mHeaderElements
+        tblBody = tbody << (aboves . map (besides . map td)) bodyElements
 
 
     examplesToHtml l = pre (concatHtml $ map exampleToHtml l) ! [theclass "screen"]
