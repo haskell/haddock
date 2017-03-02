@@ -34,6 +34,7 @@ module Documentation.Haddock (
 
   -- * Documentation comments
   Doc,
+  MDoc,
   DocH(..),
   Example(..),
   Hyperlink(..),
