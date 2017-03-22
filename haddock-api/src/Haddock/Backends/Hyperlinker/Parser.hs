@@ -33,7 +33,9 @@ chunk str
     | "{-" `isPrefixOf` str = chunk' $ chunkComment 0 str
     | otherwise = case lex str of
         (tok:_) -> chunk' tok
-        [] -> [str]
+        [] -> case str of
+            ('\'' : rest) -> "\'" : chunk rest
+            _ -> [str]
   where
     chunk' (c, rest) = c:(chunk rest)
 
