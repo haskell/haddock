@@ -16,6 +16,7 @@ module Documentation.Haddock (
   -- * Interface
   Interface(..),
   InstalledInterface(..),
+  toInstalledIface,
   createInterfaces,
   processModules,
 
@@ -34,6 +35,7 @@ module Documentation.Haddock (
 
   -- * Documentation comments
   Doc,
+  MDoc,
   DocH(..),
   Example(..),
   Hyperlink(..),
