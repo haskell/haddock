@@ -126,4 +126,5 @@ test-suite spec
 
 source-repository head
   type:     git
+  subdir:   haddock-api
   location: https://github.com/haskell/haddock.git
