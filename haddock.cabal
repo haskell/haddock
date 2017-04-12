@@ -121,7 +121,9 @@ executable haddock
       Haddock.Syb
       Haddock.Convert
   else
-    build-depends:  haddock-api >= 2.17.4 && < 2.18
+    -- in order for haddock's advertised version number to have proper meaning,
+    -- we pin down to a single haddock-api version.
+    build-depends:  haddock-api == 2.17.4
 
 test-suite driver-test
   type:             exitcode-stdio-1.0
