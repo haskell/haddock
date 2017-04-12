@@ -172,7 +172,7 @@ bodyHtml doctitle iface
            maybe_source_url maybe_wiki_url
            maybe_contents_url maybe_index_url
            pageContent =
-  body << [
+  body ! [theclass "no-frame"] << [
     divPackageHeader << [
       unordList (catMaybes [
         srcButton maybe_source_url iface,
