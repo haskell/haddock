@@ -42,8 +42,10 @@ executable haddock
   hs-source-dirs:       driver
   ghc-options:          -funbox-strict-fields -Wall -fwarn-tabs -O2 -threaded
 
+  -- haddock typically only supports a single GHC major version
   build-depends:
-    base >= 4.3 && < 4.10
+    base == 4.9.*
+
   if flag(in-ghc-tree)
     hs-source-dirs: haddock-api/src, haddock-library/vendor/attoparsec-0.12.1.1, haddock-library/src
     cpp-options: -DIN_GHC_TREE
@@ -119,7 +121,7 @@ executable haddock
       Haddock.Syb
       Haddock.Convert
   else
-    build-depends:  haddock-api == 2.17.*
+    build-depends:  haddock-api >= 2.17.4 && < 2.18
 
 test-suite driver-test
   type:             exitcode-stdio-1.0
