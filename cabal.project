@@ -1,0 +1,8 @@
+-- Cabal project description
+--
+-- For more details, see
+--  http://cabal.readthedocs.io/en/latest/nix-local-build.html#developing-multiple-packages
+
+packages: .
+          ./haddock-library
+          ./haddock-api
