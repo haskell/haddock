@@ -1,7 +1,10 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-} -- Note [Pass sensitive types]
+                                      -- in module GHC.PlaceHolder
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Types
@@ -76,6 +79,9 @@ data Interface = Interface
   {
     -- | The module behind this interface.
     ifaceMod             :: !Module
+
+    -- | Is this a signature?
+  , ifaceIsSig           :: !Bool
 
     -- | Original file name of the module.
   , ifaceOrigFilename    :: !FilePath
@@ -154,6 +160,9 @@ data InstalledInterface = InstalledInterface
     -- | The module represented by this interface.
     instMod            :: Module
 
+    -- | Is this a signature?
+  , instIsSig          :: Bool
+
     -- | Textual information about the module.
   , instInfo           :: HaddockModInfo Name
 
@@ -183,6 +192,7 @@ data InstalledInterface = InstalledInterface
 toInstalledIface :: Interface -> InstalledInterface
 toInstalledIface interface = InstalledInterface
   { instMod            = ifaceMod            interface
+  , instIsSig          = ifaceIsSig          interface
   , instInfo           = ifaceInfo           interface
   , instDocMap         = ifaceDocMap         interface
   , instArgMap         = ifaceArgMap         interface
@@ -343,7 +353,8 @@ data InstType name
   | TypeInst  (Maybe (HsType name)) -- ^ Body (right-hand side)
   | DataInst (TyClDecl name)        -- ^ Data constructors
 
-instance OutputableBndr a => Outputable (InstType a) where
+instance (OutputableBndrId a)
+         => Outputable (InstType a) where
   ppr (ClassInst { .. }) = text "ClassInst"
       <+> ppr clsiCtx
       <+> ppr clsiTyVars
@@ -378,8 +389,8 @@ mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     mkType (KindedTyVar (L loc name) lkind) =
         HsKindSig tvar lkind
       where
-        tvar = L loc (HsTyVar (L loc name))
-    mkType (UserTyVar name) = HsTyVar name
+        tvar = L loc (HsTyVar NotPromoted (L loc name))
+    mkType (UserTyVar name) = HsTyVar NotPromoted name
 
 
 -- | An instance head that may have documentation and a source location.
@@ -450,7 +461,7 @@ instance (NFData a, NFData mod)
     DocTable a                -> a `deepseq` ()
     DocHeader a               -> a `deepseq` ()
 
-#if !MIN_VERSION_GLASGOW_HASKELL(8,0,1,1)
+#if !MIN_VERSION_ghc(8,0,2)
 -- These were added to GHC itself in 8.0.2
 instance NFData Name where rnf x = seq x ()
 instance NFData OccName where rnf x = seq x ()

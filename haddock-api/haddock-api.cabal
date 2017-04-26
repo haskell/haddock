@@ -1,18 +1,18 @@
 name:                 haddock-api
-version:              2.17.3
+version:              2.17.4
 synopsis:             A documentation-generation tool for Haskell libraries
 description:          Haddock is a documentation-generation tool for Haskell
                       libraries
 license:              BSD3
 license-file:         LICENSE
 author:               Simon Marlow, David Waern
-maintainer:           Simon Hengel <sol@typeful.net>, Mateusz Kowalczyk <fuuzetsu@fuuzetsu.co.uk>
+maintainer:           Alex Biehl <alexbiehl@gmail.com>, Simon Hengel <sol@typeful.net>, Mateusz Kowalczyk <fuuzetsu@fuuzetsu.co.uk>
 homepage:             http://www.haskell.org/haddock/
 bug-reports:          https://github.com/haskell/haddock/issues
 copyright:            (c) Simon Marlow, David Waern
 category:             Documentation
 build-type:           Simple
-cabal-version:        >= 1.10
+cabal-version:        >= 2.0
 stability:            experimental
 
 data-dir:
@@ -33,28 +33,29 @@ data-files:
   latex/haddock.sty
 
 library
-  default-language:
-      Haskell2010
+  default-language: Haskell2010
 
-  build-depends:
-      base >= 4.3 && < 4.10
-    , bytestring
-    , filepath
-    , directory
-    , containers
-    , transformers
-    , deepseq
-    , array
-    , xhtml >= 3000.2 && < 3000.3
-    , Cabal >= 1.10
-    , ghc-boot
-    , ghc >= 8.0 && < 8.2
+  -- this package typically supports only single major versions
+  build-depends: base            == 4.10.*
+               , Cabal           == 2.0.*
+               , ghc             == 8.2.*
+               , ghc-paths       == 0.1.*
+               , haddock-library >= 1.4.2 && < 1.5
+               , xhtml           == 3000.2.*
 
-    , ghc-paths
-    , haddock-library == 1.4.*
+  -- Versions for the dependencies below are transitively pinned by
+  -- the non-reinstallable `ghc` package and hence need no version
+  -- bounds
+  build-depends: array
+               , bytestring
+               , containers
+               , deepseq
+               , directory
+               , filepath
+               , ghc-boot
+               , transformers
 
-  hs-source-dirs:
-      src
+  hs-source-dirs: src
 
   ghc-options: -funbox-strict-fields -Wall -fwarn-tabs -O2
 
@@ -120,6 +121,10 @@ test-suite spec
     , hspec
     , QuickCheck == 2.*
 
+  build-tool-depends:
+    hspec-discover:hspec-discover
+
 source-repository head
   type:     git
+  subdir:   haddock-api
   location: https://github.com/haskell/haddock.git

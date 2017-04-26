@@ -38,6 +38,7 @@ import FastString
 import GHC hiding (NoLink)
 import GhcMonad (withSession)
 import HscTypes
+import NameCache
 import IfaceEnv
 import Name
 import UniqFM
@@ -81,8 +82,8 @@ binaryInterfaceMagic = 0xD0Cface
 -- (2) set `binaryInterfaceVersionCompatibility` to [binaryInterfaceVersion]
 --
 binaryInterfaceVersion :: Word16
-#if (__GLASGOW_HASKELL__ >= 711) && (__GLASGOW_HASKELL__ < 801)
-binaryInterfaceVersion = 28
+#if (__GLASGOW_HASKELL__ >= 802) && (__GLASGOW_HASKELL__ < 804)
+binaryInterfaceVersion = 29
 
 binaryInterfaceVersionCompatibility :: [Word16]
 binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
@@ -125,6 +126,7 @@ writeInterfaceFile filename iface = do
 
   -- put the main thing
   let bh = setUserData bh0 $ newWriteState (putName bin_symtab)
+                                           (putName bin_symtab)
                                            (putFastString bin_dict)
   put_ bh iface
 
@@ -370,9 +372,10 @@ instance Binary InterfaceFile where
 
 
 instance Binary InstalledInterface where
-  put_ bh (InstalledInterface modu info docMap argMap
+  put_ bh (InstalledInterface modu is_sig info docMap argMap
            exps visExps opts subMap fixMap) = do
     put_ bh modu
+    put_ bh is_sig
     put_ bh info
     put_ bh docMap
     put_ bh argMap
@@ -384,6 +387,7 @@ instance Binary InstalledInterface where
 
   get bh = do
     modu    <- get bh
+    is_sig  <- get bh
     info    <- get bh
     docMap  <- get bh
     argMap  <- get bh
@@ -393,7 +397,7 @@ instance Binary InstalledInterface where
     subMap  <- get bh
     fixMap  <- get bh
 
-    return (InstalledInterface modu info docMap argMap
+    return (InstalledInterface modu is_sig info docMap argMap
             exps visExps opts subMap fixMap)
 
 
