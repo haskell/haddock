@@ -14,7 +14,7 @@
 -- Reading and writing the .haddock interface file
 -----------------------------------------------------------------------------
 module Haddock.InterfaceFile (
-  InterfaceFile(..), ifUnitId, ifModule,
+  InterfaceFile(..),
   readInterfaceFile, nameCacheFromGhc, freshNameCache, NameCacheAccessor,
   writeInterfaceFile, binaryInterfaceVersion, binaryInterfaceVersionCompatibility
 ) where
@@ -48,22 +48,8 @@ import Unique
 
 data InterfaceFile = InterfaceFile {
   ifLinkEnv         :: LinkEnv,
-  ifInstalledIfaces :: [InstalledInterface]
+  ifInstalledIfaces :: InstIfaceMap
 }
-
-
-ifModule :: InterfaceFile -> Module
-ifModule if_ =
-  case ifInstalledIfaces if_ of
-    [] -> error "empty InterfaceFile"
-    iface:_ -> instMod iface
-
-ifUnitId :: InterfaceFile -> UnitId
-ifUnitId if_ =
-  case ifInstalledIfaces if_ of
-    [] -> error "empty InterfaceFile"
-    iface:_ -> moduleUnitId $ instMod iface
-
 
 binaryInterfaceMagic :: Word32
 binaryInterfaceMagic = 0xD0Cface
@@ -83,7 +69,7 @@ binaryInterfaceMagic = 0xD0Cface
 --
 binaryInterfaceVersion :: Word16
 #if (__GLASGOW_HASKELL__ >= 802) && (__GLASGOW_HASKELL__ < 804)
-binaryInterfaceVersion = 29
+binaryInterfaceVersion = 30
 
 binaryInterfaceVersionCompatibility :: [Word16]
 binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
@@ -354,22 +340,29 @@ serialiseName bh name _ = do
 -- * GhcBinary instances
 -------------------------------------------------------------------------------
 
-
 instance (Ord k, Binary k, Binary v) => Binary (Map k v) where
   put_ bh m = put_ bh (Map.toList m)
   get bh = fmap (Map.fromList) (get bh)
 
-
 instance Binary InterfaceFile where
   put_ bh (InterfaceFile env ifaces) = do
     put_ bh env
-    put_ bh ifaces
+    put_ bh (Map.size ifaces)
+    mapM_ (\(mdl, iface) -> do
+              put_ bh mdl
+              lazyPut bh iface
+          ) (Map.toList ifaces)
 
   get bh = do
     env    <- get bh
-    ifaces <- get bh
-    return (InterfaceFile env ifaces)
+    n_ifaces <- get bh
+    ifaces <- replicateM n_ifaces $ do
+      mdl    <- get bh
+      iface  <- lazyGet bh
+      return (mdl, iface)
 
+    let iface_map = Map.fromList ifaces
+    return (InterfaceFile env iface_map)
 
 instance Binary InstalledInterface where
   put_ bh (InstalledInterface modu is_sig info docMap argMap

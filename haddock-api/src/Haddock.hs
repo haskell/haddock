@@ -170,7 +170,9 @@ haddockWithGhc ghc args = handleTopExceptions $ do
       -- Dump an "interface file" (.haddock file), if requested.
       forM_ (optDumpInterfaceFile flags) $ \path -> liftIO $ do
         writeInterfaceFile path InterfaceFile {
-            ifInstalledIfaces = map toInstalledIface ifaces
+            ifInstalledIfaces = Map.fromList [ (ifaceMod iface, toInstalledIface iface)
+                                             | iface <- ifaces
+                                             ]
           , ifLinkEnv         = homeLinks
           }
 
@@ -224,11 +226,12 @@ renderStep dflags flags qual pkgs interfaces = do
   updateHTMLXRefs pkgs
   let
     ifaceFiles = map snd pkgs
-    installedIfaces = concatMap ifInstalledIfaces ifaceFiles
-    extSrcMap = Map.fromList $ do
-      ((_, Just path), ifile) <- pkgs
-      iface <- ifInstalledIfaces ifile
-      return (instMod iface, path)
+    installedIfaces = concatMap (Map.elems . ifInstalledIfaces) ifaceFiles
+    extSrcMap = Map.unions [ Map.map (\_ -> path) iface
+                           | ((_, Just path), ifile) <- pkgs
+                           , let iface = ifInstalledIfaces ifile
+                           ]
+
   render dflags flags qual interfaces installedIfaces extSrcMap
 
 
@@ -535,13 +538,15 @@ hypSrcWarnings flags = do
 
 updateHTMLXRefs :: [(DocPaths, InterfaceFile)] -> IO ()
 updateHTMLXRefs packages = do
-  writeIORef html_xrefs_ref (Map.fromList mapping)
-  writeIORef html_xrefs_ref' (Map.fromList mapping')
+  writeIORef html_xrefs_ref mapping
+  writeIORef html_xrefs_ref' mapping'
   where
-    mapping = [ (instMod iface, html) | ((html, _), ifaces) <- packages
-              , iface <- ifInstalledIfaces ifaces ]
-    mapping' = [ (moduleName m, html) | (m, html) <- mapping ]
-
+    mapping = Map.unions [ Map.map (\_ -> html) (ifInstalledIfaces ifaces)
+                         | ((html, _), ifaces) <- packages
+                         ]
+    mapping' = Map.fromDistinctAscList [ (moduleName m, html)
+                                       | (m, html) <- Map.toAscList mapping
+                                       ]
 
 getPrologue :: DynFlags -> [Flag] -> IO (Maybe (MDoc RdrName))
 getPrologue dflags flags =
