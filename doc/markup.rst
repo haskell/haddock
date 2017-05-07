@@ -35,6 +35,8 @@ the following:
 
 -  A type signature for a top-level function,
 
+-  A definition for a top-level function with no type signature,
+
 -  A ``data`` declaration,
 
 -  A ``newtype`` declaration,
@@ -57,9 +59,12 @@ this is possible in Haddock too: ::
     -- ^The 'square' function squares an integer.
     square x = x * x
 
-Note that Haddock doesn't contain a Haskell type system — if you don't
-write the type signature for a function, then Haddock can't tell what
-its type is and it won't be included in the documentation.
+Since Haddock uses the GHC API internally, it can infer types for
+top-level functions without type signatures. However, you're
+encouraged to add explicit type signatures for all top-level
+functions, to make your source code more readable for your users, and
+at times to avoid GHC inferring overly general type signatures that
+are less helpful to your users.
 
 Documentation annotations may span several lines; the annotation
 continues until the first non-comment line in the source file. For
@@ -183,38 +188,85 @@ module documentation example and then talk about the fields. ::
     module W where
     ...
 
-The “Module” field should be clear. It currently doesn't affect the
-output of any of the backends but you might want to include it for human
-information or for any other tools that might be parsing these comments
-without the help of GHC.
-
-The “Description” field accepts some short text which outlines the
-general purpose of the module. If you're generating HTML, it will show
-up next to the module link in the module index.
-
-The “Copyright”, “License”, “Maintainer” and “Stability” fields should
-be obvious. An alternative spelling for the “License” field is accepted
-as “Licence” but the output will always prefer “License”.
-
-The “Portability” field has seen varied use by different library
-authors. Some people put down things like operating system constraints
-there while others put down which GHC extensions are used in the module.
-Note that you might want to consider using the “show-extensions” module
-flag for the latter.
-
-Finally, a module may contain a documentation comment before the module
-header, in which case this comment is interpreted by Haddock as an
-overall description of the module itself, and placed in a section
-entitled “Description” in the documentation for the module. All usual
-Haddock markup is valid in this comment.
-
 All fields are optional but they must be in order if they do appear.
 Multi-line fields are accepted but the consecutive lines have to start
 indented more than their label. If your label is indented one space as
-is often the case with “--” syntax, the consecutive lines have to start
-at two spaces at the very least. Please note that we do not enforce the
-format for any of the fields and the established formats are just a
-convention.
+is often the case with the ``--`` syntax, the consecutive lines have
+to start at two spaces at the very least. For example, above we saw a
+multiline ``Copyright`` field: ::
+
+    {-|
+    ...
+    Copyright   : (c) Some Guy, 2013
+                      Someone Else, 2014
+    ...
+    -}
+
+That could equivalently be written as ::
+
+    -- | ...
+    -- Copyright:
+    --  (c) Some Guy, 2013
+    --  Someone Else, 2014
+    -- ...
+
+or as ::
+
+    -- | ...
+    -- Copyright: (c) Some Guy, 2013
+    --     Someone Else, 2014
+    -- ...
+
+but not as ::
+
+    -- | ...
+    -- Copyright: (c) Some Guy, 2013
+    -- Someone Else, 2014
+    -- ...
+
+since the ``Someone`` needs to be indented more than the
+``Copyright``.
+
+Whether new lines and other formatting in multiline fields is
+preserved depends on the field type. For example, new lines in the
+``Copyright`` field are preserved, but new lines in the
+``Description`` field are not; leading whitespace is not preserved in
+either [#backend]_. Please note that we do not enforce the format for
+any of the fields and the established formats are just a convention.
+
+.. [#backend] Technically, whitespace and newlines in the
+   ``Description`` field are preserved verbatim by the HTML backend,
+   but because most browsers collapse whitespace in HTML, they don't
+   render as such. But other backends may render this whitespace.
+
+Fields of the module description
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``Module`` field specifies the current module name. Since the module
+name can be inferred automatically from the source file, it doesn't
+affect the output of any of the backends. But you might want to
+include it for any other tools that might be parsing these comments
+without the help of GHC.
+
+The ``Description`` field accepts some short text which outlines the
+general purpose of the module. If you're generating HTML, it will show
+up next to the module link in the module index.
+
+The ``Copyright``, ``License``, ``Maintainer`` and ``Stability`` fields should
+be obvious. An alternative spelling for the ``License`` field is accepted
+as ``Licence`` but the output will always prefer ``License``.
+
+The ``Portability`` field has seen varied use by different library
+authors. Some people put down things like operating system constraints
+there while others put down which GHC extensions are used in the module.
+Note that you might want to consider using the ``show-extensions`` module
+flag for the latter (see :ref:`module-attrs`).
+
+Finally, a module may contain a documentation comment before the
+module header, in which case this comment is interpreted by Haddock as
+an overall description of the module itself, and placed in a section
+entitled ``Description`` in the documentation for the module. All the
+usual Haddock :ref:`markup` is valid in this comment.
 
 Controlling the documentation structure
 ---------------------------------------
@@ -304,11 +356,14 @@ re-exported, for example: ::
     import C (a, b)
 
 then Haddock behaves as if the set of entities re-exported from ``B``
-and ``C`` had been listed explicitly in the export list [2]_.
+and ``C`` had been listed explicitly in the export list [#notImplemented]_.
 
-.. [2]
-   NOTE: this is not fully implemented at the time of writing (version
-   0.2). At the moment, Haddock always inserts a cross-reference.
+.. Was this ever implemented? Perhaps this part of the docs should
+   just be removed until it is implemented.
+
+.. [#notImplemented] This is not implemented at the time of writing
+   (Haddock version 2.17.3 with GHC 8.0.2). At the moment, Haddock
+   always inserts a module cross-reference.
 
 The exception to this rule is when the re-exported module is declared
 with the ``hide`` attribute (:ref:`module-attrs`), in which case the module is
@@ -337,6 +392,8 @@ Haddock). ::
     -- | Documentation for 'foo'.
     foo :: Integer
     foo = 5
+
+.. _named-chunks:
 
 Named chunks of documentation
 -----------------------------
@@ -374,6 +431,8 @@ ways to do this:
    The documentation chunk is given a name, which is the sequence of
    alphanumeric characters directly after the “``-- $``”, and it may be
    referred to by the same name in the export list.
+
+.. _hyperlinking-re-exported:
 
 Hyperlinking and re-exported entities
 -------------------------------------
@@ -455,32 +514,35 @@ The options and module description can be in either order.
 
 The following attributes are currently understood by Haddock:
 
-``hide`` ``hide``
+``hide``
     Omit this module from the generated documentation, but nevertheless
     propagate definitions and documentation from within this module to
     modules that re-export those definitions.
 
-``hide`` ``prune``
+``prune``
     Omit definitions that have no documentation annotations from the
     generated documentation.
 
-``ignore-exports`` ``ignore-exports``
+``ignore-exports``
     Ignore the export list. Generate documentation as if the module had
     no export list - i.e. all the top-level declarations are exported,
     and section headings may be given in the body of the module.
 
-``not-home`` ``not-home``
+``not-home``
     Indicates that the current module should not be considered to be the
     home module for each entity it exports, unless that entity is not
-    exported from any other module. See ? for more details.
+    exported from any other module. See :ref:`hyperlinking-re-exported`
+    for more details.
 
-``show-extensions`` ``show-extensions``
+``show-extensions``
     Indicates that we should render the extensions used in this module
     in the resulting documentation. This will only render if the output
     format supports it. If Language is set, it will be shown as well and
     all the extensions implied by it won't. All enabled extensions will
     be rendered, including those implied by their more powerful
     versions.
+
+.. _markup:
 
 Markup
 ------
@@ -833,7 +895,7 @@ and will be removed in the future.
 Headings
 ~~~~~~~~
 
-Headings inside of comment documentation are possible be preceding them
+Headings inside of comment documentation are possible by preceding them
 with a number of ``=``\ s. From 1 to 6 are accepted. Extra ``=``\ s will
 be treated as belonging to the text of the heading. Note that it's up to
 the output format to decide how to render the different levels. ::
