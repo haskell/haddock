@@ -806,7 +806,9 @@ call these “bird tracks”). For example: ::
 There is an important difference between the two forms of code block: in
 the bird-track form, the text to the right of the ‘\ ``>``\ ’ is
 interpreted literally, whereas the ``@...@`` form interprets markup as
-normal inside the code block.
+normal inside the code block. In particular, ``/`` is markup for italics,
+and so e.g. ``@x / y / z@`` renders as ``x`` followed by italic
+``y`` with no slashes, followed by ``z``.
 
 Examples
 ~~~~~~~~
@@ -897,7 +899,8 @@ underscore if you need it bold:
 Monospaced (or typewriter) text is indicated by surrounding it with
 ``@...@``. Other markup is valid inside a monospaced span: for example
 ``@'f' a b@`` will hyperlink the identifier ``f`` inside the code
-fragment.
+fragment, but ``@__FILE__@`` will render ``FILE`` in bold with no 
+underscores, which may not be what you had in mind.
 
 Linking to modules
 ~~~~~~~~~~~~~~~~~~
