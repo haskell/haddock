@@ -164,6 +164,8 @@ Individual arguments to a function may be documented like this: ::
        -> Float    -- ^ The 'Float' argument
        -> IO ()    -- ^ The return value
 
+.. _module-description:
+
 The module description
 ----------------------
 
@@ -272,13 +274,16 @@ Controlling the documentation structure
 ---------------------------------------
 
 Haddock produces interface documentation that lists only the entities
-actually exported by the module. The documentation for a module will
+actually exported by the module. If there is no export list then all
+entities defined by the module are exported.
+
+The documentation for a module will
 include *all* entities exported by that module, even if they were
-re-exported by another module. The only exception is when Haddock can't
+re-exported from another module. The only exception is when Haddock can't
 see the declaration for the re-exported entity, perhaps because it isn't
 part of the batch of modules currently being processed.
 
-However, to Haddock the export list has even more significance than just
+To Haddock the export list has even more significance than just
 specifying the entities to be included in the documentation. It also
 specifies the *order* that entities will be listed in the generated
 documentation. This leaves the programmer free to implement functions in
@@ -289,9 +294,154 @@ is often used as a kind of ad-hoc interface documentation, with
 headings, groups of functions, type signatures and declarations in
 comments.
 
+In the next section we give examples illustrating most of the
+structural markup features. After the examples we go into more detail
+explaining the related markup, namely :ref:`section-headings`,
+:ref:`named-chunks`, and :ref:`re-exporting-entire-module`.
+
+.. _structure-examples:
+
+Documentation structure examples
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We now give several examples that produce similar results and
+illustrate most of the structural markup features. The first two
+example use an export list, but the third example does not.
+
+The first example, using an export list with :ref:`section-headings`
+and inline section descriptions: ::
+
+    module Image
+      ( -- * Image importers
+        --
+        -- | There is a "smart" importer, 'readImage', that determines
+        -- the image format from the file extension, and several
+        -- "dumb" format-specific importers that decode the file at
+        -- the specified type.
+        readImage
+      , readPngImage
+      , readGifImage
+      , ...
+        -- * Image exporters
+        -- ...
+      ) where
+
+    import Image.Types ( Image )
+
+    -- | Read an image, guessing the format from the file name.
+    readImage :: FilePath -> IO Image
+    readImage = ...
+
+    -- | Read a GIF.
+    readGifImage :: FilePath -> IO Image
+    readGifImage = ...
+
+    -- | Read a PNG.
+    readPngImage :: FilePath -> IO Image
+    readPngImage = ...
+
+    ...
+
+Note that the order of the entities ``readPngImage`` and
+``readGifImage`` in the export list is different from the order of the
+actual declarations farther down; the order in the export list is the
+order used in the generated docs. Also, the imported ``Image`` type
+itself is not re-exported, so it will not be included in the rendered
+docs (see :ref:`hyperlinking-re-exported`).
+
+The second example, using an export list with a section description
+defined elsewhere (the ``$imageImporters``; see :ref:`named-chunks`):
+::
+
+    module Image
+      ( -- * Image importers
+        --
+        -- $imageImporters
+        readImage
+      , readPngImage
+      , readGifImage
+      , ...
+        -- * Image exporters
+        -- ...
+      ) where
+
+    import Image.Types ( Image )
+
+    -- $imageImporters
+    --
+    -- There is a "smart" importer, 'readImage', that determines the
+    -- image format from the file extension, and several "dumb"
+    -- format-specific importers that decode the file at the specified
+    -- type.
+
+    -- | Read an image, guessing the format from the file name.
+    readImage :: FilePath -> IO Image
+    readImage = ...
+
+    -- | Read a GIF.
+    readGifImage :: FilePath -> IO Image
+    readGifImage = ...
+
+    -- | Read a PNG.
+    readPngImage :: FilePath -> IO Image
+    readPngImage = ...
+
+    ...
+
+This produces the same rendered docs as the first example, but the
+source code itself is arguably more readable, since the documentation
+for the group of importer functions is closer to their definitions.
+
+The third example, without an export list: ::
+
+    module Image where
+
+    import Image.Types ( Image )
+
+    -- * Image importers
+    --
+    -- $imageImporters
+    --
+    -- There is a "smart" importer, 'readImage', that determines the
+    -- image format from the file extension, and several "dumb"
+    -- format-specific importers that decode the file at the specified
+    -- type.
+
+    -- | Read an image, guessing the format from the file name.
+    readImage :: FilePath -> IO Image
+    readImage = ...
+
+    -- | Read a GIF.
+    readGifImage :: FilePath -> IO Image
+    readGifImage = ...
+
+    -- | Read a PNG.
+    readPngImage :: FilePath -> IO Image
+    readPngImage = ...
+
+    ...
+
+    -- * Image exporters
+    -- ...
+
+Note that the section headers (e.g. ``-- * Image importers``) now
+appear in the module body itself, and that the section documentation
+is still given using :ref:`named-chunks`. Unlike in the first example
+when using an export list, the named chunk syntax ``$imageImporters``
+*must* be used for the section documentation; attempting to use the
+``-- | ...`` syntax to document the image importers here will wrongly
+associate the documentation chunk with the next definition!
+
+.. _section-headings:
+
+Section headings
+~~~~~~~~~~~~~~~~
+
 You can insert headings and sub-headings in the documentation by
-including annotations at the appropriate point in the export list. For
-example: ::
+including annotations at the appropriate point in the export list, or
+in the module body directly when not using an export list.
+
+For example: ::
 
     module Foo (
       -- * Classes
@@ -328,6 +478,30 @@ line is also supported. e.g.: ::
       , g
       ) where
 
+When not using an export list, you may insert section headers in the
+module body. Such section headers associate with all entities
+declaried up until the next section header. For example: ::
+
+    module Foo where
+
+    -- * Classes
+    class C a where ...
+
+    -- * Types
+    -- ** A data type
+    data T = ...
+
+    -- ** A record
+    data R = ...
+
+    -- * Some functions
+    f :: ...
+    f = ...
+    g :: ...
+    g = ...
+
+.. _re-exporting-entire-module:
+
 Re-exporting an entire module
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -344,8 +518,10 @@ What will the Haddock-generated documentation for this module look like?
 Well, it depends on how the modules ``B`` and ``C`` are imported. If
 they are imported wholly and without any ``hiding`` qualifiers, then the
 documentation will just contain a cross-reference to the documentation
-for ``B`` and ``C``. However, if the modules are not *completely*
-re-exported, for example: ::
+for ``B`` and ``C``.
+
+However, if the modules are not *completely* re-exported, for example:
+::
 
     module A (
       module B,
@@ -358,8 +534,8 @@ re-exported, for example: ::
 then Haddock behaves as if the set of entities re-exported from ``B``
 and ``C`` had been listed explicitly in the export list [#notImplemented]_.
 
-.. Was this ever implemented? Perhaps this part of the docs should
-   just be removed until it is implemented.
+.. Comment: was this ever implemented? Perhaps this part of the docs
+   should just be removed until it is implemented?
 
 .. [#notImplemented] This is not implemented at the time of writing
    (Haddock version 2.17.3 with GHC 8.0.2). At the moment, Haddock
@@ -370,39 +546,24 @@ with the ``hide`` attribute (:ref:`module-attrs`), in which case the module is
 never cross-referenced; the contents are always expanded in place in the
 re-exporting module.
 
-Omitting the export list
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-If there is no export list in the module, how does Haddock generate
-documentation? Well, when the export list is omitted, e.g.: ::
-
-    module Foo where
-
-this is equivalent to an export list which mentions every entity defined
-at the top level in this module, and Haddock treats it in the same way.
-Furthermore, the generated documentation will retain the order in which
-entities are defined in the module. In this special case the module body
-may also include section headings (normally they would be ignored by
-Haddock). ::
-
-    module Foo where
-
-    -- * This heading will now appear before foo.
-
-    -- | Documentation for 'foo'.
-    foo :: Integer
-    foo = 5
-
 .. _named-chunks:
 
 Named chunks of documentation
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Occasionally it is desirable to include a chunk of documentation which
-is not attached to any particular Haskell declaration. There are two
-ways to do this:
+It is often desirable to include a chunk of documentation which is not
+attached to any particular Haskell declaration, for example, when
+giving summary documentation for a group of related definitions (see
+:ref:`structure-examples`). In addition to including such documenation
+chunks at the top of the file, as part of the
+:ref:`module-description`, you can also associate them with
+:ref:`section-headings`.
 
--  The documentation can be included in the export list directly, e.g.: ::
+There are several ways to associate documentation chunks with section
+headings, depending on whether you are using an export list or not:
+
+-  The documentation can be included in the export list directly, by
+   preceding it with a ``-- |``. For example: ::
 
        module Foo (
           -- * A section heading
@@ -411,11 +572,13 @@ ways to do this:
           ...
         ) where
 
+   In this case the chunk is not "named".
+
 -  If the documentation is large and placing it inline in the export
    list might bloat the export list and obscure the structure, then it
    can be given a name and placed out of line in the body of the module.
    This is achieved with a special form of documentation annotation
-   “``-- $``”: ::
+   ``-- $``, which we call a *named chunk*: ::
 
        module Foo (
           -- * A section heading
@@ -428,9 +591,44 @@ ways to do this:
        -- Here is a large chunk of documentation which may be referred to by
        -- the name $doc.
 
-   The documentation chunk is given a name, which is the sequence of
-   alphanumeric characters directly after the “``-- $``”, and it may be
-   referred to by the same name in the export list.
+   The documentation chunk is given a name of your choice (here
+   ``doc``), which is the sequence of alphanumeric characters directly
+   after the ``-- $``, and it may be referred to by the same name in
+   the export list. Note that named chunks must come *after* any
+   imports in the module body.
+
+-  If you aren't using an export list, then your only choice is to use
+   a named chunk with the ``-- $`` syntax. For example: ::
+
+       module Foo where
+
+       -- * A section heading
+       --
+       -- $doc
+       -- Here is a large chunk of documentation which may be referred to by
+       -- the name $doc.
+
+   Just like with entity declariations when not using an export list,
+   named chunks of documentation are associated with the preceding
+   section header here, or with the implicit top-level documentation
+   section if there is no preceding section header.
+
+   **Warning**: the form used in the first bullet above, where the
+   chunk is not named, *does not work* when you aren't using an
+   export list. For example ::
+
+       module Foo where
+
+       -- * A section heading
+       --
+       -- | Some documentation not attached to a particular Haskell entity
+
+       -- | The fooifier.
+       foo :: ...
+
+   will result in ``Some documentation not ...`` being attached to
+   *next* entity declaration, here ``foo``, in addition to any other
+   documentation that next entity already has!
 
 .. _hyperlinking-re-exported:
 
