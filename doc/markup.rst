@@ -8,7 +8,7 @@ will just generate documentation that contains the type signatures, data
 type declarations, and class declarations exported by each of the
 modules being processed.
 
-Documenting a top-level declaration
+Documenting a Top-Level Declaration
 -----------------------------------
 
 The simplest example of a documentation annotation is for documenting
@@ -86,13 +86,13 @@ comments: ::
     square :: Int -> Int
     square x = x * x
 
-Documenting parts of a declaration
+Documenting Parts of a Declaration
 ----------------------------------
 
 In addition to documenting the whole declaration, in some cases we can
 also document individual parts of the declaration.
 
-Class methods
+Class Methods
 ~~~~~~~~~~~~~
 
 Class methods are documented in the same way as top level type
@@ -104,7 +104,7 @@ signatures, by using either the ``-- |`` or ``-- ^`` annotations: ::
        -- | This is the documentation for the 'g' method
        g :: Int -> a
 
-Constructors and record fields
+Constructors and Record Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Constructors are documented like so: ::
@@ -155,7 +155,7 @@ would join up documentation of each field and render the result. The
 reason for this seemingly weird behaviour is the fact that ``someField``
 is actually the same (partial) function.
 
-Function arguments
+Function Arguments
 ~~~~~~~~~~~~~~~~~~
 
 Individual arguments to a function may be documented like this: ::
@@ -166,7 +166,7 @@ Individual arguments to a function may be documented like this: ::
 
 .. _module-description:
 
-The module description
+The Module Description
 ----------------------
 
 A module itself may be documented with multiple fields that can then be
@@ -241,7 +241,7 @@ any of the fields and the established formats are just a convention.
    but because most browsers collapse whitespace in HTML, they don't
    render as such. But other backends may render this whitespace.
 
-Fields of the module description
+Fields of the Module Description
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``Module`` field specifies the current module name. Since the module
@@ -270,7 +270,7 @@ an overall description of the module itself, and placed in a section
 entitled ``Description`` in the documentation for the module. All the
 usual Haddock :ref:`markup` is valid in this comment.
 
-Controlling the documentation structure
+Controlling the Documentation Structure
 ---------------------------------------
 
 Haddock produces interface documentation that lists only the entities
@@ -301,7 +301,7 @@ explaining the related markup, namely :ref:`section-headings`,
 
 .. _structure-examples:
 
-Documentation structure examples
+Documentation Structure Examples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We now give several examples that produce similar results and
@@ -434,7 +434,7 @@ associate the documentation chunk with the next definition!
 
 .. _section-headings:
 
-Section headings
+Section Headings
 ~~~~~~~~~~~~~~~~
 
 You can insert headings and sub-headings in the documentation by
@@ -502,7 +502,7 @@ declaried up until the next section header. For example: ::
 
 .. _re-exporting-entire-module:
 
-Re-exporting an entire module
+Re-Exporting an Entire Module
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Haskell allows you to re-export the entire contents of a module (or at
@@ -542,14 +542,15 @@ and ``C`` had been listed explicitly in the export list [#notImplemented]_.
    always inserts a module cross-reference.
 
 The exception to this rule is when the re-exported module is declared
-with the ``hide`` attribute (:ref:`module-attrs`), in which case the module is
+with the ``hide`` attribute (see :ref:`module-attrs`), in which
+case the module is
 never cross-referenced; the contents are always expanded in place in the
 re-exporting module.
 
 .. _named-chunks:
 
-Named chunks of documentation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+(Named) Chunks of Documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It is often desirable to include a chunk of documentation which is not
 attached to any particular Haskell declaration, for example, when
@@ -632,7 +633,7 @@ headings, depending on whether you are using an export list or not:
 
 .. _hyperlinking-re-exported:
 
-Hyperlinking and re-exported entities
+Hyperlinking and Re-Exported Entities
 -------------------------------------
 
 When Haddock renders a type in the generated documentation, it
@@ -757,7 +758,7 @@ Paragraphs
 One or more blank lines separates two paragraphs in a documentation
 comment.
 
-Special characters
+Special Characters
 ~~~~~~~~~~~~~~~~~~
 
 The following characters have special meanings in documentation
@@ -774,7 +775,7 @@ Furthermore, the character sequence ``>>>`` has a special meaning at the
 beginning of a line. To escape it, just prefix the characters in the
 sequence with a backslash.
 
-Character references
+Character References
 ~~~~~~~~~~~~~~~~~~~~
 
 Although Haskell source files may contain any character from the Unicode
@@ -883,7 +884,7 @@ markup is accepted [3]_: ```T'``.
    because strictly speaking the ````` character should not be used as a
    left quote, it is a grave accent.
 
-Emphasis, Bold and Monospaced text
+Emphasis, Bold and Monospaced Text
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Emphasis may be added by surrounding text with ``/.../``. Other markup
@@ -902,7 +903,7 @@ Monospaced (or typewriter) text is indicated by surrounding it with
 fragment, but ``@__FILE__@`` will render ``FILE`` in bold with no 
 underscores, which may not be what you had in mind.
 
-Linking to modules
+Linking to Modules
 ~~~~~~~~~~~~~~~~~~
 
 Linking to a module is done by surrounding the module name with double
@@ -915,7 +916,7 @@ is valid before turning it into a link but unlike with identifiers,
 whether the module is in scope isn't checked and will always be turned
 into a link.
 
-Itemized and Enumerated lists
+Itemized and Enumerated Lists
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A bulleted item is represented by preceding a paragraph with either
@@ -995,7 +996,7 @@ which was unexpected. ::
         * bar
     -}
 
-Definition lists
+Definition Lists
 ~~~~~~~~~~~~~~~~
 
 Definition lists are written as follows: ::
