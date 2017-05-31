@@ -314,11 +314,15 @@ renameInstHead InstHead {..} = do
 renameLDecl :: LHsDecl Name -> RnM (LHsDecl DocName)
 renameLDecl (L loc d) = return . L loc =<< renameDecl d
 
-renamePats :: [(HsDecl Name,DocForDecl Name)] -> RnM [(HsDecl DocName,DocForDecl DocName)]
+renamePats :: [(HsDecl Name,DocForDecl Name,[(Name,Fixity)])]
+           -> RnM [(HsDecl DocName,DocForDecl DocName,[(DocName,Fixity)])]
 renamePats = mapM
-  (\(d,doc) -> do { d'   <- renameDecl d
-                  ; doc' <- renameDocForDecl doc
-                  ; return (d',doc')})
+  (\(d,doc,fxs) -> do { d'   <- renameDecl d
+                      ; doc' <- renameDocForDecl doc
+                      ; fxs' <- forM fxs $ \(name, fixity) -> do
+                                  name' <- lookupRn name
+                                  return (name', fixity)
+                      ; return (d',doc',fxs')})
 
 renameDecl :: HsDecl Name -> RnM (HsDecl DocName)
 renameDecl decl = case decl of

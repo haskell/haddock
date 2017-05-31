@@ -40,7 +40,8 @@ import Name
 import BooleanFormula
 import RdrName ( rdrNameOcc )
 
-ppDecl :: Bool -> LinksInfo -> LHsDecl DocName -> [(HsDecl DocName, DocForDecl DocName)]
+ppDecl :: Bool -> LinksInfo -> LHsDecl DocName
+       -> [(HsDecl DocName, DocForDecl DocName,[(DocName, Fixity)])]
        -> DocForDecl DocName ->  [DocInstance DocName] -> [(DocName, Fixity)]
        -> [(DocName, DocForDecl DocName)] -> Splice -> Unicode -> Qualification -> Html
 ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdocs splice unicode qual = case decl of
@@ -692,7 +693,8 @@ ppShortDataDecl summary dataInst dataDecl unicode qual
 
 ppDataDecl :: Bool -> LinksInfo -> [DocInstance DocName] -> [(DocName, Fixity)] ->
               [(DocName, DocForDecl DocName)] ->
-              SrcSpan -> Documentation DocName -> TyClDecl DocName -> [(HsDecl DocName,DocForDecl DocName)] ->
+              SrcSpan -> Documentation DocName -> TyClDecl DocName ->
+              [(HsDecl DocName,DocForDecl DocName,[(DocName, Fixity)])] ->
               Splice -> Unicode -> Qualification -> Html
 ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
            splice unicode qual
@@ -730,9 +732,9 @@ ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
               , hsep $ punctuate comma $ map (ppBinder summary . getOccName) lnames
               , dcolon unicode
               , ppLType unicode qual (hsSigType typ)
-              ]
+              ] <+> ppFixities subfixs qual
         ,combineDocumentation (fst d), [])
-      | (SigD (PatSynSig lnames typ),d) <- pats
+      | (SigD (PatSynSig lnames typ),d,subfixs) <- pats
       ]
 
     instancesBit = ppInstances links (OriginData docname) instances

@@ -576,7 +576,7 @@ mkExportItems
         Nothing -> []
         Just doc -> return . ExportDoc $ processDocStringParas dflags gre doc
 
-    declWith :: [(HsDecl Name, DocForDecl Name)] -> Name -> ErrMsgGhc [ ExportItem Name ]
+    declWith :: [(HsDecl Name, DocForDecl Name,[(Name,Fixity)])] -> Name -> ErrMsgGhc [ ExportItem Name ]
     declWith pats t = do
       r <- findDecl t
       case r of
@@ -646,7 +646,8 @@ mkExportItems
         _ -> return []
 
 
-    mkExportDecl :: Name -> LHsDecl Name -> [(HsDecl Name, DocForDecl Name)] -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
+    mkExportDecl :: Name -> LHsDecl Name -> [(HsDecl Name, DocForDecl Name, [(Name,Fixity)])]
+                 -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
     mkExportDecl name decl pats (doc, subs) = decl'
       where
         decl' = ExportDecl (restrictTo sub_names (extractDecl name decl)) pats doc subs' [] fixities False
@@ -686,18 +687,20 @@ mkExportItems
       where
         m = nameModule n
 
-    findBundledPatterns :: Name -> ErrMsgGhc (Maybe (HsDecl Name, DocForDecl Name))
+    findBundledPatterns :: Name -> ErrMsgGhc (Maybe (HsDecl Name, DocForDecl Name,[(Name,Fixity)]))
     findBundledPatterns t = do
       d <- findDecl t
       case d of
         ([L l (ValD (PatSynBind _))], (doc, _)) -> do
           export <- hiValExportItem dflags t l doc (l `elem` splices) $ M.lookup t fixMap
           case export of
-            (ExportDecl (L _ s@(SigD (PatSynSig {}))) _ doc' _ _ _ _) ->
-              return (Just (s,doc'))
+            (ExportDecl (L _ s@(SigD (PatSynSig lnames _))) _ doc' _ _ _ _) -> do
+              let fixities = [ (n, f) | n <- map unLoc lnames, Just f <- [M.lookup n fixMap] ]
+              return (Just (s,doc',fixities))
             _ -> return Nothing
-        ([L _ p@(SigD (PatSynSig {}))], (doc, _)) ->
-          return (Just (p,doc))
+        ([L _ p@(SigD (PatSynSig lnames _))], (doc, _)) -> do
+          let fixities = [ (n, f) | n <- map unLoc lnames, Just f <- [M.lookup n fixMap] ]
+          return (Just (p,doc,fixities))
         _ -> return Nothing
 
 -- | Given a 'Module' from a 'Name', convert it into a 'Module' that
