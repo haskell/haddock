@@ -552,12 +552,12 @@ mkExportItems
     Nothing -> fullModuleContents dflags warnings gre maps fixMap splices decls
     Just exports -> liftM concat $ mapM lookupExport exports
   where
-    lookupExport (IEVar (L _ x))         = declWith [] $ ieWrappedName x
-    lookupExport (IEThingAbs (L _ t))    = declWith [] $ ieWrappedName t
-    lookupExport (IEThingAll (L _ t))    = declWith [] $ ieWrappedName t
+    lookupExport (IEVar (L _ x))         = declWith [] [] $ ieWrappedName x
+    lookupExport (IEThingAbs (L _ t))    = declWith [] [] $ ieWrappedName t
+    lookupExport (IEThingAll (L _ t))    = declWith [] [] $ ieWrappedName t
     lookupExport (IEThingWith (L _ t) _ cs _) = do
-      pats <- catMaybes <$> mapM (findBundledPatterns . ieWrappedName . unLoc) cs
-      declWith pats $ ieWrappedName t
+      (pats,fixss) <- unzip . catMaybes <$> mapM (findBundledPatterns . ieWrappedName . unLoc) cs
+      declWith pats (concat fixss) $ ieWrappedName t
     lookupExport (IEModuleContents (L _ m)) =
       -- TODO: We could get more accurate reporting here if IEModuleContents
       -- also recorded the actual names that are exported here.  We CAN
@@ -576,8 +576,8 @@ mkExportItems
         Nothing -> []
         Just doc -> return . ExportDoc $ processDocStringParas dflags gre doc
 
-    declWith :: [(HsDecl Name, DocForDecl Name,[(Name,Fixity)])] -> Name -> ErrMsgGhc [ ExportItem Name ]
-    declWith pats t = do
+    declWith :: [(HsDecl Name, DocForDecl Name)] -> [(Name,Fixity)] -> Name -> ErrMsgGhc [ ExportItem Name ]
+    declWith pats patFixities t = do
       r <- findDecl t
       case r of
         ([L l (ValD _)], (doc, _)) -> do
@@ -614,15 +614,15 @@ mkExportItems
                     -- fromJust is safe since we already checked in guards
                     -- that 't' is a name declared in this declaration.
                     let newDecl = L loc . SigD . fromJust $ filterSigNames (== t) sig
-                    in return [ mkExportDecl t newDecl pats docs_ ]
+                    in return [ mkExportDecl t newDecl pats patFixities docs_ ]
 
                   L loc (TyClD cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
                     let sig = maybeToList $ fmap (noLoc . MinimalSig NoSourceText . noLoc . fmap noLoc) mdef
                     return [ mkExportDecl t
-                      (L loc $ TyClD cl { tcdSigs = sig ++ tcdSigs cl }) pats docs_ ]
+                      (L loc $ TyClD cl { tcdSigs = sig ++ tcdSigs cl }) pats patFixities docs_ ]
 
-                  _ -> return [ mkExportDecl t decl pats docs_ ]
+                  _ -> return [ mkExportDecl t decl pats patFixities docs_ ]
 
         -- Declaration from another package
         ([], _) -> do
@@ -639,21 +639,22 @@ mkExportItems
                    liftErrMsg $ tell
                       ["Warning: Couldn't find .haddock for export " ++ pretty dflags t]
                    let subs_ = [ (n, noDocForDecl) | (n, _, _) <- subordinates instMap (unLoc decl) ]
-                   return [ mkExportDecl t decl pats (noDocForDecl, subs_) ]
+                   return [ mkExportDecl t decl pats patFixities (noDocForDecl, subs_) ]
                 Just iface ->
-                   return [ mkExportDecl t decl pats (lookupDocs t warnings (instDocMap iface) (instArgMap iface) (instSubMap iface)) ]
+                   return [ mkExportDecl t decl pats patFixities (lookupDocs t warnings (instDocMap iface) (instArgMap iface) (instSubMap iface)) ]
 
         _ -> return []
 
 
-    mkExportDecl :: Name -> LHsDecl Name -> [(HsDecl Name, DocForDecl Name, [(Name,Fixity)])]
+    mkExportDecl :: Name -> LHsDecl Name -> [(HsDecl Name, DocForDecl Name)]
+                 -> [(Name,Fixity)]
                  -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
-    mkExportDecl name decl pats (doc, subs) = decl'
+    mkExportDecl name decl pats patFixities (doc, subs) = decl'
       where
         decl' = ExportDecl (restrictTo sub_names (extractDecl name decl)) pats doc subs' [] fixities False
         subs' = filter (isExported . fst) subs
         sub_names = map fst subs'
-        fixities = [ (n, f) | n <- name:sub_names, Just f <- [M.lookup n fixMap] ]
+        fixities = [ (n, f) | n <- name:sub_names, Just f <- [M.lookup n fixMap] ] ++ patFixities
 
     exportedNameSet = mkNameSet exportedNames
     isExported n = elemNameSet n exportedNameSet
@@ -687,7 +688,7 @@ mkExportItems
       where
         m = nameModule n
 
-    findBundledPatterns :: Name -> ErrMsgGhc (Maybe (HsDecl Name, DocForDecl Name,[(Name,Fixity)]))
+    findBundledPatterns :: Name -> ErrMsgGhc (Maybe ((HsDecl Name, DocForDecl Name),[(Name,Fixity)]))
     findBundledPatterns t = do
       d <- findDecl t
       case d of
@@ -696,11 +697,11 @@ mkExportItems
           case export of
             (ExportDecl (L _ s@(SigD (PatSynSig lnames _))) _ doc' _ _ _ _) -> do
               let fixities = [ (n, f) | n <- map unLoc lnames, Just f <- [M.lookup n fixMap] ]
-              return (Just (s,doc',fixities))
+              return (Just ((s,doc'),fixities))
             _ -> return Nothing
         ([L _ p@(SigD (PatSynSig lnames _))], (doc, _)) -> do
           let fixities = [ (n, f) | n <- map unLoc lnames, Just f <- [M.lookup n fixMap] ]
-          return (Just (p,doc,fixities))
+          return (Just ((p,doc),fixities))
         _ -> return Nothing
 
 -- | Given a 'Module' from a 'Name', convert it into a 'Module' that

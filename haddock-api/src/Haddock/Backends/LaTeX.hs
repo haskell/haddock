@@ -278,7 +278,7 @@ moduleBasename mdl = map (\c -> if c == '.' then '-' else c)
 
 
 ppDecl :: LHsDecl DocName
-       -> [(HsDecl DocName,DocForDecl DocName,[(DocName,Fixity)])]
+       -> [(HsDecl DocName,DocForDecl DocName)]
        -> DocForDecl DocName
        -> [DocInstance DocName]
        -> [(DocName, DocForDecl DocName)]
@@ -566,7 +566,7 @@ lookupAnySubdoc n subdocs = case lookup n subdocs of
 -------------------------------------------------------------------------------
 
 
-ppDataDecl :: [(HsDecl DocName,DocForDecl DocName,[(DocName,Fixity)])] -> [DocInstance DocName] ->
+ppDataDecl :: [(HsDecl DocName,DocForDecl DocName)] -> [DocInstance DocName] ->
               [(DocName, DocForDecl DocName)] -> SrcSpan ->
               Maybe (Documentation DocName) -> TyClDecl DocName -> Bool ->
               LaTeX
@@ -606,7 +606,7 @@ ppDataDecl pats instances subdocs _loc doc dataDecl unicode
                       , dcolon unicode
                       , ppLType unicode (hsSigType ty)
                       ] <-> rDoc (fmap _doc . combineDocumentation . fst $ d)
-               | (SigD (PatSynSig lnames ty),d,_fixities) <- pats
+               | (SigD (PatSynSig lnames ty),d) <- pats
                ] $$
           text "\\end{tabulary}\\par"
 
