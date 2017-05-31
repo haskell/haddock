@@ -614,7 +614,7 @@ ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) =
             , [subFamInstDetails iid pdecl])
           where
             pdata = keyword "data" <+> typ
-            pdecl = pdata <+> ppShortDataDecl False True dd unicode qual
+            pdecl = pdata <+> ppShortDataDecl False True dd [] unicode qual
   where
     iid = instanceId origin no orphan ihd
     typ = ppAppNameTypes ihdClsName ihdKinds ihdTypes unicode qual
@@ -663,20 +663,23 @@ instanceId origin no orphan ihd = concat $
 
 
 -- TODO: print contexts
-ppShortDataDecl :: Bool -> Bool -> TyClDecl DocName -> Unicode -> Qualification -> Html
-ppShortDataDecl summary dataInst dataDecl unicode qual
+ppShortDataDecl :: Bool -> Bool -> TyClDecl DocName
+                -> [(HsDecl DocName,DocForDecl DocName,[(DocName, Fixity)])]
+                -> Unicode -> Qualification -> Html
+ppShortDataDecl summary dataInst dataDecl pats unicode qual
 
-  | [] <- cons = dataHeader
+  | [] <- cons
+  , [] <- pats = dataHeader
 
-  | [lcon] <- cons, isH98,
+  | [lcon] <- cons, [] <- pats, isH98,
     (cHead,cBody,cFoot) <- ppShortConstrParts summary dataInst (unLoc lcon) unicode qual
        = (dataHeader <+> equals <+> cHead) +++ cBody +++ cFoot
 
-  | isH98 = dataHeader
-      +++ shortSubDecls dataInst (zipWith doConstr ('=':repeat '|') cons)
+  | [] <- pats, isH98 = dataHeader
+      +++ shortSubDecls dataInst (zipWith doConstr ('=':repeat '|') cons ++ pats1)
 
   | otherwise = (dataHeader <+> keyword "where")
-      +++ shortSubDecls dataInst (map doGADTConstr cons)
+      +++ shortSubDecls dataInst (map doGADTConstr cons ++ pats1)
 
   where
     dataHeader
@@ -690,6 +693,14 @@ ppShortDataDecl summary dataInst dataDecl unicode qual
                   ConDeclH98 {} -> True
                   ConDeclGADT{} -> False
 
+    pats1 = [ hsep [ keyword "pattern"
+                   , hsep $ punctuate comma $ map (ppBinder summary . getOccName) lnames
+                   , dcolon unicode
+                   , ppLType unicode qual (hsSigType typ)
+                   ]
+            | (SigD (PatSynSig lnames typ),_,_) <- pats
+            ]
+
 
 ppDataDecl :: Bool -> LinksInfo -> [DocInstance DocName] -> [(DocName, Fixity)] ->
               [(DocName, DocForDecl DocName)] ->
@@ -699,7 +710,7 @@ ppDataDecl :: Bool -> LinksInfo -> [DocInstance DocName] -> [(DocName, Fixity)] 
 ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
            splice unicode qual
 
-  | summary   = ppShortDataDecl summary False dataDecl unicode qual
+  | summary   = ppShortDataDecl summary False dataDecl pats unicode qual
   | otherwise = header_ +++ docSection Nothing qual doc +++ constrBit +++ patternBit +++ instancesBit
 
   where
