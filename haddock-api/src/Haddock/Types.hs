@@ -217,6 +217,9 @@ data ExportItem name
         -- | A declaration.
         expItemDecl :: !(LHsDecl name)
 
+        -- | Bundled patterns for a data type declaration
+      , expItemPats :: [(HsDecl name,DocForDecl name)]
+
         -- | Maybe a doc comment, and possibly docs for arguments (if this
         -- decl is a function or type-synonym).
       , expItemMbDoc :: !(DocForDecl name)
