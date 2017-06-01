@@ -92,6 +92,10 @@ filterSigNames p (ClassOpSig is_default ns ty) =
   case filter (p . unLoc) ns of
     []       -> Nothing
     filtered -> Just (ClassOpSig is_default filtered ty)
+filterSigNames p (PatSynSig ns ty) =
+  case filter (p . unLoc) ns of
+    []       -> Nothing
+    filtered -> Just (PatSynSig filtered ty)
 filterSigNames _ _                           = Nothing
 
 ifTrueJust :: Bool -> name -> Maybe name
@@ -114,6 +118,7 @@ sigNameNoLoc _                         = []
 isUserLSig :: LSig name -> Bool
 isUserLSig (L _(TypeSig {}))    = True
 isUserLSig (L _(ClassOpSig {})) = True
+isUserLSig (L _(PatSynSig {}))  = True
 isUserLSig _                    = False
 
 
