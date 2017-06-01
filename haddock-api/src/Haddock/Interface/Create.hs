@@ -58,6 +58,7 @@ import FastString (concatFS)
 import BasicTypes ( StringLiteral(..), SourceText(..) )
 import qualified Outputable as O
 import HsDecls ( getConDetails )
+import RnNames
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological
@@ -554,7 +555,15 @@ mkExportItems
   where
     lookupExport (IEVar (L _ x))         = declWith [] $ ieWrappedName x
     lookupExport (IEThingAbs (L _ t))    = declWith [] $ ieWrappedName t
-    lookupExport (IEThingAll (L _ t))    = declWith [] $ ieWrappedName t
+    lookupExport (IEThingAll (L _ t))    = do
+      -- The following logic is taken from:
+      -- https://github.com/ghc/ghc/blob/9410a4c8a710fc59ad8b03b94302d7cb6b9c92f3/compiler/typecheck/TcRnExports.hs#L321
+      let name     = ieWrappedName t
+          kids_env = mkChildEnv (globalRdrEnvElts gre)
+          gres     = findChildren kids_env name
+          non_flds = classifyGREs gres
+      pats <- catMaybes <$> mapM (findBundledPatterns) non_flds
+      declWith pats name
     lookupExport (IEThingWith (L _ t) _ cs _) = do
       pats <- catMaybes <$> mapM (findBundledPatterns . ieWrappedName . unLoc) cs
       declWith pats $ ieWrappedName t
@@ -701,6 +710,16 @@ mkExportItems
         ([L _ p@(SigD PatSynSig {})], (doc, _)) ->
           return (Just (p,doc))
         _ -> return Nothing
+
+    -- The following logic is a slightly modified version of:
+    -- https://github.com/ghc/ghc/blob/9410a4c8a710fc59ad8b03b94302d7cb6b9c92f3/compiler/typecheck/TcRnExports.hs#L351
+    classifyGREs :: [GlobalRdrElt] -> [Name]
+    classifyGREs = mapMaybe classifyGRE
+
+    classifyGRE :: GlobalRdrElt -> Maybe Name
+    classifyGRE gre' = case gre_par gre' of
+      FldParent {} -> Nothing
+      _            -> Just (gre_name gre')
 
 -- | Given a 'Module' from a 'Name', convert it into a 'Module' that
 -- we can actually find in the 'IfaceMap'.
