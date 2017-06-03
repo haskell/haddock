@@ -103,6 +103,9 @@ data Interface = Interface
     -- names of subordinate declarations mapped to their parent declarations.
   , ifaceDeclMap         :: !(Map Name [LHsDecl Name])
 
+    -- | Bundled pattern synonym declarations for specific types.
+  , ifaceBundledPatSynsMap :: !(Map Name [Name])
+
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
   , ifaceDocMap          :: !(DocMap Name)
@@ -199,7 +202,8 @@ toInstalledIface interface = InstalledInterface
   , instExports        = ifaceExports        interface
   , instVisibleExports = ifaceVisibleExports interface
   , instOptions        = ifaceOptions        interface
-  , instSubMap         = ifaceSubMap         interface
+  , instSubMap         =
+      Map.unionWith (++) (ifaceSubMap interface) (ifaceBundledPatSynsMap interface)
   , instFixMap         = ifaceFixMap         interface
   }
 
