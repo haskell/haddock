@@ -71,17 +71,13 @@ window.onload = function () {pageLoad();};
 		>pattern</span
 		> <a href="#"
 		>(:&gt;)</a
-		> :: <span class="keyword"
-		>forall</span
-		> a (n :: <a href="#"
-		>Nat</a
-		>). a -&gt; <a href="#"
+		> :: a -&gt; <a href="#"
 		>Vec</a
 		> n a -&gt; <a href="#"
 		>Vec</a
-		> (<a href="#"
-		>(+)</a
-		> n 1) a</li
+		> (n <a href="#"
+		>+</a
+		> 1) a</li
 	      ></ul
 	    ></li
 	  ><li class="src short"
@@ -103,9 +99,7 @@ window.onload = function () {pageLoad();};
 		>pattern</span
 		> <a href="#"
 		>LR</a
-		> :: <span class="keyword"
-		>forall</span
-		> a. a -&gt; <a href="#"
+		> :: a -&gt; <a href="#"
 		>RTree</a
 		> 0 a</li
 	      ><li
@@ -113,19 +107,15 @@ window.onload = function () {pageLoad();};
 		>pattern</span
 		> <a href="#"
 		>BR</a
-		> :: <span class="keyword"
-		>forall</span
-		> (d :: <a href="#"
-		>Nat</a
-		>) a. <a href="#"
+		> :: <a href="#"
 		>RTree</a
 		> d a -&gt; <a href="#"
 		>RTree</a
 		> d a -&gt; <a href="#"
 		>RTree</a
-		> (<a href="#"
-		>(+)</a
-		> d 1) a</li
+		> (d <a href="#"
+		>+</a
+		> 1) a</li
 	      ></ul
 	    ></li
 	  ></ul
@@ -199,17 +189,13 @@ window.onload = function () {pageLoad();};
 		  >pattern</span
 		  > <a id="v::-62-" class="def"
 		  >(:&gt;)</a
-		  > :: <span class="keyword"
-		  >forall</span
-		  > a (n :: <a href="#"
-		  >Nat</a
-		  >). a -&gt; <a href="#"
+		  > :: a -&gt; <a href="#"
 		  >Vec</a
 		  > n a -&gt; <a href="#"
 		  >Vec</a
-		  > (<a href="#"
-		  >(+)</a
-		  > n 1) a <span class="fixity"
+		  > (n <a href="#"
+		  >+</a
+		  > 1) a <span class="fixity"
 		  >infixr 5</span
 		  ><span class="rightedge"
 		  ></span
@@ -344,9 +330,7 @@ window.onload = function () {pageLoad();};
 		  >pattern</span
 		  > <a id="v:LR" class="def"
 		  >LR</a
-		  > :: <span class="keyword"
-		  >forall</span
-		  > a. a -&gt; <a href="#"
+		  > :: a -&gt; <a href="#"
 		  >RTree</a
 		  > 0 a</td
 		><td class="doc"
@@ -412,19 +396,15 @@ window.onload = function () {pageLoad();};
 		  >pattern</span
 		  > <a id="v:BR" class="def"
 		  >BR</a
-		  > :: <span class="keyword"
-		  >forall</span
-		  > (d :: <a href="#"
-		  >Nat</a
-		  >) a. <a href="#"
+		  > :: <a href="#"
 		  >RTree</a
 		  > d a -&gt; <a href="#"
 		  >RTree</a
 		  > d a -&gt; <a href="#"
 		  >RTree</a
-		  > (<a href="#"
-		  >(+)</a
-		  > d 1) a</td
+		  > (d <a href="#"
+		  >+</a
+		  > 1) a</td
 		><td class="doc"
 		><p
 		  >Branch of a perfect depth tree</p
