@@ -680,11 +680,8 @@ mkExportItems
       where
         decl' = ExportDecl (restrictTo sub_names (extractDecl name decl)) pats' doc subs' [] fixities False
         subs' = filter (isExported . fst) subs
-        pats' = [ d
-                | d@(patsyn_decl, _) <- pats
-                , patsyn_name <- getMainDeclBinder patsyn_decl
-                , isExported patsyn_name
-                ]
+        pats' = [ d | d@(patsyn_decl, _) <- pats
+                    , all isExported (getMainDeclBinder patsyn_decl) ]
         sub_names = map fst subs'
         pat_names = [ n | (patsyn_decl, _) <- pats', n <- getMainDeclBinder patsyn_decl]
         fixities = [ (n, f) | n <- name:sub_names++pat_names, Just f <- [M.lookup n fixMap] ]
