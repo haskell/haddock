@@ -18,6 +18,7 @@ import Haddock.Types
 import Haddock.Convert
 import Haddock.GhcUtils
 
+import Control.Applicative
 import Control.Arrow hiding ((<+>))
 import Data.List
 import Data.Ord (comparing)
@@ -113,7 +114,9 @@ attachToExportItem expInfo iface ifaceMap instIfaceMap export =
       nubBy ((==) `on` fst) $ expItemFixities e ++
       [ (n',f) | n <- getMainDeclBinder d
               , Just subs <- [instLookup instSubMap n iface ifaceMap instIfaceMap]
-              , n' <- n : subs
+              , Just patsyns <-
+                  [instLookup instBundledPatSynMap n iface ifaceMap instIfaceMap <|> Just []]
+              , n' <- n : (subs ++ patsyns)
               , Just f <- [instLookup instFixMap n' iface ifaceMap instIfaceMap]
       ] }
 

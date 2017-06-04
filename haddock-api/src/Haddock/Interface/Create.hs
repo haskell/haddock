@@ -166,33 +166,33 @@ createInterface tm flags modMap instIfaceMap = do
   tokenizedSrc <- mkMaybeTokenizedSrc flags tm
 
   return $! Interface {
-    ifaceMod             = mdl
-  , ifaceIsSig           = is_sig
-  , ifaceOrigFilename    = msHsFilePath ms
-  , ifaceInfo            = info
-  , ifaceDoc             = Documentation mbDoc modWarn
-  , ifaceRnDoc           = Documentation Nothing Nothing
-  , ifaceOptions         = opts
-  , ifaceDocMap          = docMap
-  , ifaceArgMap          = argMap
-  , ifaceRnDocMap        = M.empty
-  , ifaceRnArgMap        = M.empty
-  , ifaceExportItems     = prunedExportItems
-  , ifaceRnExportItems   = []
-  , ifaceExports         = exportedNames
-  , ifaceVisibleExports  = visibleNames
-  , ifaceDeclMap         = declMap
-  , ifaceBundledPatSynsMap = localBundledPatSyns
-  , ifaceSubMap          = subMap
-  , ifaceFixMap          = fixMap
-  , ifaceModuleAliases   = aliases
-  , ifaceInstances       = instances
-  , ifaceFamInstances    = fam_instances
+    ifaceMod               = mdl
+  , ifaceIsSig             = is_sig
+  , ifaceOrigFilename      = msHsFilePath ms
+  , ifaceInfo              = info
+  , ifaceDoc               = Documentation mbDoc modWarn
+  , ifaceRnDoc             = Documentation Nothing Nothing
+  , ifaceOptions           = opts
+  , ifaceDocMap            = docMap
+  , ifaceArgMap            = argMap
+  , ifaceRnDocMap          = M.empty
+  , ifaceRnArgMap          = M.empty
+  , ifaceExportItems       = prunedExportItems
+  , ifaceRnExportItems     = []
+  , ifaceExports           = exportedNames
+  , ifaceVisibleExports    = visibleNames
+  , ifaceDeclMap           = declMap
+  , ifaceBundledPatSynMap  = localBundledPatSyns
+  , ifaceSubMap            = subMap
+  , ifaceFixMap            = fixMap
+  , ifaceModuleAliases     = aliases
+  , ifaceInstances         = instances
+  , ifaceFamInstances      = fam_instances
   , ifaceOrphanInstances   = [] -- Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Filled in `renameInterface`
-  , ifaceHaddockCoverage = coverage
-  , ifaceWarningMap      = warningMap
-  , ifaceTokenizedSrc    = tokenizedSrc
+  , ifaceHaddockCoverage   = coverage
+  , ifaceWarningMap        = warningMap
+  , ifaceTokenizedSrc      = tokenizedSrc
   }
 
 -- | Given all of the @import M as N@ declarations in a package,
@@ -732,7 +732,11 @@ mkExportItems
           = patsyns
 
           | Just iface <- M.lookup (semToIdMod (moduleUnitId thisMod) m) modMap
-          , Just patsyns <- M.lookup t (ifaceBundledPatSynsMap iface)
+          , Just patsyns <- M.lookup t (ifaceBundledPatSynMap iface)
+          = patsyns
+
+          | Just iface <- M.lookup m instIfaceMap
+          , Just patsyns <- M.lookup t (instBundledPatSynMap iface)
           = patsyns
 
           | otherwise

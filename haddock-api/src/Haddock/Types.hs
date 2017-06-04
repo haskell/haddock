@@ -104,7 +104,7 @@ data Interface = Interface
   , ifaceDeclMap         :: !(Map Name [LHsDecl Name])
 
     -- | Bundled pattern synonym declarations for specific types.
-  , ifaceBundledPatSynsMap :: !(Map Name [Name])
+  , ifaceBundledPatSynMap :: !(Map Name [Name])
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
@@ -161,50 +161,53 @@ type WarningMap = Map Name (Doc Name)
 data InstalledInterface = InstalledInterface
   {
     -- | The module represented by this interface.
-    instMod            :: Module
+    instMod              :: Module
 
     -- | Is this a signature?
-  , instIsSig          :: Bool
+  , instIsSig            :: Bool
 
     -- | Textual information about the module.
-  , instInfo           :: HaddockModInfo Name
+  , instInfo             :: HaddockModInfo Name
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
-  , instDocMap         :: DocMap Name
+  , instDocMap           :: DocMap Name
 
-  , instArgMap         :: ArgMap Name
+  , instArgMap           :: ArgMap Name
 
     -- | All names exported by this module.
-  , instExports        :: [Name]
+  , instExports          :: [Name]
 
     -- | All \"visible\" names exported by the module.
     -- A visible name is a name that will show up in the documentation of the
     -- module.
-  , instVisibleExports :: [Name]
+  , instVisibleExports   :: [Name]
 
     -- | Haddock options for this module (prune, ignore-exports, etc).
-  , instOptions        :: [DocOption]
+  , instOptions          :: [DocOption]
 
-  , instSubMap         :: Map Name [Name]
-  , instFixMap         :: Map Name Fixity
+  , instSubMap           :: Map Name [Name]
+
+  , instBundledPatSynMap :: Map Name [Name]
+  
+  , instFixMap           :: Map Name Fixity
   }
 
 
 -- | Convert an 'Interface' to an 'InstalledInterface'
 toInstalledIface :: Interface -> InstalledInterface
 toInstalledIface interface = InstalledInterface
-  { instMod            = ifaceMod            interface
-  , instIsSig          = ifaceIsSig          interface
-  , instInfo           = ifaceInfo           interface
-  , instDocMap         = ifaceDocMap         interface
-  , instArgMap         = ifaceArgMap         interface
-  , instExports        = ifaceExports        interface
-  , instVisibleExports = ifaceVisibleExports interface
-  , instOptions        = ifaceOptions        interface
-  , instSubMap         =
-      Map.unionWith (++) (ifaceSubMap interface) (ifaceBundledPatSynsMap interface)
-  , instFixMap         = ifaceFixMap         interface
+  { instMod              = ifaceMod              interface
+  , instIsSig            = ifaceIsSig            interface
+  , instInfo             = ifaceInfo             interface
+  , instDocMap           = ifaceDocMap           interface
+  , instArgMap           = ifaceArgMap           interface
+  , instExports          = ifaceExports          interface
+  , instVisibleExports   = ifaceVisibleExports   interface
+  , instOptions          = ifaceOptions          interface
+  , instSubMap           = ifaceSubMap           interface
+  , instBundledPatSynMap = ifaceBundledPatSynMap interface
+  , instFixMap           = ifaceFixMap           interface
   }
 
 
@@ -222,7 +225,7 @@ data ExportItem name
         expItemDecl :: !(LHsDecl name)
 
         -- | Bundled patterns for a data type declaration
-      , expItemPats :: ![(HsDecl name,DocForDecl name)]
+      , expItemPats :: ![(HsDecl name, DocForDecl name)]
 
         -- | Maybe a doc comment, and possibly docs for arguments (if this
         -- decl is a function or type-synonym).
