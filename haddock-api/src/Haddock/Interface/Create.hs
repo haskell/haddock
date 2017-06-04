@@ -678,11 +678,16 @@ mkExportItems
                  -> (DocForDecl Name, [(Name, DocForDecl Name)]) -> ExportItem Name
     mkExportDecl name decl pats (doc, subs) = decl'
       where
-        decl' = ExportDecl (restrictTo sub_names (extractDecl name decl)) pats doc subs' [] fixities False
+        decl' = ExportDecl (restrictTo sub_names (extractDecl name decl)) pats' doc subs' [] fixities False
         subs' = filter (isExported . fst) subs
+        pats' = [ d
+                | d@(patsyn_decl, _) <- pats
+                , patsyn_name <- getMainDeclBinder patsyn_decl
+                , isExported patsyn_name
+                ]
         sub_names = map fst subs'
-        patNames = concat [ map unLoc lnames | (SigD (PatSynSig lnames _),_) <- pats ]
-        fixities = [ (n, f) | n <- name:sub_names++patNames, Just f <- [M.lookup n fixMap] ]
+        pat_names = [ n | (patsyn_decl, _) <- pats', n <- getMainDeclBinder patsyn_decl]
+        fixities = [ (n, f) | n <- name:sub_names++pat_names, Just f <- [M.lookup n fixMap] ]
 
     exportedNameSet = mkNameSet exportedNames
     isExported n = elemNameSet n exportedNameSet
