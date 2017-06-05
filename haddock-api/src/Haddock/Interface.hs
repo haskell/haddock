@@ -70,8 +70,7 @@ processModules
 processModules verbosity modules flags extIfaces = do
 
   out verbosity verbose "Creating interfaces..."
-  let instIfaceMap =  Map.fromList [ (instMod iface, iface) | ext <- extIfaces
-                                   , iface <- ifInstalledIfaces ext ]
+  let instIfaceMap = Map.unions (map ifInstalledIfaces extIfaces)
   interfaces <- createIfaces0 verbosity modules flags instIfaceMap
 
   let exportedNames =
