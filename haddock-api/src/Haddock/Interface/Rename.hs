@@ -55,7 +55,7 @@ renameInterface dflags renamingEnv warnings iface =
 
       -- combine the missing names and filter out the built-ins, which would
       -- otherwise always be missing.
-      missingNames = nub $ filter isExternalName  -- XXX: isExternalName filters out too much
+      missingNames = nubByName id $ filter isExternalName  -- XXX: isExternalName filters out too much
                     (missingNames1 ++ missingNames2 ++ missingNames3
                      ++ missingNames4 ++ missingNames5)
 

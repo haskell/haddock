@@ -42,7 +42,6 @@ import Control.Arrow (second)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad
-import Data.Function (on)
 import Data.Traversable
 
 import qualified Packages
@@ -117,12 +116,13 @@ createInterface tm flags modMap instIfaceMap = do
         case exports of
           Nothing  -> M.empty
           Just ies ->
-            M.fromList [ (ieWrappedName ty_name, bundled_patsyns)
-                       | IEThingWith (L _ ty_name) _ exported _ <- ies
-                       , let bundled_patsyns =
-                               filter is_patsyn (map (ieWrappedName . unLoc) exported)
-                       , not (null bundled_patsyns)
-                       ]
+            M.map (nubByName id) $
+            M.fromListWith (++) [ (ieWrappedName ty_name, bundled_patsyns)
+                                | IEThingWith (L _ ty_name) _ exported _ <- ies
+                                , let bundled_patsyns =
+                                        filter is_patsyn (map (ieWrappedName . unLoc) exported)
+                                , not (null bundled_patsyns)
+                                ]
         where
           is_patsyn name = elemNameSet name (mkNameSet (map getName patsyns))
 
@@ -317,7 +317,7 @@ mkMaps :: DynFlags
 mkMaps dflags gre instances decls =
   let
     (a, b, c, d) = unzip4 $ map mappings decls
-  in (f' $ map (nubBy ((==) `on` fst)) a , f b, f c, f d, instanceMap)
+  in (f' $ map (nubByName fst) a , f b, f c, f d, instanceMap)
   where
     f :: (Ord a, Monoid b) => [[(a, b)]] -> Map a b
     f = M.fromListWith (<>) . concat

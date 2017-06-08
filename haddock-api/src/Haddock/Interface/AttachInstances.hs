@@ -111,7 +111,7 @@ attachToExportItem expInfo iface ifaceMap instIfaceMap export =
     e -> return e
   where
     attachFixities e@ExportDecl{ expItemDecl = L _ d } = e { expItemFixities =
-      nubBy ((==) `on` fst) $ expItemFixities e ++
+      nubByName fst $ expItemFixities e ++
       [ (n',f) | n <- getMainDeclBinder d
               , Just subs <- [instLookup instSubMap n iface ifaceMap instIfaceMap]
               , Just patsyns <-
