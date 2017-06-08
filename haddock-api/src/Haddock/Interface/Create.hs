@@ -723,11 +723,10 @@ mkExportItems
       let
         m = nameModule t
 
-        bundled_patsyns
-          | m == semMod
-          , Just patsyns <- M.lookup t patSynMap
-          = patsyns
+        local_bundled_patsyns =
+          M.findWithDefault [] t patSynMap
 
+        iface_bundled_patsyns
           | Just iface <- M.lookup (semToIdMod (moduleUnitId thisMod) m) modMap
           , Just patsyns <- M.lookup t (ifaceBundledPatSynMap iface)
           = patsyns
@@ -740,7 +739,7 @@ mkExportItems
           = []
 
         patsyn_decls = do
-          for bundled_patsyns $ \patsyn_name -> do
+          for (local_bundled_patsyns ++ iface_bundled_patsyns) $ \patsyn_name -> do
             -- call declWith here so we don't have to prepare the pattern synonym for
             -- showing ourselves.
             export_items <- declWith [] patsyn_name
