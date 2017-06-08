@@ -1026,8 +1026,9 @@ mkVisibleNames (_, _, _, _, instMap) exports opts
   | otherwise = let ns = concatMap exportName exports
                 in seqList ns `seq` ns
   where
-    exportName e@ExportDecl {} = name ++ subs
-      where subs = map fst (expItemSubDocs e)
+    exportName e@ExportDecl {} = name ++ subs ++ patsyns
+      where subs    = map fst (expItemSubDocs e)
+            patsyns = concatMap (getMainDeclBinder . fst) (expItemPats e)
             name = case unLoc $ expItemDecl e of
               InstD d -> maybeToList $ M.lookup (getInstLoc d) instMap
               decl    -> getMainDeclBinder decl
