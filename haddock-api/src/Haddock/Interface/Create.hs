@@ -743,12 +743,12 @@ mkExportItems
             -- call declWith here so we don't have to prepare the pattern synonym for
             -- showing ourselves.
             export_items <- declWith [] patsyn_name
-            case export_items of
-              ExportDecl {
-                  expItemDecl  = patsyn_decl
-                , expItemMbDoc = patsyn_doc
-                } : _ -> pure [(unLoc patsyn_decl, patsyn_doc)]
-              _       -> pure []
+            pure [ (unLoc patsyn_decl, patsyn_doc)
+                 | ExportDecl {
+                       expItemDecl  = patsyn_decl
+                     , expItemMbDoc = patsyn_doc
+                     } <- export_items
+                 ]
 
       in concat <$> patsyn_decls
 
