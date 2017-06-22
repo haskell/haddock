@@ -24,7 +24,6 @@ import Data.Ord (comparing)
 import Data.Maybe ( maybeToList, mapMaybe, fromMaybe )
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Control.Monad
 
 import Class
 import DynFlags
@@ -33,7 +32,6 @@ import ErrUtils
 import FamInstEnv
 import FastString
 import GHC
-import GhcMonad (withSession)
 import InstEnv
 import MonadUtils (liftIO)
 import Name
