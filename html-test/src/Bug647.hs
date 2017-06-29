@@ -1,7 +1,6 @@
 module Bug647 where
 
 class Bug647 a where
-	f :: String -- ^ Docs for arg1
-	  -> Int    -- ^ Docs for arg2
-	  -> Int    -- ^ Docs for arg3
-	  -> a
+	f :: a -- ^ doc for arg1
+	  -> a -- ^ doc for arg2
+	  -> a -- ^ doc for arg3
