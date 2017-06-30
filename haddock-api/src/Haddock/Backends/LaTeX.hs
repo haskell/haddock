@@ -227,8 +227,8 @@ isExportModule _ = Nothing
 processExport :: ExportItem DocName -> LaTeX
 processExport (ExportGroup lev _id0 doc)
   = ppDocGroup lev (docToLaTeX doc)
-processExport (ExportDecl decl doc subdocs insts fixities _splice)
-  = ppDecl decl doc insts subdocs fixities
+processExport (ExportDecl decl pats doc subdocs insts fixities _splice)
+  = ppDecl decl pats doc insts subdocs fixities
 processExport (ExportNoDecl y [])
   = ppDocName y
 processExport (ExportNoDecl y subs)
@@ -251,7 +251,7 @@ declNames :: LHsDecl DocName -> [DocName]
 declNames (L _ decl) = case decl of
   TyClD d  -> [tcdName d]
   SigD (TypeSig lnames _ ) -> map unLoc lnames
-  SigD (PatSynSig lname _) -> [unLoc lname]
+  SigD (PatSynSig lnames _) -> map unLoc lnames
   ForD (ForeignImport (L _ n) _ _ _) -> [n]
   ForD (ForeignExport (L _ n) _ _ _) -> [n]
   _ -> error "declaration not supported by declNames"
@@ -278,16 +278,17 @@ moduleBasename mdl = map (\c -> if c == '.' then '-' else c)
 
 
 ppDecl :: LHsDecl DocName
+       -> [(HsDecl DocName,DocForDecl DocName)]
        -> DocForDecl DocName
        -> [DocInstance DocName]
        -> [(DocName, DocForDecl DocName)]
        -> [(DocName, Fixity)]
        -> LaTeX
 
-ppDecl (L loc decl) (doc, fnArgsDoc) instances subdocs _fixities = case decl of
+ppDecl (L loc decl) pats (doc, fnArgsDoc) instances subdocs _fixities = case decl of
   TyClD d@(FamDecl {})          -> ppTyFam False loc doc d unicode
   TyClD d@(DataDecl {})
-                                -> ppDataDecl instances subdocs loc (Just doc) d unicode
+                                -> ppDataDecl pats instances subdocs loc (Just doc) d unicode
   TyClD d@(SynDecl {})          -> ppTySyn loc (doc, fnArgsDoc) d unicode
 -- Family instances happen via FamInst now
 --  TyClD d@(TySynonym {})
@@ -296,10 +297,11 @@ ppDecl (L loc decl) (doc, fnArgsDoc) instances subdocs _fixities = case decl of
   TyClD d@(ClassDecl {})    -> ppClassDecl instances loc doc subdocs d unicode
   SigD (TypeSig lnames t)   -> ppFunSig loc (doc, fnArgsDoc) (map unLoc lnames)
                                         (hsSigWcType t) unicode
-  SigD (PatSynSig lname ty) ->
-      ppLPatSig loc (doc, fnArgsDoc) lname ty unicode
+  SigD (PatSynSig lnames ty) ->
+      ppLPatSig loc (doc, fnArgsDoc) (map unLoc lnames) ty unicode
   ForD d                         -> ppFor loc (doc, fnArgsDoc) d unicode
   InstD _                        -> empty
+  DerivD _                       -> empty
   _                              -> error "declaration not supported by ppDecl"
   where
     unicode = False
@@ -354,14 +356,14 @@ ppFunSig loc doc docnames (L _ typ) unicode =
  where
    names = map getName docnames
 
-ppLPatSig :: SrcSpan -> DocForDecl DocName -> Located DocName
+ppLPatSig :: SrcSpan -> DocForDecl DocName -> [DocName]
           -> LHsSigType DocName
           -> Bool -> LaTeX
-ppLPatSig _loc (doc, _argDocs) (L _ name) ty unicode
+ppLPatSig _loc (doc, _argDocs) docnames ty unicode
   = declWithDoc pref1 (documentationToLaTeX doc)
   where
     pref1 = hsep [ keyword "pattern"
-                 , ppDocBinder name
+                 , hsep $ punctuate comma $ map ppDocBinder docnames
                  , dcolon unicode
                  , ppLType unicode (hsSigType ty)
                  ]
@@ -564,11 +566,11 @@ lookupAnySubdoc n subdocs = case lookup n subdocs of
 -------------------------------------------------------------------------------
 
 
-ppDataDecl :: [DocInstance DocName] ->
+ppDataDecl :: [(HsDecl DocName,DocForDecl DocName)] -> [DocInstance DocName] ->
               [(DocName, DocForDecl DocName)] -> SrcSpan ->
               Maybe (Documentation DocName) -> TyClDecl DocName -> Bool ->
               LaTeX
-ppDataDecl instances subdocs _loc doc dataDecl unicode
+ppDataDecl pats instances subdocs _loc doc dataDecl unicode
 
    =  declWithDoc (ppDataHeader dataDecl unicode <+> whereBit)
                   (if null body then Nothing else Just (vcat body))
@@ -578,10 +580,12 @@ ppDataDecl instances subdocs _loc doc dataDecl unicode
     cons      = dd_cons (tcdDataDefn dataDecl)
     resTy     = (unLoc . head) cons
 
-    body = catMaybes [constrBit, doc >>= documentationToLaTeX]
+    body = catMaybes [constrBit,patternBit, doc >>= documentationToLaTeX]
 
     (whereBit, leaders)
-      | null cons = (empty,[])
+      | null cons
+      , null pats = (empty,[])
+      | null cons = (decltt (keyword "where"), repeat empty)
       | otherwise = case resTy of
         ConDeclGADT{} -> (decltt (keyword "where"), repeat empty)
         _             -> (empty, (decltt (text "=") : repeat (decltt (text "|"))))
@@ -591,6 +595,19 @@ ppDataDecl instances subdocs _loc doc dataDecl unicode
       | otherwise = Just $
           text "\\haddockbeginconstrs" $$
           vcat (zipWith (ppSideBySideConstr subdocs unicode) leaders cons) $$
+          text "\\end{tabulary}\\par"
+
+    patternBit
+      | null cons = Nothing
+      | otherwise = Just $
+          text "\\haddockbeginconstrs" $$
+          vcat [ hsep [ keyword "pattern"
+                      , hsep $ punctuate comma $ map (ppDocBinder . unLoc) lnames
+                      , dcolon unicode
+                      , ppLType unicode (hsSigType ty)
+                      ] <-> rDoc (fmap _doc . combineDocumentation . fst $ d)
+               | (SigD (PatSynSig lnames ty),d) <- pats
+               ] $$
           text "\\end{tabulary}\\par"
 
     instancesBit = ppDocInstances unicode instances
@@ -884,6 +901,10 @@ tupleParens HsUnboxedTuple = ubxParenList
 tupleParens _              = parenList
 
 
+sumParens :: [LaTeX] -> LaTeX
+sumParens = ubxparens . hsep . punctuate (text " | ")
+
+
 -------------------------------------------------------------------------------
 -- * Rendering of HsType
 --
@@ -944,17 +965,20 @@ ppr_mono_ty ctxt_prec (HsQualTy ctxt ty) unicode
         , ppr_mono_lty pREC_TOP ty unicode ]
 
 ppr_mono_ty _         (HsBangTy b ty)     u = ppBang b <> ppLParendType u ty
-ppr_mono_ty _         (HsTyVar (L _ name)) _ = ppDocName name
+ppr_mono_ty _         (HsTyVar NotPromoted (L _ name)) _ = ppDocName name
+ppr_mono_ty _         (HsTyVar Promoted    (L _ name)) _ = char '\'' <> ppDocName name
 ppr_mono_ty ctxt_prec (HsFunTy ty1 ty2)   u = ppr_fun_ty ctxt_prec ty1 ty2 u
 ppr_mono_ty _         (HsTupleTy con tys) u = tupleParens con (map (ppLType u) tys)
+ppr_mono_ty _         (HsSumTy tys) u       = sumParens (map (ppLType u) tys)
 ppr_mono_ty _         (HsKindSig ty kind) u = parens (ppr_mono_lty pREC_TOP ty u <+> dcolon u <+> ppLKind u kind)
 ppr_mono_ty _         (HsListTy ty)       u = brackets (ppr_mono_lty pREC_TOP ty u)
 ppr_mono_ty _         (HsPArrTy ty)       u = pabrackets (ppr_mono_lty pREC_TOP ty u)
-ppr_mono_ty _         (HsIParamTy n ty)   u = brackets (ppIPName n <+> dcolon u <+> ppr_mono_lty pREC_TOP ty u)
+ppr_mono_ty _         (HsIParamTy (L _ n) ty) u = brackets (ppIPName n <+> dcolon u <+> ppr_mono_lty pREC_TOP ty u)
 ppr_mono_ty _         (HsSpliceTy {})     _ = error "ppr_mono_ty HsSpliceTy"
 ppr_mono_ty _         (HsRecTy {})        _ = error "ppr_mono_ty HsRecTy"
 ppr_mono_ty _         (HsCoreTy {})       _ = error "ppr_mono_ty HsCoreTy"
-ppr_mono_ty _         (HsExplicitListTy _ tys) u = Pretty.quote $ brackets $ hsep $ punctuate comma $ map (ppLType u) tys
+ppr_mono_ty _         (HsExplicitListTy Promoted _ tys) u = Pretty.quote $ brackets $ hsep $ punctuate comma $ map (ppLType u) tys
+ppr_mono_ty _         (HsExplicitListTy NotPromoted _ tys) u = brackets $ hsep $ punctuate comma $ map (ppLType u) tys
 ppr_mono_ty _         (HsExplicitTupleTy _ tys) u = Pretty.quote $ parenList $ map (ppLType u) tys
 
 ppr_mono_ty ctxt_prec (HsEqTy ty1 ty2) unicode
