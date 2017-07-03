@@ -68,7 +68,6 @@ import System.Directory (doesDirectoryExist)
 import GHC hiding (verbosity)
 import Config
 import DynFlags hiding (projectVersion, verbosity)
-import StaticFlags (discardStaticFlags)
 import Packages
 import Panic (handleGhcException)
 import Module
@@ -398,30 +397,21 @@ withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
     ghcMode   = CompManager,
     ghcLink   = NoLink
     }
-  let dynflags'' = gopt_unset dynflags' Opt_SplitObjs
-  defaultCleanupHandler dynflags'' $ do
-      -- ignore the following return-value, which is a list of packages
-      -- that may need to be re-linked: Haddock doesn't do any
-      -- dynamic or static linking at all!
-      _ <- setSessionDynFlags dynflags''
-      ghcActs dynflags''
+  let dynflags'' = updOptLevel 0 $ gopt_unset dynflags' Opt_SplitObjs
+
+  -- ignore the following return-value, which is a list of packages
+  -- that may need to be re-linked: Haddock doesn't do any
+  -- dynamic or static linking at all!
+  _ <- setSessionDynFlags dynflags''
+  ghcActs dynflags''
   where
     parseGhcFlags :: MonadIO m => DynFlags -> m DynFlags
     parseGhcFlags dynflags = do
       -- TODO: handle warnings?
 
-      -- NOTA BENE: We _MUST_ discard any static flags here, because we cannot
-      -- rely on Haddock to parse them, as it only parses the DynFlags. Yet if
-      -- we pass any, Haddock will fail. Since StaticFlags are global to the
-      -- GHC invocation, there's also no way to reparse/save them to set them
-      -- again properly.
-      --
-      -- This is a bit of a hack until we get rid of the rest of the remaining
-      -- StaticFlags. See GHC issue #8276.
-      let flags' = discardStaticFlags flags
-      (dynflags', rest, _) <- parseDynamicFlags dynflags (map noLoc flags')
+      (dynflags', rest, _) <- parseDynamicFlags dynflags (map noLoc flags)
       if not (null rest)
-        then throwE ("Couldn't parse GHC options: " ++ unwords flags')
+        then throwE ("Couldn't parse GHC options: " ++ unwords flags)
         else return dynflags'
 
 -------------------------------------------------------------------------------
@@ -436,15 +426,22 @@ getHaddockLibDir flags =
 #ifdef IN_GHC_TREE
       getInTreeDir
 #else
-      d <- getDataDir -- provided by Cabal
-      doesDirectoryExist d >>= \exists -> case exists of
-        True -> return d
-        False -> do
-          -- If directory does not exist then we are probably invoking from
-          -- ./dist/build/haddock/haddock so we use ./resources as a fallback.
-          doesDirectoryExist "resources" >>= \exists_ -> case exists_ of
-            True -> return "resources"
-            False -> die ("Haddock's resource directory (" ++ d ++ ") does not exist!\n")
+      -- if data directory does not exist we are probably
+      -- invoking from either ./haddock-api or ./
+      let res_dirs = [ getDataDir -- provided by Cabal
+                     , pure "resources"
+                     , pure "haddock-api/resources"
+                     ]
+
+          check get_path = do
+            p <- get_path
+            exists <- doesDirectoryExist p
+            pure $ if exists then Just p else Nothing
+
+      dirs <- mapM check res_dirs  
+      case [p | Just p <- dirs] of
+        (p : _) -> return p 
+        _       -> die "Haddock's resource directory does not exist!\n"
 #endif
     fs -> return (last fs)
 
@@ -492,7 +489,7 @@ shortcutFlags flags = do
 
   when ((Flag_GenIndex `elem` flags || Flag_GenContents `elem` flags)
         && Flag_Html `elem` flags) $
-    throwE "-h cannot be used with --gen-index or --gen-contents"
+    throwE "-h/--html cannot be used with --gen-index or --gen-contents"
 
   when ((Flag_GenIndex `elem` flags || Flag_GenContents `elem` flags)
         && Flag_Hoogle `elem` flags) $
@@ -550,9 +547,10 @@ getPrologue :: DynFlags -> [Flag] -> IO (Maybe (MDoc RdrName))
 getPrologue dflags flags =
   case [filename | Flag_Prologue filename <- flags ] of
     [] -> return Nothing
-    [filename] -> withFile filename ReadMode $ \h -> do
+    [filename] -> do
+      h <- openFile filename ReadMode
       hSetEncoding h utf8
-      str <- hGetContents h
+      str <- hGetContents h -- semi-closes the handle
       return . Just $! parseParas dflags str
     _ -> throwE "multiple -p/--prologue options"
 
@@ -576,7 +574,15 @@ getExecDir = try_size 2048 -- plenty, PATH_MAX is 512 under Win32.
           _ | ret < size -> fmap (Just . dropFileName) $ peekCWString buf
             | otherwise  -> try_size (size * 2)
 
-foreign import stdcall unsafe "windows.h GetModuleFileNameW"
+# if defined(i386_HOST_ARCH)
+#  define WINDOWS_CCONV stdcall
+# elif defined(x86_64_HOST_ARCH)
+#  define WINDOWS_CCONV ccall
+# else
+#  error Unknown mingw32 arch
+# endif
+
+foreign import WINDOWS_CCONV unsafe "windows.h GetModuleFileNameW"
   c_GetModuleFileName :: Ptr () -> CWString -> Word32 -> IO Word32
 #else
 getExecDir = return Nothing

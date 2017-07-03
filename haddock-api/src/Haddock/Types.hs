@@ -1,7 +1,10 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-} -- Note [Pass sensitive types]
+                                      -- in module GHC.PlaceHolder
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Types
@@ -77,6 +80,9 @@ data Interface = Interface
     -- | The module behind this interface.
     ifaceMod             :: !Module
 
+    -- | Is this a signature?
+  , ifaceIsSig           :: !Bool
+
     -- | Original file name of the module.
   , ifaceOrigFilename    :: !FilePath
 
@@ -96,6 +102,9 @@ data Interface = Interface
     -- names (instances and stand-alone documentation comments). Includes
     -- names of subordinate declarations mapped to their parent declarations.
   , ifaceDeclMap         :: !(Map Name [LHsDecl Name])
+
+    -- | Bundled pattern synonym declarations for specific types.
+  , ifaceBundledPatSynMap :: !(Map Name [Name])
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
@@ -152,45 +161,53 @@ type WarningMap = Map Name (Doc Name)
 data InstalledInterface = InstalledInterface
   {
     -- | The module represented by this interface.
-    instMod            :: Module
+    instMod              :: Module
+
+    -- | Is this a signature?
+  , instIsSig            :: Bool
 
     -- | Textual information about the module.
-  , instInfo           :: HaddockModInfo Name
+  , instInfo             :: HaddockModInfo Name
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
-  , instDocMap         :: DocMap Name
+  , instDocMap           :: DocMap Name
 
-  , instArgMap         :: ArgMap Name
+  , instArgMap           :: ArgMap Name
 
     -- | All names exported by this module.
-  , instExports        :: [Name]
+  , instExports          :: [Name]
 
     -- | All \"visible\" names exported by the module.
     -- A visible name is a name that will show up in the documentation of the
     -- module.
-  , instVisibleExports :: [Name]
+  , instVisibleExports   :: [Name]
 
     -- | Haddock options for this module (prune, ignore-exports, etc).
-  , instOptions        :: [DocOption]
+  , instOptions          :: [DocOption]
 
-  , instSubMap         :: Map Name [Name]
-  , instFixMap         :: Map Name Fixity
+  , instSubMap           :: Map Name [Name]
+
+  , instBundledPatSynMap :: Map Name [Name]
+  
+  , instFixMap           :: Map Name Fixity
   }
 
 
 -- | Convert an 'Interface' to an 'InstalledInterface'
 toInstalledIface :: Interface -> InstalledInterface
 toInstalledIface interface = InstalledInterface
-  { instMod            = ifaceMod            interface
-  , instInfo           = ifaceInfo           interface
-  , instDocMap         = ifaceDocMap         interface
-  , instArgMap         = ifaceArgMap         interface
-  , instExports        = ifaceExports        interface
-  , instVisibleExports = ifaceVisibleExports interface
-  , instOptions        = ifaceOptions        interface
-  , instSubMap         = ifaceSubMap         interface
-  , instFixMap         = ifaceFixMap         interface
+  { instMod              = ifaceMod              interface
+  , instIsSig            = ifaceIsSig            interface
+  , instInfo             = ifaceInfo             interface
+  , instDocMap           = ifaceDocMap           interface
+  , instArgMap           = ifaceArgMap           interface
+  , instExports          = ifaceExports          interface
+  , instVisibleExports   = ifaceVisibleExports   interface
+  , instOptions          = ifaceOptions          interface
+  , instSubMap           = ifaceSubMap           interface
+  , instBundledPatSynMap = ifaceBundledPatSynMap interface
+  , instFixMap           = ifaceFixMap           interface
   }
 
 
@@ -206,6 +223,9 @@ data ExportItem name
       {
         -- | A declaration.
         expItemDecl :: !(LHsDecl name)
+
+        -- | Bundled patterns for a data type declaration
+      , expItemPats :: ![(HsDecl name, DocForDecl name)]
 
         -- | Maybe a doc comment, and possibly docs for arguments (if this
         -- decl is a function or type-synonym).
@@ -343,7 +363,8 @@ data InstType name
   | TypeInst  (Maybe (HsType name)) -- ^ Body (right-hand side)
   | DataInst (TyClDecl name)        -- ^ Data constructors
 
-instance OutputableBndr a => Outputable (InstType a) where
+instance (OutputableBndrId a)
+         => Outputable (InstType a) where
   ppr (ClassInst { .. }) = text "ClassInst"
       <+> ppr clsiCtx
       <+> ppr clsiTyVars
@@ -378,8 +399,8 @@ mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     mkType (KindedTyVar (L loc name) lkind) =
         HsKindSig tvar lkind
       where
-        tvar = L loc (HsTyVar (L loc name))
-    mkType (UserTyVar name) = HsTyVar name
+        tvar = L loc (HsTyVar NotPromoted (L loc name))
+    mkType (UserTyVar name) = HsTyVar NotPromoted name
 
 
 -- | An instance head that may have documentation and a source location.
@@ -449,7 +470,7 @@ instance (NFData a, NFData mod)
     DocExamples a             -> a `deepseq` ()
     DocHeader a               -> a `deepseq` ()
 
-#if !MIN_VERSION_GLASGOW_HASKELL(8,0,1,1)
+#if !MIN_VERSION_ghc(8,0,2)
 -- These were added to GHC itself in 8.0.2
 instance NFData Name where rnf x = seq x ()
 instance NFData OccName where rnf x = seq x ()
