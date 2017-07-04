@@ -43,8 +43,6 @@ import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad
 import Data.Traversable
-import Data.Function (on)
-import System.IO
 
 import qualified Packages
 import qualified Module

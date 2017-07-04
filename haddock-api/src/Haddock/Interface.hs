@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Interface
@@ -55,6 +56,10 @@ import Digraph
 import DynFlags hiding (verbosity)
 import Exception
 import GHC hiding (verbosity)
+#if defined(mingw32_HOST_OS)
+import GHC.IO.Encoding.CodePage (mkLocaleEncoding)
+import GHC.IO.Encoding.Failure (CodingFailureMode(TransliterateCodingFailure))
+#endif
 import HscTypes
 import FastString (unpackFS)
 import MonadUtils (liftIO)
@@ -70,6 +75,10 @@ processModules
   -> Ghc ([Interface], LinkEnv) -- ^ Resulting list of interfaces and renaming
                                 -- environment
 processModules verbosity modules flags extIfaces = do
+#if defined(mingw32_HOST_OS)
+  -- Avoid internal error: <stderr>: hPutChar: invalid argument (invalid character)' non UTF-8 Windows
+  liftIO $ hSetEncoding stderr $ mkLocaleEncoding TransliterateCodingFailure
+#endif
 
   out verbosity verbose "Creating interfaces..."
   let instIfaceMap =  Map.fromList [ (instMod iface, iface) | ext <- extIfaces
@@ -167,7 +176,6 @@ createIfaces verbosity flags instIfaceMap mods = do
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe Interface)
 processModule verbosity modsum flags modMap instIfaceMap = do
   out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modsum) ++ "..."
-  liftIO $ hSetEncoding stderr utf8
   tm <- loadModule =<< typecheckModule =<< parseModule modsum
   if not $ isBootSummary modsum then do
     out verbosity verbose "Creating interface..."
