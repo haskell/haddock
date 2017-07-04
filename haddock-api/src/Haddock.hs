@@ -398,12 +398,12 @@ withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
     ghcLink   = NoLink
     }
   let dynflags'' = updOptLevel 0 $ gopt_unset dynflags' Opt_SplitObjs
-  defaultCleanupHandler dynflags'' $ do
-      -- ignore the following return-value, which is a list of packages
-      -- that may need to be re-linked: Haddock doesn't do any
-      -- dynamic or static linking at all!
-      _ <- setSessionDynFlags dynflags''
-      ghcActs dynflags''
+
+  -- ignore the following return-value, which is a list of packages
+  -- that may need to be re-linked: Haddock doesn't do any
+  -- dynamic or static linking at all!
+  _ <- setSessionDynFlags dynflags''
+  ghcActs dynflags''
   where
     parseGhcFlags :: MonadIO m => DynFlags -> m DynFlags
     parseGhcFlags dynflags = do
@@ -489,7 +489,7 @@ shortcutFlags flags = do
 
   when ((Flag_GenIndex `elem` flags || Flag_GenContents `elem` flags)
         && Flag_Html `elem` flags) $
-    throwE "-h cannot be used with --gen-index or --gen-contents"
+    throwE "-h/--html cannot be used with --gen-index or --gen-contents"
 
   when ((Flag_GenIndex `elem` flags || Flag_GenContents `elem` flags)
         && Flag_Hoogle `elem` flags) $
@@ -547,9 +547,10 @@ getPrologue :: DynFlags -> [Flag] -> IO (Maybe (MDoc RdrName))
 getPrologue dflags flags =
   case [filename | Flag_Prologue filename <- flags ] of
     [] -> return Nothing
-    [filename] -> withFile filename ReadMode $ \h -> do
+    [filename] -> do
+      h <- openFile filename ReadMode
       hSetEncoding h utf8
-      str <- hGetContents h
+      str <- hGetContents h -- semi-closes the handle
       return . Just $! parseParas dflags str
     _ -> throwE "multiple -p/--prologue options"
 
