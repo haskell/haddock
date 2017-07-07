@@ -64,6 +64,7 @@ test-suite spec
       -DTEST
 
   other-modules:
+      Data.Attoparsec.ByteString
       Data.Attoparsec.ByteString.Buffer
       Data.Attoparsec.ByteString.Char8
       Data.Attoparsec.ByteString.FastSet
