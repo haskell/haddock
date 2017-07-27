@@ -137,6 +137,7 @@ rename dflags gre = rn
       DocAName str -> DocAName str
       DocProperty p -> DocProperty p
       DocExamples e -> DocExamples e
+      DocTable (Table h c) -> DocTable $ Table (fmap rn <$> h) (fmap rn <$> c)
       DocEmpty -> DocEmpty
       DocString str -> DocString str
       DocHeader (Header l t) -> DocHeader $ Header l (rn t)

@@ -78,6 +78,7 @@ overIdentifier f d = g d
     g (DocAName x) = DocAName x
     g (DocProperty x) = DocProperty x
     g (DocExamples x) = DocExamples x
+    g (DocTable (Table h c)) = DocTable $ Table (fmap g <$> h) (fmap g <$> c)
     g (DocHeader (Header l x)) = DocHeader . Header l $ g x
 
 parse :: Parser a -> BS.ByteString -> (ParserState, a)
@@ -251,7 +252,7 @@ markdownImage = fromHyperlink <$> ("!" *> linkParser)
 
 -- | Paragraph parser, called by 'parseParas'.
 paragraph :: Parser (DocH mod Identifier)
-paragraph = examples <|> do
+paragraph = examples <|> table <|> do
   indent <- takeIndent
   choice
     [ since
@@ -421,6 +422,55 @@ takeIndent :: Parser BS.ByteString
 takeIndent = do
   indent <- takeHorizontalSpace
   "\n" *> takeIndent <|> return indent
+
+-- | Provides support for simple tables.
+--
+-- Tables are composed by an optional header and body. The header is composed by
+-- a single row. The body is composed by a non-empty list of rows.
+--
+-- Example table with header:
+--
+-- > +----------+----------+
+-- > | /32bit/  |   64bit  |
+-- > +==========+==========+
+-- > |  0x0000  | @0x0000@ |
+-- > +----------+----------+
+table :: Parser (DocH mod Identifier)
+table = do
+  parseTableRowDivider
+  mHeader <- optional parseTableHeader
+  content <- parseTableContent
+  return $ DocTable (Table mHeader content)
+
+parseTableHeader :: Parser [DocH mod Identifier]
+parseTableHeader = parseTableRow <* parseTableHeaderDivider
+
+parseTableContent :: Parser [[DocH mod Identifier]]
+parseTableContent = many1 (parseTableRow <* parseTableRowDivider)
+
+parseTableRow :: Parser [DocH mod Identifier]
+parseTableRow = skipHorizontalSpace *> manyTill columnValue endOfRow
+  where
+    columnValue = parseStringBS . bsStrip <$> ("|" *> takeWhile_ (/= '|'))
+    endOfRow = "|" *> skipHorizontalSpace *> "\n"
+    bsStrip = bsDropWhile isSpace . bsDropWhileEnd isSpace
+    bsDropWhile c = snd . BS.span c
+    bsDropWhileEnd c = fst . BS.spanEnd c
+
+parseTableRowDivider :: Parser ()
+parseTableRowDivider = parseTableDivider "-"
+
+parseTableHeaderDivider :: Parser ()
+parseTableHeaderDivider = parseTableDivider "="
+
+parseTableDivider :: Parser BS.ByteString -> Parser ()
+parseTableDivider c = void $
+       skipHorizontalSpace
+    *> many1 (columnDivider c) *> "+"
+    *> skipHorizontalSpace *> "\n"
+  where
+    columnDivider :: Parser BS.ByteString -> Parser [BS.ByteString]
+    columnDivider d = "+" *> many1 d
 
 -- | Blocks of text of the form:
 --

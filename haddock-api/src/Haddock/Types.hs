@@ -468,6 +468,7 @@ instance (NFData a, NFData mod)
     DocAName a                -> a `deepseq` ()
     DocProperty a             -> a `deepseq` ()
     DocExamples a             -> a `deepseq` ()
+    DocTable a                -> a `deepseq` ()
     DocHeader a               -> a `deepseq` ()
 
 #if !MIN_VERSION_ghc(8,0,2)
@@ -488,6 +489,9 @@ instance NFData Picture where
 
 instance NFData Example where
   rnf (Example a b) = a `deepseq` b `deepseq` ()
+
+instance NFData id => NFData (Table id) where
+  rnf (Table a b) = a `deepseq` b `deepseq` ()
 
 
 exampleToString :: Example -> String
@@ -519,6 +523,7 @@ data DocMarkup id a = Markup
   , markupProperty             :: String -> a
   , markupExample              :: [Example] -> a
   , markupHeader               :: Header a -> a
+  , markupTable                :: Table a -> a
   }
 
 
