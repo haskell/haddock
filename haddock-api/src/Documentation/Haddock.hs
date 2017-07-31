@@ -70,12 +70,11 @@ module Documentation.Haddock (
   withGhc
 ) where
 
-
+import Documentation.Haddock.Markup (markup)
 import Haddock.InterfaceFile
 import Haddock.Interface
 import Haddock.Types
 import Haddock.Options
-import Haddock.Utils
 import Haddock
 
 
