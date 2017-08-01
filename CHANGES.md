@@ -14,6 +14,9 @@
 
  * Support for bundled pattern synonyms (#494, #551, #626)
 
+ * A --reexport flag, which can be used to add extra modules to the
+   top-level module tree
+
 ## Changes in version 2.17.4
 
  * Fix 'internal error: links: UnhelpfulSpan' (#554, #565)
@@ -32,7 +35,7 @@
 
  * Remove framed view of the HTML documentation
 
-## Changes in version 2.17.2
+Changes in version 2.17.2
 
  * Fix portability of documentation building within GHC
 
