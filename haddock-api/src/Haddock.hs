@@ -30,6 +30,7 @@ import Haddock.Backends.Xhtml
 import Haddock.Backends.Xhtml.Themes (getThemes)
 import Haddock.Backends.LaTeX
 import Haddock.Backends.Hoogle
+import Haddock.Backends.Json
 import Haddock.Backends.Hyperlinker
 import Haddock.Interface
 import Haddock.Parser

@@ -125,6 +125,8 @@ executable haddock
       Haddock.Backends.LaTeX
       Haddock.Backends.HaddockDB
       Haddock.Backends.Hoogle
+      Haddock.Backends.Json
+      Haddock.Backends.Json.Json                        
       Haddock.Backends.Hyperlinker
       Haddock.Backends.Hyperlinker.Ast
       Haddock.Backends.Hyperlinker.Parser
