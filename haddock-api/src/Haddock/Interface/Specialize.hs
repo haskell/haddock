@@ -224,7 +224,7 @@ freeVariables =
 -- @(a -> b)@ we get @(a -> b) -> b@ where first occurrence of @b@ refers to
 -- different type variable than latter one. Applying 'rename' function
 -- will fix that type to be visually unambiguous again (making it something
--- like @(a -> c) -> b@).
+-- like @(a -> b0) -> b@).
 rename :: (Eq name, DataId name, SetName name)
        => Set Name -> HsType name -> HsType name
 rename fv typ = evalState (renameType typ) env
@@ -305,6 +305,7 @@ renameBinder (KindedTyVar lname lkind) =
   KindedTyVar <$> located renameName lname <*> located renameType lkind
 
 
+-- | Core renaming logic.
 renameName :: (Eq name, SetName name) => name -> Rename name name
 renameName name = do
     RenameEnv { .. } <- get
