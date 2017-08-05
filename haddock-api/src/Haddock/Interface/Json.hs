@@ -13,6 +13,7 @@ import Outputable
 
 import Control.Arrow
 import Data.Map (Map)
+import Data.Bifunctor
 import qualified Data.Map as Map
 
 import Haddock.Types
@@ -20,7 +21,7 @@ import Haddock.InterfaceFile
 
 jsonInterfaceFile :: InterfaceFile -> JsonDoc
 jsonInterfaceFile InterfaceFile{..} =
-  jsonObject [ ("link_env" , jsonNull)
+  jsonObject [ ("link_env" , jsonMap nameStableString (jsonString . moduleNameString . moduleName) ifLinkEnv)
              , ("inst_ifaces", jsonArray (map jsonInstalledInterface ifInstalledIfaces))
              ]
 
@@ -41,9 +42,6 @@ jsonInstalledInterface InstalledInterface{..} = jsonObject properties
       , ("fix_map"         , jsonMap nameStableString jsonFixity instFixMap)
       ]
 
-    jsonMap :: (a -> String) -> (b -> JsonDoc) -> Map a b -> JsonDoc
-    jsonMap f g = jsonObject . map (f *** g) .  Map.toList
-
 jsonHaddockModInfo :: HaddockModInfo Name -> JsonDoc
 jsonHaddockModInfo HaddockModInfo{..} =
   jsonObject [ ("description" , jsonMaybe jsonDoc hmi_description)
@@ -52,15 +50,21 @@ jsonHaddockModInfo HaddockModInfo{..} =
              , ("stability"   , jsonMaybe jsonString hmi_stability)
              , ("protability" , jsonMaybe jsonString hmi_portability)
              , ("safety"      , jsonMaybe jsonString hmi_safety)
-             , ("language"    , jsonMaybe (const jsonNull) hmi_language)
-             , ("extensions"  , jsonArray (map (const jsonNull) hmi_extensions))
+             , ("language"    , jsonMaybe (jsonString . show) hmi_language)
+             , ("extensions"  , jsonArray (map (jsonString . show) hmi_extensions))
              ]
 
+jsonMap :: (a -> String) -> (b -> JsonDoc) -> Map a b -> JsonDoc
+jsonMap f g = jsonObject . map (f *** g) . Map.toList
+
 jsonMDoc :: MDoc Name -> JsonDoc
-jsonMDoc _ = jsonNull
+jsonMDoc MetaDoc{..} =
+  jsonObject [ ("meta", jsonObject [("version", jsonMaybe (jsonString . show) (_version _meta))])
+             , ("doc",  jsonDoc _doc)
+             ]
 
 jsonDoc :: Doc Name -> JsonDoc
-jsonDoc _ = jsonNull
+jsonDoc doc = jsonString (show (bimap (moduleNameString . fst) nameStableString doc))
 
 jsonModule :: Module -> JsonDoc
 jsonModule = JSString . moduleStableString
@@ -83,7 +87,7 @@ renderJson :: JsonDoc -> SDoc
 renderJson = renderJSON
 
 jsonMaybe :: (a -> JsonDoc) -> Maybe a -> JsonDoc
-jsonMaybe f = maybe jsonNull f 
+jsonMaybe = maybe jsonNull
 
 jsonString :: String -> JsonDoc
 jsonString = JSString

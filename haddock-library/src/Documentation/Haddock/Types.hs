@@ -19,6 +19,9 @@ import Data.Foldable
 import Data.Traversable
 #endif
 
+import Control.Arrow ((***))
+import Data.Bifunctor
+
 -- | With the advent of 'Version', we may want to start attaching more
 -- meta-data to comments. We make a structure for this ahead of time
 -- so we don't have to gut half the core each time we want to add such
@@ -80,3 +83,30 @@ data DocH mod id
   | DocExamples [Example]
   | DocHeader (Header (DocH mod id))
   deriving (Eq, Show, Functor, Foldable, Traversable)
+
+instance Bifunctor DocH where
+  second = fmap
+
+  first _ DocEmpty = DocEmpty
+  first f (DocAppend docA docB) = DocAppend (first f docA) (first f docB)
+  first _ (DocString s) = DocString s
+  first f (DocParagraph doc) = DocParagraph (first f doc)
+  first _ (DocIdentifier identifier) = DocIdentifier identifier
+  first f (DocIdentifierUnchecked m) = DocIdentifierUnchecked (f m)
+  first _ (DocModule s) = DocModule s
+  first f (DocWarning doc) = DocWarning (first f doc)
+  first f (DocEmphasis doc) = DocEmphasis (first f doc)
+  first f (DocMonospaced doc) = DocMonospaced (first f doc)
+  first f (DocBold doc) = DocBold (first f doc)
+  first f (DocUnorderedList docs) = DocUnorderedList (map (first f) docs)
+  first f (DocOrderedList docs) = DocUnorderedList (map (first f) docs)
+  first f (DocDefList docs) = DocDefList (map (first f *** first f) docs)
+  first f (DocCodeBlock doc) = DocCodeBlock (first f doc)
+  first _ (DocHyperlink h) = DocHyperlink h
+  first _ (DocPic p) = DocPic p
+  first _ (DocMathInline s) = DocMathInline s
+  first _ (DocMathDisplay s) = DocMathDisplay s
+  first _ (DocAName s) = DocAName s
+  first _ (DocProperty s) = DocProperty s
+  first _ (DocExamples examples) = DocExamples examples
+  first f (DocHeader (Header l t)) = DocHeader (Header l (first f t))
