@@ -64,9 +64,9 @@ ppSig dflags x  = ppSigWithDoc dflags x []
 
 pp_sig :: DynFlags -> [Located Name] -> LHsType Name -> JsonDoc
 pp_sig dflags names (L _ typ)  = JSObject xs
-       where xs = [("type",JSString "funtion"),
-                   ("name",JSString prettyNames),
-                   ("sig",JSString (outHsType dflags typ))]
+       where xs = [("type", JSString "function"),
+                   ("name", JSString prettyNames),
+                   ("sig", JSString (outHsType dflags typ))]
              prettyNames = intercalate ", " $ map (out dflags) names
 
 outHsType :: OutputableBndr a => DynFlags -> HsType a -> String
