@@ -1,0 +1,237 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><title
+    >Bug613</title
+    ><link href="ocean.css" rel="stylesheet" type="text/css" title="Ocean"
+     /><script src="haddock-util.js" type="text/javascript"
+    ></script
+    ><script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"
+    ></script
+    ><script type="text/javascript"
+    >//<![CDATA[
+window.onload = function () {pageLoad();setSynopsis("mini_Bug613.html");};
+//]]>
+</script
+    ></head
+  ><body class="no-frame"
+  ><div id="package-header"
+    ><ul class="links" id="page-menu"
+      ><li
+	><a href="index.html"
+	  >Contents</a
+	  ></li
+	><li
+	><a href="doc-index.html"
+	  >Index</a
+	  ></li
+	></ul
+      ><p class="caption empty"
+      >&nbsp;</p
+      ></div
+    ><div id="content"
+    ><div id="module-header"
+      ><table class="info"
+	><tr
+	  ><th
+	    >Safe Haskell</th
+	    ><td
+	    >Safe</td
+	    ></tr
+	  ></table
+	><p class="caption"
+	>Bug613</p
+	></div
+      ><div id="interface"
+      ><h1
+	>Documentation</h1
+	><div class="top"
+	><p class="src"
+	  ><span class="keyword"
+	    >class</span
+	    > <a id="t:Functor" class="def"
+	    >Functor</a
+	    > f <span class="keyword"
+	    >where</span
+	    > <a href="#t:Functor" class="selflink"
+	    >#</a
+	    ></p
+	  ><div class="subs minimal"
+	  ><p class="caption"
+	    >Minimal complete definition</p
+	    ><p class="src"
+	    ><a href="Bug613.html#v:fmap"
+	      >fmap</a
+	      ></p
+	    ></div
+	  ><div class="subs methods"
+	  ><p class="caption"
+	    >Methods</p
+	    ><p class="src"
+	    ><a id="v:fmap" class="def"
+	      >fmap</a
+	      > :: (a -&gt; b) -&gt; f a -&gt; f b <a href="#v:fmap" class="selflink"
+	      >#</a
+	      ></p
+	    ></div
+	  ><div class="subs instances"
+	  ><p id="control.i:Functor" class="caption collapser" onclick="toggleSection('i:Functor')"
+	    >Instances</p
+	    ><div id="section.i:Functor" class="show"
+	    ><table
+	      ><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span id="control.i:ic:Functor:Functor:1" class="instance expander" onclick="toggleSection('i:ic:Functor:Functor:1')"
+		      ></span
+		      > <a href="Bug613.html#t:Functor"
+		      >Functor</a
+		      > (<a href="/home/tf/.stack/programs/x86_64-linux/ghc-nopie-8.0.2/share/doc/ghc-8.0.2/html/libraries/base-4.9.1.0/Data-Either.html#t:Either"
+		      >Either</a
+		      > a)</span
+		    > <a href="#t:Functor" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc empty"
+		  >&nbsp;</td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><div id="section.i:ic:Functor:Functor:1" class="inst-details hide"
+		    ><div class="subs methods"
+		      ><p class="caption"
+			>Methods</p
+			><p class="src"
+			><a href="#v:fmap"
+			  >fmap</a
+			  > :: (a0 -&gt; b) -&gt; <a href="/home/tf/.stack/programs/x86_64-linux/ghc-nopie-8.0.2/share/doc/ghc-8.0.2/html/libraries/base-4.9.1.0/Data-Either.html#t:Either"
+			  >Either</a
+			  > a a0 -&gt; <a href="/home/tf/.stack/programs/x86_64-linux/ghc-nopie-8.0.2/share/doc/ghc-8.0.2/html/libraries/base-4.9.1.0/Data-Either.html#t:Either"
+			  >Either</a
+			  > a b <a href="#v:fmap" class="selflink"
+			  >#</a
+			  ></p
+			></div
+		      ></div
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span id="control.i:ic:Functor:Functor:2" class="instance expander" onclick="toggleSection('i:ic:Functor:Functor:2')"
+		      ></span
+		      > <a href="Bug613.html#t:Functor"
+		      >Functor</a
+		      > (<a href="Bug613.html#t:ThreeVars"
+		      >ThreeVars</a
+		      > a0 a)</span
+		    > <a href="#t:Functor" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc empty"
+		  >&nbsp;</td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><div id="section.i:ic:Functor:Functor:2" class="inst-details hide"
+		    ><div class="subs methods"
+		      ><p class="caption"
+			>Methods</p
+			><p class="src"
+			><a href="#v:fmap"
+			  >fmap</a
+			  > :: (a1 -&gt; b) -&gt; <a href="Bug613.html#t:ThreeVars"
+			  >ThreeVars</a
+			  > a0 a a1 -&gt; <a href="Bug613.html#t:ThreeVars"
+			  >ThreeVars</a
+			  > a0 a b <a href="#v:fmap" class="selflink"
+			  >#</a
+			  ></p
+			></div
+		      ></div
+		    ></td
+		  ></tr
+		></table
+	      ></div
+	    ></div
+	  ></div
+	><div class="top"
+	><p class="src"
+	  ><span class="keyword"
+	    >data</span
+	    > <a id="t:ThreeVars" class="def"
+	    >ThreeVars</a
+	    > a0 a b <a href="#t:ThreeVars" class="selflink"
+	    >#</a
+	    ></p
+	  ><div class="subs constructors"
+	  ><p class="caption"
+	    >Constructors</p
+	    ><table
+	    ><tr
+	      ><td class="src"
+		><a id="v:ThreeVars" class="def"
+		  >ThreeVars</a
+		  > a b</td
+		><td class="doc empty"
+		>&nbsp;</td
+		></tr
+	      ></table
+	    ></div
+	  ><div class="subs instances"
+	  ><p id="control.i:ThreeVars" class="caption collapser" onclick="toggleSection('i:ThreeVars')"
+	    >Instances</p
+	    ><div id="section.i:ThreeVars" class="show"
+	    ><table
+	      ><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span id="control.i:id:ThreeVars:Functor:1" class="instance expander" onclick="toggleSection('i:id:ThreeVars:Functor:1')"
+		      ></span
+		      > <a href="Bug613.html#t:Functor"
+		      >Functor</a
+		      > (<a href="Bug613.html#t:ThreeVars"
+		      >ThreeVars</a
+		      > a0 a)</span
+		    > <a href="#t:ThreeVars" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc empty"
+		  >&nbsp;</td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><div id="section.i:id:ThreeVars:Functor:1" class="inst-details hide"
+		    ><div class="subs methods"
+		      ><p class="caption"
+			>Methods</p
+			><p class="src"
+			><a href="#v:fmap"
+			  >fmap</a
+			  > :: (a1 -&gt; b) -&gt; <a href="Bug613.html#t:ThreeVars"
+			  >ThreeVars</a
+			  > a0 a a1 -&gt; <a href="Bug613.html#t:ThreeVars"
+			  >ThreeVars</a
+			  > a0 a b <a href="#v:fmap" class="selflink"
+			  >#</a
+			  ></p
+			></div
+		      ></div
+		    ></td
+		  ></tr
+		></table
+	      ></div
+	    ></div
+	  ></div
+	></div
+      ></div
+    ><div id="footer"
+    ><p
+      >Produced by <a href="http://www.haskell.org/haddock/"
+	>Haddock</a
+	> version 2.17.4</p
+      ></div
+    ></body
+  ></html
+>
