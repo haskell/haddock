@@ -114,6 +114,14 @@ instance Bifunctor DocH where
   bimap f g (DocHeader (Header level title)) = DocHeader (Header level (bimap f g title))
 #endif
 
+-- | 'DocMarkupH' is a set of instructions for marking up documentation.
+-- In fact, it's really just a mapping from 'Doc' to some other
+-- type [a], where [a] is usually the type of the output (HTML, say).
+-- Use 'Documentation.Haddock.Markup.markup' to apply a 'DocMarkupH' to
+-- a 'DocH'.
+--
+-- @since 1.4.5
+--
 data DocMarkupH mod id a = Markup
   { markupEmpty                :: a
   , markupString               :: String -> a

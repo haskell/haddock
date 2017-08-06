@@ -11,8 +11,6 @@
  * Fix: Generate constraint signatures for constructors exported as pattern
    synonyms (#663)
 
- * Bifunctor instance for DocH
-
 ## Changes in version 2.18.1
 
  * Synopsis is working again (#599)
