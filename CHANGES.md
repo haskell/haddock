@@ -6,6 +6,11 @@
 
  * Move markup related data types to haddock-library
 
+ * Fix: Show empty constraint contexts in pattern type signatures (#663)
+
+ * Fix: Generate constraint signatures for constructors exported as pattern
+   synonyms (#663)
+
  * Bifunctor instance for DocH
 
 ## Changes in version 2.18.1
