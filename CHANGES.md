@@ -1,4 +1,12 @@
-## Changes in version 2.18.0
+## Changes in version 2.18.2
+
+ * to be released
+
+ * Fix renaming of type variables after specializing instance method signatures (#613)
+
+ * Move markup related data types to haddock-library
+
+## Changes in version 2.18.1
 
  * Synopsis is working again (#599)
 

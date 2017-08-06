@@ -110,3 +110,29 @@ instance Bifunctor DocH where
   first _ (DocProperty s) = DocProperty s
   first _ (DocExamples examples) = DocExamples examples
   first f (DocHeader (Header l t)) = DocHeader (Header l (first f t))
+
+data DocMarkupH mod id a = Markup
+  { markupEmpty                :: a
+  , markupString               :: String -> a
+  , markupParagraph            :: a -> a
+  , markupAppend               :: a -> a -> a
+  , markupIdentifier           :: id -> a
+  , markupIdentifierUnchecked  :: mod -> a
+  , markupModule               :: String -> a
+  , markupWarning              :: a -> a
+  , markupEmphasis             :: a -> a
+  , markupBold                 :: a -> a
+  , markupMonospaced           :: a -> a
+  , markupUnorderedList        :: [a] -> a
+  , markupOrderedList          :: [a] -> a
+  , markupDefList              :: [(a,a)] -> a
+  , markupCodeBlock            :: a -> a
+  , markupHyperlink            :: Hyperlink -> a
+  , markupAName                :: String -> a
+  , markupPic                  :: Picture -> a
+  , markupMathInline           :: String -> a
+  , markupMathDisplay          :: String -> a
+  , markupProperty             :: String -> a
+  , markupExample              :: [Example] -> a
+  , markupHeader               :: Header a -> a
+  }
