@@ -20,9 +20,6 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
-import Json
-import Outputable (showSDoc)
-
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
 import Haddock.Backends.Xhtml.Layout
@@ -34,6 +31,7 @@ import Haddock.ModuleTree
 import Haddock.Types
 import Haddock.Version
 import Haddock.Utils
+import Haddock.Utils.Json
 import Text.XHtml hiding ( name, title, p, quote )
 import Haddock.GhcUtils
 
@@ -94,8 +92,8 @@ ppHtml dflags doctitle maybe_package ifaces odir prologue
     ppHtmlIndex odir doctitle maybe_package
       themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
       (map toInstalledIface visible_ifaces) debug
-    ppJsonIndex dflags odir maybe_source_url maybe_wiki_url unicode qual
-      visible_ifaces debug
+    ppJsonIndex odir maybe_source_url maybe_wiki_url unicode qual
+      visible_ifaces
 
   mapM_ (ppHtmlModule odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url
@@ -345,26 +343,24 @@ mkNode qual ss p (Node s leaf pkg srcPkg short ts) =
 -- * Generate the index
 --------------------------------------------------------------------------------
 
-ppJsonIndex :: DynFlags
-           -> FilePath
+ppJsonIndex :: FilePath
            -> SourceURLs                   -- ^ The source URL (--source)
            -> WikiURLs                     -- ^ The wiki URL (--wiki)
            -> Bool
            -> QualOption
            -> [Interface]
-           -> Bool
            -> IO ()
-ppJsonIndex dflags odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces debug = do
+ppJsonIndex odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces = do
   createDirectoryIfMissing True odir
   writeFile (joinPath [odir, indexJsonFile])
-            (showSDoc dflags $ renderJSON contents)
+            (encodeToString contents)
 
   where
 
-    contents :: JsonDoc
-    contents = JSArray $ concatMap goInterface ifaces
+    contents :: Value
+    contents = Array $ concatMap goInterface ifaces
 
-    goInterface :: Interface -> [JsonDoc]
+    goInterface :: Interface -> [Value]
     goInterface iface =
         concatMap (goExport mdl qual) (ifaceRnExportItems iface)
       where
@@ -372,17 +368,17 @@ ppJsonIndex dflags odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces 
         aliases = ifaceModuleAliases iface
         mdl = ifaceMod iface
 
-    goExport :: Module -> Qualification -> ExportItem DocName -> [JsonDoc]
+    goExport :: Module -> Qualification -> ExportItem DocName -> [Value]
     goExport mdl qual item =
       case processExport True links_info unicode qual item of
         Nothing -> []
         Just html ->
-          [ JSObject
-            [ ("display_html", JSString $ showHtmlFragment html)
-            , ("name", JSString $
+          [ Object
+            [ ("display_html", String $ showHtmlFragment html)
+            , ("name", String $
                        intercalate " " $
                        map (nameString . getName) $ exportName item)
-            , ("module", JSString $ moduleString mdl)
+            , ("module", String $ moduleString mdl)
             ]
           ]
 
