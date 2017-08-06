@@ -19,8 +19,11 @@ import Data.Foldable
 import Data.Traversable
 #endif
 
-import Control.Arrow ((***))
+#if MIN_VERSION_base(4,8,0)
 import Data.Bifunctor
+#endif
+
+import Control.Arrow ((***))
 
 -- | With the advent of 'Version', we may want to start attaching more
 -- meta-data to comments. We make a structure for this ahead of time
@@ -84,32 +87,32 @@ data DocH mod id
   | DocHeader (Header (DocH mod id))
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
+#if MIN_VERSION_base(4,8,0)
 instance Bifunctor DocH where
-  second = fmap
-
-  first _ DocEmpty = DocEmpty
-  first f (DocAppend docA docB) = DocAppend (first f docA) (first f docB)
-  first _ (DocString s) = DocString s
-  first f (DocParagraph doc) = DocParagraph (first f doc)
-  first _ (DocIdentifier identifier) = DocIdentifier identifier
-  first f (DocIdentifierUnchecked m) = DocIdentifierUnchecked (f m)
-  first _ (DocModule s) = DocModule s
-  first f (DocWarning doc) = DocWarning (first f doc)
-  first f (DocEmphasis doc) = DocEmphasis (first f doc)
-  first f (DocMonospaced doc) = DocMonospaced (first f doc)
-  first f (DocBold doc) = DocBold (first f doc)
-  first f (DocUnorderedList docs) = DocUnorderedList (map (first f) docs)
-  first f (DocOrderedList docs) = DocUnorderedList (map (first f) docs)
-  first f (DocDefList docs) = DocDefList (map (first f *** first f) docs)
-  first f (DocCodeBlock doc) = DocCodeBlock (first f doc)
-  first _ (DocHyperlink h) = DocHyperlink h
-  first _ (DocPic p) = DocPic p
-  first _ (DocMathInline s) = DocMathInline s
-  first _ (DocMathDisplay s) = DocMathDisplay s
-  first _ (DocAName s) = DocAName s
-  first _ (DocProperty s) = DocProperty s
-  first _ (DocExamples examples) = DocExamples examples
-  first f (DocHeader (Header l t)) = DocHeader (Header l (first f t))
+  bimap _ _ DocEmpty = DocEmpty
+  bimap f g (DocAppend docA docB) = DocAppend (bimap f g docA) (bimap f g docB)
+  bimap _ _ (DocString s) = DocString s
+  bimap f g (DocParagraph doc) = DocParagraph (bimap f g doc)
+  bimap _ g (DocIdentifier i) = DocIdentifier (g i)
+  bimap f _ (DocIdentifierUnchecked m) = DocIdentifierUnchecked (f m)
+  bimap _ _ (DocModule s) = DocModule s
+  bimap f g (DocWarning doc) = DocWarning (bimap f g doc)
+  bimap f g (DocEmphasis doc) = DocEmphasis (bimap f g doc)
+  bimap f g (DocMonospaced doc) = DocMonospaced (bimap f g doc)
+  bimap f g (DocBold doc) = DocBold (bimap f g doc)
+  bimap f g (DocUnorderedList docs) = DocUnorderedList (map (bimap f g) docs)
+  bimap f g (DocOrderedList docs) = DocOrderedList (map (bimap f g) docs)
+  bimap f g (DocDefList docs) = DocDefList (map (bimap f g *** bimap f g) docs)
+  bimap f g (DocCodeBlock doc) = DocCodeBlock (bimap f g doc)
+  bimap _ _ (DocHyperlink hyperlink) = DocHyperlink hyperlink
+  bimap _ _ (DocPic picture) = DocPic picture
+  bimap _ _ (DocMathInline s) = DocMathInline s
+  bimap _ _ (DocMathDisplay s) = DocMathDisplay s
+  bimap _ _ (DocAName s) = DocAName s
+  bimap _ _ (DocProperty s) = DocProperty s
+  bimap _ _ (DocExamples examples) = DocExamples examples
+  bimap f g (DocHeader (Header level title)) = DocHeader (Header level (bimap f g title))
+#endif
 
 data DocMarkupH mod id a = Markup
   { markupEmpty                :: a
