@@ -1023,18 +1023,10 @@ extractPatternSyn nm t tvs cons =
         typ = longArrow args (data_ty con)
         typ' =
           case con of
-            ConDeclH98 { con_cxt = Just cxt } | not (null (unLoc cxt)) -> noLoc (HsQualTy cxt typ)
+            ConDeclH98 { con_cxt = Just cxt } -> noLoc (HsQualTy cxt typ)
             _ -> typ
-        typ'' = if hasQualification typ' then noLoc (HsQualTy (noLoc []) typ') else typ'
+        typ'' = noLoc (HsQualTy (noLoc []) typ')
     in PatSynSig [noLoc nm] (mkEmptyImplicitBndrs typ'')
-
-  hasQualification :: LHsType name -> Bool
-  hasQualification typ =
-    case unLoc typ of
-      HsForAllTy _ s -> hasQualification s
-      HsQualTy{} -> True
-      HsFunTy _ s -> hasQualification s
-      _ -> False
 
   longArrow :: [LHsType name] -> LHsType name -> LHsType name
   longArrow inputs output = foldr (\x y -> noLoc (HsFunTy x y)) output inputs
