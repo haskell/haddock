@@ -333,7 +333,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
                visibleIfaces odir
   
   when (Flag_Json `elem` flags) $ do
-  ppJson dflags' "Test" (Data.Version.makeVersion [1,0,0]) title (fmap _doc prologue) visibleIfaces odir
+    ppJson dflags' "Test" (Data.Version.makeVersion [1,0,0]) title (fmap _doc prologue) visibleIfaces odir
   -- case pkgNameVer of
   --   Nothing -> putStrLn . unlines $
   --       [ "haddock: Unable to find a package providing module "
