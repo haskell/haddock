@@ -330,7 +330,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
                          | otherwise = unpackFS pkgNameFS
           in ppHoogle dflags' pkgNameStr pkgVer title (fmap _doc prologue)
                visibleIfaces odir
-    
+
   when (Flag_LaTeX `elem` flags) $ do
     ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
                   libDir

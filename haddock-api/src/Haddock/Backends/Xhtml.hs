@@ -363,15 +363,15 @@ ppJsonIndex dflags odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces 
 
     contents :: JsonDoc
     contents = JSArray $ concatMap goInterface ifaces
-  
+
     goInterface :: Interface -> [JsonDoc]
-    goInterface iface = 
+    goInterface iface =
         concatMap (goExport mdl qual) (ifaceRnExportItems iface)
       where
         qual = makeModuleQual qual_opt aliases mdl
         aliases = ifaceModuleAliases iface
         mdl = ifaceMod iface
-    
+
     goExport :: Module -> Qualification -> ExportItem DocName -> [JsonDoc]
     goExport mdl qual item =
       case processExport True links_info unicode qual item of
