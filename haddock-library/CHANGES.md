@@ -2,7 +2,7 @@
 
  * to be released
 
-* Bifunctor instance for DocH
+ * Bifunctor instance for DocH
 
 ## Changes in version 1.4.5
 
