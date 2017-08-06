@@ -69,7 +69,7 @@ pp_sig dflags names (L _ typ)  = JSObject xs
                    ("sig", JSString (outHsType dflags typ))]
              prettyNames = intercalate ", " $ map (out dflags) names
 
-outHsType :: OutputableBndr a => DynFlags -> HsType a -> String
+outHsType :: OutputableBndrId a => DynFlags -> HsType a -> String
 outHsType dflags = out dflags . dropHsDocTy
 
 
