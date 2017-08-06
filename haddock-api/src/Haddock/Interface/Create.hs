@@ -1008,7 +1008,7 @@ extractDecl name decl
 extractPatternSyn :: Name -> Name -> [LHsType Name] -> [LConDecl Name] -> LSig Name
 extractPatternSyn nm t tvs cons =
   case filter matches cons of
-    [] -> error "extractRecSel: constructor pattern not found"
+    [] -> error "extractPatternSyn: constructor pattern not found"
     con:_ -> extract <$> con
  where
   matches :: LConDecl Name -> Bool
