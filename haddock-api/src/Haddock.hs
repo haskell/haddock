@@ -30,7 +30,6 @@ import Haddock.Backends.Xhtml
 import Haddock.Backends.Xhtml.Themes (getThemes)
 import Haddock.Backends.LaTeX
 import Haddock.Backends.Hoogle
-import Haddock.Backends.Json
 import Haddock.Backends.Hyperlinker
 import Haddock.Interface
 import Haddock.Parser
@@ -331,23 +330,6 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
                          | otherwise = unpackFS pkgNameFS
           in ppHoogle dflags' pkgNameStr pkgVer title (fmap _doc prologue)
                visibleIfaces odir
-  
-  when (Flag_Json `elem` flags) $ do
-    ppJson dflags' "Test" (Data.Version.makeVersion [1,0,0]) title (fmap _doc prologue) visibleIfaces odir
-  -- case pkgNameVer of
-  --   Nothing -> putStrLn . unlines $
-  --       [ "haddock: Unable to find a package providing module "
-  --         ++ moduleNameString (moduleName pkgMod) ++ ", skipping Json."
-  --       , ""
-  --       , "         Perhaps try specifying the desired package explicitly"
-  --         ++ " using the --package-name"
-  --       , "         and --package-version arguments."
-  --       ]
-  --   Just (PackageName pkgNameFS, pkgVer) ->
-  --       let pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
-  --                      | otherwise = unpackFS pkgNameFS
-  --       in ppJson dflags' pkgNameStr pkgVer title (fmap _doc prologue)
-  --            visibleIfaces odir
     
   when (Flag_LaTeX `elem` flags) $ do
     ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
