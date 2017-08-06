@@ -20,10 +20,9 @@ import Data.Traversable
 #endif
 
 #if MIN_VERSION_base(4,8,0)
+import Control.Arrow ((***))
 import Data.Bifunctor
 #endif
-
-import Control.Arrow ((***))
 
 -- | With the advent of 'Version', we may want to start attaching more
 -- meta-data to comments. We make a structure for this ahead of time
