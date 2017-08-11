@@ -379,6 +379,10 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces = do
                        intercalate " " $
                        map (nameString . getName) $ exportName item)
             , ("module", String $ moduleString mdl)
+            , ("link", String $
+                       fromMaybe "" $
+                       listToMaybe $
+                       map (nameLink mdl . getName) $ exportName item)
             ]
           ]
 
@@ -389,6 +393,9 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces = do
 
     nameString :: Name -> String
     nameString = occNameString . nameOccName
+
+    nameLink :: Module -> Name -> String
+    nameLink mdl = moduleNameUrl' (moduleName mdl) . nameOccName
 
     links_info = (maybe_source_url, maybe_wiki_url)
 
