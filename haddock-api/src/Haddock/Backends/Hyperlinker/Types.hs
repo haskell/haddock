@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 data Token = Token
     { tkType :: TokenType
     , tkValue :: String
-    , tkSpan :: Span
+    , tkSpan :: {-# UNPACK #-} !Span
     }
     deriving (Show)
 
@@ -21,8 +21,8 @@ data Position = Position
     deriving (Show)
 
 data Span = Span
-    { spStart :: Position
-    , spEnd :: Position
+    { spStart :: !Position
+    , spEnd   :: !Position
     }
     deriving (Show)
 
