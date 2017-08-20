@@ -28,6 +28,9 @@ Clone the repository:
 
 and then proceed using your favourite build tool.
 
+Note: before building `haddock`, you need to build the subprojects
+`haddock-library` and `haddock-api`, in this order!
+
 #### Using [`cabal new-build`](http://cabal.readthedocs.io/en/latest/nix-local-build-overview.html)
 
 ```bash
