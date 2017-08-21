@@ -373,28 +373,25 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces = do
         Nothing -> []
         Just html ->
           [ Object
-            [ ("display_html", String $ showHtmlFragment html)
-            , ("name", String $
-                       intercalate " " $
-                       map (nameString . getName) $ exportName item)
-            , ("module", String $ moduleString mdl)
-            , ("link", String $
-                       fromMaybe "" $
-                       listToMaybe $
-                       map (nameLink mdl . getName) $ exportName item)
+            [ "display_html" .= String (showHtmlFragment html)
+            , "name"         .= String (intercalate " " (map nameString names))
+            , "module"       .= String (moduleString mdl)
+            , "link"         .= String (fromMaybe "" (listToMaybe (map (nameLink mdl) names)))
             ]
           ]
-
+      where 
+        names = exportName item
+    
     exportName :: ExportItem DocName -> [DocName]
     exportName ExportDecl { expItemDecl } = getMainDeclBinder $ unLoc expItemDecl
     exportName ExportNoDecl { expItemName } = [expItemName]
     exportName _ = []
 
-    nameString :: Name -> String
-    nameString = occNameString . nameOccName
+    nameString :: NamedThing name => name -> String
+    nameString = occNameString . nameOccName . getName
 
-    nameLink :: Module -> Name -> String
-    nameLink mdl = moduleNameUrl' (moduleName mdl) . nameOccName
+    nameLink :: NamedThing name => Module -> name -> String
+    nameLink mdl = moduleNameUrl' (moduleName mdl) . nameOccName . getName
 
     links_info = (maybe_source_url, maybe_wiki_url)
 
