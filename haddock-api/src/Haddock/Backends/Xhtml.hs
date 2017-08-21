@@ -245,7 +245,7 @@ moduleInfo iface =
 --------------------------------------------------------------------------------
 
 
-ppHtml
+ppHtmlContents
    :: DynFlags
    -> FilePath
    -> String
