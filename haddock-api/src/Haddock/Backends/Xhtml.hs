@@ -245,7 +245,7 @@ moduleInfo iface =
 --------------------------------------------------------------------------------
 
 
-ppHtmlContents
+ppHtml
    :: DynFlags
    -> FilePath
    -> String
@@ -353,20 +353,19 @@ ppJsonIndex :: FilePath
 ppJsonIndex odir maybe_source_url maybe_wiki_url unicode qual_opt ifaces = do
   createDirectoryIfMissing True odir
   writeFile (joinPath [odir, indexJsonFile])
-            (encodeToString contents)
+            (encodeToString modules)
 
   where
-
-    contents :: Value
-    contents = Array $ concatMap goInterface ifaces
+    modules :: Value
+    modules = Array (concatMap goInterface ifaces)
 
     goInterface :: Interface -> [Value]
     goInterface iface =
         concatMap (goExport mdl qual) (ifaceRnExportItems iface)
       where
-        qual = makeModuleQual qual_opt aliases mdl
         aliases = ifaceModuleAliases iface
-        mdl = ifaceMod iface
+        qual    = makeModuleQual qual_opt aliases mdl
+        mdl     = ifaceMod iface
 
     goExport :: Module -> Qualification -> ExportItem DocName -> [Value]
     goExport mdl qual item =
