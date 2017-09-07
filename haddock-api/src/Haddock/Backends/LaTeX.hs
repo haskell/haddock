@@ -833,7 +833,7 @@ ppDataHeader _ _ = error "ppDataHeader: illegal argument"
 
 -- | Print an application of a DocName and two lists of HsTypes (kinds, types)
 ppAppNameTypes :: DocName -> [HsType DocNameI] -> [HsType DocNameI] -> Bool -> LaTeX
-ppAppNameTypes n ks ts unicode = ppTypeApp n ks ts ppDocName (ppParendType unicode)
+ppAppNameTypes n _ks ts unicode = ppTypeApp n [] ts ppDocName (ppParendType unicode)
 
 
 -- | Print an application of a DocName and a list of Names

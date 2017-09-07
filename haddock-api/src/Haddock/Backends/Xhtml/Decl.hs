@@ -377,8 +377,8 @@ ppAppDocNameTyVarBndrs summ unicode qual n vs =
 -- | Print an application of a 'DocName' and two lists of 'HsTypes' (kinds, types)
 ppAppNameTypes :: DocName -> [HsType DocNameI] -> [HsType DocNameI]
                -> Unicode -> Qualification -> Html
-ppAppNameTypes n ks ts unicode qual =
-    ppTypeApp n ks ts (\p -> ppDocName qual p True) (ppParendType unicode qual HideEmptyContexts)
+ppAppNameTypes n _ks ts unicode qual =
+    ppTypeApp n [] ts (\p -> ppDocName qual p True) (ppParendType unicode qual HideEmptyContexts)
 
 
 -- | General printing of type applications
