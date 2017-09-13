@@ -463,10 +463,7 @@ synifyType _ (TyConApp tc tys)
       | needs_kind_sig
       = let full_kind  = typeKind (mkTyConApp tc tys)
             full_kind' = synifyType WithinType full_kind
-        in if tc `hasKey` funTyConKey
-              && all (isLiftedTypeKind . typeKind) vis_tys
-           then ty'
-           else noLoc $ HsKindSig ty' full_kind'
+        in noLoc $ HsKindSig ty' full_kind'
       | otherwise = ty'
 
     needs_kind_sig :: Bool
