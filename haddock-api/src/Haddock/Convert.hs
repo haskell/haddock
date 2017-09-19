@@ -79,7 +79,7 @@ tyThingToLHsDecl t = case t of
        in withErrs (tyClErrors ++ famDeclErrors) . TyClD $ ClassDecl
          { tcdCtxt = synifyCtx (classSCTheta cl)
          , tcdLName = synifyName cl
-         , tcdTyVars = synifyTyVars (classTyVars cl) (Just (classTyCon cl))
+         , tcdTyVars = synifyTyVars (tyConVisibleTyVars (classTyCon cl))
          , tcdFixity = Prefix
          , tcdFDs = map (\ (l,r) -> noLoc
                         (map (noLoc . getName) l, map (noLoc . getName) r) ) $
@@ -125,7 +125,7 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
                                    , feqn_fixity = Prefix
                                    , feqn_rhs    = hs_rhs } }
   where
-    fam_tvs = filterOutInvisibleTyVars tc (tyConTyVars tc)
+    fam_tvs = tyConVisibleTyVars tc
 
 synifyAxiom :: CoAxiom br -> Either ErrMsg (HsDecl GhcRn)
 synifyAxiom ax@(CoAxiom { co_ax_tc = tc })
@@ -192,7 +192,7 @@ synifyTyCon _coax tc
     mkFamDecl i = return $ FamDecl $
       FamilyDecl { fdInfo = i
                  , fdLName = synifyName tc
-                 , fdTyVars = synifyTyVars (tyConTyVars tc) (Just tc)
+                 , fdTyVars = synifyTyVars (tyConVisibleTyVars tc)
                  , fdFixity = Prefix
                  , fdResultSig =
                        synifyFamilyResultSig resultVar (tyConResKind tc)
@@ -204,7 +204,7 @@ synifyTyCon _coax tc
 synifyTyCon coax tc
   | Just ty <- synTyConRhs_maybe tc
   = return $ SynDecl { tcdLName = synifyName tc
-                     , tcdTyVars = synifyTyVars (tyConTyVars tc) (Just tc)
+                     , tcdTyVars = synifyTyVars (tyConVisibleTyVars tc)
                      , tcdFixity = Prefix
                      , tcdRhs = synifyType WithinType ty
                      , tcdFVs = placeHolderNamesTc }
@@ -217,7 +217,7 @@ synifyTyCon coax tc
     Just a -> synifyName a -- Data families are named according to their
                            -- CoAxioms, not their TyCons
     _ -> synifyName tc
-  tyvars = synifyTyVars (tyConTyVars tc) (Just tc)
+  tyvars = synifyTyVars (tyConVisibleTyVars tc)
   kindSig = Just (tyConKind tc)
   -- The data constructors.
   --
@@ -284,8 +284,8 @@ synifyDataCon use_gadt_syntax dc =
   (univ_tvs, ex_tvs, _eq_spec, theta, arg_tys, res_ty) = dataConFullSig dc
 
   qvars = if use_gadt_syntax
-          then synifyTyVars (univ_tvs ++ ex_tvs) Nothing
-          else synifyTyVars ex_tvs Nothing
+          then synifyTyVars (univ_tvs ++ ex_tvs)
+          else synifyTyVars ex_tvs
 
   -- skip any EqTheta, use 'orig'inal syntax
   ctx = synifyCtx theta
@@ -339,17 +339,10 @@ synifyCtx :: [PredType] -> LHsContext GhcRn
 synifyCtx = noLoc . map (synifyType WithinType)
 
 
-synifyTyVars :: [TyVar]
-             -> Maybe TyCon -- the tycon if the tycovars are from a tycon.
-                            -- Used to detect which tvs are implicit.
-             -> LHsQTyVars GhcRn
-synifyTyVars ktvs m_tc = HsQTvs { hsq_implicit = []
-                                , hsq_explicit = map synifyTyVar ktvs'
-                                , hsq_dependent = emptyNameSet }
-  where
-    ktvs' = case m_tc of
-              Just tc -> filterOutInvisibleTyVars tc ktvs
-              Nothing -> ktvs
+synifyTyVars :: [TyVar] -> LHsQTyVars GhcRn
+synifyTyVars ktvs = HsQTvs { hsq_implicit = []
+                           , hsq_explicit = map synifyTyVar ktvs
+                           , hsq_dependent = emptyNameSet }
 
 synifyTyVar :: TyVar -> LHsTyVarBndr GhcRn
 synifyTyVar tv
@@ -562,7 +555,7 @@ synifyInstHead (_, preds, cls, types) = specializeInstHead $ InstHead
     , ihdTypes = map unLoc annot_ts
     , ihdInstType = ClassInst
         { clsiCtx = map (unLoc . synifyType WithinType) preds
-        , clsiTyVars = synifyTyVars cls_tyvars (Just cls_tycon)
+        , clsiTyVars = synifyTyVars (tyConVisibleTyVars cls_tycon)
         , clsiSigs = map synifyClsIdSig $ classMethods cls
         , clsiAssocTys = do
             (Right (FamDecl fam)) <- map (synifyTyCon Nothing) $ classATs cls
@@ -571,12 +564,11 @@ synifyInstHead (_, preds, cls, types) = specializeInstHead $ InstHead
     }
   where
     cls_tycon = classTyCon cls
-    cls_tyvars = classTyVars cls
     (ks,ts) = partitionInvisibles cls_tycon id types
     ks' = map (synifyType WithinType) ks
     ts' = map (synifyType WithinType) ts
     annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
-    is_poly_tvs = mkIsPolyTvs (filterOutInvisibleTyVars cls_tycon cls_tyvars)
+    is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars cls_tycon)
     synifyClsIdSig = synifyIdSig DeleteTopLevelQuantification
 
 -- Convert a family instance, this could be a type family or data family
@@ -601,4 +593,4 @@ synifyFamInst fi opaque = do
     ks' = synifyTypes ks
     ts' = synifyTypes ts
     annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
-    is_poly_tvs = mkIsPolyTvs (filterOutInvisibleTyVars fam_tc (tyConTyVars fam_tc))
+    is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars fam_tc)
