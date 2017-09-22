@@ -473,6 +473,11 @@ synifyType _ (TyConApp tc tys)
 
         in not (subVarSet result_vars dropped_vars)
 
+    -- injectiveVarsOfBinder and injectiveVarsOfType are taken directly from
+    -- TcSplice (in the GHC source code).
+    --
+    -- TODO: Export injectiveVarsOfBinders and injectiveVarsOfType from
+    -- GHC, and import them here instead.
     injectiveVarsOfBinder :: TyConBinder -> FV
     injectiveVarsOfBinder (TvBndr tv vis) =
       case vis of
@@ -551,7 +556,6 @@ synifyKindSig k = synifyType WithinType k
 synifyInstHead :: ([TyVar], [PredType], Class, [Type]) -> InstHead GhcRn
 synifyInstHead (_, preds, cls, types) = specializeInstHead $ InstHead
     { ihdClsName = getName cls
-    , ihdKinds = map unLoc ks'
     , ihdTypes = map unLoc annot_ts
     , ihdInstType = ClassInst
         { clsiCtx = map (unLoc . synifyType WithinType) preds
@@ -564,8 +568,7 @@ synifyInstHead (_, preds, cls, types) = specializeInstHead $ InstHead
     }
   where
     cls_tycon = classTyCon cls
-    (ks,ts) = partitionInvisibles cls_tycon id types
-    ks' = map (synifyType WithinType) ks
+    ts  = filterOutInvisibleTypes cls_tycon types
     ts' = map (synifyType WithinType) ts
     annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
     is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars cls_tycon)
@@ -577,7 +580,6 @@ synifyFamInst fi opaque = do
     ityp' <- ityp $ fi_flavor fi
     return InstHead
         { ihdClsName = fi_fam fi
-        , ihdKinds = map unLoc ks'
         , ihdTypes = map unLoc annot_ts
         , ihdInstType = ityp'
         }
@@ -588,9 +590,8 @@ synifyFamInst fi opaque = do
     ityp (DataFamilyInst c) =
         DataInst <$> synifyTyCon (Just $ famInstAxiom fi) c
     fam_tc = famInstTyCon fi
-    (ks,ts) = partitionInvisibles fam_tc id $ fi_tys fi
+    ts = filterOutInvisibleTypes fam_tc $ fi_tys fi
     synifyTypes = map (synifyType WithinType)
-    ks' = synifyTypes ks
     ts' = synifyTypes ts
     annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
     is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars fam_tc)
