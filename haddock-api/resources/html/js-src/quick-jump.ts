@@ -15,10 +15,6 @@ type DocItem = {
   link: string
 }
 
-// TODO: get rid of global variables
-let baseUrl;
-let showHideTrigger;
-
 function loadJSON(path: string, success: (json: DocItem[]) => void, error: (xhr: XMLHttpRequest) => void) {
   const xhr = new XMLHttpRequest();
   xhr.onreadystatechange = () => {
@@ -39,8 +35,8 @@ function loadJSON(path: string, success: (json: DocItem[]) => void, error: (xhr:
 
 class PageMenuButton extends Component<any, any> {
 
-  render(props) {
-    function onClick(e) {
+  render(props: { title: string, onClick: () => void }) {
+    function onClick(e: Event) {
       e.preventDefault();
       props.onClick();
     }
@@ -61,7 +57,7 @@ function addSearchPageMenuButton(action: () => void) {
 
 // -------------------------------------------------------------------------- //
 
-function take(n, arr) {
+function take<T>(n: number, arr: T[]) {
   if (arr.length <= n) { return arr; }
   return arr.slice(0, n);
 }
@@ -71,17 +67,24 @@ type FuseResult<T> = {
   item: T
 }
 
-type AppState = {
+type ResultsInModule = { module: string, totalScore: number, items: FuseResult<DocItem>[] }
+
+type QuickJumpProps = {
+  baseUrl: string
+  showHideTrigger: (action: () => void) => void
+}
+
+type QuickJumpState = {
   searchString: string
   isVisible: boolean
   expanded: any // TODO: more specific type
   activeLinkIndex: number
-  moduleResults: any[] // TODO: more specific type
+  moduleResults: ResultsInModule[]
   failedLoading?: boolean
   fuse: Fuse
-};
+}
 
-class App extends Component<{}, AppState> {
+class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
 
   private linkIndex: number = 0;
   private focusPlease: boolean = false;
@@ -100,7 +103,7 @@ class App extends Component<{}, AppState> {
       activeLinkIndex: -1,
       moduleResults: []
     });
-    loadJSON(baseUrl + "/doc-index.json", (data) => {
+    loadJSON(this.props.baseUrl + "/doc-index.json", (data) => {
       this.setState({
         fuse: new Fuse(data, {
           threshold: 0.4,
@@ -161,7 +164,7 @@ class App extends Component<{}, AppState> {
     }
   }
 
-  navigateLinks(change) {
+  navigateLinks(change: number) {
     var newActiveLinkIndex = Math.max(-1, Math.min(this.linkIndex-1, this.state.activeLinkIndex + change));
     this.navigatedByKeyboard = true;
     this.setState({ activeLinkIndex: newActiveLinkIndex });
@@ -184,7 +187,7 @@ class App extends Component<{}, AppState> {
       resultsInModule.push(result);
     });
 
-    var moduleResults: { module: string, totalScore: number, items: FuseResult<DocItem>[] }[] = [];
+    var moduleResults: ResultsInModule[] = [];
     for (var moduleName in resultsByModule) {
       const items = resultsByModule[moduleName];
       let sumOfInverseScores = 0;
@@ -215,29 +218,30 @@ class App extends Component<{}, AppState> {
   }
 
   componentDidMount() {
-    showHideTrigger(this.toggleVisibility.bind(this));
+    this.props.showHideTrigger(this.toggleVisibility.bind(this));
   }
 
-  render(props, state) {
+  render(props: any, state: QuickJumpState) {
     if (state.failedLoading) { return null; }
 
     this.linkIndex = 0;
 
-    const stopPropagation = (e) => { e.stopPropagation(); };
+    const stopPropagation = (e: Event) => { e.stopPropagation(); };
 
-    const onMouseOver = (e) => {
-      var target = e.target;
-      while (target) {
-        if (typeof target.hasAttribute == 'function' && target.hasAttribute('data-link-index')) {
-          const linkIndex = parseInt(target.getAttribute('data-link-index'), 10);
+    const onMouseOver = (e: MouseEvent) => {
+      var target: null | Element = e.target as Element;
+      while (target && typeof target.getAttribute === 'function') {
+        const linkIndexString = target.getAttribute('data-link-index');
+        if (typeof linkIndexString == 'string') {
+          const linkIndex = parseInt(linkIndexString, 10);
           this.setState({ activeLinkIndex: linkIndex });
           break;
         }
-        target = target.parentNode;
+        target = target.parentNode as null | Element;
       }
     };
 
-    const items = take(10, state.moduleResults).map(this.renderResultsInModule.bind(this));
+    const items = take(10, state.moduleResults).map((r) => this.renderResultsInModule(r));
 
     return (
       h('div', { id: 'search', class: state.isVisible ? '' : 'hidden' },
@@ -265,7 +269,7 @@ class App extends Component<{}, AppState> {
     );
   }
 
-  renderResultsInModule(resultsInModule) {
+  renderResultsInModule(resultsInModule: ResultsInModule): JSX.Element {
     var items = resultsInModule.items;
     var moduleName = resultsInModule.module;
     var showAll = this.state.expanded[moduleName] || items.length <= 10;
@@ -277,9 +281,9 @@ class App extends Component<{}, AppState> {
       this.setState({ expanded: newExpanded });
     };
 
-    const renderItem = (item) => {
+    const renderItem = (item: DocItem) => {
       return h('li', { class: 'search-result' },
-        this.navigationLink(baseUrl + "/" + item.link, {},
+        this.navigationLink(this.props.baseUrl + "/" + item.link, {},
           h(DocHtml, { html: item.display_html })
         )
       );
@@ -298,23 +302,23 @@ class App extends Component<{}, AppState> {
     );
   }
 
-  navigationLink(href, attrs, ...children) {
+  navigationLink(href: string, attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, ...children: (JSX.Element|JSX.Element[]|string)[]) {
     const fullAttrs = Object.assign({ href: href, onClick: this.hide.bind(this) }, attrs);
     const action = () => { window.location.href = href; this.hide(); };
     return this.menuLink(fullAttrs, action, ...children);
   }
 
-  actionLink(callback, attrs, ...children) {
-    const onClick = function(e) { e.preventDefault(); callback(); }
+  actionLink(callback: () => void, attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, ...children: (JSX.Element|JSX.Element[]|string)[]) {
+    const onClick = (e: Event) => { e.preventDefault(); callback(); };
     const fullAttrs = Object.assign({ href: '#', onClick: onClick }, attrs);
     return this.menuLink(fullAttrs, callback, ...children);
   }
 
-  menuLink(attrs, action, ...children) {
+  menuLink(attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, action: () => void, ...children: (JSX.Element|JSX.Element[]|string)[]) {
     var linkIndex = this.linkIndex;
     if (linkIndex === this.state.activeLinkIndex) {
       attrs['class'] = (attrs['class'] ? attrs['class'] + ' ' : '') + 'active-link';
-      attrs.ref = (link) => { if (link) this.activeLink = link; };
+      attrs.ref = (link?: Element) => { if (link) this.activeLink = link as HTMLAnchorElement; };
       this.activeLinkAction = action;
     }
     var newAttrs = Object.assign({ 'data-link-index': linkIndex }, attrs);
@@ -326,11 +330,11 @@ class App extends Component<{}, AppState> {
 
 class DocHtml extends Component<{ html: string }, {}> {
 
-  shouldComponentUpdate(newProps) {
+  shouldComponentUpdate(newProps: { html: string }) {
     return this.props.html !== newProps.html;
   }
 
-  render(props) {
+  render(props: { html: string }) {
     return h('div', {dangerouslySetInnerHTML: {__html: props.html}});
   }
 
@@ -379,7 +383,7 @@ function IntroMsg() {
   );
 }
 
-function NoResultsMsg(props) {
+function NoResultsMsg(props: { searchString: string }) {
   var messages = [
     h('p', {},
       "Your search for '" + props.searchString + "' produced the following list of results: ",
@@ -399,10 +403,12 @@ function NoResultsMsg(props) {
 }
 
 export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
-  baseUrl = docBaseUrl || ".";
-  showHideTrigger = showHide || addSearchPageMenuButton;
-  preact.render(h(App, {}), document.body);
+  const props = {
+    baseUrl: docBaseUrl || ".",
+    showHideTrigger: showHide || addSearchPageMenuButton
+  };
+  preact.render(h(QuickJump, props), document.body);
 }
 
 // export to global object
-window['quickNav'] = { init: init };
+(window as any).quickNav = { init: init };

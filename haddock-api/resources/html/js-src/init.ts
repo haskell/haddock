@@ -1,7 +1,7 @@
 import * as util from "./haddock-util";
 import * as quickJump from "./quick-jump";
 
-function onDomReady(callback) {
+function onDomReady(callback: () => void) {
   if (document.readyState === 'interactive') {
     callback();
   } else {

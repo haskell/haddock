@@ -1,25 +1,25 @@
 // Haddock JavaScript utilities
 
-var rspace = /\s\s+/g,
+const rspace = /\s\s+/g,
     rtrim = /^\s+|\s+$/g;
 
-function spaced(s) { return (" " + s + " ").replace(rspace, " "); }
-function trim(s)   { return s.replace(rtrim, ""); }
+function spaced(s: string) { return (" " + s + " ").replace(rspace, " "); }
+function trim(s: string)   { return s.replace(rtrim, ""); }
 
-function hasClass(elem, value) {
-  var className = spaced(elem.className || "");
+function hasClass(elem: Element, value: string) {
+  const className = spaced(elem.className || "");
   return className.indexOf( " " + value + " " ) >= 0;
 }
 
-function addClass(elem, value) {
-  var className = spaced(elem.className || "");
+function addClass(elem: Element, value: string) {
+  const className = spaced(elem.className || "");
   if ( className.indexOf( " " + value + " " ) < 0 ) {
     elem.className = trim(className + " " + value);
   }
 }
 
-function removeClass(elem: Element, value) {
-  var className = spaced(elem.className || "");
+function removeClass(elem: Element, value: string) {
+  let className = spaced(elem.className || "");
   className = className.replace(" " + value + " ", " ");
   elem.className = trim(className);
 }
@@ -47,7 +47,7 @@ function makeClassToggle(valueOn: string, valueOff: string): (elem: Element, boo
 const toggleShow = makeClassToggle("show", "hide");
 const toggleCollapser = makeClassToggle("collapser", "expander");
 
-function toggleSection(id: string) {
+function toggleSection(id: string): boolean {
   const b = toggleShow(document.getElementById("section." + id) as Element);
   toggleCollapser(document.getElementById("control." + id) as Element, b);
   rememberCollapsed(id);
@@ -55,18 +55,19 @@ function toggleSection(id: string) {
 }
 
 // TODO: get rid of global variables
-if(typeof window !== 'undefined') { window['toggleSection'] = toggleSection; }
+if (typeof window !== 'undefined') {
+  (window as any).toggleSection = toggleSection;
+}
 
-var collapsed = {};
+const collapsed: { [id: string]: boolean } = {};
 function rememberCollapsed(id: string) {
   if(collapsed[id])
     delete collapsed[id]
   else
     collapsed[id] = true;
 
-  var sections: string[] = [];
-  for(let i in collapsed)
-  {
+  const sections: string[] = [];
+  for(let i in collapsed) {
     if(collapsed.hasOwnProperty(i))
       sections.push(i);
   }
@@ -75,31 +76,31 @@ function rememberCollapsed(id: string) {
 }
 
 export function restoreCollapsed() {
-  var cookie = getCookie("collapsed");
+  const cookie = getCookie("collapsed");
   if(!cookie)
     return;
 
-  var ids = cookie.split('+');
-  for(var i in ids)
+  const ids = cookie.split('+');
+  for(const i in ids)
   {
     if(document.getElementById("section." + ids[i]))
       toggleSection(ids[i]);
   }
 }
 
-function setCookie(name, value) {
+function setCookie(name: string, value: string) {
   document.cookie = name + "=" + encodeURIComponent(value) + ";path=/;";
 }
 
-function clearCookie(name) {
+function clearCookie(name: string) {
   document.cookie = name + "=;path=/;expires=Thu, 01-Jan-1970 00:00:01 GMT;";
 }
 
-function getCookie(name) {
-  var nameEQ = name + "=";
-  var ca = document.cookie.split(';');
-  for (var i=0;i < ca.length;i++) {
-    var c = ca[i];
+function getCookie(name: string) {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
     while (c.charAt(0)==' ') c = c.substring(1,c.length);
     if (c.indexOf(nameEQ) == 0) {
       return decodeURIComponent(c.substring(nameEQ.length,c.length));
@@ -108,7 +109,7 @@ function getCookie(name) {
   return null;
 }
 
-function addMenuItem(html) {
+function addMenuItem(html: string) {
   const menu = document.getElementById("page-menu");
   if (menu && menu.firstChild) {
     const btn = menu.firstChild.cloneNode(false) as Element;
@@ -123,15 +124,15 @@ function styles(): HTMLLinkElement[] {
 }
 
 export function addStyleMenu() {
-  var as = styles();
-  var i, a, btns = "";
-  for(i=0; a = as[i]; i++) {
+  const as = styles();
+  let btns = "";
+  as.forEach((a) => {
     btns += "<li><a href='#' onclick=\"setActiveStyleSheet('"
       + a.title + "'); return false;\">"
       + a.title + "</a></li>"
-  }
+  });
   if (as.length > 1) {
-    var h = "<div id='style-menu-holder'>"
+    const h = "<div id='style-menu-holder'>"
       + "<a href='#' onclick='styleMenu(); return false;'>Style &#9662;</a>"
       + "<ul id='style-menu' class='hide'>" + btns + "</ul>"
       + "</div>";
@@ -139,10 +140,11 @@ export function addStyleMenu() {
   }
 }
 
-function setActiveStyleSheet(title) {
-  var as = styles();
-  var i, a, found;
-  for(i=0; a = as[i]; i++) {
+function setActiveStyleSheet(title: string) {
+  const as = styles();
+  let found: null | HTMLLinkElement = null;
+  for(let i = 0; i < as.length; i++) {
+    const a = as[i];
     a.disabled = true;
           // need to do this always, some browsers are edge triggered
     if(a.title == title) {
@@ -161,11 +163,11 @@ function setActiveStyleSheet(title) {
 }
 
 export function resetStyle() {
-  var s = getCookie("haddock-style");
+  const s = getCookie("haddock-style");
   if (s) setActiveStyleSheet(s);
 }
 
-function styleMenu(show) {
-  var m = document.getElementById('style-menu');
+function styleMenu(show?: boolean) {
+  const m = document.getElementById('style-menu');
   if (m) toggleShow(m, show);
 }
