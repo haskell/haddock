@@ -1,5 +1,5 @@
-var util = require('./haddock-util');
-var quickJump = require('./quick-jump');
+import * as util from "./haddock-util";
+import * as quickJump from "./quick-jump";
 
 function onDomReady(callback) {
   if (document.readyState === 'interactive') {

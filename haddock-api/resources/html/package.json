@@ -23,6 +23,8 @@
     "browserify": "^14.4.0",
     "gulp": "^3.9.1",
     "gulp-uglify": "^3.0.0",
+    "tsify": "^3.0.3",
+    "typescript": "^2.5.2",
     "vinyl-buffer": "^1.0.0",
     "vinyl-source-stream": "^1.1.0"
   }

@@ -1,41 +1,33 @@
-var Fuse = require('fuse.js');
-var preact = require('preact');
+//import * as Fuse from "fuse";
+import Fuse = require('fuse.js');
+import preact = require("preact");
 
-quickNav = (function() {
+const { h, Component } = preact;
 
-var baseUrl;
-var showHideTrigger;
-
-// alias preact's hyperscript reviver since it's referenced a lot:
-var h = preact.h;
-
-function createClass(obj) {
-  // sub-class Component:
-  function F(){ preact.Component.call(this); }
-  var p = F.prototype = new preact.Component;
-  // copy our skeleton into the prototype:
-  for (var i in obj) {
-    if (i === 'getDefaultProps' && typeof obj.getDefaultProps === 'function') {
-      F.defaultProps = obj.getDefaultProps() || {};
-    } else {
-      p[i] = obj[i];
-    }
-  }
-  // restore constructor:
-  return p.constructor = F;
+declare interface ObjectConstructor {
+  assign(target: any, ...sources: any[]): any;
 }
 
-function loadJSON(path, success, error) {
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function()
-  {
+type DocItem = {
+  display_html: string
+  name: string
+  module: string
+  link: string
+}
+
+// TODO: get rid of global variables
+let baseUrl;
+let showHideTrigger;
+
+function loadJSON(path: string, success: (json: DocItem[]) => void, error: (xhr: XMLHttpRequest) => void) {
+  const xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = () => {
     if (xhr.readyState === XMLHttpRequest.DONE) {
       if (xhr.status === 200) {
         if (success)
           success(JSON.parse(xhr.responseText));
       } else {
-        if (error)
-          error(xhr);
+        if (error) { error(xhr); }
       }
     }
   };
@@ -45,23 +37,23 @@ function loadJSON(path, success, error) {
 
 // -------------------------------------------------------------------------- //
 
-var PageMenuButton = createClass({
+class PageMenuButton extends Component<any, any> {
 
-  render: function(props) {
+  render(props) {
     function onClick(e) {
       e.preventDefault();
       props.onClick();
     }
 
-    return h('li', null,
+    return h('li', {},
       h('a', { href: '#', onClick: onClick }, props.title)
     );
   }
 
-});
+}
 
-function addSearchPageMenuButton(action) {
-  var pageMenu = document.querySelector('#page-menu');
+function addSearchPageMenuButton(action: () => void) {
+  var pageMenu = document.querySelector('#page-menu') as HTMLUListElement;
   var dummy = document.createElement('li');
   pageMenu.insertBefore(dummy, pageMenu.firstChild);
   preact.render(h(PageMenuButton, { onClick: action, title: "Quick Jump" }), pageMenu, dummy);
@@ -74,18 +66,42 @@ function take(n, arr) {
   return arr.slice(0, n);
 }
 
-var App = createClass({
-  componentWillMount: function() {
-    var self = this;
-    self.setState({
+type FuseResult<T> = {
+  score: number
+  item: T
+}
+
+type AppState = {
+  searchString: string
+  isVisible: boolean
+  expanded: any // TODO: more specific type
+  activeLinkIndex: number
+  moduleResults: any[] // TODO: more specific type
+  failedLoading?: boolean
+  fuse: Fuse
+};
+
+class App extends Component<{}, AppState> {
+
+  private linkIndex: number = 0;
+  private focusPlease: boolean = false;
+  private navigatedByKeyboard: boolean = false;
+  private activeLink: undefined | HTMLAnchorElement;
+  private activeLinkAction: undefined | (() => void);
+
+  private input: undefined | HTMLInputElement;
+  private searchResults: undefined | Element;
+
+  componentWillMount() {
+    this.setState({
       searchString: '',
       isVisible: false,
       expanded: {},
       activeLinkIndex: -1,
       moduleResults: []
     });
-    loadJSON(baseUrl + "/doc-index.json", function(data) {
-      self.setState({
+    loadJSON(baseUrl + "/doc-index.json", (data) => {
+      this.setState({
         fuse: new Fuse(data, {
           threshold: 0.4,
           caseSensitive: true,
@@ -95,94 +111,94 @@ var App = createClass({
         }),
         moduleResults: []
       });
-    }, function (err) {
+    }, (err) => {
       if (console) {
         console.error("could not load 'doc-index.json' for searching", err);
       }
-      self.setState({ failedLoading: true });
+      this.setState({ failedLoading: true });
     });
 
     document.addEventListener('mousedown', this.hide.bind(this));
 
-    document.addEventListener('keydown', function(e) {
-      if (self.state.isVisible) {
+    document.addEventListener('keydown', (e) => {
+      if (this.state.isVisible) {
         if (e.key === 'Escape') {
-          self.hide();
+          this.hide();
         } else if (e.key === 'ArrowUp' || (e.key === 'k' && e.ctrlKey)) {
           e.preventDefault();
-          self.navigateLinks(-1);
+          this.navigateLinks(-1);
         } else if (e.key === 'ArrowDown' || (e.key === 'j' && e.ctrlKey)) {
           e.preventDefault();
-          self.navigateLinks(+1);
-        } else if (e.key === 'Enter' && self.state.activeLinkIndex >= 0) {
-          self.followActiveLink();
+          this.navigateLinks(+1);
+        } else if (e.key === 'Enter' && this.state.activeLinkIndex >= 0) {
+          this.followActiveLink();
         }
       }
 
-      if (e.key === 's' && e.target.tagName.toLowerCase() !== 'input') {
+      if (e.key === 's' && (e.target as HTMLElement).tagName.toLowerCase() !== 'input') {
         e.preventDefault();
-        self.show();
+        this.show();
       }
     })
-  },
+  }
 
-  hide: function() {
+  hide() {
     this.setState({ isVisible: false });
-  },
+  }
 
-  show: function() {
+  show() {
     if (!this.state.isVisible) {
       this.focusPlease = true;
       this.setState({ isVisible: true, activeLinkIndex: -1 });
     }
-  },
+  }
 
-  toggleVisibility: function() {
+  toggleVisibility() {
     if (this.state.isVisible) {
       this.hide();
     } else {
       this.show();
     }
-  },
+  }
 
-  navigateLinks: function(change) {
+  navigateLinks(change) {
     var newActiveLinkIndex = Math.max(-1, Math.min(this.linkIndex-1, this.state.activeLinkIndex + change));
     this.navigatedByKeyboard = true;
     this.setState({ activeLinkIndex: newActiveLinkIndex });
-  },
+  }
 
-  followActiveLink: function() {
+  followActiveLink() {
     if (!this.activeLinkAction) { return; }
     this.activeLinkAction();
-  },
+  }
 
-  updateResults: function() {
-    var searchString = this.input.value;
-    var results = this.state.fuse.search(searchString)
+  updateResults() {
+    var searchString = (this.input && this.input.value) || '';
+    const results: FuseResult<DocItem>[] = this.state.fuse.search(searchString);
 
-    var resultsByModule = {};
+    var resultsByModule: { [name: string]: FuseResult<DocItem>[] } = {};
 
-    results.forEach(function(result) {
-      var moduleName = result.item.module;
-      var resultsInModule = resultsByModule[moduleName] || (resultsByModule[moduleName] = []);
+    results.forEach((result) => {
+      const moduleName = result.item.module;
+      const resultsInModule = resultsByModule[moduleName] || (resultsByModule[moduleName] = []);
       resultsInModule.push(result);
     });
 
-    var moduleResults = [];
+    var moduleResults: { module: string, totalScore: number, items: FuseResult<DocItem>[] }[] = [];
     for (var moduleName in resultsByModule) {
-      var items = resultsByModule[moduleName];
-      var sumOfInverseScores = 0;
-      items.forEach(function(item) { sumOfInverseScores += 1/item.score; });
+      const items = resultsByModule[moduleName];
+      let sumOfInverseScores = 0;
+      items.forEach((item) => { sumOfInverseScores += 1/item.score; });
       moduleResults.push({ module: moduleName, totalScore: 1/sumOfInverseScores, items: items });
     }
 
-    moduleResults.sort(function(a, b) { return a.totalScore - b.totalScore; });
+    moduleResults.sort((a, b) => a.totalScore - b.totalScore);
 
     this.setState({ searchString: searchString, isVisible: true, moduleResults: moduleResults });
-  },
+  }
 
-  componentDidUpdate: function() {
-    if (this.state.isVisible && this.activeLink && this.navigatedByKeyboard) {
+  componentDidUpdate() {
+    if (this.searchResults && this.activeLink && this.navigatedByKeyboard) {
       var rect = this.activeLink.getClientRects()[0];
       var searchResultsTop = this.searchResults.getClientRects()[0].top;
       if (rect.bottom > window.innerHeight) {
@@ -196,40 +212,39 @@ var App = createClass({
     }
     this.navigatedByKeyboard = false;
     this.focusPlease = false;
-  },
+  }
 
-  componentDidMount: function() {
+  componentDidMount() {
     showHideTrigger(this.toggleVisibility.bind(this));
-  },
+  }
 
-  render: function(props, state) {
+  render(props, state) {
     if (state.failedLoading) { return null; }
 
-    var self = this;
     this.linkIndex = 0;
 
-    var stopPropagation = function(e) { e.stopPropagation(); };
+    const stopPropagation = (e) => { e.stopPropagation(); };
 
-    var onMouseOver = function(e) {
+    const onMouseOver = (e) => {
       var target = e.target;
       while (target) {
         if (typeof target.hasAttribute == 'function' && target.hasAttribute('data-link-index')) {
-          var linkIndex = parseInt(target.getAttribute('data-link-index'), 10);
+          const linkIndex = parseInt(target.getAttribute('data-link-index'), 10);
           this.setState({ activeLinkIndex: linkIndex });
           break;
         }
         target = target.parentNode;
       }
-    }.bind(this);
+    };
 
-    var items = take(10, state.moduleResults).map(this.renderResultsInModule.bind(this));
+    const items = take(10, state.moduleResults).map(this.renderResultsInModule.bind(this));
 
     return (
       h('div', { id: 'search', class: state.isVisible ? '' : 'hidden' },
         h('div', { id: 'search-form', onMouseDown: stopPropagation },
           h('input', {
             placeholder: "Search in package by name",
-            ref: function(input) { self.input = input; },
+            ref: (input) => { this.input = input as undefined | HTMLInputElement; },
             onFocus: this.show.bind(this),
             onClick: this.show.bind(this),
             onInput: this.updateResults.bind(this)
@@ -237,163 +252,157 @@ var App = createClass({
         ),
         h('div', {
           id: 'search-results',
-          ref: function(el) { self.searchResults = el; },
+          ref: (el) => { this.searchResults = el; },
           onMouseDown: stopPropagation, onMouseOver: onMouseOver
         },
           state.searchString === ''
-            ? [h(IntroMsg), h(KeyboardShortcuts)]
+            ? [h(IntroMsg, {}), h(KeyboardShortcuts, {})]
             :    items.length == 0
                   ? h(NoResultsMsg, { searchString: state.searchString })
-                  : h('ul', null, items)
+                  : h('ul', {}, items)
         )
       )
     );
-  },
+  }
 
-  renderResultsInModule: function(resultsInModule) {
+  renderResultsInModule(resultsInModule) {
     var items = resultsInModule.items;
     var moduleName = resultsInModule.module;
     var showAll = this.state.expanded[moduleName] || items.length <= 10;
     var visibleItems = showAll ? items : take(8, items);
 
-    var expand = function() {
-      var newExpanded = Object.assign({}, this.state.expanded);
+    const expand = () => {
+      const newExpanded = Object.assign({}, this.state.expanded);
       newExpanded[moduleName] = true;
       this.setState({ expanded: newExpanded });
-    }.bind(this);
+    };
 
-    var renderItem = function(item) {
+    const renderItem = (item) => {
       return h('li', { class: 'search-result' },
         this.navigationLink(baseUrl + "/" + item.link, {},
           h(DocHtml, { html: item.display_html })
         )
       );
-    }.bind(this);
+    };
 
     return h('li', { class: 'search-module' },
-      h('h4', null, moduleName),
-      h('ul', null,
-        visibleItems.map(function(item) { return renderItem(item.item); }),
+      h('h4', {}, moduleName),
+      h('ul', {},
+        visibleItems.map((item) => renderItem(item.item)),
         showAll
-          ? null
+          ? []
           : h('li', { class: 'more-results' },
               this.actionLink(expand, {}, "show " + (items.length - visibleItems.length) + " more results from this module")
             )
       )
     );
-  },
+  }
 
-  navigationLink: function(href, attrs) {
-    var fullAttrs = Object.assign({ href: href, onClick: this.hide.bind(this) }, attrs);
-    var action = function() { window.location.href = href; this.hide(); }.bind(this);
-    var args = [fullAttrs, action].concat(Array.prototype.slice.call(arguments, 2));
-    return this.menuLink.apply(this, args);
-  },
+  navigationLink(href, attrs, ...children) {
+    const fullAttrs = Object.assign({ href: href, onClick: this.hide.bind(this) }, attrs);
+    const action = () => { window.location.href = href; this.hide(); };
+    return this.menuLink(fullAttrs, action, ...children);
+  }
 
-  actionLink: function(callback, attrs) {
-    var onClick = function(e) { e.preventDefault(); callback(); }
-    var fullAttrs = Object.assign({ href: '#', onClick: onClick }, attrs);
-    var args = [fullAttrs, callback].concat(Array.prototype.slice.call(arguments, 2));
-    return this.menuLink.apply(this, args);
-  },
+  actionLink(callback, attrs, ...children) {
+    const onClick = function(e) { e.preventDefault(); callback(); }
+    const fullAttrs = Object.assign({ href: '#', onClick: onClick }, attrs);
+    return this.menuLink(fullAttrs, callback, ...children);
+  }
 
-  menuLink: function(attrs, action) {
-    var children = Array.prototype.slice.call(arguments, 2);
+  menuLink(attrs, action, ...children) {
     var linkIndex = this.linkIndex;
     if (linkIndex === this.state.activeLinkIndex) {
       attrs['class'] = (attrs['class'] ? attrs['class'] + ' ' : '') + 'active-link';
-      attrs.ref = function (link) { if (link) this.activeLink = link; }.bind(this);
+      attrs.ref = (link) => { if (link) this.activeLink = link; };
       this.activeLinkAction = action;
     }
     var newAttrs = Object.assign({ 'data-link-index': linkIndex }, attrs);
-    var args = ['a', newAttrs].concat(children);
     this.linkIndex += 1;
-    return h.apply(null, args);
+    return h('a', newAttrs, ...children);
   }
 
-});
+}
 
-var DocHtml = createClass({
+class DocHtml extends Component<{ html: string }, {}> {
 
-  shouldComponentUpdate: function(newProps) {
+  shouldComponentUpdate(newProps) {
     return this.props.html !== newProps.html;
-  },
+  }
 
-  render: function(props) {
+  render(props) {
     return h('div', {dangerouslySetInnerHTML: {__html: props.html}});
   }
 
-});
+};
 
-var KeyboardShortcuts = function() {
+function KeyboardShortcuts() {
   return h('table', { class: 'keyboard-shortcuts' },
-    h('tr', null,
-      h('th', null, "Key"),
-      h('th', null, "Shortcut")
+    h('tr', {},
+      h('th', {}, "Key"),
+      h('th', {}, "Shortcut")
     ),
-    h('tr', null,
-      h('td', null, h('span', { class: 'key' }, "s")),
-      h('td', null, "Open this search box")
+    h('tr', {},
+      h('td', {}, h('span', { class: 'key' }, "s")),
+      h('td', {}, "Open this search box")
     ),
-    h('tr', null,
-      h('td', null, h('span', { class: 'key' }, "esc")),
-      h('td', null, "Close this search box")
+    h('tr', {},
+      h('td', {}, h('span', { class: 'key' }, "esc")),
+      h('td', {}, "Close this search box")
     ),
-    h('tr', null,
-      h('td', null,
+    h('tr', {},
+      h('td', {},
         h('span', { class: 'key' }, "↓"), ", ",
         h('span', { class: 'key' }, "ctrl"), "+",
         h('span', { class: 'key' }, "j")
       ),
-      h('td', null, "Move down in search results")
+      h('td', {}, "Move down in search results")
     ),
-    h('tr', null,
-      h('td', null,
+    h('tr', {},
+      h('td', {},
         h('span', { class: 'key' }, "↑"), ", ",
         h('span', { class: 'key' }, "ctrl"), "+",
         h('span', { class: 'key' }, "k")
       ),
-      h('td', null, "Move up in search results")
+      h('td', {}, "Move up in search results")
     ),
-    h('tr', null,
-      h('td', null, h('span', { class: 'key' }, "↵")),
-      h('td', null, "Go to active search result")
+    h('tr', {},
+      h('td', {}, h('span', { class: 'key' }, "↵")),
+      h('td', {}, "Go to active search result")
     )
   );
-};
+}
 
-var IntroMsg = function() {
-  return h('p', null,
+function IntroMsg() {
+  return h('p', {},
     "You can find any exported type, constructor, class, function or pattern defined in this package by (approximate) name."
   );
-};
+}
 
-var NoResultsMsg = function(props) {
+function NoResultsMsg(props) {
   var messages = [
-    h('p', null,
+    h('p', {},
       "Your search for '" + props.searchString + "' produced the following list of results: ",
-      h('code', null, '[]'),
+      h('code', {}, '[]'),
       "."
     ),
-    h('p', null,
-      h('code', null, 'Nothing'),
+    h('p', {},
+      h('code', {}, 'Nothing'),
       " matches your query for '" + props.searchString + "'."
     ),
-    h('p', null,
-      h('code', null, 'Left "no matches for \'' + props.searchString + '\'" :: Either String (NonEmpty SearchResult)')
+    h('p', {},
+      h('code', {}, 'Left "no matches for \'' + props.searchString + '\'" :: Either String (NonEmpty SearchResult)')
     )
   ];
 
   return messages[(props.searchString || 'a').charCodeAt(0) % messages.length];
-};
-
-return {
-  init: function(docBaseUrl, showHide) {
-    baseUrl = docBaseUrl || ".";
-    showHideTrigger = showHide || addSearchPageMenuButton
-    preact.render(h(App), document.body);
-  }
 }
-})();
 
-if (typeof exports === 'object') { exports.init = quickNav.init; }
+export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
+  baseUrl = docBaseUrl || ".";
+  showHideTrigger = showHide || addSearchPageMenuButton;
+  preact.render(h(App, {}), document.body);
+}
+
+// export to global object
+window['quickNav'] = { init: init };

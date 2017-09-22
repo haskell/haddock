@@ -18,13 +18,13 @@ function addClass(elem, value) {
   }
 }
 
-function removeClass(elem, value) {
+function removeClass(elem: Element, value) {
   var className = spaced(elem.className || "");
   className = className.replace(" " + value + " ", " ");
   elem.className = trim(className);
 }
 
-function toggleClass(elem, valueOn, valueOff, bool) {
+function toggleClass(elem: Element, valueOn: string, valueOff: string, bool?: boolean): boolean {
   if (bool == null) { bool = ! hasClass(elem, valueOn); }
   if (bool) {
     removeClass(elem, valueOff);
@@ -38,47 +38,43 @@ function toggleClass(elem, valueOn, valueOff, bool) {
 }
 
 
-function makeClassToggle(valueOn, valueOff)
-{
+function makeClassToggle(valueOn: string, valueOff: string): (elem: Element, bool?: boolean) => boolean {
   return function(elem, bool) {
     return toggleClass(elem, valueOn, valueOff, bool);
   }
 }
 
-toggleShow = makeClassToggle("show", "hide");
-toggleCollapser = makeClassToggle("collapser", "expander");
+const toggleShow = makeClassToggle("show", "hide");
+const toggleCollapser = makeClassToggle("collapser", "expander");
 
-function toggleSection(id)
-{
-  var b = toggleShow(document.getElementById("section." + id));
-  toggleCollapser(document.getElementById("control." + id), b);
+function toggleSection(id: string) {
+  const b = toggleShow(document.getElementById("section." + id) as Element);
+  toggleCollapser(document.getElementById("control." + id) as Element, b);
   rememberCollapsed(id);
   return b;
 }
 
 // TODO: get rid of global variables
-if (typeof window !== 'undefined') { window.toggleSection = toggleSection; }
+if(typeof window !== 'undefined') { window['toggleSection'] = toggleSection; }
 
 var collapsed = {};
-function rememberCollapsed(id)
-{
+function rememberCollapsed(id: string) {
   if(collapsed[id])
     delete collapsed[id]
   else
     collapsed[id] = true;
 
-  var sections = [];
-  for(var i in collapsed)
+  var sections: string[] = [];
+  for(let i in collapsed)
   {
     if(collapsed.hasOwnProperty(i))
       sections.push(i);
   }
   // cookie specific to this page; don't use setCookie which sets path=/
-  document.cookie = "collapsed=" + escape(sections.join('+'));
+  document.cookie = "collapsed=" + encodeURIComponent(sections.join('+'));
 }
 
-function restoreCollapsed()
-{
+export function restoreCollapsed() {
   var cookie = getCookie("collapsed");
   if(!cookie)
     return;
@@ -91,10 +87,8 @@ function restoreCollapsed()
   }
 }
 
-exports.restoreCollapsed = restoreCollapsed;
-
 function setCookie(name, value) {
-  document.cookie = name + "=" + escape(value) + ";path=/;";
+  document.cookie = name + "=" + encodeURIComponent(value) + ";path=/;";
 }
 
 function clearCookie(name) {
@@ -104,36 +98,31 @@ function clearCookie(name) {
 function getCookie(name) {
   var nameEQ = name + "=";
   var ca = document.cookie.split(';');
-  for(var i=0;i < ca.length;i++) {
+  for (var i=0;i < ca.length;i++) {
     var c = ca[i];
     while (c.charAt(0)==' ') c = c.substring(1,c.length);
     if (c.indexOf(nameEQ) == 0) {
-      return unescape(c.substring(nameEQ.length,c.length));
+      return decodeURIComponent(c.substring(nameEQ.length,c.length));
     }
   }
   return null;
 }
 
 function addMenuItem(html) {
-  var menu = document.getElementById("page-menu");
-  if (menu) {
-    var btn = menu.firstChild.cloneNode(false);
+  const menu = document.getElementById("page-menu");
+  if (menu && menu.firstChild) {
+    const btn = menu.firstChild.cloneNode(false) as Element;
     btn.innerHTML = html;
     menu.appendChild(btn);
   }
 }
 
-function styles() {
-  var i, a, es = document.getElementsByTagName("link"), rs = [];
-  for (i = 0; a = es[i]; i++) {
-    if(a.rel.indexOf("style") != -1 && a.title) {
-      rs.push(a);
-    }
-  }
-  return rs;
+function styles(): HTMLLinkElement[] {
+  const es = Array.prototype.slice.call(document.getElementsByTagName("link"));
+  return es.filter((a: HTMLLinkElement) => a.rel.indexOf("style") != -1 && a.title);
 }
 
-function addStyleMenu() {
+export function addStyleMenu() {
   var as = styles();
   var i, a, btns = "";
   for(i=0; a = as[i]; i++) {
@@ -149,8 +138,6 @@ function addStyleMenu() {
     addMenuItem(h);
   }
 }
-
-exports.addStyleMenu = addStyleMenu;
 
 function setActiveStyleSheet(title) {
   var as = styles();
@@ -173,12 +160,10 @@ function setActiveStyleSheet(title) {
   styleMenu(false);
 }
 
-function resetStyle() {
+export function resetStyle() {
   var s = getCookie("haddock-style");
   if (s) setActiveStyleSheet(s);
 }
-
-exports.resetStyle = resetStyle;
 
 function styleMenu(show) {
   var m = document.getElementById('style-menu');
