@@ -56,6 +56,9 @@ function toggleSection(id)
   return b;
 }
 
+// TODO: get rid of global variables
+if (typeof window !== 'undefined') { window.toggleSection = toggleSection; }
+
 var collapsed = {};
 function rememberCollapsed(id)
 {
@@ -87,6 +90,8 @@ function restoreCollapsed()
       toggleSection(ids[i]);
   }
 }
+
+exports.restoreCollapsed = restoreCollapsed;
 
 function setCookie(name, value) {
   document.cookie = name + "=" + escape(value) + ";path=/;";
@@ -145,6 +150,8 @@ function addStyleMenu() {
   }
 }
 
+exports.addStyleMenu = addStyleMenu;
+
 function setActiveStyleSheet(title) {
   var as = styles();
   var i, a, found;
@@ -171,16 +178,9 @@ function resetStyle() {
   if (s) setActiveStyleSheet(s);
 }
 
+exports.resetStyle = resetStyle;
 
 function styleMenu(show) {
   var m = document.getElementById('style-menu');
   if (m) toggleShow(m, show);
 }
-
-
-function pageLoad() {
-  addStyleMenu();
-  resetStyle();
-  restoreCollapsed();
-}
-

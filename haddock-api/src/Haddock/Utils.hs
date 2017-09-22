@@ -23,7 +23,7 @@ module Haddock.Utils (
   contentsHtmlFile, indexHtmlFile, indexJsonFile,
   moduleIndexFrameName, mainFrameName, synopsisFrameName,
   subIndexHtmlFile,
-  jsFile, jsFuseFile, jsIndexFile, jsPreactFile,
+  haddockJsFile, jsQuickJumpFile,
 
   -- * Anchor and URL utilities
   moduleNameUrl, moduleNameUrl', moduleUrl,
@@ -325,17 +325,11 @@ makeAnchorId (f:r) = escape isAlpha f ++ concatMap (escape isLegal) r
 -------------------------------------------------------------------------------
 
 
-jsFile :: String
-jsFile    = "haddock-util.js"
+haddockJsFile :: String
+haddockJsFile = "haddock-bundle.min.js"
 
-jsIndexFile :: String
-jsIndexFile = "index.js"
-
-jsFuseFile :: String
-jsFuseFile = "fuse.js"
-
-jsPreactFile :: String
-jsPreactFile = "preact.js"
+jsQuickJumpFile :: String
+jsQuickJumpFile = "quick-jump.min.js"
 
 -------------------------------------------------------------------------------
 -- * Misc.

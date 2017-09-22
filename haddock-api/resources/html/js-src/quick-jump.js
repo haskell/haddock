@@ -1,3 +1,6 @@
+var Fuse = require('fuse.js');
+var preact = require('preact');
+
 quickNav = (function() {
 
 var baseUrl;
@@ -230,7 +233,7 @@ var App = createClass({
             onFocus: this.show.bind(this),
             onClick: this.show.bind(this),
             onInput: this.updateResults.bind(this)
-          }),
+          })
         ),
         h('div', {
           id: 'search-results',
@@ -276,8 +279,8 @@ var App = createClass({
           : h('li', { class: 'more-results' },
               this.actionLink(expand, {}, "show " + (items.length - visibleItems.length) + " more results from this module")
             )
-      ),
-    )
+      )
+    );
   },
 
   navigationLink: function(href, attrs) {
@@ -355,13 +358,13 @@ var KeyboardShortcuts = function() {
     h('tr', null,
       h('td', null, h('span', { class: 'key' }, "↵")),
       h('td', null, "Go to active search result")
-    ),
+    )
   );
 };
 
 var IntroMsg = function() {
   return h('p', null,
-    "You can find any exported type, constructor, class, function or pattern defined in this package by (approximate) name.",
+    "You can find any exported type, constructor, class, function or pattern defined in this package by (approximate) name."
   );
 };
 
@@ -374,10 +377,10 @@ var NoResultsMsg = function(props) {
     ),
     h('p', null,
       h('code', null, 'Nothing'),
-      " matches your query for '" + props.searchString + "'.",
+      " matches your query for '" + props.searchString + "'."
     ),
     h('p', null,
-      h('code', null, 'Left "no matches for \'' + props.searchString + '\'" :: Either String (NonEmpty SearchResult)'),
+      h('code', null, 'Left "no matches for \'' + props.searchString + '\'" :: Either String (NonEmpty SearchResult)')
     )
   ];
 
@@ -392,3 +395,5 @@ return {
   }
 }
 })();
+
+if (typeof exports === 'object') { exports.init = quickNav.init; }
