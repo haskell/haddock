@@ -5,7 +5,7 @@ function onDomReady(callback: () => void) {
   if (document.readyState === 'interactive') {
     callback();
   } else {
-    document.addEventListener('readystatechange', function () {
+    document.addEventListener('readystatechange', () => {
       if (document.readyState === 'interactive') {
         callback();
       }
@@ -13,7 +13,7 @@ function onDomReady(callback: () => void) {
   }
 }
 
-onDomReady(function() {
+onDomReady(() => {
   util.addStyleMenu();
   util.resetStyle();
   util.restoreCollapsed();

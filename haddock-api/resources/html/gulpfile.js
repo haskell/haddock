@@ -17,7 +17,7 @@ function buildJS(targetFileName, files) {
 }
 
 gulp.task('build-js', function() {
-  buildJS('quick-jump.min.js', ['./js-src/quick-jump.ts']);
+  buildJS('quick-jump.min.js', ['./js-src/quick-jump.tsx']);
   buildJS('haddock-bundle.min.js', ['./js-src/init.ts']);
 });
 

@@ -40,19 +40,16 @@ class PageMenuButton extends Component<any, any> {
       e.preventDefault();
       props.onClick();
     }
-
-    return h('li', {},
-      h('a', { href: '#', onClick: onClick }, props.title)
-    );
+    return <li><a href="#" onClick={onClick}>{props.title}</a></li>;
   }
 
 }
 
 function addSearchPageMenuButton(action: () => void) {
-  var pageMenu = document.querySelector('#page-menu') as HTMLUListElement;
-  var dummy = document.createElement('li');
+  const pageMenu = document.querySelector('#page-menu') as HTMLUListElement;
+  const dummy = document.createElement('li');
   pageMenu.insertBefore(dummy, pageMenu.firstChild);
-  preact.render(h(PageMenuButton, { onClick: action, title: "Quick Jump" }), pageMenu, dummy);
+  preact.render(<PageMenuButton onClick={action} title="Quick Jump" />, pageMenu, dummy);
 }
 
 // -------------------------------------------------------------------------- //
@@ -165,7 +162,7 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
   }
 
   navigateLinks(change: number) {
-    var newActiveLinkIndex = Math.max(-1, Math.min(this.linkIndex-1, this.state.activeLinkIndex + change));
+    const newActiveLinkIndex = Math.max(-1, Math.min(this.linkIndex-1, this.state.activeLinkIndex + change));
     this.navigatedByKeyboard = true;
     this.setState({ activeLinkIndex: newActiveLinkIndex });
   }
@@ -176,10 +173,10 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
   }
 
   updateResults() {
-    var searchString = (this.input && this.input.value) || '';
+    const searchString = (this.input && this.input.value) || '';
     const results: FuseResult<DocItem>[] = this.state.fuse.search(searchString);
 
-    var resultsByModule: { [name: string]: FuseResult<DocItem>[] } = {};
+    const resultsByModule: { [name: string]: FuseResult<DocItem>[] } = {};
 
     results.forEach((result) => {
       const moduleName = result.item.module;
@@ -187,8 +184,8 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
       resultsInModule.push(result);
     });
 
-    var moduleResults: ResultsInModule[] = [];
-    for (var moduleName in resultsByModule) {
+    const moduleResults: ResultsInModule[] = [];
+    for (const moduleName in resultsByModule) {
       const items = resultsByModule[moduleName];
       let sumOfInverseScores = 0;
       items.forEach((item) => { sumOfInverseScores += 1/item.score; });
@@ -202,8 +199,8 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
 
   componentDidUpdate() {
     if (this.searchResults && this.activeLink && this.navigatedByKeyboard) {
-      var rect = this.activeLink.getClientRects()[0];
-      var searchResultsTop = this.searchResults.getClientRects()[0].top;
+      const rect = this.activeLink.getClientRects()[0];
+      const searchResultsTop = this.searchResults.getClientRects()[0].top;
       if (rect.bottom > window.innerHeight) {
         this.searchResults.scrollTop += rect.bottom - window.innerHeight + 80;
       } else if (rect.top < searchResultsTop) {
@@ -229,7 +226,7 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
     const stopPropagation = (e: Event) => { e.stopPropagation(); };
 
     const onMouseOver = (e: MouseEvent) => {
-      var target: null | Element = e.target as Element;
+      let target: null | Element = e.target as Element;
       while (target && typeof target.getAttribute === 'function') {
         const linkIndexString = target.getAttribute('data-link-index');
         if (typeof linkIndexString == 'string') {
@@ -243,37 +240,32 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
 
     const items = take(10, state.moduleResults).map((r) => this.renderResultsInModule(r));
 
-    return (
-      h('div', { id: 'search', class: state.isVisible ? '' : 'hidden' },
-        h('div', { id: 'search-form', onMouseDown: stopPropagation },
-          h('input', {
-            placeholder: "Search in package by name",
-            ref: (input) => { this.input = input as undefined | HTMLInputElement; },
-            onFocus: this.show.bind(this),
-            onClick: this.show.bind(this),
-            onInput: this.updateResults.bind(this)
-          })
-        ),
-        h('div', {
-          id: 'search-results',
-          ref: (el) => { this.searchResults = el; },
-          onMouseDown: stopPropagation, onMouseOver: onMouseOver
-        },
-          state.searchString === ''
-            ? [h(IntroMsg, {}), h(KeyboardShortcuts, {})]
-            :    items.length == 0
-                  ? h(NoResultsMsg, { searchString: state.searchString })
-                  : h('ul', {}, items)
-        )
-      )
-    );
+    return <div id="search" class={state.isVisible ? '' : 'hidden'}>
+      <div id="search-form" onMouseDown={stopPropagation}>
+        <input
+          placeholder="Search in package by name"
+          ref={(input) => { this.input = input as undefined | HTMLInputElement; }}
+          onFocus={this.show.bind(this)}
+          onClick={this.show.bind(this)}
+          onInput={this.updateResults.bind(this)}
+        />
+      </div>
+      <div id="search-results" ref={(el) => { this.searchResults = el; }}
+        onMouseDown={stopPropagation} onMouseOver={onMouseOver}>
+        {state.searchString === ''
+          ? [<IntroMsg />, <KeyboardShortcuts />]
+          : items.length == 0
+            ? <NoResultsMsg searchString={state.searchString} />
+            : <ul>{items}</ul>}
+      </div>
+    </div>;
   }
 
   renderResultsInModule(resultsInModule: ResultsInModule): JSX.Element {
-    var items = resultsInModule.items;
-    var moduleName = resultsInModule.module;
-    var showAll = this.state.expanded[moduleName] || items.length <= 10;
-    var visibleItems = showAll ? items : take(8, items);
+    const items = resultsInModule.items;
+    const moduleName = resultsInModule.module;
+    const showAll = this.state.expanded[moduleName] || items.length <= 10;
+    const visibleItems = showAll ? items : take(8, items);
 
     const expand = () => {
       const newExpanded = Object.assign({}, this.state.expanded);
@@ -282,24 +274,24 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
     };
 
     const renderItem = (item: DocItem) => {
-      return h('li', { class: 'search-result' },
-        this.navigationLink(this.props.baseUrl + "/" + item.link, {},
-          h(DocHtml, { html: item.display_html })
-        )
-      );
+      return <li class="search-result">
+        {this.navigationLink(this.props.baseUrl + "/" + item.link, {},
+          <DocHtml html={item.display_html} />
+        )}
+      </li>;
     };
 
-    return h('li', { class: 'search-module' },
-      h('h4', {}, moduleName),
-      h('ul', {},
-        visibleItems.map((item) => renderItem(item.item)),
-        showAll
+    return <li class="search-module">
+      <h4>{moduleName}</h4>
+      <ul>
+        {visibleItems.map((item) => renderItem(item.item))}
+        {showAll
           ? []
-          : h('li', { class: 'more-results' },
-              this.actionLink(expand, {}, "show " + (items.length - visibleItems.length) + " more results from this module")
-            )
-      )
-    );
+          : <li class="more-results">
+              {this.actionLink(expand, {}, "show " + (items.length - visibleItems.length) + " more results from this module")}
+            </li>}
+      </ul>
+    </li>;
   }
 
   navigationLink(href: string, attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, ...children: (JSX.Element|JSX.Element[]|string)[]) {
@@ -315,13 +307,13 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
   }
 
   menuLink(attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, action: () => void, ...children: (JSX.Element|JSX.Element[]|string)[]) {
-    var linkIndex = this.linkIndex;
+    const linkIndex = this.linkIndex;
     if (linkIndex === this.state.activeLinkIndex) {
       attrs['class'] = (attrs['class'] ? attrs['class'] + ' ' : '') + 'active-link';
       attrs.ref = (link?: Element) => { if (link) this.activeLink = link as HTMLAnchorElement; };
       this.activeLinkAction = action;
     }
-    var newAttrs = Object.assign({ 'data-link-index': linkIndex }, attrs);
+    const newAttrs = Object.assign({ 'data-link-index': linkIndex }, attrs);
     this.linkIndex += 1;
     return h('a', newAttrs, ...children);
   }
@@ -335,79 +327,73 @@ class DocHtml extends Component<{ html: string }, {}> {
   }
 
   render(props: { html: string }) {
-    return h('div', {dangerouslySetInnerHTML: {__html: props.html}});
+    return <div dangerouslySetInnerHTML={{__html: props.html}} />;
   }
 
 };
 
 function KeyboardShortcuts() {
-  return h('table', { class: 'keyboard-shortcuts' },
-    h('tr', {},
-      h('th', {}, "Key"),
-      h('th', {}, "Shortcut")
-    ),
-    h('tr', {},
-      h('td', {}, h('span', { class: 'key' }, "s")),
-      h('td', {}, "Open this search box")
-    ),
-    h('tr', {},
-      h('td', {}, h('span', { class: 'key' }, "esc")),
-      h('td', {}, "Close this search box")
-    ),
-    h('tr', {},
-      h('td', {},
-        h('span', { class: 'key' }, "↓"), ", ",
-        h('span', { class: 'key' }, "ctrl"), "+",
-        h('span', { class: 'key' }, "j")
-      ),
-      h('td', {}, "Move down in search results")
-    ),
-    h('tr', {},
-      h('td', {},
-        h('span', { class: 'key' }, "↑"), ", ",
-        h('span', { class: 'key' }, "ctrl"), "+",
-        h('span', { class: 'key' }, "k")
-      ),
-      h('td', {}, "Move up in search results")
-    ),
-    h('tr', {},
-      h('td', {}, h('span', { class: 'key' }, "↵")),
-      h('td', {}, "Go to active search result")
-    )
-  );
+  return <table class="keyboard-shortcuts">
+    <tr>
+      <th>Key</th>
+      <th>Shortcut</th>
+    </tr>
+    <tr>
+      <td><span class="key">s</span></td>
+      <td>Open this search box</td>
+    </tr>
+    <tr>
+      <td><span class="key">esc</span></td>
+      <td>Close this search box</td>
+    </tr>
+    <tr>
+      <td>
+        <span class="key">↓</span>,
+        <span class="key">ctrl</span> + <span class="key">j</span>
+      </td>
+      <td>Move down in search results</td>
+    </tr>
+    <tr>
+      <td>
+        <span class="key">↑</span>,
+        <span class="key">ctrl</span> + <span class="key">k</span>
+      </td>
+      <td>Move up in search results</td>
+    </tr>
+    <tr>
+      <td><span class="key">↵</span></td>
+      <td>Go to active search result</td>
+    </tr>
+  </table>;
 }
 
 function IntroMsg() {
-  return h('p', {},
-    "You can find any exported type, constructor, class, function or pattern defined in this package by (approximate) name."
-  );
+  return <p>You can find any exported type, constructor, class, function or pattern defined in this package by (approximate) name.</p>;
 }
 
 function NoResultsMsg(props: { searchString: string }) {
-  var messages = [
-    h('p', {},
-      "Your search for '" + props.searchString + "' produced the following list of results: ",
-      h('code', {}, '[]'),
-      "."
-    ),
-    h('p', {},
-      h('code', {}, 'Nothing'),
-      " matches your query for '" + props.searchString + "'."
-    ),
-    h('p', {},
-      h('code', {}, 'Left "no matches for \'' + props.searchString + '\'" :: Either String (NonEmpty SearchResult)')
-    )
+  const messages = [
+    <p>
+      Your search for '{props.searchString}' produced the following list of results: <code>[]</code>.
+    </p>,
+    <p>
+      <code>Nothing</code> matches your query for '{props.searchString}'.
+    </p>,
+    <p>
+      <code>
+        Left "no matches for '{props.searchString}'" :: Either String (NonEmpty SearchResult)
+      </code>
+    </p>
   ];
 
   return messages[(props.searchString || 'a').charCodeAt(0) % messages.length];
 }
 
 export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
-  const props = {
-    baseUrl: docBaseUrl || ".",
-    showHideTrigger: showHide || addSearchPageMenuButton
-  };
-  preact.render(h(QuickJump, props), document.body);
+  preact.render(
+    <QuickJump baseUrl={docBaseUrl || "."} showHideTrigger={showHide || addSearchPageMenuButton} />,
+    document.body
+  );
 }
 
 // export to global object
