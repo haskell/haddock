@@ -107,6 +107,7 @@ copyHtmlBits odir libdir themes = do
     copyCssFile f = copyFile f (combine odir (takeFileName f))
     copyLibFile f = copyFile (joinPath [libhtmldir, f]) (joinPath [odir, f])
   mapM_ copyCssFile (cssFiles themes)
+  copyCssFile (joinPath [libhtmldir, quickJumpCssFile])
   copyLibFile haddockJsFile
   copyLibFile jsQuickJumpFile
   return ()
@@ -118,6 +119,7 @@ headHtml docTitle themes mathjax_url =
     meta ! [httpequiv "Content-Type", content "text/html; charset=UTF-8"],
     thetitle << docTitle,
     styleSheet themes,
+    thelink ! [ rel "stylesheet", thetype "text/css", href quickJumpCssFile] << noHtml,
     script ! [src haddockJsFile, emptyAttr "async", thetype "text/javascript"] << noHtml,
     script ! [src mjUrl, thetype "text/javascript"] << noHtml
     ]

@@ -24,6 +24,7 @@ module Haddock.Utils (
   moduleIndexFrameName, mainFrameName, synopsisFrameName,
   subIndexHtmlFile,
   haddockJsFile, jsQuickJumpFile,
+  quickJumpCssFile,
 
   -- * Anchor and URL utilities
   moduleNameUrl, moduleNameUrl', moduleUrl,
@@ -330,6 +331,9 @@ haddockJsFile = "haddock-bundle.min.js"
 
 jsQuickJumpFile :: String
 jsQuickJumpFile = "quick-jump.min.js"
+
+quickJumpCssFile :: String
+quickJumpCssFile = "quick-jump.css"
 
 -------------------------------------------------------------------------------
 -- * Misc.

@@ -22,6 +22,7 @@ data-dir:
 data-files:
   html/quick-jump.min.js
   html/haddock-bundle.min.js
+  html/quick-jump.css
   html/solarized.css
   html/highlight.js
   html/Classic.theme/haskell_icon.gif
