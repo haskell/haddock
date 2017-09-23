@@ -1,4 +1,3 @@
-//import * as Fuse from "fuse";
 import Fuse = require('fuse.js');
 import preact = require("preact");
 
@@ -74,7 +73,7 @@ type QuickJumpProps = {
 type QuickJumpState = {
   searchString: string
   isVisible: boolean
-  expanded: any // TODO: more specific type
+  expanded: { [moduleName: string]: true }
   activeLinkIndex: number
   moduleResults: ResultsInModule[]
   failedLoading?: boolean
