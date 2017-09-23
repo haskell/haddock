@@ -23,6 +23,7 @@ import Prelude hiding (div)
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
 import Haddock.Backends.Xhtml.Layout
+import Haddock.Backends.Xhtml.Meta
 import Haddock.Backends.Xhtml.Names
 import Haddock.Backends.Xhtml.Themes
 import Haddock.Backends.Xhtml.Types
@@ -69,13 +70,14 @@ ppHtml :: DynFlags
        -> Maybe String                 -- ^ The contents URL (--use-contents)
        -> Maybe String                 -- ^ The index URL (--use-index)
        -> Bool                         -- ^ Whether to use unicode in output (--use-unicode)
+       -> Bool                         -- ^ Whether QuickJump index should be generated
        -> QualOption                   -- ^ How to qualify names
        -> Bool                         -- ^ Output pretty html (newlines and indenting)
        -> IO ()
 
 ppHtml dflags doctitle maybe_package ifaces odir prologue
         themes maybe_mathjax_url maybe_source_url maybe_wiki_url
-        maybe_contents_url maybe_index_url unicode
+        maybe_contents_url maybe_index_url unicode with_quickjump
         qual debug =  do
   let
     visible_ifaces = filter visible ifaces
@@ -92,6 +94,8 @@ ppHtml dflags doctitle maybe_package ifaces odir prologue
     ppHtmlIndex odir doctitle maybe_package
       themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
       (map toInstalledIface visible_ifaces) debug
+
+  when with_quickjump $ do
     ppJsonIndex odir maybe_source_url maybe_wiki_url unicode qual
       visible_ifaces
 
@@ -99,6 +103,7 @@ ppHtml dflags doctitle maybe_package ifaces odir prologue
            maybe_mathjax_url maybe_source_url maybe_wiki_url
            maybe_contents_url maybe_index_url unicode qual debug) visible_ifaces
 
+  writeHaddockMeta with_quickjump odir
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> IO ()
 copyHtmlBits odir libdir themes = do

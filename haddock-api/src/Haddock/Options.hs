@@ -68,6 +68,7 @@ data Flag
   | Flag_WikiBaseURL   String
   | Flag_WikiModuleURL String
   | Flag_WikiEntityURL String
+  | Flag_QuickJump
   | Flag_LaTeX
   | Flag_LaTeXStyle String
   | Flag_HyperlinkedSource
@@ -173,6 +174,8 @@ options backwardsCompat =
       "use a separately-generated HTML index",
     Option [] ["gen-index"] (NoArg Flag_GenIndex)
       "generate an HTML index from specified\ninterfaces",
+    Option [] ["with-quickjump"] (NoArg Flag_QuickJump)
+      "on-site navigation and search",
     Option [] ["ignore-all-exports"] (NoArg Flag_IgnoreAllExports)
       "behave as if all modules have the\nignore-exports atribute",
     Option [] ["hide"] (ReqArg Flag_HideModule "MODULE")
