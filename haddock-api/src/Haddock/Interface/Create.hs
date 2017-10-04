@@ -114,6 +114,11 @@ createInterface tm flags modMap instIfaceMap = do
         | OptIgnoreExports `elem` opts = Nothing
         | otherwise = exports0
 
+      unrestrictedImportedMods
+        | Just (_, idecls, _, _) <- tm_renamed_source tm
+        = unrestrictedModuleImports (map unLoc idecls)
+        | otherwise = M.empty
+
       fixMap = mkFixMap group_
       (decls, _) = unzip declsWithDocs
       localInsts = filter (nameIsLocalOrFrom sem_mdl)
@@ -132,7 +137,7 @@ createInterface tm flags modMap instIfaceMap = do
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
   exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre exportedNames decls
-                   maps fixMap splices exports instIfaceMap dflags
+                   maps fixMap unrestrictedImportedMods splices exports instIfaceMap dflags
 
   let !visibleNames = mkVisibleNames maps exportItems opts
 
@@ -218,6 +223,41 @@ mkAliasMap dflags mRenamedSource =
              (case ideclName impDecl of SrcLoc.L _ name -> name),
            alias))
         impDecls
+
+-- We want to know which modules are imported without any qualification. This
+-- way we can display module reexports more compactly. This mapping also looks
+-- through aliases:
+--
+-- module M (module X) where
+--   import M1 as X
+--   import M2 as X
+--
+-- With our mapping we know that we can display exported modules M1 and M2.
+--
+unrestrictedModuleImports :: [ImportDecl name] -> M.Map ModuleName [ModuleName]
+unrestrictedModuleImports idecls =
+  M.map (map (unLoc . ideclName))
+  $ M.filter (all isInteresting) impModMap
+  where
+    impModMap =
+      M.fromListWith (++) (map moduleMapping idecls)
+
+    moduleMapping idecl =
+      concat [ [ (unLoc (ideclName idecl), [idecl]) ]
+             , [ (unLoc mod_name, [idecl])
+               | Just mod_name <- [ideclAs idecl]
+               ]
+             ]
+
+    isInteresting idecl =
+      case ideclHiding idecl of
+        -- i) no subset selected
+        Nothing             -> True
+        -- ii) an import with a hiding clause
+        -- without any names
+        Just (True, L _ []) -> True
+        -- iii) any other case of qualification
+        _                   -> False
 
 -- Similar to GHC.lookupModule
 -- ezyang: Not really...
@@ -572,6 +612,7 @@ mkExportItems
   -> [LHsDecl GhcRn]     -- renamed source declarations
   -> Maps
   -> FixMap
+  -> M.Map ModuleName [ModuleName]
   -> [SrcSpan]          -- splice locations
   -> Maybe [(IE GhcRn, Avails)]
   -> InstIfaceMap
@@ -579,7 +620,7 @@ mkExportItems
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
   is_sig modMap thisMod semMod warnings gre exportedNames decls
-  maps@(docMap, argMap, subMap, declMap, instMap) fixMap
+  maps@(docMap, argMap, subMap, declMap, instMap) fixMap unrestricted_imp_mods
   splices optExports instIfaceMap dflags =
   case optExports of
     Nothing      ->
@@ -600,6 +641,14 @@ mkExportItems
         Just docStr -> do
           doc <- processDocStringParas dflags gre docStr
           return [ExportDoc doc]
+
+    lookupExport (IEModuleContents (L _ mod_name), _)
+      -- only consider exporting a module if we are sure we
+      -- are really exporting the whole module and not some
+      -- subset. We also look through module aliases here.
+      | Just mods <- M.lookup mod_name unrestricted_imp_mods
+      , not (null mods)
+      = concat <$> traverse (moduleExport thisMod dflags modMap instIfaceMap) mods
 
     lookupExport (_, avails) =
       concat <$> traverse availExportItem (nubAvails avails)
@@ -819,6 +868,36 @@ lookupDocs n warnings docMap argMap subMap =
   (doc, subDocs)
   where
     lookupDoc name = Documentation (M.lookup name docMap) (M.lookup name warnings)
+
+
+-- | Export the given module as `ExportModule`. We are not concerned with the
+-- single export items of the given module.
+moduleExport :: Module           -- ^ Module A (identity, NOT semantic)
+             -> DynFlags         -- ^ The flags used when typechecking A
+             -> IfaceMap         -- ^ Already created interfaces
+             -> InstIfaceMap     -- ^ Interfaces in other packages
+             -> ModuleName       -- ^ The exported module
+             -> ErrMsgGhc [ExportItem GhcRn] -- ^ Resulting export items
+moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
+    -- NB: we constructed the identity module when looking up in
+    -- the IfaceMap.
+    case M.lookup m ifaceMap of
+      Just iface
+        | OptHide `elem` ifaceOptions iface -> return (ifaceExportItems iface)
+        | otherwise -> return [ ExportModule m ]
+
+      Nothing -> -- We have to try to find it in the installed interfaces
+                 -- (external packages).
+        case M.lookup expMod (M.mapKeys moduleName instIfaceMap) of
+          Just iface -> return [ ExportModule (instMod iface) ]
+          Nothing -> do
+            liftErrMsg $
+              tell ["Warning: " ++ pretty dflags thisMod ++ ": Could not find " ++
+                    "documentation for exported module: " ++ pretty dflags expMod]
+            return []
+  where
+    m = mkModule unitId expMod -- Identity module!
+    unitId = moduleUnitId thisMod
 
 -- Note [1]:
 ------------
