@@ -88,6 +88,7 @@ createInterface tm flags modMap instIfaceMap = do
 
       (TcGblEnv { tcg_rdr_env = gre
                 , tcg_warns   = warnings
+                , tcg_exports = all_exports
                 }, md) = tm_internals_ tm
 
   -- The renamed source should always be available to us, but it's best
@@ -136,8 +137,9 @@ createInterface tm flags modMap instIfaceMap = do
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre exportedNames decls
-                   maps fixMap unrestrictedImportedMods splices exports instIfaceMap dflags
+  exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre
+                   exportedNames decls maps fixMap unrestrictedImportedMods
+                   splices exports all_exports instIfaceMap dflags
 
   let !visibleNames = mkVisibleNames maps exportItems opts
 
@@ -615,15 +617,18 @@ mkExportItems
   -> M.Map ModuleName [ModuleName]
   -> [SrcSpan]          -- splice locations
   -> Maybe [(IE GhcRn, Avails)]
+  -> Avails             -- exported stuff from this module
   -> InstIfaceMap
   -> DynFlags
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
   is_sig modMap thisMod semMod warnings gre exportedNames decls
-  maps fixMap unrestricted_imp_mods splices optExports instIfaceMap dflags =
-  case optExports of
+  maps fixMap unrestricted_imp_mods splices exportList allExports
+  instIfaceMap dflags =
+  case exportList of
     Nothing      ->
-      fullModuleContents dflags warnings gre maps fixMap splices decls
+      fullModuleContents is_sig modMap thisMod semMod warnings exportedNames
+        maps fixMap splices instIfaceMap dflags allExports
     Just exports -> liftM concat $ mapM lookupExport exports
   where
     lookupExport (IEGroup lev docStr, _)  = liftErrMsg $ do
@@ -937,80 +942,26 @@ moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
 -- | Simplified variant of 'mkExportItems', where we can assume that
 -- every locally defined declaration is exported; thus, we just
 -- zip through the renamed declarations.
-fullModuleContents :: DynFlags
+
+fullModuleContents :: Bool               -- is it a signature
+                   -> IfaceMap
+                   -> Module             -- this module
+                   -> Module             -- semantic module
                    -> WarningMap
-                   -> GlobalRdrEnv      -- ^ The renaming environment
+                   -> [Name]             -- exported names (orig)
                    -> Maps
                    -> FixMap
-                   -> [SrcSpan]         -- ^ Locations of all TH splices
-                   -> [LHsDecl GhcRn]    -- ^ All the renamed declarations
+                   -> [SrcSpan]          -- splice locations
+                   -> InstIfaceMap
+                   -> DynFlags
+                   -> Avails
                    -> ErrMsgGhc [ExportItem GhcRn]
-fullModuleContents dflags warnings gre (docMap, argMap, subMap, declMap, instMap)
-  fixMap splices decls =
+fullModuleContents is_sig modMap thisMod semMod warnings exportedNames
+  maps fixMap splices instIfaceMap dflags avails =
 
-  liftM catMaybes $ mapM mkExportItem (expandSigDecls decls)
-  where
-    -- A type signature can have multiple names, like:
-    --   foo, bar :: Types..
-    --
-    -- We go through the list of declarations and expand type signatures, so
-    -- that every type signature has exactly one name!
-    expandSigDecls :: [LHsDecl name] -> [LHsDecl name]
-    expandSigDecls = concatMap f
-      where
-        f (L l (SigD sig))              = [ L l (SigD s) | s <- expandSig sig ]
-
-        -- also expand type signatures for class methods
-        f (L l (TyClD cls@ClassDecl{})) =
-          [ L l (TyClD cls { tcdSigs = concatMap expandLSig (tcdSigs cls) }) ]
-        f x = [x]
-
-    expandLSig :: LSig name -> [LSig name]
-    expandLSig (L l sig) = [ L l s | s <- expandSig sig ]
-
-    expandSig :: Sig name -> [Sig name]
-    expandSig (TypeSig names t)      = [ TypeSig [n] t      | n <- names ]
-    expandSig (ClassOpSig b names t) = [ ClassOpSig b [n] t | n <- names ]
-    expandSig (PatSynSig names t)    = [ PatSynSig [n] t    | n <- names ]
-    expandSig x                      = [x]
-
-    mkExportItem :: LHsDecl GhcRn -> ErrMsgGhc (Maybe (ExportItem GhcRn))
-    mkExportItem (L _ (DocD (DocGroup lev docStr))) = do
-      doc <- liftErrMsg (processDocString dflags gre docStr)
-      return . Just . ExportGroup lev "" $ doc
-    mkExportItem (L _ (DocD (DocCommentNamed _ docStr))) = do
-      doc <- liftErrMsg (processDocStringParas dflags gre docStr)
-      return . Just . ExportDoc $ doc
-    mkExportItem (L l (ValD d))
-      | name:_ <- collectHsBindBinders d, Just [L _ (ValD _)] <- M.lookup name declMap =
-          -- Top-level binding without type signature.
-          let (doc, _) = lookupDocs name warnings docMap argMap subMap in
-          fmap Just (hiValExportItem dflags name l doc (l `elem` splices) $ M.lookup name fixMap)
-      | otherwise = return Nothing
-    mkExportItem decl@(L l (InstD d))
-      | Just name <- M.lookup (getInstLoc d) instMap =
-        expInst decl l name
-    mkExportItem decl@(L l (DerivD {}))
-      | Just name <- M.lookup l instMap =
-        expInst decl l name
-    mkExportItem (L l (TyClD cl@ClassDecl{ tcdLName = L _ name, tcdSigs = sigs })) = do
-      mdef <- liftGhcToErrMsgGhc $ minimalDef name
-      let sig = maybeToList $ fmap (noLoc . MinimalSig NoSourceText . noLoc . fmap noLoc) mdef
-      expDecl (L l (TyClD cl { tcdSigs = sig ++ sigs })) l name
-    mkExportItem decl@(L l d)
-      | name:_ <- getMainDeclBinder d = expDecl decl l name
-      | otherwise = return Nothing
-
-    fixities name subs = [ (n,f) | n <- name : map fst subs
-                                 , Just f <- [M.lookup n fixMap] ]
-
-    expDecl decl l name = return $ Just (ExportDecl decl [] doc subs [] (fixities name subs) (l `elem` splices))
-      where (doc, subs) = lookupDocs name warnings docMap argMap subMap
-
-    expInst decl l name =
-        let (doc, subs) = lookupDocs name warnings docMap argMap subMap in
-        return $ Just (ExportDecl decl [] doc subs [] (fixities name subs) (l `elem` splices))
-
+  concat <$> traverse (availExportItem is_sig modMap thisMod
+                        semMod warnings exportedNames maps fixMap
+                        splices instIfaceMap dflags) avails
 
 -- | Sometimes the declaration we want to export is not the "main" declaration:
 -- it might be an individual record selector or a class method.  In these
