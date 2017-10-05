@@ -240,7 +240,7 @@ unrestrictedModuleImports idecls =
   $ M.filter (all isInteresting) impModMap
   where
     impModMap =
-      M.fromListWith (++) (map moduleMapping idecls)
+      M.fromListWith (++) (concatMap moduleMapping idecls)
 
     moduleMapping idecl =
       concat [ [ (unLoc (ideclName idecl), [idecl]) ]
@@ -620,8 +620,7 @@ mkExportItems
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
   is_sig modMap thisMod semMod warnings gre exportedNames decls
-  maps@(docMap, argMap, subMap, declMap, instMap) fixMap unrestricted_imp_mods
-  splices optExports instIfaceMap dflags =
+  maps fixMap unrestricted_imp_mods splices optExports instIfaceMap dflags =
   case optExports of
     Nothing      ->
       fullModuleContents dflags warnings gre maps fixMap splices decls
@@ -651,13 +650,32 @@ mkExportItems
       = concat <$> traverse (moduleExport thisMod dflags modMap instIfaceMap) mods
 
     lookupExport (_, avails) =
-      concat <$> traverse availExportItem (nubAvails avails)
+      concat <$> traverse availExport (nubAvails avails)
 
-    availExportItem :: AvailInfo -> ErrMsgGhc [ExportItem GhcRn]
-    availExportItem avail = do
-      pats <- findBundledPatterns avail
-      declWith avail pats
+    availExport avail =
+      availExportItem is_sig modMap thisMod semMod warnings exportedNames
+        maps fixMap splices instIfaceMap dflags avail
 
+availExportItem :: Bool               -- is it a signature
+                -> IfaceMap
+                -> Module             -- this module
+                -> Module             -- semantic module
+                -> WarningMap
+                -> [Name]             -- exported names (orig)
+                -> Maps
+                -> FixMap
+                -> [SrcSpan]          -- splice locations
+                -> InstIfaceMap
+                -> DynFlags
+                -> AvailInfo
+                -> ErrMsgGhc [ExportItem GhcRn]
+availExportItem is_sig modMap thisMod semMod warnings exportedNames
+  (docMap, argMap, subMap, declMap, instMap) fixMap splices instIfaceMap
+  dflags availInfo = do
+
+  pats <- findBundledPatterns availInfo
+  declWith availInfo pats
+  where
     declWith :: AvailInfo
              -> [(HsDecl GhcRn, DocForDecl Name)]
              -> ErrMsgGhc [ ExportItem GhcRn ]
@@ -927,7 +945,9 @@ fullModuleContents :: DynFlags
                    -> [SrcSpan]         -- ^ Locations of all TH splices
                    -> [LHsDecl GhcRn]    -- ^ All the renamed declarations
                    -> ErrMsgGhc [ExportItem GhcRn]
-fullModuleContents dflags warnings gre (docMap, argMap, subMap, declMap, instMap) fixMap splices decls =
+fullModuleContents dflags warnings gre (docMap, argMap, subMap, declMap, instMap)
+  fixMap splices decls =
+
   liftM catMaybes $ mapM mkExportItem (expandSigDecls decls)
   where
     -- A type signature can have multiple names, like:
