@@ -686,7 +686,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
              -> ErrMsgGhc [ ExportItem GhcRn ]
     declWith avail pats = do
       let t = availName avail
-      r    <- findDecl t
+      r    <- findDecl avail
       case r of
         ([L l (ValD _)], (doc, _)) -> do
           -- Top-level binding without type signature
@@ -749,7 +749,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                    let subs_ = [ (n, noDocForDecl) | (n, _, _) <- subordinates instMap (unLoc decl) ]
                    return [ mkExportDecl avail decl pats (noDocForDecl, subs_) ]
                 Just iface ->
-                   return [ mkExportDecl avail decl pats (lookupDocs t warnings (instDocMap iface) (instArgMap iface) (instSubMap iface)) ]
+                   return [ mkExportDecl avail decl pats (lookupDocs avail warnings (instDocMap iface) (instArgMap iface)) ]
 
         _ -> return []
 
@@ -791,11 +791,11 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
     exportedNameSet = mkNameSet exportedNames
     isExported n = elemNameSet n exportedNameSet
 
-    findDecl :: Name -> ErrMsgGhc ([LHsDecl GhcRn], (DocForDecl Name, [(Name, DocForDecl Name)]))
-    findDecl n
+    findDecl :: AvailInfo -> ErrMsgGhc ([LHsDecl GhcRn], (DocForDecl Name, [(Name, DocForDecl Name)]))
+    findDecl avail
       | m == semMod =
           case M.lookup n declMap of
-            Just ds -> return (ds, lookupDocs n warnings docMap argMap subMap)
+            Just ds -> return (ds, lookupDocs avail warnings docMap argMap)
             Nothing
               | is_sig -> do
                 -- OK, so it wasn't in the local declaration map.  It could
@@ -812,12 +812,12 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                 return ([], (noDocForDecl, []))
       | Just iface <- M.lookup (semToIdMod (moduleUnitId thisMod) m) modMap
       , Just ds <- M.lookup n (ifaceDeclMap iface) =
-          return (ds, lookupDocs n warnings
+          return (ds, lookupDocs avail warnings
                             (ifaceDocMap iface)
-                            (ifaceArgMap iface)
-                            (ifaceSubMap iface))
+                            (ifaceArgMap iface))
       | otherwise = return ([], (noDocForDecl, []))
       where
+        n = availName avail
         m = nameModule n
 
     findBundledPatterns :: AvailInfo -> ErrMsgGhc [(HsDecl GhcRn, DocForDecl Name)]
@@ -881,13 +881,15 @@ hiValExportItem dflags name nLoc doc splice fixity = do
 
 
 -- | Lookup docs for a declaration from maps.
-lookupDocs :: Name -> WarningMap -> DocMap Name -> ArgMap Name -> SubMap
+lookupDocs :: AvailInfo -> WarningMap -> DocMap Name -> ArgMap Name
            -> (DocForDecl Name, [(Name, DocForDecl Name)])
-lookupDocs n warnings docMap argMap subMap =
+lookupDocs avail warnings docMap argMap =
+  let n = availName avail in
   let lookupArgDoc x = M.findWithDefault M.empty x argMap in
   let doc = (lookupDoc n, lookupArgDoc n) in
-  let subs = M.findWithDefault [] n subMap in
-  let subDocs = [ (s, (lookupDoc s, lookupArgDoc s)) | s <- subs ] in
+  let subDocs = [ (s, (lookupDoc s, lookupArgDoc s))
+                | s <- availNamesWithSelectors avail
+                , s /= n ] in
   (doc, subDocs)
   where
     lookupDoc name = Documentation (M.lookup name docMap) (M.lookup name warnings)
