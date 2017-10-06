@@ -98,7 +98,7 @@ createInterface tm flags modMap instIfaceMap = do
       Nothing -> do
         liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
         return (emptyRnGroup, [], Nothing, Nothing)
-      x -> x
+      x -> return x
 
   opts0 <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
   let opts
