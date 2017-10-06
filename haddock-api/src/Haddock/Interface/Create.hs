@@ -93,12 +93,12 @@ createInterface tm flags modMap instIfaceMap = do
 
   -- The renamed source should always be available to us, but it's best
   -- to be on the safe side.
-  (group_, mayExports, mayDocHeader) <-
+  (group_, imports, mayExports, mayDocHeader) <-
     case renamedSource tm of
       Nothing -> do
         liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
-        return (emptyRnGroup, Nothing, Nothing)
-      Just (x, _, y, z) -> return (x, y, z)
+        return (emptyRnGroup, [], Nothing, Nothing)
+      x -> x
 
   opts0 <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
   let opts
@@ -119,8 +119,7 @@ createInterface tm flags modMap instIfaceMap = do
         -- calculation of unqualified module imports
         -- is only necessary with an explicit export list
         | Just _ <- exports
-        , Just (_, idecls, _, _) <- tm_renamed_source tm
-        = unrestrictedModuleImports (map unLoc idecls)
+        = unrestrictedModuleImports (map unLoc imports)
         | otherwise = M.empty
 
       fixMap = mkFixMap group_
