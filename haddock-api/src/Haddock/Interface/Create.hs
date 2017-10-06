@@ -116,8 +116,8 @@ createInterface tm flags modMap instIfaceMap = do
         | otherwise = exports0
 
       unrestrictedImportedMods
-        -- calculation of unqualified module imports
-        -- is only necessary with an explicit export list
+        -- module re-exports are only possible with
+        -- explicit export list
         | Just _ <- exports
         = unrestrictedModuleImports (map unLoc imports)
         | otherwise = M.empty
