@@ -37,7 +37,6 @@ jsonInstalledInterface InstalledInterface{..} = jsonObject properties
       , ("exports"         , jsonArray (map jsonName instExports))
       , ("visible_exports" , jsonArray (map jsonName instVisibleExports))
       , ("options"         , jsonArray (map (jsonString . show) instOptions))
-      , ("sub_map"         , jsonMap nameStableString (jsonArray . map jsonName) instSubMap)
       , ("fix_map"         , jsonMap nameStableString jsonFixity instFixMap)
       ]
 

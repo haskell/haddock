@@ -111,7 +111,6 @@ data Interface = Interface
   , ifaceRnDocMap        :: !(DocMap DocName)
   , ifaceRnArgMap        :: !(ArgMap DocName)
 
-  , ifaceSubMap          :: !(Map Name [Name])
   , ifaceFixMap          :: !(Map Name Fixity)
 
   , ifaceExportItems     :: ![ExportItem GhcRn]
@@ -181,8 +180,6 @@ data InstalledInterface = InstalledInterface
     -- | Haddock options for this module (prune, ignore-exports, etc).
   , instOptions          :: [DocOption]
 
-  , instSubMap           :: Map Name [Name]
-
   , instFixMap           :: Map Name Fixity
   }
 
@@ -198,7 +195,6 @@ toInstalledIface interface = InstalledInterface
   , instExports          = ifaceExports          interface
   , instVisibleExports   = ifaceVisibleExports   interface
   , instOptions          = ifaceOptions          interface
-  , instSubMap           = ifaceSubMap           interface
   , instFixMap           = ifaceFixMap           interface
   }
 

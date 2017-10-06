@@ -130,7 +130,7 @@ createInterface tm flags modMap instIfaceMap = do
 
   warningMap <- liftErrMsg (mkWarningMap dflags warnings gre exportedNames)
 
-  maps@(!docMap, !argMap, !subMap, !declMap, _) <-
+  maps@(!docMap, !argMap, !declMap, _) <-
     liftErrMsg (mkMaps dflags gre localInsts declsWithDocs)
 
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
@@ -180,7 +180,6 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceExports           = exportedNames
   , ifaceVisibleExports    = visibleNames
   , ifaceDeclMap           = declMap
-  , ifaceSubMap            = subMap
   , ifaceFixMap            = fixMap
   , ifaceModuleAliases     = aliases
   , ifaceInstances         = instances
@@ -338,7 +337,7 @@ parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
 --------------------------------------------------------------------------------
 
 
-type Maps = (DocMap Name, ArgMap Name, SubMap, DeclMap, InstMap)
+type Maps = (DocMap Name, ArgMap Name, DeclMap, InstMap)
 
 -- | Create 'Maps' by looping through the declarations. For each declaration,
 -- find its names, its subordinates, and its doc strings. Process doc strings
@@ -349,11 +348,10 @@ mkMaps :: DynFlags
        -> [(LHsDecl GhcRn, [HsDocString])]
        -> ErrMsgM Maps
 mkMaps dflags gre instances decls = do
-  (a, b, c, d) <- unzip4 <$> traverse mappings decls
+  (a, b, c) <- unzip3 <$> traverse mappings decls
   pure ( f' (map (nubByName fst) a)
        , f  (filterMapping (not . M.null) b)
        , f  (filterMapping (not . null) c)
-       , f  (filterMapping (not . null) d)
        , instanceMap
        )
   where
@@ -369,7 +367,6 @@ mkMaps dflags gre instances decls = do
     mappings :: (LHsDecl GhcRn, [HsDocString])
              -> ErrMsgM ( [(Name, MDoc Name)]
                         , [(Name, Map Int (MDoc Name))]
-                        , [(Name, [Name])]
                         , [(Name,  [LHsDecl GhcRn])]
                         )
     mappings (ldecl, docStrs) = do
@@ -394,7 +391,6 @@ mkMaps dflags gre instances decls = do
           subNs = [ n | (n, _, _) <- subs ]
           dm = [ (n, d) | (n, Just d) <- zip ns (repeat doc) ++ zip subNs subDocs ]
           am = [ (n, args) | n <- ns ] ++ zip subNs subArgs
-          sm = [ (n, subNs) | n <- ns ]
           cm = [ (n, [ldecl]) | n <- ns ++ subNs ]
 
       seqList ns `seq`
@@ -402,7 +398,7 @@ mkMaps dflags gre instances decls = do
         doc `seq`
         seqList subDocs `seq`
         seqList subArgs `seq`
-        pure (dm, am, sm, cm)
+        pure (dm, am, cm)
 
     instanceMap :: Map SrcSpan Name
     instanceMap = M.fromList [ (getSrcSpan n, n) | n <- instances ]
@@ -675,7 +671,7 @@ availExportItem :: Bool               -- is it a signature
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
 availExportItem is_sig modMap thisMod semMod warnings exportedNames
-  (docMap, argMap, subMap, declMap, instMap) fixMap splices instIfaceMap
+  (docMap, argMap, declMap, instMap) fixMap splices instIfaceMap
   dflags availInfo = do
 
   pats <- findBundledPatterns availInfo
@@ -1072,7 +1068,7 @@ pruneExportItems = filter hasDoc
 
 
 mkVisibleNames :: Maps -> [ExportItem GhcRn] -> [DocOption] -> [Name]
-mkVisibleNames (_, _, _, _, instMap) exports opts
+mkVisibleNames (_, _, _, instMap) exports opts
   | OptHide `elem` opts = []
   | otherwise = let ns = concatMap exportName exports
                 in seqList ns `seq` ns
