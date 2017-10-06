@@ -116,7 +116,10 @@ createInterface tm flags modMap instIfaceMap = do
         | otherwise = exports0
 
       unrestrictedImportedMods
-        | Just (_, idecls, _, _) <- tm_renamed_source tm
+        -- calculation of unqualified module imports
+        -- is only necessary with an explicit export list
+        | Just _ <- exports
+        , Just (_, idecls, _, _) <- tm_renamed_source tm
         = unrestrictedModuleImports (map unLoc idecls)
         | otherwise = M.empty
 
