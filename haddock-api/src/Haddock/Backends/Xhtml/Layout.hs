@@ -212,7 +212,7 @@ subOrphanInstances :: Qualification
 subOrphanInstances qual lnks splice  = maybe noHtml wrap . instTable
   where
     wrap = ((h1 << "Orphan instances") +++)
-    instTable = fmap (thediv ! collapseSection id_ True [] <<) . subTableSrc qual lnks splice
+    instTable = fmap (thediv ! [ identifier ("section." ++ id_) ] <<) . subTableSrc qual lnks splice
     id_ = makeAnchorId $ "orphans"
 
 
