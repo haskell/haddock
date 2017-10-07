@@ -100,10 +100,7 @@ createInterface tm flags modMap instIfaceMap = do
         return (emptyRnGroup, [], Nothing, Nothing)
       Just x -> return x
 
-  opts0 <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
-  let opts
-        | Flag_IgnoreAllExports `elem` flags = OptIgnoreExports : opts0
-        | otherwise = opts0
+  opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
 
   -- Process the top-level module header documentation.
   (!info, mbDoc) <- liftErrMsg $ processModuleHeader dflags gre safety mayDocHeader
@@ -320,10 +317,13 @@ mkDocOpts mbOpts flags mdl = do
   hm <- if Flag_HideModule (moduleString mdl) `elem` flags
         then return $ OptHide : opts
         else return opts
-  if Flag_ShowExtensions (moduleString mdl) `elem` flags
-    then return $ OptShowExtensions : hm
-    else return hm
-
+  ie <- if Flag_IgnoreAllExports `elem` flags
+        then return $ OptIgnoreExports : hm
+        else return hm
+  se <- if Flag_ShowExtensions (moduleString mdl) `elem` flags
+        then return $ OptShowExtensions : ie
+        else return ie
+  return se
 
 parseOption :: String -> ErrMsgM (Maybe DocOption)
 parseOption "hide"            = return (Just OptHide)
