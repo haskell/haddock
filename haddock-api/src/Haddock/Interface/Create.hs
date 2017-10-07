@@ -655,9 +655,16 @@ mkExportItems
     lookupExport (_, avails) =
       concat <$> traverse availExport (nubAvails avails)
 
-    availExport avail =
-      availExportItem is_sig modMap thisMod semMod warnings exportedNames
-        maps fixMap splices instIfaceMap dflags avail
+    availExport avail
+      | availName avail `notElem` availNamesWithSelectors avail = do
+          exportItems <- for (availNamesWithSelectors avail)
+                             (availExportItem is_sig modMap thisMod semMod
+                               warnings exportedNames maps fixMap splices
+                               instIfaceMap dflags . Avail.avail)
+          return (concat exportItems)
+      | otherwise =
+          availExportItem is_sig modMap thisMod semMod warnings exportedNames
+            maps fixMap splices instIfaceMap dflags avail
 
 availExportItem :: Bool               -- is it a signature
                 -> IfaceMap
