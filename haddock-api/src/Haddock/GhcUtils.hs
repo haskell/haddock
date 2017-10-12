@@ -16,6 +16,7 @@
 module Haddock.GhcUtils where
 
 
+import Control.Applicative (liftA2)
 import Control.Arrow
 
 import Exception
@@ -27,7 +28,9 @@ import Module
 import HscTypes
 import GHC
 import Class
+import Unique (deriveUnique, getKey)
 
+import Haddock.Types (SetName(..))
 
 moduleString :: Module -> String
 moduleString = moduleNameString . moduleName
@@ -43,12 +46,20 @@ isConSym :: OccName -> Bool
 isConSym = isLexConSym . occNameFS
 
 
+uniquifyClassSig :: (NamedThing name, SetName name) => Bool -> name -> name
+uniquifyClassSig False = id
+uniquifyClassSig _     = liftA2 setName (updateName . getName) id
+  where
+    updateName = liftA2 setNameUnique id $
+        liftA2 deriveUnique id ((+1) . getKey) . nameUnique
+
 getMainDeclBinder :: HsDecl name -> [IdP name]
 getMainDeclBinder (TyClD d) = [tcdName d]
 getMainDeclBinder (ValD d) =
   case collectHsBindBinders d of
     []       -> []
     (name:_) -> [name]
+getMainDeclBinder (SigD d@(ClassOpSig def _ _)) = uniquifyClassSig def <$> sigNameNoLoc d
 getMainDeclBinder (SigD d) = sigNameNoLoc d
 getMainDeclBinder (ForD (ForeignImport name _ _ _)) = [unLoc name]
 getMainDeclBinder (ForD (ForeignExport _ _ _ _)) = []

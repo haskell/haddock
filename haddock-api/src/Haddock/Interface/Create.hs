@@ -142,13 +142,15 @@ createInterface tm flags modMap instIfaceMap = do
   maps@(!docMap, !argMap, !declMap, _) <-
     liftErrMsg (mkMaps dflags pkgName gre localInsts declsWithDocs)
 
+  let exportedNames' = exportedNames ++ additionalExportedNames exportedNames decls
+
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap pkgName mdl sem_mdl allWarnings gre
-                   exportedNames decls maps fixMap unrestrictedImportedMods
-                   splices exports all_exports instIfaceMap dflags
+  exportItems <- mkExportItems is_sig modMappkgName mdl sem_mdl allWarnings gre
+                   exportedNames' decls maps fixMap unrestrictedImportedMods splices
+                   exports all_exports instIfaceMap dflags
 
   let !visibleNames = mkVisibleNames maps exportItems opts
 
@@ -186,7 +188,7 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceRnArgMap          = M.empty
   , ifaceExportItems       = prunedExportItems
   , ifaceRnExportItems     = []
-  , ifaceExports           = exportedNames
+  , ifaceExports           = exportedNames'
   , ifaceVisibleExports    = visibleNames
   , ifaceDeclMap           = declMap
   , ifaceFixMap            = fixMap
@@ -200,6 +202,18 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceTokenizedSrc      = tokenizedSrc
   }
 
+additionalExportedNames :: [Name] -> [LHsDecl Name] -> [Name]
+additionalExportedNames exportedNames = foldMap go
+  where
+    go (L _ (TyClD d)) | isClassDecl d =
+        [ defName
+        | (L _ (SigD (ClassOpSig True ns _)), _) <- classDecls d
+        , name <- ns
+        , let name' = unLoc name
+        , name' `elem` exportedNames
+        , let defName  = uniquifyClassSig True name'
+        ]
+    go _ = []
 
 -- | Given all of the @import M as N@ declarations in a package,
 -- create a mapping from the module identity of M, to an alias N
