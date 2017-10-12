@@ -27,6 +27,7 @@ import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Doc (combineDocumentation)
 
+import           Control.Applicative   (liftA2)
 import           Data.List             ( intersperse, sort )
 import qualified Data.Map as Map
 import           Data.Maybe
@@ -72,14 +73,14 @@ ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
              [Located DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode pkg qual =
-  ppFunSig summary links loc doc (map unLoc lnames) lty fixities
+  ppFunSig summary links loc mempty doc (map unLoc lnames) lty fixities
            splice unicode pkg qual
 
-ppFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
+ppFunSig :: Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl DocName ->
             [DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
             Splice -> Unicode -> Maybe Package -> Qualification -> Html
-ppFunSig summary links loc doc docnames typ fixities splice unicode pkg qual =
-  ppSigLike summary links loc mempty doc docnames fixities (unLoc typ, pp_typ)
+ppFunSig summary links loc leader doc docnames typ fixities splice unicode pkg qual =
+  ppSigLike summary links loc leader doc docnames fixities (unLoc typ, pp_typ)
             splice unicode pkg qual HideEmptyContexts
   where
     pp_typ = ppLType unicode qual HideEmptyContexts typ
@@ -226,7 +227,7 @@ ppFor :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
       -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppFor summary links loc doc (ForeignImport _ (L _ name) typ _) fixities
       splice unicode pkg qual
-  = ppFunSig summary links loc doc [name] (hsSigType typ) fixities splice unicode pkg qual
+  = ppFunSig summary links loc mempty doc [name] (hsSigType typ) fixities splice unicode pkg qual
 ppFor _ _ _ _ _ _ _ _ _ _ = error "ppFor"
 
 
@@ -503,7 +504,7 @@ ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, t
 
                 -- ToDo: add associated type defaults
 
-            [ ppFunSig summary links loc doc names (hsSigType typ)
+            [ ppFunSig summary links loc mempty doc names (hsSigType typ)
                        [] splice unicode pkg qual
               | L _ (ClassOpSig _ False lnames typ) <- sigs
               , let doc = lookupAnySubdoc (head names) subdocs
@@ -551,16 +552,29 @@ ppClassDecl summary links instances fixities loc d subdocs
                             doc = lookupAnySubdoc (unL $ fdLName $ unL at) subdocs
                             subfixs = [ f | f@(n',_) <- fixities, n == n' ] ]
 
-    methodBit = subMethods [ ppFunSig summary links loc doc [name] (hsSigType typ)
+    methodBit = subMethods [ ppFunSig summary links loc mempty doc [name] (hsSigType typ)
                                       subfixs splice unicode pkg qual
-                           | L _ (ClassOpSig _ _ lnames typ) <- lsigs
+                                  <+> subDefaults (maybeToList defSigs)
+                           | L _ (ClassOpSig _ False lnames typ) <- lsigs
                            , name <- map unLoc lnames
                            , let doc = lookupAnySubdoc name subdocs
-                                 subfixs = [ f | f@(n',_) <- fixities
-                                               , name == n' ]
+                                 subfixs = filter ((== name)  . fst) fixities
+                                 defSigs = ppDefaultFunSig name <$> lookupDM name
                            ]
                            -- N.B. taking just the first name is ok. Signatures with multiple names
                            -- are expanded so that each name gets its own signature.
+
+    ppDefaultFunSig name' (typ', doc') = ppFunSig summary links loc
+        (keyword "default") doc' [name'] (hsSigType typ') [] splice unicode pkg qual
+
+    lookupDM name = Map.lookup (getOccString name) defaultMethods
+    defaultMethods = Map.fromList
+        [ (nameStr, (typ, doc))
+        | L _ (ClassOpSig _ True lnames typ) <- lsigs
+        , name <- map unLoc lnames
+        , let doc = lookupAnySubdoc name subdocs
+        , '$':'d':'m':nameStr <- [getOccString name]
+        ]
 
     minimalBit = case [ s | MinimalSig _ _ (L _ s) <- sigs ] of
       -- Miminal complete definition = every shown method
