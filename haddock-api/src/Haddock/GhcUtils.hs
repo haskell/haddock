@@ -17,6 +17,7 @@
 module Haddock.GhcUtils where
 
 
+import Control.Applicative (liftA2)
 import Control.Arrow
 import Haddock.Types( DocNameI )
 
@@ -36,7 +37,9 @@ import VarSet    ( VarSet, emptyVarSet )
 import TyCoRep   ( Type(..) )
 
 import HsTypes (HsType(..))
+import Unique (deriveUnique, getKey)
 
+import Haddock.Types (SetName(..))
 
 moduleString :: Module -> String
 moduleString = moduleNameString . moduleName
@@ -62,6 +65,13 @@ getMainDeclBinder (SigD _ d) = sigNameNoLoc d
 getMainDeclBinder (ForD _ (ForeignImport _ name _ _)) = [unLoc name]
 getMainDeclBinder (ForD _ (ForeignExport _ _ _ _)) = []
 getMainDeclBinder _ = []
+
+uniquifyClassSig :: (NamedThing name, SetName name) => Bool -> name -> name
+uniquifyClassSig False = id
+uniquifyClassSig _     = liftA2 setName (updateName . getName) id
+  where
+    updateName = liftA2 setNameUnique id $
+        liftA2 deriveUnique id ((+1) . getKey) . nameUnique
 
 -- Extract the source location where an instance is defined. This is used
 -- to correlate InstDecls with their Instance/CoAxiom Names, via the
