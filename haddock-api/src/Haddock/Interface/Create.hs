@@ -137,11 +137,13 @@ createInterface tm flags modMap instIfaceMap = do
   maps@(!docMap, !argMap, !subMap, !declMap, _) <-
     liftErrMsg (mkMaps dflags gre localInsts declsWithDocs)
 
+  let exportedNames' = exportedNames ++ additionalExportedNames exportedNames decls
+
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre exportedNames decls
+  exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre exportedNames' decls
                    maps localBundledPatSyns fixMap splices exports instIfaceMap dflags
 
   let !visibleNames = mkVisibleNames maps exportItems opts
@@ -180,7 +182,7 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceRnArgMap          = M.empty
   , ifaceExportItems       = prunedExportItems
   , ifaceRnExportItems     = []
-  , ifaceExports           = exportedNames
+  , ifaceExports           = exportedNames'
   , ifaceVisibleExports    = visibleNames
   , ifaceDeclMap           = declMap
   , ifaceBundledPatSynMap  = localBundledPatSyns
@@ -195,6 +197,19 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = tokenizedSrc
   }
+
+additionalExportedNames :: [Name] -> [LHsDecl Name] -> [Name]
+additionalExportedNames exportedNames = foldMap go
+  where
+    go (L _ (TyClD d)) | isClassDecl d =
+        [ defName
+        | (L _ (SigD (ClassOpSig True ns _)), _) <- classDecls d
+        , name <- ns
+        , let name' = unLoc name
+        , name' `elem` exportedNames
+        , let defName  = uniquifyClassSig True name'
+        ]
+    go _ = []
 
 -- | Given all of the @import M as N@ declarations in a package,
 -- create a mapping from the module identity of M, to an alias N
