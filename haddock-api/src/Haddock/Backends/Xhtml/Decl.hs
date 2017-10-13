@@ -190,7 +190,7 @@ ppFor :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
 ppFor summary links loc doc (ForeignImport (L _ name) typ _ _) fixities
       splice unicode pkg qual
   = ppFunSig summary links loc mempty doc [name] (hsSigType typ) fixities splice unicode pkg qual
-ppFor _ _ _ _ _ _ _ _ _ = error "ppFor"
+ppFor _ _ _ _ _ _ _ _ _ _ = error "ppFor"
 
 
 -- we skip type patterns for now
@@ -529,17 +529,15 @@ ppClassDecl summary links instances fixities loc d subdocs
                           , n == n'
                           ]
 
-    parseMethodName def = liftA2 setName (uniquifyClassSig def . getName) id . unLoc
-
     ppDefaultFunSig (names', typ', doc') = ppFunSig summary links loc
-        (keyword "default") doc' names' (hsSigType typ') [] splice unicode qual
+        (keyword "default") doc' names' (hsSigType typ') [] splice unicode pkg qual
 
     methodBit = subMethods [ ppFunSig summary links loc mempty doc names (hsSigType typ)
                                       subfixs splice unicode pkg qual
                                   <+> subDefaults defaultsSigs
                            | L _ (ClassOpSig False lnames typ) <- lsigs
                            , let doc = lookupAnySubdoc (head names) subdocs
-                                 names = map (parseMethodName False) lnames
+                                 names = map unLoc lnames
                                  subfixs = namesFixities names
                                  nameStrs = getOccString . getName <$> names
                                  defaults = flip Map.lookup defaultMethods <$> nameStrs
@@ -551,7 +549,7 @@ ppClassDecl summary links instances fixities loc d subdocs
     defaultMethods = Map.fromList
         [ (nameStr, (names, typ, doc))
         | L _ (ClassOpSig True lnames typ) <- lsigs
-        , let names   = map (parseMethodName True) lnames
+        , let names   = map (uniquifyName . unLoc) lnames
               nameStr = getOccString $ getName $ head names
               doc     = lookupAnySubdoc (head names) subdocs
         ]
