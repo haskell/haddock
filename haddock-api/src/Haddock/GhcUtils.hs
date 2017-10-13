@@ -46,20 +46,15 @@ isConSym :: OccName -> Bool
 isConSym = isLexConSym . occNameFS
 
 
-uniquifyClassSig :: (NamedThing name, SetName name) => Bool -> name -> name
-uniquifyClassSig False = id
-uniquifyClassSig _     = liftA2 setName (updateName . getName) id
-  where
-    updateName = liftA2 setNameUnique id $
-        liftA2 deriveUnique id ((+1) . getKey) . nameUnique
-
 getMainDeclBinder :: (NamedThing name, SetName name) => HsDecl name -> [name]
 getMainDeclBinder (TyClD d) = [tcdName d]
 getMainDeclBinder (ValD d) =
   case collectHsBindBinders d of
     []       -> []
     (name:_) -> [name]
-getMainDeclBinder (SigD d@(ClassOpSig def _ _)) = uniquifyClassSig def <$> sigNameNoLoc d
+-- Uniquify default method signatures to make sure that their doc comments
+-- will be preserved and mapped accurately.
+getMainDeclBinder (SigD d@(ClassOpSig True _ _)) = uniquifyName <$> sigNameNoLoc d
 getMainDeclBinder (SigD d) = sigNameNoLoc d
 getMainDeclBinder (ForD (ForeignImport name _ _ _)) = [unLoc name]
 getMainDeclBinder (ForD (ForeignExport _ _ _ _)) = []
@@ -121,6 +116,14 @@ sigNameNoLoc (SpecSig      n _ _)      = [unLoc n]
 sigNameNoLoc (InlineSig    n _)        = [unLoc n]
 sigNameNoLoc (FixSig (FixitySig ns _)) = map unLoc ns
 sigNameNoLoc _                         = []
+
+
+uniquifyName :: (NamedThing name, SetName name) => name -> name
+uniquifyName = liftA2 setName (updateName . getName) id
+  where
+    updateName = liftA2 setNameUnique id $
+        liftA2 deriveUnique id ((+1) . getKey) . nameUnique
+
 
 -- | Was this signature given by the user?
 isUserLSig :: LSig name -> Bool

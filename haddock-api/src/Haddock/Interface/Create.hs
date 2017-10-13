@@ -137,6 +137,8 @@ createInterface tm flags modMap instIfaceMap = do
   maps@(!docMap, !argMap, !subMap, !declMap, _) <-
     liftErrMsg (mkMaps dflags gre localInsts declsWithDocs)
 
+  -- Also export uniquified default signatures that correspond to
+  -- exported base method signatures.
   let exportedNames' = exportedNames ++ additionalExportedNames exportedNames decls
 
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
@@ -207,7 +209,7 @@ additionalExportedNames exportedNames = foldMap go
         , name <- ns
         , let name' = unLoc name
         , name' `elem` exportedNames
-        , let defName  = uniquifyClassSig True name'
+        , let defName  = uniquifyName name'
         ]
     go _ = []
 
