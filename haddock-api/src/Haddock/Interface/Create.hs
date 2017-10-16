@@ -139,7 +139,8 @@ createInterface tm flags modMap instIfaceMap = do
 
   -- Also export uniquified default signatures that correspond to
   -- exported base method signatures.
-  let exportedNames' = exportedNames ++ additionalExportedNames exportedNames decls
+  let allDecls = decls ++ concat (foldMap ifaceDeclMap modMap)
+      exportedNames' = exportedNames ++ additionalExportedNames exportedNames allDecls
 
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
