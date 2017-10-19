@@ -473,40 +473,6 @@ synifyType _ (TyConApp tc tys)
 
         in not (subVarSet result_vars dropped_vars)
 
-    -- injectiveVarsOfBinder and injectiveVarsOfType are taken directly from
-    -- TcSplice (in the GHC source code).
-    --
-    -- TODO: Export injectiveVarsOfBinders and injectiveVarsOfType from
-    -- GHC, and import them here instead.
-    injectiveVarsOfBinder :: TyConBinder -> FV
-    injectiveVarsOfBinder (TvBndr tv vis) =
-      case vis of
-        AnonTCB           -> injectiveVarsOfType (tyVarKind tv)
-        NamedTCB Required -> FV.unitFV tv `unionFV`
-                             injectiveVarsOfType (tyVarKind tv)
-        NamedTCB _        -> emptyFV
-
-    injectiveVarsOfType :: Type -> FV
-    injectiveVarsOfType = go
-      where
-        go ty                | Just ty' <- coreView ty
-                             = go ty'
-        go (TyVarTy v)       = FV.unitFV v `unionFV` go (tyVarKind v)
-        go (AppTy f a)       = go f `unionFV` go a
-        go (FunTy ty1 ty2)   = go ty1 `unionFV` go ty2
-        go (TyConApp tc' tys') =
-          case tyConInjectivityInfo tc' of
-            NotInjective  -> emptyFV
-            Injective inj -> mapUnionFV go $
-                             filterByList (inj ++ repeat True) tys'
-                             -- Oversaturated arguments to a tycon are
-                             -- always injective, hence the repeat True
-        go (ForAllTy tvb ty) = tyCoFVsBndr tvb $ go (tyVarKind (binderVar tvb))
-                                                 `unionFV` go ty
-        go LitTy{}           = emptyFV
-        go (CastTy ty _)     = go ty
-        go CoercionTy{}      = emptyFV
-
 synifyType s (AppTy t1 (CoercionTy {})) = synifyType s t1
 synifyType _ (AppTy t1 t2) = let
   s1 = synifyType WithinType t1
