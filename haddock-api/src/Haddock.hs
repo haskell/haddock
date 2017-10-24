@@ -29,7 +29,6 @@ import Data.Version
 import Haddock.Backends.Xhtml
 import Haddock.Backends.Xhtml.Themes (getThemes)
 import Haddock.Backends.LaTeX
-import Haddock.Backends.Meta
 import Haddock.Backends.Hoogle
 import Haddock.Backends.Hyperlinker
 import Haddock.Interface
@@ -246,6 +245,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
 
   let
     title                = fromMaybe "" (optTitle flags)
+    quickjump            = Flag_QuickJump  `elem` flags
     unicode              = Flag_UseUnicode `elem` flags
     pretty               = Flag_PrettyHtml `elem` flags
     opt_wiki_urls        = wikiUrls          flags
@@ -317,10 +317,9 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
     ppHtml dflags' title pkgStr visibleIfaces odir
                 prologue
                 themes opt_mathjax sourceUrls' opt_wiki_urls
-                opt_contents_url opt_index_url unicode qual
+                opt_contents_url opt_index_url unicode quickjump qual
                 pretty
     copyHtmlBits odir libDir themes
-    writeHaddockMeta odir
 
   -- TODO: we throw away Meta for both Hoogle and LaTeX right now,
   -- might want to fix that if/when these two get some work on them
