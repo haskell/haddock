@@ -203,7 +203,7 @@ subInstances :: Maybe Package -> Qualification
              -> [(SubDecl, Maybe Module, Located DocName)] -> Html
 subInstances pkg qual nm lnks splice = maybe noHtml wrap . instTable
   where
-    wrap contents = subSection (hdr +++ collapseDetails id_ DetailsOpen (summary +++ contents))
+    wrap contents = subSection (hdr +++ collapseDetails id_ DetailsClosed (summary +++ contents))
     instTable = subTableSrc pkg qual lnks splice
     subSection = thediv ! [theclass "subs instances"]
     hdr = h4 ! collapseControl id_ "instances" << "Instances"
