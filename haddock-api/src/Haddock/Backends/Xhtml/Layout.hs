@@ -199,7 +199,7 @@ subInstances :: Qualification
              -> [(SubDecl,Located DocName)] -> Html
 subInstances qual nm lnks splice = maybe noHtml wrap . instTable
   where
-    wrap contents = subSection (collapseDetails id_ DetailsOpen (summary +++ contents))
+    wrap contents = subSection (collapseDetails id_ DetailsClosed (summary +++ contents))
     instTable = subTableSrc qual lnks splice
     subSection = thediv ! [theclass "subs instances"]
     summary = thesummary << "Instances"
