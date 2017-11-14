@@ -444,16 +444,21 @@ synifyType _ (TyConApp tc tys)
       = noLoc $ HsEqTy noExt (synifyType WithinType ty1) (synifyType WithinType ty2)
       -- and infix type operators
       | isSymOcc (nameOccName (getName tc))
-      , [ty1, ty2] <- vis_tys
-      = noLoc $ HsOpTy noExt (synifyType WithinType ty1)
-                             (noLoc $ getName tc)
-                             (synifyType WithinType ty2)
+      , ty1:ty2:tys_rest <- vis_tys
+      = mk_app_tys (HsOpTy noExt (synifyType WithinType ty1)
+                                 (noLoc $ getName tc)
+                                 (synifyType WithinType ty2))
+                   tys_rest
       -- Most TyCons:
-      | otherwise =
-        foldl (\t1 t2 -> noLoc (HsAppTy noExt t1 t2))
-          (noLoc $ HsTyVar noExt NotPromoted $ noLoc (getName tc))
-          (map (synifyType WithinType) $
-           filterOut isCoercionTy vis_tys)
+      | otherwise
+      = mk_app_tys (HsTyVar noExt NotPromoted $ noLoc (getName tc))
+                   vis_tys
+      where
+        mk_app_tys ty_app ty_args =
+          foldl (\t1 t2 -> noLoc $ HsAppTy noExt t1 t2)
+                (noLoc ty_app)
+                (map (synifyType WithinType) $
+                 filterOut isCoercionTy ty_args)
 
     vis_tys  = filterOutInvisibleTypes tc tys
     binders  = tyConBinders tc
