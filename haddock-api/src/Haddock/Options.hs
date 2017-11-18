@@ -101,6 +101,7 @@ data Flag
   | Flag_PackageName String
   | Flag_PackageVersion String
   | Flag_Reexport String
+  | Flag_Annot FilePath
   deriving (Eq, Show)
 
 
@@ -125,6 +126,8 @@ options backwardsCompat =
       "output in HTML (XHTML 1.0)",
     Option []  ["latex"]  (NoArg Flag_LaTeX) "use experimental LaTeX rendering",
     Option []  ["latex-style"]  (ReqArg Flag_LaTeXStyle "FILE") "provide your own LaTeX style in FILE",
+    Option [] ["annot"] (ReqArg Flag_Annot "FILE")
+      "output type annotations in FILE",
     Option []  ["mathjax"]  (ReqArg Flag_Mathjax "URL") "URL FOR mathjax",
     Option ['U'] ["use-unicode"] (NoArg Flag_UseUnicode) "use Unicode in HTML output",
     Option []  ["hoogle"]     (NoArg Flag_Hoogle)

@@ -26,6 +26,7 @@ module Haddock (
 ) where
 
 import Data.Version
+import Haddock.Backends.Annot
 import Haddock.Backends.Xhtml
 import Haddock.Backends.Xhtml.Meta
 import Haddock.Backends.Xhtml.Themes (getThemes)
@@ -366,6 +367,10 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
   when (Flag_LaTeX `elem` flags) $ do
     ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
                   libDir
+
+  case ([f | Flag_Annot f <- flags]) of
+    [f] -> ppAnnot ifaces odir f
+    _ -> return ()
 
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
     ppHyperlinkedSource odir libDir opt_source_css pretty srcMap ifaces
