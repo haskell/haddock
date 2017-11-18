@@ -194,6 +194,7 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceHaddockCoverage   = coverage
   , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = tokenizedSrc
+  , ifaceTcSource          = tm_typechecked_source tm
   }
 
 -- | Given all of the @import M as N@ declarations in a package,

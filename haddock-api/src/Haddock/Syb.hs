@@ -6,7 +6,7 @@
 module Haddock.Syb
     ( everything, everythingButType, everythingWithState
     , everywhere, everywhereButType
-    , mkT
+    , mkQ, mkT
     , combine
     ) where
 
@@ -90,6 +90,23 @@ mkT :: (Typeable a, Typeable b) => (b -> b) -> (a -> a)
 mkT f = case cast f of
     Just f' -> f'
     Nothing -> id
+
+-- | Make a generic query;
+--   start from a type-specific case;
+--   return a constant otherwise
+--
+--
+-- Another function stolen from SYB package.
+mkQ :: ( Typeable a
+       , Typeable b
+       )
+    => r
+    -> (b -> r)
+    -> a
+    -> r
+(r `mkQ` br) a = case cast a of
+                        Just b  -> br b
+                        Nothing -> r
 
 -- | Combine two queries into one using alternative combinator.
 combine :: Alternative f => (forall a. Data a => a -> f r)
