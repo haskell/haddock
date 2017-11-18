@@ -23,7 +23,7 @@ import FastString
 import GHC
 import GHC.Exts         (groupWith)
 import Id               (idName, isDictId)
-import IfaceSyn         (ShowSub (..), ShowHowMuch (..))
+import IfaceSyn         (AltPpr (..), ShowSub (..), ShowHowMuch (..))
 import IfaceType        (ShowForAllFlag (..))
 import NameSet          (NameSet)
 import Outputable
@@ -111,7 +111,7 @@ renderId = showSDocForUser unsafeGlobalDynFlags neverQualify . pprTyThing showSu
 
 showSub :: ShowSub
 showSub = ShowSub {
-    ss_how_much = ShowIface
+    ss_how_much = ShowHeader (AltPpr Nothing)
   , ss_forall = ShowForAllWhen
   }
 
