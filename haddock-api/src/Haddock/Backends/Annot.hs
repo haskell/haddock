@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 
 -----------------------------------------------------------------------------
@@ -31,7 +30,6 @@ import PprTyThing
 import Var              (isId)
 
 import Data.Data
-import Data.Maybe       (isJust)
 import Haddock.Syb
 import Haddock.Types
 import System.FilePath
@@ -139,35 +137,29 @@ unsafePpr =
 -- From Tamar Christina: http://mistuke.wordpress.com/category/vsx --------
 ---------------------------------------------------------------------------
 
-data Guard where
-  Guard :: Typeable a => Maybe a -> Guard
-
 type GenericQ r = forall a. Data a => a -> r
 
 -- | Summarise all nodes in top-down, left-to-right order
-everythingButQ :: (r -> r -> r) -> [Guard] -> GenericQ r -> GenericQ r
+everythingButQ :: (r -> r -> r) -> [TypeRep] -> GenericQ r -> GenericQ r
 everythingButQ k q f x
   = foldl k (f x) fsp
     where fsp = case isPost x q of
                   True  -> []
                   False -> gmapQ (everythingButQ k q f) x
 
-isPost :: Typeable a => a -> [Guard] -> Bool
-isPost a = or . map check
-  where check :: Guard -> Bool
-        check x = case x of -- FIXME we have better mechanisms for this now
-                    Guard y -> isJust $ (cast a) `asTypeOf` y
+isPost :: Typeable a => a -> [TypeRep] -> Bool
+isPost a = or . map (== typeOf a)
 
 -- | Get a list of all entities that meet a predicate
-listifyBut :: Typeable r => (r -> Bool) -> [Guard] -> GenericQ [r]
+listifyBut :: Typeable r => (r -> Bool) -> [TypeRep] -> GenericQ [r]
 listifyBut p q
   = everythingButQ (++) q ([] `mkQ` (\x -> if p x then [x] else []))
 
 -- | Types to avoid inspecting. We should not enter any PostTcKind
 -- nor NameSet because these are blank after type checking.
-skipGuards :: [Guard]
-skipGuards = [ Guard (undefined :: Maybe NameSet)
-             , Guard (undefined :: Maybe (PostTc Id Kind))]
+skipGuards :: [TypeRep]
+skipGuards = [ typeRep (Proxy :: Proxy NameSet)
+             , typeRep (Proxy :: Proxy (PostTc Id Kind))]
 
 findIds :: Data a => a -> [Id]
 findIds a = listifyBut isId skipGuards a
