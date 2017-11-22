@@ -30,6 +30,7 @@ import PprTyThing
 import Var              (isId)
 
 import Data.Data
+import Data.Maybe       (catMaybes)
 import Haddock.Syb
 import Haddock.Types
 import System.FilePath
@@ -87,8 +88,11 @@ getAnnMap src tcm  = Ann $ M.fromList $ canonize $ anns
                    Just (x,_) -> [x]
 
 canonize :: (Ord b, Eq a) => [(b, (t, [a]))] -> [(b, (t, [a]))]
-canonize anns = map (head . L.sortBy cmp) $ groupWith fst anns
-  where cmp (_,(_,x1)) (_,(_,x2))
+canonize anns = maximumBy cmp $ groupWith fst anns
+  where maximumBy o = catMaybes . fmap (safeHead . L.sortBy o)
+        safeHead [] = Nothing
+        safeHead (x:_) = Just x
+        cmp (_,(_,x1)) (_,(_,x2))
           | x1 == x2              = EQ
           | length x1 < length x2 = GT
           | otherwise             = LT
