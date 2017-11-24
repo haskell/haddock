@@ -114,10 +114,20 @@ ppTypeOrFunSig :: Bool -> LinksInfo -> SrcSpan -> [DocName] -> HsType DocNameI
 ppTypeOrFunSig summary links loc docnames typ (doc, argDocs) (pref1, pref2, sep) splice unicode qual emptyCtxts
   | summary = pref1
   | Map.null argDocs = topDeclElem links loc splice docnames pref1 +++ docSection curName qual doc
-  | otherwise = topDeclElem links loc splice docnames pref2 +++
-      subArguments qual (do_args 0 sep typ) +++ docSection curName qual doc
+  | otherwise = topDeclElem links loc splice docnames pref2
+                  +++ subArguments qual (ppSubSigLike unicode qual typ argDocs sep emptyCtxts)
+                  +++ docSection curName qual doc
   where
     curName = getName <$> listToMaybe docnames
+
+
+-- This splits up a type signature along `->` and adds docs (when they exist) to the arguments
+ppSubSigLike :: Unicode -> Qualification
+             -> HsType DocNameI                         -- ^ type signature
+             -> FnArgsDoc DocName                       -- ^ docs to add
+             -> Html -> HideEmptyContexts -> [SubDecl]
+ppSubSigLike unicode qual typ argDocs sep emptyCtxts = do_args 0 sep typ
+  where
     argDoc n = Map.lookup n argDocs
 
     do_largs n leader (L _ t) = do_args n leader t
@@ -140,6 +150,7 @@ ppTypeOrFunSig summary links loc docnames typ (doc, argDocs) (pref1, pref2, sep)
         : do_largs (n+1) (arrow unicode) r
     do_args n leader t
       = [(leader <+> ppType unicode qual emptyCtxts t, argDoc n, [])]
+
 
 ppForAll :: [LHsTyVarBndr DocNameI] -> Unicode -> Qualification -> Html
 ppForAll tvs unicode qual =
@@ -822,57 +833,88 @@ ppConstrHdr forall_ tvs ctxt unicode qual
                            <+> toHtml ". "
              | otherwise = noHtml
 
+-- | Pretty print an expanded constructor
 ppSideBySideConstr :: [(DocName, DocForDecl DocName)] -> [(DocName, Fixity)]
-                   -> Unicode -> Qualification -> LConDecl DocNameI -> SubDecl
+                   -> Unicode -> Qualification
+                   -> LConDecl DocNameI -- ^ constructor declaration to print
+                   -> SubDecl
 ppSideBySideConstr subdocs fixities unicode qual (L _ con)
- = (decl, mbDoc, fieldPart)
+ = ( decl      -- Constructor header (name, fixity)
+   , mbDoc     -- Docs on the whole constructor
+   , fieldPart -- Information on the fields (or arguments, if they have docs)
+   )
  where
-    decl = case con of
-      ConDeclH98{} -> case con_args con of
-        PrefixCon args ->
-          hsep ((header_ +++ ppOcc)
-            : map (ppLParendType unicode qual HideEmptyContexts) args)
-          <+> fixity
+    -- Find the name of a constructors in the decl (`getConName` always returns a non-empty list)
+    aConName = unLoc (head (getConNames con))
 
+    fixity   = ppFixities fixities qual
+    occ      = map (nameOccName . getName . unLoc) $ getConNames con
+
+    ppOcc      = hsep (punctuate comma (map (ppBinder False) occ))
+    ppOccInfix = hsep (punctuate comma (map (ppBinderInfix False) occ))
+
+    -- Extract out the map of of docs corresponding to the constructors arguments
+    argDocs = maybe Map.empty snd (lookup aConName subdocs)
+    hasArgDocs = not $ Map.null argDocs
+
+    decl = case con of
+      ConDeclH98{ con_args = det
+                , con_ex_tvs = vars
+                , con_mb_cxt = cxt
+                } -> let tyVars = map (getName . hsLTyVarName) vars
+                         context = unLoc (fromMaybe (noLoc []) cxt)
+                         forall_ = False
+                         header_ = ppConstrHdr forall_ tyVars context unicode qual
+                     in case det of
+        -- Prefix constructor, e.g. 'Just a'
+        PrefixCon args
+          | hasArgDocs -> header_ +++ ppOcc <+> fixity
+          | otherwise -> hsep [ header_ +++ ppOcc
+                              , hsep (map (ppLParendType unicode qual HideEmptyContexts) args)
+                              , fixity
+                              ]
+
+        -- Record constructor, e.g. 'Identity { runIdentity :: a }'
         RecCon _ -> header_ +++ ppOcc <+> fixity
 
-        InfixCon arg1 arg2 ->
-          hsep [header_ +++ ppLParendType unicode qual HideEmptyContexts arg1,
-            ppOccInfix,
-            ppLParendType unicode qual HideEmptyContexts arg2]
-          <+> fixity
+        -- Infix constructor, e.g. 'a :| [a]'
+        InfixCon arg1 arg2
+          | hasArgDocs -> header_ +++ ppOcc <+> fixity
+          | otherwise -> hsep [ header_ +++ ppLParendType unicode qual HideEmptyContexts arg1
+                              , ppOccInfix
+                              , ppLParendType unicode qual HideEmptyContexts arg2
+                              , fixity
+                              ]
 
-      ConDeclGADT{} -> doGADTCon (getGADTConType con)
+      -- GADT constructor, e.g. 'Foo :: Int -> Foo'
+      ConDeclGADT{}
+          | hasArgDocs -> ppOcc <+> fixity
+          | otherwise -> hsep [ ppOcc
+                              , dcolon unicode
+                              -- ++AZ++ make this prepend "{..}" when it is a record style GADT
+                              , ppLType unicode qual HideEmptyContexts (getGADTConType con)
+                              , fixity
+                              ]
 
     fieldPart = case getConArgs con of
-        RecCon (L _ fields) -> [doRecordFields fields]
+        RecCon (L _ fields)             -> [ doRecordFields fields ]
+        PrefixCon args     | hasArgDocs -> [ doConstrArgsWithDocs args ]
+        InfixCon arg1 arg2 | hasArgDocs -> [ doConstrArgsWithDocs [arg1,arg2] ]
         _ -> []
 
     doRecordFields fields = subFields qual
       (map (ppSideBySideField subdocs unicode qual) (map unLoc fields))
 
-    doGADTCon :: Located (HsType DocNameI) -> Html
-    doGADTCon ty = ppOcc <+> dcolon unicode
-        -- ++AZ++ make this prepend "{..}" when it is a record style GADT
-        <+> ppLType unicode qual HideEmptyContexts ty
-        <+> fixity
+    doConstrArgsWithDocs args = subFields qual $ case con of
+      ConDeclH98{} ->
+        [ (ppLParendType unicode qual HideEmptyContexts arg, mdoc, [])
+        | (i, arg) <- zip [0..] args
+        , let mdoc = Map.lookup i argDocs
+        ]
+      ConDeclGADT{} ->
+        ppSubSigLike unicode qual (unLoc (getGADTConType con))
+                     argDocs (dcolon unicode) HideEmptyContexts
 
-    fixity  = ppFixities fixities qual
-    header_ = ppConstrHdr forall_ tyVars context unicode qual
-    occ     = map (nameOccName . getName . unLoc) $ getConNames con
-
-    ppOcc   = case occ of
-      [one] -> ppBinder False one
-      _     -> hsep (punctuate comma (map (ppBinder False) occ))
-
-    ppOccInfix = case occ of
-      [one] -> ppBinderInfix False one
-      _     -> hsep (punctuate comma (map (ppBinderInfix False) occ))
-
-    -- Used for H98 syntax only
-    tyVars  = map (getName . hsLTyVarName) (con_ex_tvs con)
-    context = unLoc (fromMaybe (noLoc []) (con_mb_cxt con))
-    forall_ = False
     -- don't use "con_doc con", in case it's reconstructed from a .hi file,
     -- or also because we want Haddock to do the doc-parsing, not GHC.
     mbDoc = lookup (unLoc $ head $ getConNames con) subdocs >>=
