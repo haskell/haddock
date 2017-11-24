@@ -27,7 +27,7 @@ import IfaceType        (ShowForAllFlag (..))
 import NameSet          (NameSet)
 import Outputable
 import PprTyThing
-import Var              (isId)
+import Var              (Var, isId)
 
 import Data.Data
 import Data.Maybe       (catMaybes)
@@ -105,8 +105,7 @@ getLocEs z = [(e, l, stripParens $ unsafePpr e) | L l e <- findLEs z]
         stripRParens s       = reverse s
 
 getNames ::  (Data a) => FastString -> a -> [(String, (Id, Maybe Loc))]
-getNames src z = [(unsafePpr x, (x, idLoc src x)) | x <- findIds z, idOk x ]
-  where idOk = not . isDictId
+getNames src z = [(unsafePpr x, (x, idLoc src x)) | x <- findIds z]
 
 renderId :: Id -> String
 renderId = showSDocForUser unsafeGlobalDynFlags neverQualify . pprTyThing showSub . AnId
@@ -166,7 +165,13 @@ skipGuards = [ typeRep (Proxy :: Proxy NameSet)
              , typeRep (Proxy :: Proxy (PostTc Id Kind))]
 
 findIds :: Data a => a -> [Id]
-findIds a = listifyBut isId skipGuards a
+findIds a = listifyBut idPredicate skipGuards a
+
+idPredicate :: Var -> Bool
+idPredicate v =
+  isId v && and [
+      not (isDictId v)
+    ]
 
 findLEs :: Data a => a -> [LHsExpr Id]
 findLEs a = listifyBut (isGoodSrcSpan . getLoc) skipGuards a
