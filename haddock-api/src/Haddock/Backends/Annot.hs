@@ -27,7 +27,7 @@ import IfaceType        (ShowForAllFlag (..))
 import NameSet          (NameSet)
 import Outputable
 import PprTyThing
-import Var              (Var, isId)
+import Var              (Var (..), isId)
 
 import Data.Data
 import Data.Maybe       (catMaybes)
@@ -171,7 +171,15 @@ idPredicate :: Var -> Bool
 idPredicate v =
   isId v && and [
       not (isDictId v)
+    , not (isGeneratedId v)
     ]
+
+-- | Filter out compiler-generated names like @$trModule@ or @$cmappend@.
+isGeneratedId :: Var -> Bool
+isGeneratedId v =
+  case unsafePpr v of
+    ('$':_:_) -> True -- $a but not $
+    _ -> False
 
 findLEs :: Data a => a -> [LHsExpr Id]
 findLEs a = listifyBut (isGoodSrcSpan . getLoc) skipGuards a
