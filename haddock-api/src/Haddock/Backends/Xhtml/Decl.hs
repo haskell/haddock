@@ -51,8 +51,8 @@ ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdoc
   TyClD d@(ClassDecl {})       -> ppClassDecl summ links instances fixities loc mbDoc subdocs d splice unicode qual
   SigD (TypeSig lnames lty)    -> ppLFunSig summ links loc (mbDoc, fnArgsDoc) lnames
                                          (hsSigWcType lty) fixities splice unicode qual
-  SigD (PatSynSig lnames ty)   -> ppLPatSig summ links loc (mbDoc, fnArgsDoc) lnames
-                                         ty fixities splice unicode qual
+  SigD (PatSynSig lnames lty)   -> ppLPatSig summ links loc (mbDoc, fnArgsDoc) lnames
+                                         (hsSigType lty) fixities splice unicode qual
   ForD d                       -> ppFor summ links loc (mbDoc, fnArgsDoc) d fixities splice unicode qual
   InstD _                      -> noHtml
   DerivD _                     -> noHtml
@@ -76,19 +76,15 @@ ppFunSig summary links loc doc docnames typ fixities splice unicode qual =
     pp_typ = ppLType unicode qual HideEmptyContexts typ
 
 ppLPatSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
-             [Located DocName] -> LHsSigType DocNameI ->
+             [Located DocName] -> LHsType DocNameI ->
              [(DocName, Fixity)] ->
              Splice -> Unicode -> Qualification -> Html
-ppLPatSig summary links loc (doc, _argDocs) docnames typ fixities splice unicode qual
-  | summary = pref1
-  | otherwise = topDeclElem links loc splice (map unLoc docnames) (pref1 <+> ppFixities fixities qual)
-                +++ docSection Nothing qual doc
+ppLPatSig summary links loc doc lnames typ fixities splice unicode qual =
+  ppSigLike summary links loc (keyword "pattern") doc (map unLoc lnames) fixities
+            (unLoc typ, pp_typ) splice unicode qual (patSigContext typ)
   where
-    pref1 = hsep [ keyword "pattern"
-                 , hsep $ punctuate comma $ map (ppBinder summary . getOccName) docnames
-                 , dcolon unicode
-                 , ppPatSigType unicode qual (hsSigType typ)
-                 ]
+    pp_typ = ppPatSigType unicode qual typ
+
 
 ppSigLike :: Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl DocName ->
              [DocName] -> [(DocName, Fixity)] -> (HsType DocNameI, Html) ->
@@ -97,7 +93,7 @@ ppSigLike summary links loc leader doc docnames fixities (typ, pp_typ)
           splice unicode qual emptyCtxts =
   ppTypeOrFunSig summary links loc docnames typ doc
     ( addFixities $ leader <+> ppTypeSig summary occnames pp_typ unicode
-    , addFixities . concatHtml . punctuate comma $ map (ppBinder False) occnames
+    , (leader <+>) . addFixities . concatHtml . punctuate comma $ map (ppBinder False) occnames
     , dcolon unicode
     )
     splice unicode qual emptyCtxts
@@ -751,23 +747,18 @@ ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
       [ ppSideBySideConstr subdocs subfixs unicode qual c
       | c <- cons
       , let subfixs = filter (\(n,_) -> any (\cn -> cn == n)
-                                     (map unLoc (getConNames (unLoc c)))) fixities
+                                            (map unLoc (getConNames (unLoc c)))) fixities
       ]
 
     patternBit = subPatterns qual
-      [ (hsep [ keyword "pattern"
-              , hsep $ punctuate comma $ map (ppBinder summary . getOccName) lnames
-              , dcolon unicode
-              , ppPatSigType unicode qual (hsSigType typ)
-              ] <+> ppFixities subfixs qual
-        ,combineDocumentation (fst d), [])
-      | (SigD (PatSynSig lnames typ),d) <- pats
-      , let subfixs = filter (\(n,_) -> any (\cn -> cn == n) (map unLoc lnames)) fixities
+      [ ppSideBySidePat subfixs unicode qual lnames typ d
+      | (SigD (PatSynSig lnames typ), d) <- pats
+      , let subfixs = filter (\(n,_) -> any (\cn -> cn == n)
+                                            (map unLoc lnames)) fixities
       ]
 
     instancesBit = ppInstances links (OriginData docname) instances
         splice unicode qual
-
 
 
 ppShortConstr :: Bool -> ConDecl DocNameI -> Unicode -> Qualification -> Html
@@ -942,6 +933,40 @@ ppShortField summary unicode qual (ConDeclField names ltype _)
     <+> dcolon unicode <+> ppLType unicode qual HideEmptyContexts ltype
 
 
+-- | Pretty print an expanded pattern (for bundled patterns)
+ppSideBySidePat :: [(DocName, Fixity)] -> Unicode -> Qualification
+                   -> [Located DocName]    -- ^ pattern name(s)
+                   -> LHsSigType DocNameI  -- ^ type of pattern(s)
+                   -> DocForDecl DocName   -- ^ doc map
+                   -> SubDecl
+ppSideBySidePat fixities unicode qual lnames typ (doc, argDocs) =
+  ( decl
+  , combineDocumentation doc
+  , fieldPart
+  )
+  where
+    hasArgDocs = not $ Map.null argDocs
+    fixity = ppFixities fixities qual
+    ppOcc  = hsep (punctuate comma (map (ppBinder False . getOccName) lnames))
+
+    decl | hasArgDocs = keyword "pattern" <+> ppOcc <+> fixity
+         | otherwise = hsep [ keyword "pattern"
+                            , ppOcc
+                            , dcolon unicode
+                            , ppPatSigType unicode qual (hsSigType typ)
+                            , fixity
+                            ]
+
+    fieldPart
+      | not hasArgDocs = []
+      | otherwise = [ subFields qual (ppSubSigLike unicode qual (unLoc patTy)
+                                                   argDocs (dcolon unicode)
+                                                   emptyCtxt) ]
+
+    patTy = hsSigType typ
+    emptyCtxt = patSigContext patTy
+
+
 -- | Print the LHS of a data\/newtype declaration.
 -- Currently doesn't handle 'data instance' decls or kind signatures
 ppDataHeader :: Bool -> TyClDecl DocNameI -> Unicode -> Qualification -> Html
@@ -1032,13 +1057,9 @@ ppLKind unicode qual y = ppKind unicode qual (unLoc y)
 ppKind :: Unicode -> Qualification -> HsKind DocNameI -> Html
 ppKind unicode qual ki = ppr_mono_ty pREC_TOP ki unicode qual HideEmptyContexts
 
-ppPatSigType :: Unicode -> Qualification -> LHsType DocNameI -> Html
-ppPatSigType unicode qual typ =
-  let emptyCtxts =
-        if hasNonEmptyContext typ && isFirstContextEmpty typ
-          then ShowEmptyToplevelContexts
-          else HideEmptyContexts
-  in ppLType unicode qual emptyCtxts typ
+patSigContext :: LHsType name -> HideEmptyContexts
+patSigContext typ | hasNonEmptyContext typ && isFirstContextEmpty typ =  ShowEmptyToplevelContexts
+                  | otherwise = HideEmptyContexts
   where
     hasNonEmptyContext :: LHsType name -> Bool
     hasNonEmptyContext t =
@@ -1054,6 +1075,11 @@ ppPatSigType unicode qual typ =
         HsQualTy cxt _ -> null (unLoc cxt)
         HsFunTy _ s -> isFirstContextEmpty s
         _ -> False
+
+
+ppPatSigType :: Unicode -> Qualification -> LHsType DocNameI -> Html
+ppPatSigType unicode qual typ =
+  let emptyCtxts = patSigContext typ in ppLType unicode qual emptyCtxts typ
 
 ppForAllPart :: Unicode -> Qualification -> [LHsTyVarBndr DocNameI] -> Html
 ppForAllPart unicode qual tvs = hsep (forallSymbol unicode : ppTyVars unicode qual tvs) +++ dot
