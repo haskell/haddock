@@ -179,7 +179,7 @@ string_txt (PStr s1) s2 = unpackFS s1 ++ s2
 string_txt (ZStr s1) s2 = zString s1 ++ s2
 string_txt (LStr s1 _) s2 = unpackLitString s1 ++ s2
 
-
+-- | Prints out an entry in a module export list.
 exportListItem :: ExportItem DocNameI -> LaTeX
 exportListItem ExportDecl { expItemDecl = decl, expItemSubDocs = subdocs }
   = let (leader, names) = declNames decl
@@ -250,7 +250,11 @@ ppDocGroup lev doc = sec lev <> braces doc
         sec _ = text "\\paragraph"
 
 
-declNames :: LHsDecl DocNameI -> (LaTeX, [DocName])
+-- | Given a declaration, extract out the names being declared
+declNames :: LHsDecl DocNameI
+          -> ( LaTeX           -- ^ to print before each name in an export list
+             , [DocName]       -- ^ names being declared
+             )
 declNames (L _ decl) = case decl of
   TyClD d  -> (empty, [tcdName d])
   SigD (TypeSig lnames _ ) -> (empty, map unLoc lnames)
@@ -279,30 +283,31 @@ moduleBasename mdl = map (\c -> if c == '.' then '-' else c)
 -- * Decls
 -------------------------------------------------------------------------------
 
-
-ppDecl :: LHsDecl DocNameI
-       -> [(HsDecl DocNameI, DocForDecl DocName)]
-       -> DocForDecl DocName
-       -> [DocInstance DocNameI]
-       -> [(DocName, DocForDecl DocName)]
-       -> [(DocName, Fixity)]
+-- | Pretty print a declaration
+ppDecl :: LHsDecl DocNameI                         -- ^ decl to print
+       -> [(HsDecl DocNameI, DocForDecl DocName)]  -- ^ all pattern decls
+       -> DocForDecl DocName                       -- ^ documentation for decl
+       -> [DocInstance DocNameI]                   -- ^ all instances
+       -> [(DocName, DocForDecl DocName)]          -- ^ all subdocs
+       -> [(DocName, Fixity)]                      -- ^ all fixities
        -> LaTeX
 
-ppDecl (L loc decl) pats (doc, fnArgsDoc) instances subdocs _fixities = case decl of
-  TyClD d@(FamDecl {})          -> ppTyFam False loc doc d unicode
+ppDecl decl pats (doc, fnArgsDoc) instances subdocs _fxts = case unLoc decl of
+  TyClD d@(FamDecl {})          -> ppTyFam False doc d unicode
   TyClD d@(DataDecl {})
-                                -> ppDataDecl pats instances subdocs loc (Just doc) d unicode
+                                -> ppDataDecl pats instances subdocs
+                                              (Just doc) d unicode
   TyClD d@(SynDecl {})          -> ppTySyn (doc, fnArgsDoc) d unicode
 -- Family instances happen via FamInst now
 --  TyClD d@(TySynonym {})
 --    | Just _  <- tcdTyPats d    -> ppTyInst False loc doc d unicode
 -- Family instances happen via FamInst now
-  TyClD d@(ClassDecl {})    -> ppClassDecl instances loc doc subdocs d unicode
-  SigD (TypeSig lnames t)   -> ppFunSig loc (doc, fnArgsDoc) (map unLoc lnames)
+  TyClD d@(ClassDecl {})    -> ppClassDecl instances doc subdocs d unicode
+  SigD (TypeSig lnames t)   -> ppFunSig (doc, fnArgsDoc) (map unLoc lnames)
                                         (hsSigWcType t) unicode
   SigD (PatSynSig lnames ty) ->
-      ppLPatSig loc (doc, fnArgsDoc) (map unLoc lnames) ty unicode
-  ForD d                         -> ppFor loc (doc, fnArgsDoc) d unicode
+      ppLPatSig (doc, fnArgsDoc) (map unLoc lnames) ty unicode
+  ForD d                         -> ppFor (doc, fnArgsDoc) d unicode
   InstD _                        -> empty
   DerivD _                       -> empty
   _                              -> error "declaration not supported by ppDecl"
@@ -310,16 +315,16 @@ ppDecl (L loc decl) pats (doc, fnArgsDoc) instances subdocs _fixities = case dec
     unicode = False
 
 
-ppTyFam :: Bool -> SrcSpan -> Documentation DocName ->
+ppTyFam :: Bool -> Documentation DocName ->
               TyClDecl DocNameI -> Bool -> LaTeX
-ppTyFam _ _ _ _ _ =
+ppTyFam _ _ _ _ =
   error "type family declarations are currently not supported by --latex"
 
 
-ppFor :: SrcSpan -> DocForDecl DocName -> ForeignDecl DocNameI -> Bool -> LaTeX
-ppFor loc doc (ForeignImport (L _ name) typ _ _) unicode =
-  ppFunSig loc doc [name] (hsSigType typ) unicode
-ppFor _ _ _ _ = error "ppFor error in Haddock.Backends.LaTeX"
+ppFor :: DocForDecl DocName -> ForeignDecl DocNameI -> Bool -> LaTeX
+ppFor doc (ForeignImport (L _ name) typ _ _) unicode =
+  ppFunSig doc [name] (hsSigType typ) unicode
+ppFor _ _ _ = error "ppFor error in Haddock.Backends.LaTeX"
 --  error "foreign declarations are currently not supported by --latex"
 
 
@@ -348,9 +353,9 @@ ppTySyn _ _ _ = error "declaration not supported by ppTySyn"
 -------------------------------------------------------------------------------
 
 
-ppFunSig :: SrcSpan -> DocForDecl DocName -> [DocName] -> LHsType DocNameI
+ppFunSig :: DocForDecl DocName -> [DocName] -> LHsType DocNameI
          -> Bool -> LaTeX
-ppFunSig _loc doc docnames (L _ typ) unicode =
+ppFunSig doc docnames (L _ typ) unicode =
   ppTypeOrFunSig typ doc
     ( ppTypeSig names typ False
     , hsep . punctuate comma $ map ppSymName names
@@ -360,10 +365,13 @@ ppFunSig _loc doc docnames (L _ typ) unicode =
  where
    names = map getName docnames
 
-ppLPatSig :: SrcSpan -> DocForDecl DocName -> [DocName]
-          -> LHsSigType DocNameI
-          -> Bool -> LaTeX
-ppLPatSig _loc doc docnames ty unicode
+-- | Pretty-print a pattern synonym
+ppLPatSig :: DocForDecl DocName  -- ^ documentation
+          -> [DocName]           -- ^ pattern names in the pattern signature
+          -> LHsSigType DocNameI -- ^ type of the pattern synonym
+          -> Bool                -- ^ unicode
+          -> LaTeX
+ppLPatSig doc docnames ty unicode
   = ppTypeOrFunSig typ doc
       ( keyword "pattern" <+> ppTypeSig names typ False
       , keyword "pattern" <+> (hsep . punctuate comma $ map ppSymName names)
@@ -374,28 +382,33 @@ ppLPatSig _loc doc docnames ty unicode
     typ = unLoc (hsSigType ty)
     names = map getName docnames
 
+-- | Pretty-print a type, adding documentation to the whole type and its
+-- arguments as needed.
 ppTypeOrFunSig :: HsType DocNameI
-               -> DocForDecl DocName -> (LaTeX, LaTeX, LaTeX)
-               -> Bool -> LaTeX
-ppTypeOrFunSig typ (doc, argDocs) (pref1, pref2, sep0)
-               unicode
-  | Map.null argDocs =
-      declWithDoc pref1 (documentationToLaTeX doc)
-  | otherwise        =
-      declWithDoc pref2 $ Just $
+               -> DocForDecl DocName  -- ^ documentation
+               -> ( LaTeX             -- ^ first-line (no argument docs only)
+                  , LaTeX             -- ^ first-line (argument docs only)
+                  , LaTeX             -- ^ type prefix (argument docs only)
+                  )
+               -> Bool                -- ^ unicode
+               -> LaTeX
+ppTypeOrFunSig typ (doc, argDocs) (pref1, pref2, sep0) unicode
+  | Map.null argDocs = declWithDoc pref1 (documentationToLaTeX doc)
+  | otherwise        = declWithDoc pref2 $ Just $
         text "\\haddockbeginargs" $$
-        vcat (map (uncurry (<->)) (ppSubSigLike unicode typ argDocs sep0)) $$
+        vcat (map (uncurry (<->)) (ppSubSigLike unicode typ argDocs [] sep0)) $$
         text "\\end{tabulary}\\par" $$
         fromMaybe empty (documentationToLaTeX doc)
-  where
 
--- This splits up a type signature along `->` and adds docs (when they exist) to the arguments
+-- This splits up a type signature along `->` and adds docs (when they exist)
+-- to the arguments.
 ppSubSigLike :: Bool                  -- ^ unicode
              -> HsType DocNameI       -- ^ type signature
              -> FnArgsDoc DocName     -- ^ docs to add
+             -> [(DocName, DocForDecl DocName)] -- ^ all subdocs (useful when we have `HsRecTy`)
              -> LaTeX                 -- ^ seperator (beginning of first line)
-             -> [(LaTeX, LaTeX)]      -- ^ lines, one per argument (leader/sep, type)
-ppSubSigLike unicode typ argDocs leader = do_args 0 leader typ
+             -> [(LaTeX, LaTeX)]      -- ^ arguments (leader/sep, type)
+ppSubSigLike unicode typ argDocs subdocs leader = do_args 0 leader typ
   where
      do_largs n leader (L _ t) = do_args n leader t
 
@@ -410,6 +423,12 @@ ppSubSigLike unicode typ argDocs leader = do_args 0 leader typ
      do_args n leader (HsQualTy lctxt ltype)
        = (decltt leader, ppLContextNoArrow lctxt unicode <+> nl)
             : do_largs n (darrow unicode) ltype
+     do_args n leader (HsFunTy (L _ (HsRecTy fields)) r)
+       = let nexts = [ (decltt leader', latex <+> nl)
+                     | (L _ field, leader') <- zip fields (leader <+> gadtRecOpn : repeat (gadtRecCom unicode))
+                     , let latex = ppSideBySideField subdocs unicode field
+                     ]
+         in nexts ++ do_largs (n+1) (gadtRecEnd unicode <+> arrow unicode) r
      do_args n leader (HsFunTy lt r)
        = (decltt leader, decltt (ppLFunLhType unicode lt) <-> arg_doc n <+> nl)
             : do_largs (n+1) (arrow unicode) r
@@ -496,10 +515,10 @@ ppFds fds unicode =
                            hsep (map (ppDocName . unLoc) vars2)
 
 
-ppClassDecl :: [DocInstance DocNameI] -> SrcSpan
+ppClassDecl :: [DocInstance DocNameI]
             -> Documentation DocName -> [(DocName, DocForDecl DocName)]
             -> TyClDecl DocNameI -> Bool -> LaTeX
-ppClassDecl instances loc doc subdocs
+ppClassDecl instances doc subdocs
   (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, tcdTyVars = ltyvars, tcdFDs = lfds
              , tcdSigs = lsigs, tcdATs = ats, tcdATDefs = at_defs }) unicode
   = declWithDoc classheader (if null body then Nothing else Just (vcat body)) $$
@@ -521,7 +540,7 @@ ppClassDecl instances loc doc subdocs
 
     methodTable =
       text "\\haddockpremethods{}\\textbf{Methods}" $$
-      vcat  [ ppFunSig loc doc names (hsSigWcType typ) unicode
+      vcat  [ ppFunSig doc names (hsSigWcType typ) unicode
             | L _ (TypeSig lnames typ) <- lsigs
             , let doc = lookupAnySubdoc (head names) subdocs
                   names = map unLoc lnames ]
@@ -531,7 +550,7 @@ ppClassDecl instances loc doc subdocs
 
     instancesBit = ppDocInstances unicode instances
 
-ppClassDecl _ _ _ _ _ _ = error "declaration type not supported by ppShortClassDecl"
+ppClassDecl _ _ _ _ _ = error "declaration type not supported by ppShortClassDecl"
 
 ppDocInstances :: Bool -> [DocInstance DocNameI] -> LaTeX
 ppDocInstances _unicode [] = empty
@@ -580,15 +599,17 @@ lookupAnySubdoc n subdocs = case lookup n subdocs of
 -- * Data & newtype declarations
 -------------------------------------------------------------------------------
 
-
-ppDataDecl :: [(HsDecl DocNameI, DocForDecl DocName)] -> [DocInstance DocNameI] ->
-              [(DocName, DocForDecl DocName)] -> SrcSpan ->
-              Maybe (Documentation DocName) -> TyClDecl DocNameI -> Bool ->
-              LaTeX
-ppDataDecl pats instances subdocs _loc doc dataDecl unicode
-
-   =  declWithDoc (ppDataHeader dataDecl unicode <+> whereBit)
-                  (if null body then Nothing else Just (vcat body))
+-- | Pretty-print a data declaration
+ppDataDecl :: [(HsDecl DocNameI, DocForDecl DocName)] -- ^ all patterns
+           -> [DocInstance DocNameI]                  -- ^ all instances
+           -> [(DocName, DocForDecl DocName)]         -- ^ all decl docs
+           -> Maybe (Documentation DocName)           -- ^ this decl's docs
+           -> TyClDecl DocNameI                       -- ^ data decl to print
+           -> Bool                                    -- ^ unicode
+           -> LaTeX
+ppDataDecl pats instances subdocs doc dataDecl unicode =
+   declWithDoc (ppDataHeader dataDecl unicode <+> whereBit)
+               (if null body then Nothing else Just (vcat body))
    $$ instancesBit
 
   where
@@ -608,15 +629,15 @@ ppDataDecl pats instances subdocs _loc doc dataDecl unicode
     constrBit
       | null cons = Nothing
       | otherwise = Just $
-          text "\\enspace" <+> text "\\textit{Constructors}\\par" $$
+          text "\\enspace" <+> emph (text "Constructors") <> text "\\par" $$
           text "\\haddockbeginconstrs" $$
           vcat (zipWith (ppSideBySideConstr subdocs unicode) leaders cons) $$
           text "\\end{tabulary}\\par"
 
     patternBit
       | null pats = Nothing
-      | otherwise = Just $
-          text "\\enspace" <+> text "\\textit{Bundled Patterns}\\par" $$
+      | otherwise = Just $ 
+          text "\\enspace" <+> emph (text "Patterns") <> text "\\par" $$
           text "\\haddockbeginconstrs" $$
           vcat [ empty <-> ppSideBySidePat lnames typ d unicode
                | (SigD (PatSynSig lnames typ), d) <- pats
@@ -668,13 +689,18 @@ ppConstrHdr forall tvs ctxt unicode
       False -> empty
 
 
-ppSideBySideConstr :: [(DocName, DocForDecl DocName)] -> Bool -> LaTeX
-                   -> LConDecl DocNameI -> LaTeX
+-- | Pretty-print a constructor
+ppSideBySideConstr :: [(DocName, DocForDecl DocName)]  -- ^ all decl docs
+                   -> Bool                             -- ^ unicode
+                   -> LaTeX                            -- ^ prefix to decl
+                   -> LConDecl DocNameI                -- ^ constructor decl
+                   -> LaTeX
 ppSideBySideConstr subdocs unicode leader (L _ con) =
-  leader <-> decltt decl <-> rDoc mbDoc <+> nl $$
-  fieldPart
+  leader <-> decltt decl <-> rDoc mbDoc <+> nl
+  $$ fieldPart
   where
-    -- Find the name of a constructors in the decl (`getConName` always returns a non-empty list)
+    -- Find the name of a constructors in the decl (`getConName` always returns
+    -- a non-empty list)
     aConName = unLoc (head (getConNames con))
 
     occ      = map (nameOccName . getName . unLoc) $ getConNames con
@@ -717,17 +743,26 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
                               ]
 
       ConDeclGADT{}
-        | hasArgDocs -> ppOcc
+        | hasArgDocs || not (isEmpty fieldPart) -> ppOcc
         | otherwise -> hsep [ ppOcc
                             , dcolon unicode
                             -- ++AZ++ make this prepend "{..}" when it is a record style GADT
                             , ppLType unicode (getGADTConType con)
                             ]
 
-    fieldPart = case getConArgs con of
-        RecCon (L _ fields)             -> doRecordFields fields
-        PrefixCon args     | hasArgDocs -> doConstrArgsWithDocs args
-        InfixCon arg1 arg2 | hasArgDocs -> doConstrArgsWithDocs [arg1,arg2]
+    fieldPart = case (con, getConArgs con) of
+        -- Record style GADTs
+        (ConDeclGADT{}, RecCon _)            -> doConstrArgsWithDocs []
+
+        -- Regular record declarations
+        (_, RecCon (L _ fields))             -> doRecordFields fields
+
+        -- Any GADT or a regular H98 prefix data constructor
+        (_, PrefixCon args)     | hasArgDocs -> doConstrArgsWithDocs args
+
+        -- An infix H98 data constructor
+        (_, InfixCon arg1 arg2) | hasArgDocs -> doConstrArgsWithDocs [arg1,arg2]
+
         _ -> empty
 
     doRecordFields fields =
@@ -745,7 +780,7 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
         ]
       ConDeclGADT{} ->
         [ l <+> text "\\enspace" <+> r
-        | (l,r) <- ppSubSigLike unicode (unLoc (getGADTConType con)) argDocs (dcolon unicode)
+        | (l,r) <- ppSubSigLike unicode (unLoc (getGADTConType con)) argDocs subdocs (dcolon unicode)
         ]
 
 
@@ -756,6 +791,8 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
               (cn:_) -> lookup (unLoc cn) subdocs >>=
                         fmap _doc . combineDocumentation . fst
 
+
+-- | Pretty-print a record field
 ppSideBySideField :: [(DocName, DocForDecl DocName)] -> Bool -> ConDeclField DocNameI ->  LaTeX
 ppSideBySideField subdocs unicode (ConDeclField names ltype _) =
   decltt (cat (punctuate comma (map (ppBinder . rdrNameOcc . unLoc . rdrNameFieldOcc . unLoc) names))
@@ -765,51 +802,37 @@ ppSideBySideField subdocs unicode (ConDeclField names ltype _) =
     -- Where there is more than one name, they all have the same documentation
     mbDoc = lookup (selectorFieldOcc $ unLoc $ head names) subdocs >>= fmap _doc . combineDocumentation . fst
 
--- {-
--- ppHsFullConstr :: HsConDecl -> LaTeX
--- ppHsFullConstr (HsConDecl _ nm tvs ctxt typeList doc) =
---      declWithDoc False doc (
--- 	hsep ((ppHsConstrHdr tvs ctxt +++
--- 		ppHsBinder False nm) : map ppHsBangType typeList)
---       )
--- ppHsFullConstr (HsRecDecl _ nm tvs ctxt fields doc) =
---    td << vanillaTable << (
---      case doc of
---        Nothing -> aboves [hdr, fields_html]
---        Just _  -> aboves [hdr, constr_doc, fields_html]
---    )
---
---   where hdr = declBox (ppHsConstrHdr tvs ctxt +++ ppHsBinder False nm)
---
--- 	constr_doc
--- 	  | isJust doc = docBox (docToLaTeX (fromJust doc))
--- 	  | otherwise  = LaTeX.emptyTable
---
--- 	fields_html =
--- 	   td <<
--- 	      table ! [width "100%", cellpadding 0, cellspacing 8] << (
--- 		   aboves (map ppFullField (concat (map expandField fields)))
--- 		)
--- -}
---
--- ppShortField :: Bool -> Bool -> ConDeclField DocName -> LaTeX
--- ppShortField summary unicode (ConDeclField (L _ name) ltype _)
---   = tda [theclass "recfield"] << (
---       ppBinder summary (docNameOcc name)
---       <+> dcolon unicode <+> ppLType unicode ltype
---     )
---
--- {-
--- ppFullField :: HsFieldDecl -> LaTeX
--- ppFullField (HsFieldDecl [n] ty doc)
---   = declWithDoc False doc (
--- 	ppHsBinder False n <+> dcolon <+> ppHsBangType ty
---     )
--- ppFullField _ = error "ppFullField"
---
--- expandField :: HsFieldDecl -> [HsFieldDecl]
--- expandField (HsFieldDecl ns ty doc) = [ HsFieldDecl [n] ty doc | n <- ns ]
--- -}
+
+-- | Pretty-print a bundled pattern synonym
+ppSideBySidePat :: [Located DocName]    -- ^ pattern name(s)
+                -> LHsSigType DocNameI  -- ^ type of pattern(s)
+                -> DocForDecl DocName   -- ^ doc map
+                -> Bool                 -- ^ unicode
+                -> LaTeX
+ppSideBySidePat lnames typ (doc, argDocs) unicode =
+  decltt decl <-> rDoc mDoc <+> nl
+  $$ fieldPart
+  where
+    hasArgDocs = not $ Map.null argDocs
+    ppOcc  = hsep (punctuate comma (map (ppDocBinder . unLoc) lnames))
+
+    decl | hasArgDocs = keyword "pattern" <+> ppOcc
+         | otherwise = hsep [ keyword "pattern"
+                            , ppOcc
+                            , dcolon unicode
+                            , ppLType unicode (hsSigType typ)
+                            ]
+
+    fieldPart
+      | not hasArgDocs = empty
+      | otherwise = vcat
+          [ empty <-> text "\\qquad" <+> l <+> text "\\enspace" <+> r
+          | (l,r) <- ppSubSigLike unicode (unLoc patTy) argDocs [] (dcolon unicode)
+          ]
+
+    patTy = hsSigType typ
+
+    mDoc = fmap _doc $ combineDocumentation doc
 
 
 -- | Print the LHS of a data\/newtype declaration.
@@ -976,7 +999,7 @@ ppr_mono_ty _         (HsListTy ty)       u = brackets (ppr_mono_lty pREC_TOP ty
 ppr_mono_ty _         (HsPArrTy ty)       u = pabrackets (ppr_mono_lty pREC_TOP ty u)
 ppr_mono_ty _         (HsIParamTy (L _ n) ty) u = brackets (ppIPName n <+> dcolon u <+> ppr_mono_lty pREC_TOP ty u)
 ppr_mono_ty _         (HsSpliceTy {})     _ = error "ppr_mono_ty HsSpliceTy"
-ppr_mono_ty _         (HsRecTy {})        _ = error "ppr_mono_ty HsRecTy"
+ppr_mono_ty _         (HsRecTy {})        _ = text "{..}"
 ppr_mono_ty _         (HsCoreTy {})       _ = error "ppr_mono_ty HsCoreTy"
 ppr_mono_ty _         (HsExplicitListTy Promoted _ tys) u = Pretty.quote $ brackets $ hsep $ punctuate comma $ map (ppLType u) tys
 ppr_mono_ty _         (HsExplicitListTy NotPromoted _ tys) u = brackets $ hsep $ punctuate comma $ map (ppLType u) tys
@@ -1275,6 +1298,12 @@ dcolon unicode = text (if unicode then "∷" else "::")
 arrow  unicode = text (if unicode then "→" else "->")
 darrow unicode = text (if unicode then "⇒" else "=>")
 forallSymbol unicode = text (if unicode then "∀" else "forall")
+
+gadtRecOpn :: LaTeX
+gadtRecCom, gadtRecEnd :: Bool -> LaTeX
+gadtRecOpn = text "\\{"
+gadtRecCom unicode = hcat (replicate (if unicode then 3 else 4) (text "\\ ")) <> text ","
+gadtRecEnd unicode = hcat (replicate (if unicode then 3 else 4) (text "\\ ")) <> text "\\}"
 
 
 dot :: LaTeX

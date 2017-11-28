@@ -111,18 +111,22 @@ ppTypeOrFunSig summary links loc docnames typ (doc, argDocs) (pref1, pref2, sep)
   | summary = pref1
   | Map.null argDocs = topDeclElem links loc splice docnames pref1 +++ docSection curName qual doc
   | otherwise = topDeclElem links loc splice docnames pref2
-                  +++ subArguments qual (ppSubSigLike unicode qual typ argDocs sep emptyCtxts)
+                  +++ subArguments qual (ppSubSigLike unicode qual typ argDocs [] sep emptyCtxts)
                   +++ docSection curName qual doc
   where
     curName = getName <$> listToMaybe docnames
 
 
--- This splits up a type signature along `->` and adds docs (when they exist) to the arguments
+-- This splits up a type signature along `->` and adds docs (when they exist) to the arguments.
+--
+-- If one passes in a list of the available subdocs, any top-level `HsRecTy` found will be expanded
+-- out into their fields.
 ppSubSigLike :: Unicode -> Qualification
              -> HsType DocNameI                         -- ^ type signature
              -> FnArgsDoc DocName                       -- ^ docs to add
+             -> [(DocName, DocForDecl DocName)]         -- ^ all subdocs (useful when we have `HsRecTy`)
              -> Html -> HideEmptyContexts -> [SubDecl]
-ppSubSigLike unicode qual typ argDocs sep emptyCtxts = do_args 0 sep typ
+ppSubSigLike unicode qual typ argDocs subdocs sep emptyCtxts = do_args 0 sep typ
   where
     argDoc n = Map.lookup n argDocs
 
@@ -141,9 +145,15 @@ ppSubSigLike unicode qual typ argDocs sep emptyCtxts = do_args 0 sep typ
       = (leader <+> ppLContextNoArrow lctxt unicode qual emptyCtxts, Nothing, [])
         : do_largs n (darrow unicode) ltype
 
+    do_args n leader (HsFunTy (L _ (HsRecTy fields)) r)
+      = let nexts = [ (leader' <+> html, mdoc, subs)
+                    | (L _ field, leader') <- zip fields (leader <+> gadtRecOpn : repeat (gadtRecCom unicode))
+                    , let (html, mdoc, subs) = ppSideBySideField subdocs unicode qual field
+                    ]
+        in nexts ++ do_largs (n+1) (gadtRecEnd unicode <+> arrow unicode) r
     do_args n leader (HsFunTy lt r)
       = (leader <+> ppLFunLhType unicode qual emptyCtxts lt, argDoc n, [])
-        : do_largs (n+1) (arrow unicode) r
+          : do_largs (n+1) (arrow unicode) r
     do_args n leader t
       = [(leader <+> ppType unicode qual emptyCtxts t, argDoc n, [])]
 
@@ -830,9 +840,9 @@ ppSideBySideConstr :: [(DocName, DocForDecl DocName)] -> [(DocName, Fixity)]
                    -> LConDecl DocNameI -- ^ constructor declaration to print
                    -> SubDecl
 ppSideBySideConstr subdocs fixities unicode qual (L _ con)
- = ( decl      -- Constructor header (name, fixity)
-   , mbDoc     -- Docs on the whole constructor
-   , fieldPart -- Information on the fields (or arguments, if they have docs)
+ = ( decl       -- Constructor header (name, fixity)
+   , mbDoc      -- Docs on the whole constructor
+   , fieldPart  -- Information on the fields (or arguments, if they have docs)
    )
  where
     -- Find the name of a constructors in the decl (`getConName` always returns a non-empty list)
@@ -879,7 +889,7 @@ ppSideBySideConstr subdocs fixities unicode qual (L _ con)
 
       -- GADT constructor, e.g. 'Foo :: Int -> Foo'
       ConDeclGADT{}
-          | hasArgDocs -> ppOcc <+> fixity
+          | hasArgDocs || not (null fieldPart) -> ppOcc <+> fixity
           | otherwise -> hsep [ ppOcc
                               , dcolon unicode
                               -- ++AZ++ make this prepend "{..}" when it is a record style GADT
@@ -887,16 +897,25 @@ ppSideBySideConstr subdocs fixities unicode qual (L _ con)
                               , fixity
                               ]
 
-    fieldPart = case getConArgs con of
-        RecCon (L _ fields)             -> [ doRecordFields fields ]
-        PrefixCon args     | hasArgDocs -> [ doConstrArgsWithDocs args ]
-        InfixCon arg1 arg2 | hasArgDocs -> [ doConstrArgsWithDocs [arg1,arg2] ]
+    fieldPart = case (con, getArgs con) of
+        -- Record style GADTs
+        (ConDeclGADT{}, RecCon _)            -> [ doConstrArgsWithDocs [] ]
+
+        -- Regular record declarations
+        (_, RecCon (L _ fields))             -> [ doRecordFields fields ]
+
+        -- Any GADT or a regular H98 prefix data constructor
+        (_, PrefixCon args)     | hasArgDocs -> [ doConstrArgsWithDocs args ]
+
+        -- An infix H98 data constructor
+        (_, InfixCon arg1 arg2) | hasArgDocs -> [ doConstrArgsWithDocs [arg1,arg2] ]
+        
         _ -> []
 
-    doRecordFields fields = subFields qual
+    doRecordFields fields = subFields True qual
       (map (ppSideBySideField subdocs unicode qual) (map unLoc fields))
 
-    doConstrArgsWithDocs args = subFields qual $ case con of
+    doConstrArgsWithDocs args = subFields True qual $ case con of
       ConDeclH98{} ->
         [ (ppLParendType unicode qual HideEmptyContexts arg, mdoc, [])
         | (i, arg) <- zip [0..] args
@@ -904,7 +923,7 @@ ppSideBySideConstr subdocs fixities unicode qual (L _ con)
         ]
       ConDeclGADT{} ->
         ppSubSigLike unicode qual (unLoc (getGADTConType con))
-                     argDocs (dcolon unicode) HideEmptyContexts
+                     argDocs subdocs dcolon unicode) HideEmptyContexts
 
     -- don't use "con_doc con", in case it's reconstructed from a .hi file,
     -- or also because we want Haddock to do the doc-parsing, not GHC.
@@ -959,9 +978,9 @@ ppSideBySidePat fixities unicode qual lnames typ (doc, argDocs) =
 
     fieldPart
       | not hasArgDocs = []
-      | otherwise = [ subFields qual (ppSubSigLike unicode qual (unLoc patTy)
-                                                   argDocs (dcolon unicode)
-                                                   emptyCtxt) ]
+      | otherwise = [ subFields True qual (ppSubSigLike unicode qual (unLoc patTy)
+                                                        argDocs [] (dcolon unicode)
+                                                        emptyCtxt) ]
 
     patTy = hsSigType typ
     emptyCtxt = patSigContext patTy

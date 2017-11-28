@@ -184,8 +184,12 @@ subConstructors qual = divSubDecls "constructors" "Constructors" . subTable qual
 subPatterns :: Qualification -> [SubDecl] -> Html
 subPatterns qual = divSubDecls "bundled-patterns" "Bundled Patterns" . subTable qual
 
-subFields :: Qualification -> [SubDecl] -> Html
-subFields qual = divSubDecls "fields" "Fields" . subDlist qual
+subFields :: Bool           -- ^ place subdecls to the left (as opposed to below)
+          -> Qualification
+          -> [SubDecl]
+          -> Html
+subFields True qual = divSubDecls "fields" "Fields" . subDlist qual
+subFields False qual = divSubDecls "fields" "Fields" . subTable qual
 
 
 subEquations :: Qualification -> [SubDecl] -> Html
