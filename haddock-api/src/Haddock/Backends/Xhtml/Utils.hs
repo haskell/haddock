@@ -22,7 +22,6 @@ module Haddock.Backends.Xhtml.Utils (
 
   braces, brackets, pabrackets, parens, parenList, ubxParenList, ubxSumList,
   arrow, comma, dcolon, dot, darrow, equals, forallSymbol, quote, promoQuote,
-  gadtRecOpn, gadtRecEnd, gadtRecCom,
 
   hsep, vcat,
 
@@ -193,12 +192,6 @@ arrow  unicode = toHtml (if unicode then "→" else "->")
 darrow unicode = toHtml (if unicode then "⇒" else "=>")
 forallSymbol unicode = if unicode then toHtml "∀" else keyword "forall"
 
-
-gadtRecOpn :: Html
-gadtRecCom, gadtRecEnd :: Bool -> Html
-gadtRecOpn = toHtml "{"
-gadtRecCom unicode = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml ","
-gadtRecEnd unicode = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml "}"
 
 dot :: Html
 dot = toHtml "."
