@@ -83,9 +83,12 @@ table {
 }
 
 pre, code, kbd, samp, tt, .src {
-	font-family:monospace;
-	*font-size:108%;
-	line-height: 124%;
+    font-family: monospace;
+    background-color: #f7f7f9;
+    border-radius: .25rem;
+    padding: .1rem .2rem;
+    *font-size: 108%;
+    line-height: 124%;
 }
 
 .links, .link {
