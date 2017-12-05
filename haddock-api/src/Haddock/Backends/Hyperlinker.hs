@@ -35,7 +35,9 @@ ppHyperlinkedSource outdir libdir mstyle pretty srcs ifaces = do
     copyFile cssFile $ srcdir </> srcCssFile
     copyFile (libdir </> "html" </> highlightScript) $
         srcdir </> highlightScript
+    putStrLn "ppHyperlinkedSource 1"
     mapM_ (ppHyperlinkedModuleSource srcdir pretty srcs) ifaces
+    putStrLn "ppHyperlinkedSource 2"
   where
     srcdir = outdir </> hypSrcDir
 

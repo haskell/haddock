@@ -27,17 +27,6 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
--- | Instantiate all occurrences of given name with particular type.
-specialize :: (Eq name, Typeable name)
-           => Data a
-           => name -> HsType name -> a -> a
-specialize name details =
-    everywhere $ mkT step
-  where
-    step (HsTyVar (L _ name')) | name == name' = details
-    step typ = typ
-
-
 -- | Instantiate all occurrences of given names with corresponding types.
 specialize :: forall name a. (Ord name, DataId name, NamedThing name)
             => Data a

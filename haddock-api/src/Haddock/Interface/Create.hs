@@ -42,6 +42,7 @@ import Data.Ord
 import Control.Applicative
 import Control.Exception (evaluate)
 import Control.Monad
+import Control.DeepSeq
 import Data.Traversable
 
 import qualified Packages

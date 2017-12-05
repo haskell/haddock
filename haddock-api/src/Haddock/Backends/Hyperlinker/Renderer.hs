@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
 
+import Debug.Trace
 
 type StyleClass = String
 
@@ -45,8 +46,8 @@ data TokenGroup
 -- dot token has it if it is part of qualified name).
 groupTokens :: [RichToken] -> [TokenGroup]
 groupTokens [] = []
-groupTokens ((RichToken tok Nothing):rest) = (GrpNormal tok):(groupTokens rest)
-groupTokens ((RichToken tok (Just det)):rest) =
+groupTokens ((RichToken tok Nothing):rest) = trace (show tok ++ "1") $ (GrpNormal tok):(groupTokens rest)
+groupTokens ((RichToken tok (Just det)):rest) = trace (show tok ++ "2") $
     let (grp, rest') = span same rest
     in (GrpRich det (tok:(map rtkToken grp))):(groupTokens rest')
   where

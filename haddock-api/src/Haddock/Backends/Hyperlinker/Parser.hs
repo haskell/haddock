@@ -15,7 +15,6 @@ import StringBuffer
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Types as T
 
-
 -- | Turn source code string into a stream of more descriptive tokens.
 --
 -- Result should retain original file layout (including comments, whitespace,
@@ -66,7 +65,7 @@ groupCPP (l:ls)                = Right l : groupCPP ls
 
 ghcToks :: [(Located L.Token, String)] -> [T.Token]
 ghcToks = reverse . snd . foldl' go (start, [])
-where
+  where
     start = mkRealSrcLoc (mkFastString "lexing") 1 1
     go ::  (RealSrcLoc, [T.Token]) -> (Located L.Token, String) -> (RealSrcLoc, [T.Token])
     go (pos, toks) (L l tok, raw) =
@@ -141,6 +140,13 @@ classify tok =
     ITusing -> TkKeyword
     ITpattern -> TkKeyword
     ITstatic -> TkKeyword
+    ITstock -> TkKeyword
+    ITanyclass -> TkKeyword
+
+    ITunit -> TkKeyword
+    ITsignature -> TkKeyword
+    ITdependency -> TkKeyword
+    ITrequires -> TkKeyword
 
     ITinline_prag {} -> TkPragma
     ITspec_prag         {}  -> TkPragma
@@ -156,6 +162,7 @@ classify tok =
     ITunpack_prag       {} -> TkPragma
     ITnounpack_prag     {} -> TkPragma
     ITann_prag          {} -> TkPragma
+    ITcomplete_prag     {} -> TkPragma
     ITclose_prag -> TkPragma
     IToptions_prag {} -> TkPragma
     ITinclude_prag {} -> TkPragma
@@ -186,6 +193,7 @@ classify tok =
     ITminus -> TkGlyph
     ITbang -> TkGlyph
     ITdot -> TkGlyph
+    ITtypeApp -> TkGlyph
 
     ITbiglam -> TkGlyph
 
@@ -217,6 +225,7 @@ classify tok =
     ITqconsym {} -> TkIdentifier
 
     ITdupipvarid   {}  -> TkUnknown
+    ITlabelvarid   {} -> TkUnknown
 
     ITchar     {} -> TkChar
     ITstring   {} -> TkString
@@ -234,7 +243,7 @@ classify tok =
     ITopenPatQuote     -> TkSpecial
     ITopenDecQuote   -> TkSpecial
     ITopenTypQuote   -> TkSpecial
-    ITcloseQuote     -> TkSpecial
+    ITcloseQuote {}  -> TkSpecial
     ITopenTExpQuote {} -> TkSpecial
     ITcloseTExpQuote -> TkSpecial
     ITidEscape   {}  -> TkUnknown
@@ -253,8 +262,8 @@ classify tok =
 
     ITproc -> TkKeyword
     ITrec  -> TkKeyword
-    IToparenbar  -> TkGlyph
-    ITcparenbar  -> TkGlyph
+    IToparenbar {}  -> TkGlyph
+    ITcparenbar {}  -> TkGlyph
     ITlarrowtail {} -> TkGlyph
     ITrarrowtail {} -> TkGlyph
     ITLarrowtail {} -> TkGlyph
@@ -268,6 +277,5 @@ classify tok =
     ITdocCommentNamed {} -> TkComment
     ITdocSection {}     -> TkComment
     ITdocOptions {}     -> TkComment
-    ITdocOptionsOld {} -> TkComment
     ITlineComment {}   -> TkComment
     ITblockComment {}  -> TkComment
