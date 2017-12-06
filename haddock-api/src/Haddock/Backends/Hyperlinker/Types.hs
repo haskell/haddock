@@ -4,13 +4,11 @@ module Haddock.Backends.Hyperlinker.Types where
 import qualified GHC
 
 import Data.Map (Map)
-import qualified Data.Map as Map
-
 
 data Token = Token
     { tkType :: TokenType
     , tkValue :: String
-    , tkSpan :: GHC.RealSrcSpan
+    , tkSpan :: {-# UNPACK #-} !GHC.RealSrcSpan
     }
     deriving (Show)
 
@@ -27,8 +25,7 @@ data Span = Span
     deriving (Show)
 
 -- | Tests whether the first span "contains" the other span, meaning
--- that it covers at least as much source code. True where spans
--- are equal.
+-- that it covers at least as much source code. True where spans are equal.
 containsSpan :: Span -> Span -> Bool
 containsSpan s1 s2 = spStart s1 <= spStart s2 && spEnd s1 >= spEnd s2
 

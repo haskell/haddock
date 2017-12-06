@@ -175,11 +175,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
         putMsg dflags (renderJson (jsonInterfaceFile ifaceFile))
 
     if not (null files) then do
-      liftIO $ putStrLn "haddockWithGhc 1"
       (packages, ifaces, homeLinks) <- readPackagesAndProcessModules flags files
-      liftIO $ putStrLn "haddockWithGhc 2"
-
-      
 
       -- Dump an "interface file" (.haddock file), if requested.
       forM_ (optDumpInterfaceFile flags) $ \path -> liftIO $ do
@@ -187,11 +183,9 @@ haddockWithGhc ghc args = handleTopExceptions $ do
             ifInstalledIfaces = map toInstalledIface ifaces
           , ifLinkEnv         = homeLinks
           }
-      liftIO $ putStrLn "haddockWithGhc 3"
 
       -- Render the interfaces.
       liftIO $ renderStep dflags flags qual packages ifaces
-      liftIO $ putStrLn "haddockWithGhc 4"
 
     else do
       when (any (`elem` [Flag_Html, Flag_Hoogle, Flag_LaTeX]) flags) $
@@ -313,8 +307,6 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
     unwire :: Module -> Module
     unwire m = m { moduleUnitId = unwireUnitId dflags (moduleUnitId m) }
 
-  putStrLn "render 1"
-
   reexportedIfaces <- concat `fmap` (for (reexportFlags flags) $ \mod_str -> do
     let warn = hPutStrLn stderr . ("Warning: " ++)
     case readP_to_S parseModuleId mod_str of
@@ -325,20 +317,17 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
         -> warn ("Cannot find reexported module '" ++ mod_str ++ "'") >> return []
       _ -> warn ("Cannot parse reexported module flag '" ++ mod_str ++ "'") >> return [])
 
-  putStrLn "render 2"
   libDir   <- getHaddockLibDir flags
   prologue <- getPrologue dflags' flags
   themes   <- getThemes libDir flags >>= either bye return
 
   let withQuickjump = Flag_QuickJumpIndex `elem` flags
-  putStrLn "render 3"
 
   when (Flag_GenIndex `elem` flags) $ do
     ppHtmlIndex odir title pkgStr
                 themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
                 allVisibleIfaces pretty
     copyHtmlBits odir libDir themes withQuickjump
-  putStrLn "render 4"
 
   when (Flag_GenContents `elem` flags) $ do
     ppHtmlContents dflags' odir title pkgStr
@@ -346,7 +335,6 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
                    allVisibleIfaces True prologue pretty
                    (makeContentsQual qual)
     copyHtmlBits odir libDir themes withQuickjump
-  putStrLn "render 5"
 
   when (Flag_Html `elem` flags) $ do
     ppHtml dflags' title pkgStr visibleIfaces reexportedIfaces odir
@@ -356,7 +344,6 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
                 pretty withQuickjump
     copyHtmlBits odir libDir themes withQuickjump
     writeHaddockMeta odir withQuickjump
-  putStrLn "render 6"
 
   -- TODO: we throw away Meta for both Hoogle and LaTeX right now,
   -- might want to fix that if/when these two get some work on them
@@ -379,11 +366,9 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
   when (Flag_LaTeX `elem` flags) $ do
     ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
                   libDir
-  putStrLn "render 7"
 
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
     ppHyperlinkedSource odir libDir opt_source_css pretty srcMap ifaces
-  putStrLn "render 8"
 
 -- | From GHC 7.10, this function has a potential to crash with a
 -- nasty message such as @expectJust getPackageDetails@ because
@@ -445,6 +430,7 @@ withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
     ghcLink   = NoLink
     }
   let dynflags'' = updOptLevel 0 $ gopt_unset dynflags' Opt_SplitObjs
+
   -- ignore the following return-value, which is a list of packages
   -- that may need to be re-linked: Haddock doesn't do any
   -- dynamic or static linking at all!

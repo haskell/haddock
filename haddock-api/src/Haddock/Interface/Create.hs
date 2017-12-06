@@ -20,7 +20,6 @@
 module Haddock.Interface.Create (createInterface) where
 
 import Documentation.Haddock.Doc (metaDocAppend)
-import Documentation.Haddock.Utf8 as Utf8
 import Haddock.Types
 import Haddock.Options
 import Haddock.GhcUtils
@@ -32,7 +31,6 @@ import Haddock.Backends.Hyperlinker.Ast as Hyperlinker
 import Haddock.Backends.Hyperlinker.Parser as Hyperlinker
 
 import Data.Bitraversable
-import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.List
@@ -40,7 +38,6 @@ import Data.Maybe
 import Data.Monoid
 import Data.Ord
 import Control.Applicative
-import Control.Exception (evaluate)
 import Control.Monad
 import Control.DeepSeq
 import Data.Traversable
@@ -59,8 +56,6 @@ import FastString (concatFS)
 import BasicTypes ( StringLiteral(..), SourceText(..) )
 import qualified Outputable as O
 import HsDecls ( getConDetails )
-
-import System.IO
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological
@@ -1120,7 +1115,7 @@ mkMaybeTokenizedSrc dflags flags tm
 
 mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [RichToken]
 mkTokenizedSrc dflags ms src = do
-  (force -> file) <- readFile filepath
+  file <- force <$> readFile (filepath)
   return $ Hyperlinker.enrich src (Hyperlinker.parse dflags filepath file)
   where
     filepath = msHsFilePath ms

@@ -1,5 +1,5 @@
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -14,10 +14,12 @@ import Haddock.Backends.Hyperlinker.Types
 import qualified GHC
 
 import Control.Applicative
-import Data.Data
 import Control.Monad (guard)
+import Data.Data
+import qualified Data.Map.Strict as Map
 import Data.Maybe
-import qualified Data.Map as Map
+
+import Prelude hiding (span)
 
 everythingInRenamedSource :: (Alternative f, Data x)
   => (forall a. Data a => a -> f r) -> x -> f r
@@ -191,4 +193,3 @@ imports src@(_, imps, _, _) =
         let (GHC.L sspan name) = GHC.ideclName idecl
         in Just (sspan, RtkModule name)
     imp _ = Nothing
-

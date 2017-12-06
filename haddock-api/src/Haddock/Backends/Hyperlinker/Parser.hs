@@ -1,7 +1,5 @@
 module Haddock.Backends.Hyperlinker.Parser (parse) where
 
-
-import Data.Char
 import Data.List
 import Data.Maybe
 import qualified Lexer as L
@@ -38,7 +36,7 @@ processCPP dflags fpath s = addSrc (go start (groupCPP (lines s)))
     go pos xs =
       let (cs, cpps, rest) = gather xs
       in case L.lexTokenStream (stringToStringBuffer (unlines cs)) pos dflags of
-           L.PFailed ss msg ->
+           L.PFailed _ss _msg ->
             let (new_loc, token) = mkComment (pos, []) (unlines cs)
             in token ++ go new_loc rest
            L.POk ss toks ->
@@ -51,8 +49,8 @@ processCPP dflags fpath s = addSrc (go start (groupCPP (lines s)))
           (cpps, rest') = span isLeft rest
       in ([x | Right x <- cs], [x | Left x <- cpps], rest')
 
-    mkComment (start, cpp) str =
-      let end = foldl' advanceSrcLoc start str
+    mkComment (start', cpp) str =
+      let end = foldl' advanceSrcLoc start' str
           new = advanceSrcLoc end '\n'
       in (new, L (RealSrcSpan $ mkRealSrcSpan start end) (ITlineComment str) : cpp)
 
@@ -60,8 +58,8 @@ processCPP dflags fpath s = addSrc (go start (groupCPP (lines s)))
 -- | Find lines which start with a hash and remove them
 groupCPP :: [String] -> [Either String String]
 groupCPP [] = []
-groupCPP (line@('#':_):lines) = Left line : groupCPP lines
-groupCPP (l:ls)                = Right l : groupCPP ls
+groupCPP (l@('#':_):ls) = Left l : groupCPP ls
+groupCPP (l:ls)         = Right l : groupCPP ls
 
 ghcToks :: [(Located L.Token, String)] -> [T.Token]
 ghcToks = reverse . snd . foldl' go (start, [])
@@ -77,8 +75,8 @@ ghcToks = reverse . snd . foldl' go (start, [])
 
 -- | Find the correct amount of whitespace between tokens.
 mkWhitespace :: RealSrcLoc -> SrcSpan -> (RealSrcLoc, Maybe T.Token)
-mkWhitespace prev span
-    = case span of
+mkWhitespace prev spn
+    = case spn of
         UnhelpfulSpan _ -> (prev,Nothing)
         RealSrcSpan s   -> (end, Just (Token TkSpace wsstring wsspan))
           where
@@ -94,68 +92,68 @@ mkWhitespace prev span
 classify :: L.Token -> TokenType
 classify tok =
   case tok of
-    ITas -> TkKeyword
-    ITcase -> TkKeyword
-    ITclass -> TkKeyword
-    ITdata -> TkKeyword
-    ITdefault -> TkKeyword
-    ITderiving -> TkKeyword
-    ITdo -> TkKeyword
-    ITelse -> TkKeyword
-    IThiding -> TkKeyword
-    ITforeign -> TkKeyword
-    ITif -> TkKeyword
-    ITimport -> TkKeyword
-    ITin -> TkKeyword
-    ITinfix -> TkKeyword
-    ITinfixl -> TkKeyword
-    ITinfixr -> TkKeyword
-    ITinstance -> TkKeyword
-    ITlet -> TkKeyword
-    ITmodule -> TkKeyword
-    ITnewtype -> TkKeyword
-    ITof -> TkKeyword
-    ITqualified -> TkKeyword
-    ITthen -> TkKeyword
-    ITtype -> TkKeyword
-    ITwhere -> TkKeyword
+    ITas                   -> TkKeyword
+    ITcase                 -> TkKeyword
+    ITclass                -> TkKeyword
+    ITdata                 -> TkKeyword
+    ITdefault              -> TkKeyword
+    ITderiving             -> TkKeyword
+    ITdo                   -> TkKeyword
+    ITelse                 -> TkKeyword
+    IThiding               -> TkKeyword
+    ITforeign              -> TkKeyword
+    ITif                   -> TkKeyword
+    ITimport               -> TkKeyword
+    ITin                   -> TkKeyword
+    ITinfix                -> TkKeyword
+    ITinfixl               -> TkKeyword
+    ITinfixr               -> TkKeyword
+    ITinstance             -> TkKeyword
+    ITlet                  -> TkKeyword
+    ITmodule               -> TkKeyword
+    ITnewtype              -> TkKeyword
+    ITof                   -> TkKeyword
+    ITqualified            -> TkKeyword
+    ITthen                 -> TkKeyword
+    ITtype                 -> TkKeyword
+    ITwhere                -> TkKeyword
 
-    ITforall {} -> TkKeyword
-    ITexport -> TkKeyword
-    ITlabel -> TkKeyword
-    ITdynamic -> TkKeyword
-    ITsafe -> TkKeyword
-    ITinterruptible -> TkKeyword
-    ITunsafe -> TkKeyword
-    ITstdcallconv -> TkKeyword
-    ITccallconv -> TkKeyword
-    ITcapiconv -> TkKeyword
-    ITprimcallconv -> TkKeyword
-    ITjavascriptcallconv -> TkKeyword
-    ITmdo -> TkKeyword
-    ITfamily -> TkKeyword
-    ITrole -> TkKeyword
-    ITgroup -> TkKeyword
-    ITby -> TkKeyword
-    ITusing -> TkKeyword
-    ITpattern -> TkKeyword
-    ITstatic -> TkKeyword
-    ITstock -> TkKeyword
-    ITanyclass -> TkKeyword
+    ITforall {}            -> TkKeyword
+    ITexport               -> TkKeyword
+    ITlabel                -> TkKeyword
+    ITdynamic              -> TkKeyword
+    ITsafe                 -> TkKeyword
+    ITinterruptible        -> TkKeyword
+    ITunsafe               -> TkKeyword
+    ITstdcallconv          -> TkKeyword
+    ITccallconv            -> TkKeyword
+    ITcapiconv             -> TkKeyword
+    ITprimcallconv         -> TkKeyword
+    ITjavascriptcallconv   -> TkKeyword
+    ITmdo                  -> TkKeyword
+    ITfamily               -> TkKeyword
+    ITrole                 -> TkKeyword
+    ITgroup                -> TkKeyword
+    ITby                   -> TkKeyword
+    ITusing                -> TkKeyword
+    ITpattern              -> TkKeyword
+    ITstatic               -> TkKeyword
+    ITstock                -> TkKeyword
+    ITanyclass             -> TkKeyword
 
-    ITunit -> TkKeyword
-    ITsignature -> TkKeyword
-    ITdependency -> TkKeyword
-    ITrequires -> TkKeyword
+    ITunit                 -> TkKeyword
+    ITsignature            -> TkKeyword
+    ITdependency           -> TkKeyword
+    ITrequires             -> TkKeyword
 
-    ITinline_prag {} -> TkPragma
-    ITspec_prag         {}  -> TkPragma
+    ITinline_prag       {} -> TkPragma
+    ITspec_prag         {} -> TkPragma
     ITspec_inline_prag  {} -> TkPragma
     ITsource_prag       {} -> TkPragma
     ITrules_prag        {} -> TkPragma
     ITwarning_prag      {} -> TkPragma
     ITdeprecated_prag   {} -> TkPragma
-    ITline_prag -> TkPragma
+    ITline_prag            -> TkPragma
     ITscc_prag          {} -> TkPragma
     ITgenerated_prag    {} -> TkPragma
     ITcore_prag         {} -> TkPragma
@@ -163,10 +161,10 @@ classify tok =
     ITnounpack_prag     {} -> TkPragma
     ITann_prag          {} -> TkPragma
     ITcomplete_prag     {} -> TkPragma
-    ITclose_prag -> TkPragma
-    IToptions_prag {} -> TkPragma
-    ITinclude_prag {} -> TkPragma
-    ITlanguage_prag -> TkPragma
+    ITclose_prag           -> TkPragma
+    IToptions_prag      {} -> TkPragma
+    ITinclude_prag      {} -> TkPragma
+    ITlanguage_prag        -> TkPragma
     ITvect_prag         {} -> TkPragma
     ITvect_scalar_prag  {} -> TkPragma
     ITnovect_prag       {} -> TkPragma
@@ -177,105 +175,99 @@ classify tok =
     ITincoherent_prag   {} -> TkPragma
     ITctype             {} -> TkPragma
 
-    ITdotdot -> TkGlyph
-    ITcolon -> TkGlyph
-    ITdcolon {} -> TkGlyph
-    ITequal -> TkGlyph
-    ITlam -> TkGlyph
-    ITlcase -> TkGlyph
-    ITvbar -> TkGlyph
-    ITlarrow {} -> TkGlyph
-    ITrarrow {} -> TkGlyph
-    ITat -> TkGlyph
-    ITtilde -> TkGlyph
-    ITtildehsh -> TkGlyph
-    ITdarrow {} -> TkGlyph
-    ITminus -> TkGlyph
-    ITbang -> TkGlyph
-    ITdot -> TkGlyph
-    ITtypeApp -> TkGlyph
+    ITdotdot               -> TkGlyph
+    ITcolon                -> TkGlyph
+    ITdcolon            {} -> TkGlyph
+    ITequal                -> TkGlyph
+    ITlam                  -> TkGlyph
+    ITlcase                -> TkGlyph
+    ITvbar                 -> TkGlyph
+    ITlarrow            {} -> TkGlyph
+    ITrarrow            {} -> TkGlyph
+    ITat                   -> TkGlyph
+    ITtilde                -> TkGlyph
+    ITtildehsh             -> TkGlyph
+    ITdarrow            {} -> TkGlyph
+    ITminus                -> TkGlyph
+    ITbang                 -> TkGlyph
+    ITdot                  -> TkGlyph
+    ITtypeApp              -> TkGlyph
 
-    ITbiglam -> TkGlyph
+    ITbiglam               -> TkGlyph
 
-    ITocurly  -> TkSpecial
-    ITccurly  -> TkSpecial
-    ITvocurly -> TkSpecial
-    ITvccurly -> TkSpecial
-    ITobrack -> TkSpecial
-    ITopabrack  -> TkSpecial
-    ITcpabrack  -> TkSpecial
-    ITcbrack -> TkSpecial
-    IToparen -> TkSpecial
-    ITcparen -> TkSpecial
-    IToubxparen -> TkSpecial
-    ITcubxparen -> TkSpecial
-    ITsemi -> TkSpecial
-    ITcomma -> TkSpecial
-    ITunderscore -> TkSpecial
-    ITbackquote -> TkSpecial
-    ITsimpleQuote -> TkSpecial
+    ITocurly               -> TkSpecial
+    ITccurly               -> TkSpecial
+    ITvocurly              -> TkSpecial
+    ITvccurly              -> TkSpecial
+    ITobrack               -> TkSpecial
+    ITopabrack             -> TkSpecial
+    ITcpabrack             -> TkSpecial
+    ITcbrack               -> TkSpecial
+    IToparen               -> TkSpecial
+    ITcparen               -> TkSpecial
+    IToubxparen            -> TkSpecial
+    ITcubxparen            -> TkSpecial
+    ITsemi                 -> TkSpecial
+    ITcomma                -> TkSpecial
+    ITunderscore           -> TkSpecial
+    ITbackquote            -> TkSpecial
+    ITsimpleQuote          -> TkSpecial
 
-    ITvarid   {} -> TkIdentifier
-    ITconid   {} -> TkIdentifier
-    ITvarsym  {} -> TkIdentifier
-    ITconsym  {} -> TkIdentifier
-    ITqvarid  {} -> TkIdentifier
-    ITqconid  {} -> TkIdentifier
-    ITqvarsym {} -> TkIdentifier
-    ITqconsym {} -> TkIdentifier
+    ITvarid             {} -> TkIdentifier
+    ITconid             {} -> TkIdentifier
+    ITvarsym            {} -> TkOperator
+    ITconsym            {} -> TkOperator
+    ITqvarid            {} -> TkIdentifier
+    ITqconid            {} -> TkIdentifier
+    ITqvarsym           {} -> TkOperator
+    ITqconsym           {} -> TkOperator
 
-    ITdupipvarid   {}  -> TkUnknown
-    ITlabelvarid   {} -> TkUnknown
+    ITdupipvarid        {} -> TkUnknown
+    ITlabelvarid        {} -> TkUnknown
 
-    ITchar     {} -> TkChar
-    ITstring   {} -> TkString
-    ITinteger  {} -> TkNumber
-    ITrational {}  -> TkNumber
+    ITchar              {} -> TkChar
+    ITstring            {} -> TkString
+    ITinteger           {} -> TkNumber
+    ITrational          {} -> TkNumber
 
-    ITprimchar {} -> TkChar
-    ITprimstring {} -> TkString
-    ITprimint    {} -> TkNumber
-    ITprimword   {} -> TkUnknown
-    ITprimfloat  {} -> TkUnknown
-    ITprimdouble {} -> TkUnknown
+    ITprimchar          {} -> TkChar
+    ITprimstring        {} -> TkString
+    ITprimint           {} -> TkNumber
+    ITprimword          {} -> TkNumber
+    ITprimfloat         {} -> TkNumber
+    ITprimdouble        {} -> TkNumber
 
-    ITopenExpQuote {}  -> TkSpecial
-    ITopenPatQuote     -> TkSpecial
-    ITopenDecQuote   -> TkSpecial
-    ITopenTypQuote   -> TkSpecial
-    ITcloseQuote {}  -> TkSpecial
-    ITopenTExpQuote {} -> TkSpecial
-    ITcloseTExpQuote -> TkSpecial
-    ITidEscape   {}  -> TkUnknown
-    ITparenEscape    -> TkSpecial
-    ITidTyEscape   {} -> TkUnknown
-    ITparenTyEscape   -> TkSpecial
-    ITtyQuote         -> TkSpecial
-    ITquasiQuote {}   -> TkUnknown
-    -- ITquasiQuote(quoter, quote, loc)
-    -- represents a quasi-quote of the form
-    -- [quoter| quote |]
-    ITqQuasiQuote {} -> TkUnknown
-    -- ITqQuasiQuote(Qual, quoter, quote, loc)
-    -- represents a qualified quasi-quote of the form
-    -- [Qual.quoter| quote |]
+    ITopenExpQuote      {} -> TkSpecial
+    ITopenPatQuote         -> TkSpecial
+    ITopenDecQuote         -> TkSpecial
+    ITopenTypQuote         -> TkSpecial
+    ITcloseQuote        {} -> TkSpecial
+    ITopenTExpQuote     {} -> TkSpecial
+    ITcloseTExpQuote       -> TkSpecial
+    ITidEscape          {} -> TkUnknown
+    ITparenEscape          -> TkSpecial
+    ITidTyEscape        {} -> TkUnknown
+    ITparenTyEscape        -> TkSpecial
+    ITtyQuote              -> TkSpecial
+    ITquasiQuote {}        -> TkUnknown
+    ITqQuasiQuote {}       -> TkUnknown
 
-    ITproc -> TkKeyword
-    ITrec  -> TkKeyword
-    IToparenbar {}  -> TkGlyph
-    ITcparenbar {}  -> TkGlyph
-    ITlarrowtail {} -> TkGlyph
-    ITrarrowtail {} -> TkGlyph
-    ITLarrowtail {} -> TkGlyph
-    ITRarrowtail {} -> TkGlyph
+    ITproc                 -> TkKeyword
+    ITrec                  -> TkKeyword
+    IToparenbar         {} -> TkGlyph
+    ITcparenbar         {} -> TkGlyph
+    ITlarrowtail        {} -> TkGlyph
+    ITrarrowtail        {} -> TkGlyph
+    ITLarrowtail        {} -> TkGlyph
+    ITRarrowtail        {} -> TkGlyph
 
-    ITunknown {}     -> TkUnknown
-    ITeof            -> TkUnknown
+    ITunknown           {} -> TkUnknown
+    ITeof                  -> TkUnknown
 
-    ITdocCommentNext {} -> TkComment
-    ITdocCommentPrev {} -> TkComment
-    ITdocCommentNamed {} -> TkComment
-    ITdocSection {}     -> TkComment
-    ITdocOptions {}     -> TkComment
-    ITlineComment {}   -> TkComment
-    ITblockComment {}  -> TkComment
+    ITdocCommentNext    {} -> TkComment
+    ITdocCommentPrev    {} -> TkComment
+    ITdocCommentNamed   {} -> TkComment
+    ITdocSection        {} -> TkComment
+    ITdocOptions        {} -> TkComment
+    ITlineComment       {} -> TkComment
+    ITblockComment      {} -> TkComment

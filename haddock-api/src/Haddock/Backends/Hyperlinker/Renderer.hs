@@ -21,7 +21,6 @@ import qualified Data.Map as Map
 import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
 
-import Debug.Trace
 
 type StyleClass = String
 
@@ -46,8 +45,8 @@ data TokenGroup
 -- dot token has it if it is part of qualified name).
 groupTokens :: [RichToken] -> [TokenGroup]
 groupTokens [] = []
-groupTokens ((RichToken tok Nothing):rest) = trace (show tok ++ "1") $ (GrpNormal tok):(groupTokens rest)
-groupTokens ((RichToken tok (Just det)):rest) = trace (show tok ++ "2") $
+groupTokens ((RichToken tok Nothing):rest) = (GrpNormal tok):(groupTokens rest)
+groupTokens ((RichToken tok (Just det)):rest) =
     let (grp, rest') = span same rest
     in (GrpRich det (tok:(map rtkToken grp))):(groupTokens rest')
   where
@@ -164,12 +163,6 @@ externalNameHyperlink srcs name content = case Map.lookup mdl srcs of
     Nothing -> content
   where
     mdl = GHC.nameModule name
-
--- When hyperlinking modules in import lists we have no
--- 'GHC.Module' available. On the other hand, we can't just use map with
--- 'GHC.ModuleName' as indices because certain modules may have common name
--- but originate in different packages. This is why the srcs arre different
--- in externalNameHyperlink and externalModHyperlink.
 
 externalModHyperlink :: SrcMap -> GHC.ModuleName -> Html -> Html
 externalModHyperlink srcs name content =
