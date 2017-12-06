@@ -1,16 +1,16 @@
 module Haddock.Backends.Hyperlinker.Parser (parse) where
 
-import Data.List
-import Data.Maybe
-import qualified Lexer as L
-import Lexer (Token(..))
-import qualified GHC
-import SrcLoc
-import FastString
-import Data.Either
-import StringBuffer
+import Data.Either         ( isRight, isLeft )
+import Data.List           ( foldl', isPrefixOf, isSuffixOf )
+import Data.Maybe          ( maybeToList )
 
-import Haddock.Backends.Hyperlinker.Types
+import GHC                 ( DynFlags, addSourceToTokens )
+import SrcLoc
+import FastString          ( mkFastString )
+import StringBuffer        ( stringToStringBuffer )
+import Lexer               ( Token(..) )
+import qualified Lexer as L
+
 import Haddock.Backends.Hyperlinker.Types as T
 
 -- | Turn source code string into a stream of more descriptive tokens.
@@ -19,19 +19,24 @@ import Haddock.Backends.Hyperlinker.Types as T
 -- etc.), i.e. the following "law" should hold:
 --
 -- @concat . map 'tkValue' . 'parse' = id@
-parse :: GHC.DynFlags -> FilePath -> String -> [T.Token]
+parse :: DynFlags -> FilePath -> String -> [T.Token]
 parse dflags fp s = ghcToks (processCPP dflags fp s)
 
--- | Remove CPP lines and reinsert as comments
-processCPP :: GHC.DynFlags -> FilePath -> String -> [(Located L.Token, String)]
+-- | Parse the source file into tokens using the GHC lexer.
+--
+--   * CPP lines are removed and reinserted as line-comments
+--   * top-level file pragmas are parsed as block comments (see the
+--     'ITblockComment' case of 'classify' for more details)
+--
+processCPP :: DynFlags -> FilePath -> String -> [(Located L.Token, String)]
 processCPP dflags fpath s = addSrc (go start (groupCPP (lines s)))
   where
     start = mkRealSrcLoc (mkFastString fpath) 1 1
 
-    addSrc = GHC.addSourceToTokens start (stringToStringBuffer s)
+    addSrc = addSourceToTokens start (stringToStringBuffer s)
 
 
-    go :: GHC.RealSrcLoc -> [Either String String] -> [Located L.Token]
+    go :: RealSrcLoc -> [Either String String] -> [Located L.Token]
     go _   [] = []
     go pos xs =
       let (cs, cpps, rest) = gather xs
@@ -264,10 +269,22 @@ classify tok =
     ITunknown           {} -> TkUnknown
     ITeof                  -> TkUnknown
 
+    -- Line comments are only supposed to start with '--'. Starting with '#'
+    -- means that this was probably a CPP that failed to parse.
+    ITlineComment  ('#':_) -> TkCpp
+
     ITdocCommentNext    {} -> TkComment
     ITdocCommentPrev    {} -> TkComment
     ITdocCommentNamed   {} -> TkComment
     ITdocSection        {} -> TkComment
     ITdocOptions        {} -> TkComment
     ITlineComment       {} -> TkComment
-    ITblockComment      {} -> TkComment
+
+    -- The lexer considers top-level pragmas as comments (see `pragState` in
+    -- the GHC lexer for more), so we have to manually reverse this. The
+    -- following is a hammer: it smashes _all_ pragma-like block comments into
+    -- pragmas.
+    ITblockComment      c
+      | isPrefixOf "{-#" c
+      , isSuffixOf "#-}" c -> TkPragma
+      | otherwise          -> TkComment
