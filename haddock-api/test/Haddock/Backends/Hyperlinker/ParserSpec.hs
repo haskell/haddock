@@ -12,8 +12,6 @@ import Haddock (getGhcDirs)
 import Haddock.Backends.Hyperlinker.Parser
 import Haddock.Backends.Hyperlinker.Types
 
-import Debug.Trace
-
 withDynFlags :: (GHC.DynFlags -> IO ()) -> IO ()
 withDynFlags cont = do
   libDir <- fmap snd (getGhcDirs [])
@@ -33,10 +31,13 @@ spec = describe "parse" parseSpec
 -- | Defined for its instance of 'Arbitrary'
 newtype NoTabs = NoTabs String deriving (Show, Eq)
 
--- | Does not generate content containing tab characters
+noTabs :: String -> Bool
+noTabs = all (\c -> c `notElem` "\r\t\f\v")
+
+-- | Does not generate content with space characters other than ' ' and '\n'
 instance Arbitrary NoTabs where
-  arbitrary = fmap NoTabs (arbitrary `suchThat` (all (\c -> c `notElem` "\r\t\f")))
-  shrink (NoTabs src) = fmap NoTabs (shrink src)
+  arbitrary = fmap NoTabs (arbitrary `suchThat` noTabs)
+  shrink (NoTabs src) = [ NoTabs shrunk | shrunk <- shrink src, noTabs shrunk ]
 
 
 parseSpec :: Spec

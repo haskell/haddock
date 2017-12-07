@@ -21,7 +21,7 @@ import Haddock.Backends.Hyperlinker.Types as T
 --
 -- prop> concat . map tkValue . parse = id
 --
--- (In reality, this only holds for input not containing '\r', '\t', '\f'
+-- (In reality, this only holds for input not containing '\r', '\t', '\f', '\v',
 -- characters, since GHC transforms those into ' ' and '\n')
 parse :: DynFlags -> FilePath -> String -> [T.Token]
 parse dflags fp s = ghcToks (processCPP dflags fp s)
