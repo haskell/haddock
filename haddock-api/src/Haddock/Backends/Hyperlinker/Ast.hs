@@ -12,6 +12,7 @@ import qualified Haddock.Syb as Syb
 import Haddock.Backends.Hyperlinker.Types
 
 import qualified GHC
+import qualified SrcLoc
 
 import Control.Applicative
 import Control.Monad (guard)
@@ -51,10 +52,10 @@ type DetailsMap = Map.Map Position (Span, TokenDetails)
 
 mkDetailsMap :: [(GHC.SrcSpan, TokenDetails)] -> DetailsMap
 mkDetailsMap xs =
-  Map.fromListWith select_details [ (start, (token_span, token_details))
+  Map.fromListWith select_details [ (pos, (span, token_details))
                                   | (ghc_span, token_details) <- xs
-                                  , Just !token_span <- [ghcSrcSpanToSpan ghc_span]
-                                  , let start = spStart token_span
+                                  , GHC.RealSrcSpan span <- [ghc_span]
+                                  , let pos = SrcLoc.realSrcSpanStart span
                                   ]
   where
     -- favour token details which appear earlier in the list
@@ -62,20 +63,14 @@ mkDetailsMap xs =
 
 lookupBySpan :: Span -> DetailsMap -> Maybe TokenDetails
 lookupBySpan span details = do
-  (_, (tok_span, tok_details)) <- Map.lookupLE (spStart span) details
-  guard (tok_span `containsSpan` span )
+  let pos = SrcLoc.realSrcSpanStart span
+  (_, (tok_span, tok_details)) <- Map.lookupLE pos details
+  guard (tok_span `SrcLoc.containsSpan` span )
   return tok_details
-
-ghcSrcSpanToSpan :: GHC.SrcSpan -> Maybe Span
-ghcSrcSpanToSpan (GHC.RealSrcSpan span) =
-  Just (Span { spStart = Position (GHC.srcSpanStartLine span) (GHC.srcSpanStartCol span)
-             , spEnd   = Position (GHC.srcSpanEndLine span) (GHC.srcSpanEndCol span)
-             })
-ghcSrcSpanToSpan _ = Nothing
 
 enrichToken :: Token -> DetailsMap -> Maybe TokenDetails
 enrichToken (Token typ _ spn) dm
-    | typ `elem` [TkIdentifier, TkOperator] = do sp <- ghcSrcSpanToSpan (GHC.RealSrcSpan spn); lookupBySpan sp dm
+    | typ `elem` [TkIdentifier, TkOperator] = lookupBySpan spn dm
 enrichToken _ _ = Nothing
 
 -- | Obtain details map for variables ("normally" used identifiers).
