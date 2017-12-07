@@ -13,85 +13,162 @@ import qualified Lexer as L
 
 import Haddock.Backends.Hyperlinker.Types as T
 
+
 -- | Turn source code string into a stream of more descriptive tokens.
 --
 -- Result should retain original file layout (including comments, whitespace,
 -- etc.), i.e. the following "law" should hold:
 --
--- @concat . map 'tkValue' . 'parse' = id@
+-- prop> concat . map tkValue . parse = id
+--
+-- (In reality, this only holds for input not containing '\r', '\t', '\f'
+-- characters, since GHC transforms those into ' ' and '\n')
 parse :: DynFlags -> FilePath -> String -> [T.Token]
 parse dflags fp s = ghcToks (processCPP dflags fp s)
 
--- | Parse the source file into tokens using the GHC lexer.
+
+-- | Parse the source into tokens using the GHC lexer.
 --
 --   * CPP lines are removed and reinserted as line-comments
 --   * top-level file pragmas are parsed as block comments (see the
 --     'ITblockComment' case of 'classify' for more details)
 --
-processCPP :: DynFlags -> FilePath -> String -> [(Located L.Token, String)]
-processCPP dflags fpath s = addSrc (go start (groupCPP (lines s)))
+processCPP :: DynFlags    -- ^ GHC's flags
+           -> FilePath    -- ^ source file name (for position information)
+           -> String      -- ^ source file contents
+           -> [(Located L.Token, String)]
+processCPP dflags fpath s = addSrc . go start . splitCPP $ s
   where
     start = mkRealSrcLoc (mkFastString fpath) 1 1
-
     addSrc = addSourceToTokens start (stringToStringBuffer s)
 
-
+    -- Transform a list of Haskell/CPP lines into a list of tokens
     go :: RealSrcLoc -> [Either String String] -> [Located L.Token]
     go _   [] = []
-    go pos xs =
-      let (cs, cpps, rest) = gather xs
-      in case L.lexTokenStream (stringToStringBuffer (unlines cs)) pos dflags of
+    go pos ls =
+      let (hLinesRight,  ls')  = span isRight ls
+          (cppLinesLeft, rest) = span isLeft ls'
+          
+          hSrc   = concat [ hLine   | Right hLine  <- hLinesRight  ]
+          cppSrc = concat [ cppLine | Left cppLine <- cppLinesLeft ]
+      
+      in case L.lexTokenStream (stringToStringBuffer hSrc) pos dflags of
+
+           -- Stuff that fails to lex gets turned into comments
            L.PFailed _ss _msg ->
-            let (new_loc, token) = mkComment (pos, []) (unlines cs)
-            in token ++ go new_loc rest
+             let (src_pos, failed) = mkToken ITunknown pos hSrc
+                 (new_pos, cpp)    = mkToken ITlineComment src_pos cppSrc
+             in failed : cpp : go new_pos rest
+
+           -- Successfully lexed 
            L.POk ss toks ->
-            let (new_loc, cpp) = foldl' mkComment (L.loc ss, []) cpps
-            in toks ++ reverse cpp ++ go new_loc rest
-
-    gather :: [Either String String] -> ([String], [String], [Either String String])
-    gather xs =
-      let (cs,rest) = span isRight xs
-          (cpps, rest') = span isLeft rest
-      in ([x | Right x <- cs], [x | Left x <- cpps], rest')
-
-    mkComment (start', cpp) str =
+             let (new_pos, cpp) = mkToken ITlineComment (L.loc ss) cppSrc
+             in toks ++ [cpp] ++ go new_pos rest
+ 
+    -- Manually make a token from a 'String', advancing the cursor position
+    mkToken tok start' str =
       let end = foldl' advanceSrcLoc start' str
-          new = advanceSrcLoc end '\n'
-      in (new, L (RealSrcSpan $ mkRealSrcSpan start end) (ITlineComment str) : cpp)
+      in (end, L (RealSrcSpan $ mkRealSrcSpan start' end) (tok str))
 
 
--- | Find lines which start with a hash and remove them
-groupCPP :: [String] -> [Either String String]
-groupCPP [] = []
-groupCPP (l@('#':_):ls) = Left l : groupCPP ls
-groupCPP (l:ls)         = Right l : groupCPP ls
+-- | Split apart the initial file into Haskell source lines ('Left' entries) and
+-- CPP lines ('Right' entries).
+--
+-- All characters in the input are present in the output:
+--
+-- prop> concat . map (either id id) . splitCPP = id
+splitCPP :: String -> [Either String String]
+splitCPP "" = []
+splitCPP s | isCPPline s = Left l : splitCPP rest
+           | otherwise =  Right l : splitCPP rest
+  where
+    ~(l, rest) = spanToNewline 0 s
 
+
+-- | Heuristic to decide if a line is going to be a CPP line. This should be a
+-- cheap operation since it is going to be run on every line being processed.
+--
+-- Right now it just checks if the first non-whitespace character in the first
+-- five characters of the line is a '#':
+--
+-- >>> isCPPline "#define FOO 1"
+-- True
+--
+-- >>> isCPPline "\t\t  #ifdef GHC"
+-- True
+--
+-- >>> isCPPline "       #endif"
+-- False
+--
+isCPPline :: String -> Bool
+isCPPline = isPrefixOf "#" . dropWhile (`elem` " \t") . take 5
+
+
+-- | Split a "line" off the front of a string, supporting newline escapes.
+--
+-- By "line", we understand: the shortest substring ending in a '\n' that is not
+-- 
+--   1. immediately preceded by a '\\'
+--   2. not inside some (possibly nested) block comment
+--
+-- All characters in the input are present in the output:
+--
+-- prop> curry (++) . spanToNewLine 0 = id
+spanToNewline :: Int                 -- ^ open '{-'
+              -> String              -- ^ input
+              -> (String, String)
+spanToNewline _ [] = ([], [])
+spanToNewline n ('\n':str) | n <= 0 = ("\n", str)
+spanToNewline n ('\\':'\n':str) =
+    let (str', rest) = spanToNewline n str
+    in ('\\':'\n':str', rest)
+spanToNewline n ('{':'-':str) =
+    let (str', rest) = spanToNewline (n+1) str
+    in ('{':'-':str', rest) 
+spanToNewline n ('-':'}':str) =
+    let (str', rest) = spanToNewline (n-1) str
+    in ('-':'}':str', rest) 
+spanToNewline n (c:str) =
+    let (str', rest) = spanToNewline n str
+    in (c:str', rest)
+
+
+-- | Turn a list of GHC's 'L.Token' (and their source 'String') into a list of
+-- Haddock's 'T.Token'.
 ghcToks :: [(Located L.Token, String)] -> [T.Token]
 ghcToks = reverse . snd . foldl' go (start, [])
   where
     start = mkRealSrcLoc (mkFastString "lexing") 1 1
-    go ::  (RealSrcLoc, [T.Token]) -> (Located L.Token, String) -> (RealSrcLoc, [T.Token])
-    go (pos, toks) (L l tok, raw) =
-        (next, [Token (classify tok) raw rss | RealSrcSpan rss <- [l], not (null raw)]
-                ++ maybeToList whitespace
-                ++ toks)
-        where
-          (next, whitespace) = mkWhitespace pos l
+
+    go :: (RealSrcLoc, [T.Token])    -- ^ current position, tokens accumulated
+       -> (Located L.Token, String)  -- ^ next token, its content
+       -> (RealSrcLoc, [T.Token])    -- ^ new position, new tokens accumulated
+    go (pos, toks) (L l tok, raw) = ( next_pos
+                                    , classifiedTok ++ maybeToList white ++ toks
+                                    )
+       where
+         (next_pos, white) = mkWhitespace pos l
+         classifiedTok = [ Token (classify tok) raw rss
+                         | RealSrcSpan rss <- [l]
+                         , not (null raw)
+                         ]
 
 -- | Find the correct amount of whitespace between tokens.
 mkWhitespace :: RealSrcLoc -> SrcSpan -> (RealSrcLoc, Maybe T.Token)
-mkWhitespace prev spn
-    = case spn of
-        UnhelpfulSpan _ -> (prev,Nothing)
-        RealSrcSpan s   -> (end, Just (Token TkSpace wsstring wsspan))
-          where
-            start = realSrcSpanStart s
-            end = realSrcSpanEnd s
-            wsspan = mkRealSrcSpan prev start
-            nls = srcLocLine start - srcLocLine prev
-            spaces = if nls == 0 then srcLocCol start - srcLocCol prev
-                                 else srcLocCol start - 1
-            wsstring = replicate nls '\n' ++ replicate spaces ' '
+mkWhitespace prev spn =
+  case spn of
+    UnhelpfulSpan _ -> (prev,Nothing)
+    RealSrcSpan s | null wsstring -> (end, Nothing)
+                  | otherwise -> (end, Just (Token TkSpace wsstring wsspan))
+      where
+        start = realSrcSpanStart s
+        end = realSrcSpanEnd s
+        wsspan = mkRealSrcSpan prev start
+        nls = srcLocLine start - srcLocLine prev
+        spaces = if nls == 0 then srcLocCol start - srcLocCol prev
+                             else srcLocCol start - 1
+        wsstring = replicate nls '\n' ++ replicate spaces ' '
+
 
 -- | Classify given string as appropriate Haskell token.
 classify :: L.Token -> TokenType
@@ -195,7 +272,7 @@ classify tok =
     ITdarrow            {} -> TkGlyph
     ITminus                -> TkGlyph
     ITbang                 -> TkGlyph
-    ITdot                  -> TkGlyph
+    ITdot                  -> TkOperator
     ITtypeApp              -> TkGlyph
 
     ITbiglam               -> TkGlyph
@@ -214,7 +291,7 @@ classify tok =
     ITcubxparen            -> TkSpecial
     ITsemi                 -> TkSpecial
     ITcomma                -> TkSpecial
-    ITunderscore           -> TkSpecial
+    ITunderscore           -> TkIdentifier
     ITbackquote            -> TkSpecial
     ITsimpleQuote          -> TkSpecial
 
@@ -270,21 +347,22 @@ classify tok =
     ITeof                  -> TkUnknown
 
     -- Line comments are only supposed to start with '--'. Starting with '#'
-    -- means that this was probably a CPP that failed to parse.
-    ITlineComment  ('#':_) -> TkCpp
+    -- means that this was probably a CPP.
+    ITlineComment s
+      | isCPPline s        -> TkCpp
+      | otherwise          -> TkComment
 
     ITdocCommentNext    {} -> TkComment
     ITdocCommentPrev    {} -> TkComment
     ITdocCommentNamed   {} -> TkComment
     ITdocSection        {} -> TkComment
     ITdocOptions        {} -> TkComment
-    ITlineComment       {} -> TkComment
 
     -- The lexer considers top-level pragmas as comments (see `pragState` in
     -- the GHC lexer for more), so we have to manually reverse this. The
     -- following is a hammer: it smashes _all_ pragma-like block comments into
     -- pragmas.
-    ITblockComment      c
+    ITblockComment c
       | isPrefixOf "{-#" c
       , isSuffixOf "#-}" c -> TkPragma
       | otherwise          -> TkComment
