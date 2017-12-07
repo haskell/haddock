@@ -12,8 +12,8 @@ data Token = Token
     }
     deriving (Show)
 
-type Span = GHC.RealSrcSpan
 type Position = GHC.RealSrcLoc
+type Span = GHC.RealSrcSpan
 
 data TokenType
     = TkIdentifier
@@ -65,5 +65,3 @@ data SrcPath
 -- | Mapping from modules to cross-package source paths.
 type SrcMap = Map GHC.Module SrcPath
 
-mkSrcMap :: Map GHC.Module SrcPath -> SrcMap
-mkSrcMap srcs = srcs

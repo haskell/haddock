@@ -8,7 +8,6 @@ import qualified GHC
 import Control.Monad.IO.Class
 
 import Haddock (getGhcDirs)
--- import Haddock
 import Haddock.Backends.Hyperlinker.Parser
 import Haddock.Backends.Hyperlinker.Types
 

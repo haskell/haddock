@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP, TupleSections, BangPatterns, LambdaCase #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -Wwarn #-}
 -----------------------------------------------------------------------------
 -- |
@@ -1115,6 +1114,8 @@ mkMaybeTokenizedSrc dflags flags tm
 
 mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [RichToken]
 mkTokenizedSrc dflags ms src = do
+  -- make sure to read the whole file at once otherwise 
+  -- we run out of file descriptors (see #495)
   file <- force <$> readFile (filepath)
   return $ Hyperlinker.enrich src (Hyperlinker.parse dflags filepath file)
   where

@@ -52,10 +52,10 @@ type DetailsMap = Map.Map Position (Span, TokenDetails)
 
 mkDetailsMap :: [(GHC.SrcSpan, TokenDetails)] -> DetailsMap
 mkDetailsMap xs =
-  Map.fromListWith select_details [ (pos, (span, token_details))
+  Map.fromListWith select_details [ (start, (span, token_details))
                                   | (ghc_span, token_details) <- xs
                                   , GHC.RealSrcSpan span <- [ghc_span]
-                                  , let pos = SrcLoc.realSrcSpanStart span
+                                  , let start = SrcLoc.realSrcSpanStart span
                                   ]
   where
     -- favour token details which appear earlier in the list
@@ -65,7 +65,7 @@ lookupBySpan :: Span -> DetailsMap -> Maybe TokenDetails
 lookupBySpan span details = do
   let pos = SrcLoc.realSrcSpanStart span
   (_, (tok_span, tok_details)) <- Map.lookupLE pos details
-  guard (tok_span `SrcLoc.containsSpan` span )
+  guard (tok_span `SrcLoc.containsSpan` span)
   return tok_details
 
 enrichToken :: Token -> DetailsMap -> Maybe TokenDetails

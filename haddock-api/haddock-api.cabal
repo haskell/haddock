@@ -166,19 +166,18 @@ test-suite spec
     Haddock.Backends.Hyperlinker.Parser
     Haddock.Backends.Hyperlinker.Types
 
-  build-depends: base            ^>= 4.10.0
-               , Cabal           ^>= 2.0.0
-               , ghc             ^>= 8.2
+  build-depends: ghc             ^>= 8.2
                , ghc-paths       ^>= 0.1.0.9
                , haddock-library ^>= 1.4.6
                , xhtml           ^>= 3000.2.2
-               , hspec       ^>= 2.4.4
-               , QuickCheck  ^>= 2.10
+               , hspec           ^>= 2.4.4
+               , QuickCheck      ^>= 2.10
 
   -- Versions for the dependencies below are transitively pinned by
   -- the non-reinstallable `ghc` package and hence need no version
   -- bounds
-  build-depends: array
+  build-depends: base
+               , array
                , bytestring
                , containers
                , deepseq
