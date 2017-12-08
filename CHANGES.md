@@ -19,6 +19,9 @@
  * Fix: Generate constraint signatures for constructors exported as pattern
    synonyms (#663)
 
+ * The hyperlinker backend now uses the GHC lexer instead of a custom one.
+   This notably fixes rendering of quasiquotes.
+
 ## Changes in version 2.18.1
 
  * Synopsis is working again (#599)
