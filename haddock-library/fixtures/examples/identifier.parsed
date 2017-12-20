@@ -1,1 +1,1 @@
-DocAppend (DocIdentifier "foo") (DocString "\n")
+DocParagraph (DocIdentifier "foo")
