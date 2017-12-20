@@ -79,10 +79,10 @@ runFixtures :: [Fixture] -> IO ()
 runFixtures fixtures = do
     results <- for fixtures $ \(Fixture i o) -> do
         let name = takeBaseName i
-        input <- readFile i
-        let doc = parseString input
-        print doc
-        ediffGolden goldenFixture name o doc
+        let readDoc = do
+                input <- readFile i
+                return (parseString input)
+        ediffGolden goldenFixture name o readDoc
     case foldl' combineResults (Result 0 0) results of
         Result s t -> do
             putStrLn $ "Fixtures: success " ++ show s ++ "; total " ++ show t
