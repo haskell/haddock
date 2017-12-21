@@ -1,0 +1,15 @@
+DocParagraph
+  (DocString
+     (concat
+        ["+------------------------+------------+----------+----------+\n",
+         "| Header row, column 1   | Header 2   | Header 3 | Header 4 |\n",
+         "| (header rows optional) |            |          |          |\n",
+         "+========================+============+==========+==========+\n",
+         "| body row 1, column 1   | column 2   | column 3 | column 4 |\n",
+         "+------------------------+------------+----------+----------+\n",
+         "| body row 2             | Cells may span columns.          |\n",
+         "+------------------------+------------+---------------------+\n",
+         "| body row 3             | Cells may  | * Table cells cont. |\n",
+         "+------------------------+ span rows. |                     |\n",
+         "| body row 4             |            | * body elements.    |\n",
+         "+------------------------+------------+---------------------+"]))
