@@ -25,7 +25,7 @@ import           Control.Monad
 import qualified Data.ByteString.Char8 as BS
 import           Data.Char (chr, isAsciiUpper)
 import           Data.List (stripPrefix, intercalate, unfoldr)
-import           Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe, maybeToList)
 import           Data.Monoid
 import           Documentation.Haddock.Doc
 import           Documentation.Haddock.Parser.Monad hiding (take, endOfLine)
@@ -79,6 +79,7 @@ overIdentifier f d = g d
     g (DocProperty x) = DocProperty x
     g (DocExamples x) = DocExamples x
     g (DocHeader (Header l x)) = DocHeader . Header l $ g x
+    g (DocTable (Table h b)) = DocTable (Table (map (fmap g) h) (map (fmap g) b))
 
 parse :: Parser a -> BS.ByteString -> (ParserState, a)
 parse p = either err id . parseOnly (p <* endOfInput)
@@ -251,7 +252,7 @@ markdownImage = fromHyperlink <$> ("!" *> linkParser)
 
 -- | Paragraph parser, called by 'parseParas'.
 paragraph :: Parser (DocH mod Identifier)
-paragraph = examples <|> do
+paragraph = examples <|> table <|> do
   indent <- takeIndent
   choice
     [ since
@@ -266,6 +267,58 @@ paragraph = examples <|> do
     , docParagraph <$> textParagraph
     ]
 
+-- | Provides support for simple tables.
+--
+-- Tables are composed by an optional header and body. The header is composed by
+-- a single row. The body is composed by a non-empty list of rows.
+--
+-- Example table with header:
+--
+-- > +----------+----------+
+-- > | /32bit/  |   64bit  |
+-- > +==========+==========+
+-- > |  0x0000  | @0x0000@ |
+-- > +----------+----------+
+table :: Parser (DocH mod Identifier)
+table = do
+  parseTableRowDivider
+  mHeader <- maybeToList <$> optional parseTableHeader
+  content <- parseTableContent
+  return $ DocTable (Table mHeader content)
+
+parseTableHeader :: Parser (TableRow (DocH mod Identifier))
+parseTableHeader = parseTableRow <* parseTableHeaderDivider
+
+parseTableContent :: Parser [TableRow (DocH mod Identifier)]
+parseTableContent = many1 (parseTableRow <* parseTableRowDivider)
+
+parseTableRow :: Parser (TableRow (DocH mod Identifier))
+parseTableRow = skipHorizontalSpace *> (TableRow <$> manyTill columnValue endOfRow)
+  where
+    columnValue :: Parser (TableCell (DocH mod Identifier))
+    columnValue = TableCell 1 1 . parseStringBS . bsStrip <$> ("|" *> takeWhile_ (/= '|'))
+
+    endOfRow = "|" *> skipHorizontalSpace *> "\n"
+    bsStrip = bsDropWhile isSpace . bsDropWhileEnd isSpace
+    bsDropWhile c = snd . BS.span c
+    bsDropWhileEnd c = fst . BS.spanEnd c
+
+parseTableRowDivider :: Parser ()
+parseTableRowDivider = parseTableDivider "-"
+
+parseTableHeaderDivider :: Parser ()
+parseTableHeaderDivider = parseTableDivider "="
+
+parseTableDivider :: Parser BS.ByteString -> Parser ()
+parseTableDivider c = void $
+       skipHorizontalSpace
+    *> many1 (columnDivider c) *> "+"
+    *> skipHorizontalSpace *> "\n"
+  where
+    columnDivider :: Parser BS.ByteString -> Parser [BS.ByteString]
+    columnDivider d = "+" *> many1 d
+
+-- | Parse \@since annotations.
 since :: Parser (DocH mod a)
 since = ("@since " *> version <* skipHorizontalSpace <* endOfLine) >>= setSince >> return DocEmpty
   where
