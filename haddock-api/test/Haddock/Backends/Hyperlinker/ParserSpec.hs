@@ -57,7 +57,7 @@ parseSpec = around withDynFlags $ do
         property $ \src -> length (parse dflags "" src) `shouldSatisfy` (>= 0)
 
     it "retains file layout" $ \dflags ->
-        property $ \(NoTabs src) -> concatMap tkValue (parse dflags "" src) == src
+        property $ \(NoGhcRewrite src) -> concatMap tkValue (parse dflags "" src) == src
 
     context "when parsing single-line comments" $ do
 
