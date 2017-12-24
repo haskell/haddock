@@ -42,7 +42,7 @@ noGhcRewrite (' ':'\n':_) = False    -- GHC strips whitespace on empty lines
 noGhcRewrite (_:s) = noGhcRewrite s
 noGhcRewrite "" = True
 
-instance Arbitrary NoTabs where
+instance Arbitrary NoGhcRewrite where
   arbitrary = fmap NoGhcRewrite (arbitrary `suchThat` noGhcRewrite)
   shrink (NoGhcRewrite src) = [ NoGhcRewrite shrunk
                               | shrunk <- shrink src
