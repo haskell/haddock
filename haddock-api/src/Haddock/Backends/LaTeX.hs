@@ -644,7 +644,7 @@ ppDataDecl pats instances subdocs doc dataDecl unicode =
     patternBit
       | null pats = Nothing
       | otherwise = Just $ 
-          text "\\enspace" <+> emph (text "Patterns") <> text "\\par" $$
+          text "\\enspace" <+> emph (text "Bundled Patterns") <> text "\\par" $$
           text "\\haddockbeginconstrs" $$
           vcat [ empty <-> ppSideBySidePat lnames typ d unicode
                | (SigD (PatSynSig lnames typ), d) <- pats
