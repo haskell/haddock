@@ -469,7 +469,7 @@ conArgDocs :: ConDecl GhcRn -> Map Int HsDocString
 conArgDocs con = case getConArgs con of
                    PrefixCon args -> go 0 (map unLoc args ++ ret)
                    InfixCon arg1 arg2 -> go 0 ([unLoc arg1, unLoc arg2] ++ ret)
-                   RecCon _ -> M.empty
+                   RecCon _ -> go 1 ret
   where
     go n (HsDocTy _ (L _ ds) : tys) = M.insert n ds $ go (n+1) tys
     go n (_ : tys) = go (n+1) tys
