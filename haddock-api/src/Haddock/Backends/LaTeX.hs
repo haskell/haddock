@@ -115,6 +115,7 @@ ppLaTeXTop doctitle packageStr odir prologue maybe_style ifaces = do
   let tex = vcat [
         text "\\documentclass{book}",
         text "\\usepackage" <> braces (maybe (text "haddock") text maybe_style),
+        text "",
         text "\\begin{document}",
         text "\\begin{titlepage}",
         text "\\begin{haddocktitle}",
@@ -181,10 +182,12 @@ string_txt (LStr s1 _) s2 = unpackLitString s1 ++ s2
 
 exportListItem :: ExportItem DocName -> LaTeX
 exportListItem ExportDecl { expItemDecl = decl, expItemSubDocs = subdocs }
-  = sep (punctuate comma . map ppDocBinder $ declNames decl) <>
-     case subdocs of
-       [] -> empty
-       _  -> parens (sep (punctuate comma (map (ppDocBinder . fst) subdocs)))
+  = case declNames decl of
+      Just x -> sep (punctuate comma . map ppDocBinder $ x) <>
+        case subdocs of
+          [] -> empty
+          _  -> parens (sep (punctuate comma (map (ppDocBinder . fst) subdocs)))
+      Nothing -> empty
 exportListItem (ExportNoDecl y [])
   = ppDocBinder y
 exportListItem (ExportNoDecl y subs)
@@ -247,14 +250,24 @@ ppDocGroup lev doc = sec lev <> braces doc
         sec 3 = text "\\subsubsection"
         sec _ = text "\\paragraph"
 
+-- declNames :: LHsDecl DocName -> [DocName]
+-- declNames (L _ decl) = case decl of
+--   TyClD d  -> [tcdName d]
+--   SigD (TypeSig lnames _ ) -> map unLoc lnames
+--   SigD (PatSynSig lnames _) -> map unLoc lnames
+--   ForD (ForeignImport (L _ n) _ _ _) -> [n]
+--   ForD (ForeignExport (L _ n) _ _ _) -> [n]
+--   _ -> error "declaration not supported by declNames"
 
-declNames :: LHsDecl DocName -> [DocName]
+declNames :: LHsDecl DocName -> Maybe [DocName]
 declNames (L _ decl) = case decl of
-  TyClD d  -> [tcdName d]
-  SigD (TypeSig lnames _ ) -> map unLoc lnames
-  SigD (PatSynSig lnames _) -> map unLoc lnames
-  ForD (ForeignImport (L _ n) _ _ _) -> [n]
-  ForD (ForeignExport (L _ n) _ _ _) -> [n]
+  TyClD d  -> Just [tcdName d]
+  SigD (TypeSig lnames _ ) -> Just $ map unLoc lnames
+  SigD (PatSynSig lnames _) -> Just $ map unLoc lnames
+  ForD (ForeignImport (L _ n) _ _ _) -> Just $ [n]
+  ForD (ForeignExport (L _ n) _ _ _) -> Just $ [n]
+  InstD  _ -> Nothing
+  DerivD _ -> Nothing
   _ -> error "declaration not supported by declNames"
 
 
@@ -502,9 +515,10 @@ ppClassDecl instances loc doc subdocs
     body_
       | null lsigs, null ats, null at_defs = Nothing
       | null ats, null at_defs = Just methodTable
----     | otherwise = atTable $$ methodTable
-      | otherwise = error "LaTeX.ppClassDecl"
-
+      | otherwise = Just methodTable
+--     | otherwise = atTable $$ methodTable
+---      | otherwise = error "LaTeX.ppClassDecl"
+                    
     methodTable =
       text "\\haddockpremethods{}\\textbf{Methods}" $$
       vcat  [ ppFunSig loc doc names (hsSigWcType typ) unicode
