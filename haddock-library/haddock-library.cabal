@@ -41,6 +41,9 @@ library
     Documentation.Haddock.Parser.Monad
     Documentation.Haddock.Types
     Documentation.Haddock.Utf8
+    Documentation.Markdown.Types
+    Documentation.Markdown.Inline
+    Documentation.Markdown.Block
 
   other-modules:
     Documentation.Haddock.Parser.Util
