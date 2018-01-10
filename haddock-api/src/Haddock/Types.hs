@@ -480,6 +480,9 @@ instance NFData OccName where rnf x = seq x ()
 instance NFData ModuleName where rnf x = seq x ()
 #endif
 
+instance NFData id => NFData (CodeBlock id) where
+  rnf (CodeBlock a b) = a `deepseq` b `deepseq` ()
+
 instance NFData id => NFData (Header id) where
   rnf (Header a b) = a `deepseq` b `deepseq` ()
 

@@ -428,6 +428,15 @@ instance Binary DocOption where
               _ -> fail "invalid binary data found"
 
 
+instance Binary a => Binary (CodeBlock a) where
+    put_ bh (CodeBlock label doc) = do
+        put_ bh label
+        put_ bh doc
+    get bh = do
+        label <- get bh
+        doc <- get bh
+        return (CodeBlock label doc)
+
 instance Binary Example where
     put_ bh (Example expression result) = do
         put_ bh expression

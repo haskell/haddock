@@ -58,7 +58,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupUnorderedList        = unordList,
   markupOrderedList          = ordList,
   markupDefList              = defList,
-  markupCodeBlock            = pre,
+  markupCodeBlock            = \(CodeBlock _ d) -> pre d,
   markupHyperlink            = \(Hyperlink url mLabel)
                                -> if insertAnchors
                                   then anchor ! [href url]

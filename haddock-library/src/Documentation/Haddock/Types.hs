@@ -61,6 +61,11 @@ overDocF f d = (\x -> d { _doc = x }) <$> f (_doc d)
 
 type Version = [Int]
 
+data CodeBlock id = CodeBlock
+  { codeLabel :: Maybe String
+  , code      :: id
+  } deriving (Eq, Show, Functor, Foldable, Traversable)
+
 data Hyperlink = Hyperlink
   { hyperlinkUrl   :: String
   , hyperlinkLabel :: Maybe String
@@ -111,7 +116,7 @@ data DocH mod id
   | DocUnorderedList [DocH mod id]
   | DocOrderedList [DocH mod id]
   | DocDefList [(DocH mod id, DocH mod id)]
-  | DocCodeBlock (DocH mod id)
+  | DocCodeBlock (CodeBlock (DocH mod id))
   | DocHyperlink Hyperlink
   | DocPic Picture
   | DocMathInline String
@@ -139,7 +144,7 @@ instance Bifunctor DocH where
   bimap f g (DocUnorderedList docs) = DocUnorderedList (map (bimap f g) docs)
   bimap f g (DocOrderedList docs) = DocOrderedList (map (bimap f g) docs)
   bimap f g (DocDefList docs) = DocDefList (map (bimap f g *** bimap f g) docs)
-  bimap f g (DocCodeBlock doc) = DocCodeBlock (bimap f g doc)
+  bimap f g (DocCodeBlock (CodeBlock lbl doc)) = DocCodeBlock (CodeBlock lbl (bimap f g doc))
   bimap _ _ (DocHyperlink hyperlink) = DocHyperlink hyperlink
   bimap _ _ (DocPic picture) = DocPic picture
   bimap _ _ (DocMathInline s) = DocMathInline s
@@ -164,7 +169,7 @@ instance Bifoldable DocH where
   bifoldr f g z (DocUnorderedList docs) = foldr (flip (bifoldr f g)) z docs
   bifoldr f g z (DocOrderedList docs) = foldr (flip (bifoldr f g)) z docs
   bifoldr f g z (DocDefList docs) = foldr (\(l, r) acc -> bifoldr f g (bifoldr f g acc l) r) z docs
-  bifoldr f g z (DocCodeBlock doc) = bifoldr f g z doc
+  bifoldr f g z (DocCodeBlock (CodeBlock _ doc)) = bifoldr f g z doc
   bifoldr f g z (DocHeader (Header _ title)) = bifoldr f g z title
   bifoldr f g z (DocTable (Table header body)) = foldr (\r acc -> foldr (flip (bifoldr f g)) acc r) (foldr (\r acc -> foldr (flip (bifoldr f g)) acc r) z body) header
   bifoldr _ _ z _ = z
@@ -184,7 +189,7 @@ instance Bitraversable DocH where
   bitraverse f g (DocUnorderedList docs) = DocUnorderedList <$> traverse (bitraverse f g) docs
   bitraverse f g (DocOrderedList docs) = DocOrderedList <$> traverse (bitraverse f g) docs
   bitraverse f g (DocDefList docs) = DocDefList <$> traverse (bitraverse (bitraverse f g) (bitraverse f g)) docs
-  bitraverse f g (DocCodeBlock doc) = DocCodeBlock <$> bitraverse f g doc
+  bitraverse f g (DocCodeBlock (CodeBlock lbl doc)) = (DocCodeBlock . CodeBlock lbl) <$> bitraverse f g doc
   bitraverse _ _ (DocHyperlink hyperlink) = pure (DocHyperlink hyperlink)
   bitraverse _ _ (DocPic picture) = pure (DocPic picture)
   bitraverse _ _ (DocMathInline s) = pure (DocMathInline s)
@@ -219,7 +224,7 @@ data DocMarkupH mod id a = Markup
   , markupUnorderedList        :: [a] -> a
   , markupOrderedList          :: [a] -> a
   , markupDefList              :: [(a,a)] -> a
-  , markupCodeBlock            :: a -> a
+  , markupCodeBlock            :: CodeBlock a -> a
   , markupHyperlink            :: Hyperlink -> a
   , markupAName                :: String -> a
   , markupPic                  :: Picture -> a

@@ -16,13 +16,13 @@ import Data.List (stripPrefix, dropWhileEnd, intercalate)
 import Documentation.Haddock.Types
 import Documentation.Markdown.Inline
 import qualified Data.ByteString.Char8 as BS
-
+import Documentation.Haddock.Doc (docConcat)
 
 markdown :: String -> DocH a b
-markdown = foldMap blockToDoc . processBlocks . toBlocks'
+markdown = docConcat . map blockToDoc . processBlocks . toBlocks'
   where
   processBlocks :: [Block String] -> [Block (DocH a b)]
-  processBlocks = map (fmap (foldMap inlineToDoc))
+  processBlocks = map (fmap (docConcat . map inlineToDoc))
                 . map (fmap (concatMap (toInline Map.empty . BS.pack)))
                 . map toBlockLines
 
@@ -97,6 +97,9 @@ start' (t : ts) = case lineType t of
   LineCode t' ->
     let (ls, ts') = spanIndented 4 ts
     in Right (BlockCode Nothing (intercalate "\n" (t' : ls))) : start' ts'
+  LineFenced n desc -> do
+    let (ls, ts') = spanFence n
+    in Right (BlockCode (Just desc) (intercalate "\n" (t' : ls))) : start' ts'
   LineBlockQuote t' ->
     let (ls, ts') = spanQuotes ts
         blocks = toBlocksLines' (t' : ls)
@@ -124,23 +127,7 @@ start' (t : ts) = case lineType t of
                 
                         (ls, ts') = span (\x -> isNonPara (lineType x) || listStartIndent x) ts
                     in Right (BlockPara $ intercalate "\n" $ t' : ls) : start' ts'
-
- -- LineFenced term fh -> error "TODO"
- {-
-    go (LineFenced term fh) = do
-        (finished, ls) <- takeTillConsume (== term)
-        case finished of
-            Just _ -> do
-                let block =
-                        case fh of
-                            FHRaw fh' -> fh' $ T.intercalate "\n" ls
-                            FHParsed fh' -> fh' $ runIdentity $ mapM_ yield ls $$ toBlocksLines ms =$ CL.consume
-                mapM_ (yield . Right) block
-            Nothing -> mapM_ leftover (reverse $ T.cons ' ' t : ls)
-        -}
-
-
-
+ 
   LineList ltype t' -> case fmap lineType (listToMaybe ts) of
     
     -- If the next line is a non-indented text line, then we have a lazy list.
@@ -173,7 +160,7 @@ data Blank = Blank
 
 data LineType = LineList ListType String
               | LineCode String
-           --   | LineFenced String FencedHandler -- ^ terminator, language
+              | LineFence !Int {- fence length -} String {- description -}
               | LineBlockQuote String
               | LineHeading Int String
               | LineBlank
@@ -186,7 +173,7 @@ data LineType = LineList ListType String
 lineType :: String -> LineType
 lineType t
     | null $ strip t = LineBlank
-  --  | Just (term, fh) <- getFenced (Map.toList $ msFencedHandlers ms) t = LineFenced term fh
+    | Just t' <- stripPrefix "```" = let (f, desc) = span (== '`') t' in LineFence (length f + 3) (strip desc)
     | Just t' <- stripPrefix "> " t = LineBlockQuote t'
     | Just (level, t') <- stripHeading t = LineHeading level t'
     | Just t' <- stripPrefix "    " t = LineCode t'
@@ -195,10 +182,6 @@ lineType t
     | Just (name, dest) <- getReference t = LineReference name dest
     | otherwise = LineText t
   where
-    getFenced [] _ = Nothing
-    getFenced ((x, fh):xs) t'
-        | Just rest <- stripPrefix x t' = Just (x, fh $ strip rest)
-        | otherwise = getFenced xs t'
 
     isRule :: String -> Bool
     isRule =
@@ -291,5 +274,16 @@ spanQuotes = go []
   go acc (">" : rest) = go ("" : acc) rest
   go acc (t   : rest)
     | Just t' <- stripPrefix "> " t = go (t' : acc) rest
-    | otherwise = go (t:acc) rest
+    | otherwise = go (t : acc) rest
 
+
+spanFence :: Int       -- ^ minimum close fence length
+          -> [String]  -- ^ input
+          -> ([String], [String])
+spanFence n = go []
+  where
+  go :: [String] -> [String] -> ([String], [String])
+  go acc [] = (reverse acc, [])
+  go acc (t : rest)
+    | all (== '`') t, length t > n = (reverse acc, rest)
+    | otherwise = go (t : acc) rest

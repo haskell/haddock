@@ -87,6 +87,8 @@ inline refs =
     doubleCodeSpace = InlineCode <$> (string "`` " *> manyTill anyChar (string " ``"))
     doubleCode = InlineCode <$> (string "``" *> manyTill anyChar (string "``"))
     code = InlineCode . BS.unpack  <$> (char '`' *> takeWhile1 (/= '`') <* char '`')
+    
+    dollarMath = InlineMath True <$> (char '$' *> (\c s -> satsify (not . isSpace) <*> manyTill
 
     footnoteRef = InlineFootnoteRef <$> (char '{' *> decimal <* char '}')
     footnote = InlineFootnote <$> (string "{^" *> decimal <* char '}')

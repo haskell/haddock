@@ -75,7 +75,7 @@ overIdentifier f d = g d
     g (DocUnorderedList x) = DocUnorderedList $ fmap g x
     g (DocOrderedList x) = DocOrderedList $ fmap g x
     g (DocDefList x) = DocDefList $ fmap (\(y, z) -> (g y, g z)) x
-    g (DocCodeBlock x) = DocCodeBlock $ g x
+    g (DocCodeBlock (CodeBlock l x)) = DocCodeBlock . CodeBlock l $ g x
     g (DocHyperlink x) = DocHyperlink x
     g (DocPic x) = DocPic x
     g (DocMathInline x) = DocMathInline x
@@ -622,7 +622,11 @@ takeIndent = do
 -- >> baz
 --
 birdtracks :: Parser (DocH mod a)
-birdtracks = DocCodeBlock . DocString . intercalate "\n" . stripSpace <$> many1 line
+birdtracks = DocCodeBlock
+           . CodeBlock Nothing
+           . DocString
+           . intercalate "\n"
+           . stripSpace <$> many1 line
   where
     line = skipHorizontalSpace *> ">" *> takeLine
 
@@ -686,7 +690,7 @@ property = DocProperty . strip . decodeUtf8 <$> ("prop>" *> takeWhile1 (/= '\n')
 -- for markup.
 codeblock :: Parser (DocH mod Identifier)
 codeblock =
-  DocCodeBlock . parseStringBS . dropSpaces
+  DocCodeBlock . CodeBlock Nothing . parseStringBS . dropSpaces
   <$> ("@" *> skipHorizontalSpace *> "\n" *> block' <* "@")
   where
     dropSpaces xs =

@@ -4,7 +4,7 @@ module Documentation.Markdown.Types where
 import Documentation.Haddock.Types
 import Data.List (dropWhileEnd)
 import Data.Char (isSpace)
-import Data.Semigroup
+import Documentation.Haddock.Doc (docConcat)
 
 data ListType = Ordered | Unordered
   deriving (Show, Eq)
@@ -39,12 +39,13 @@ data Inline = InlineText String
             | InlineImage String (Maybe String) String -- ^ URL, title, content
             | InlineFootnoteRef Integer -- ^ The footnote reference in the body
             | InlineFootnote Integer
+            | InlineMath Bool String -- ^ is inline or display, content
     deriving (Show, Eq)
 
 inlineToDoc :: Inline -> DocH a b 
 inlineToDoc (InlineText str) = DocString str
-inlineToDoc (InlineItalic is) = DocEmphasis (foldMap inlineToDoc is)
-inlineToDoc (InlineBold is) = DocBold (foldMap inlineToDoc is)
+inlineToDoc (InlineItalic is) = DocEmphasis (docConcat (map inlineToDoc is))
+inlineToDoc (InlineBold is) = DocBold (docConcat (map inlineToDoc is))
 inlineToDoc (InlineCode str) = DocMonospaced (DocString str)
 inlineToDoc (InlineLink url title _) = DocHyperlink (Hyperlink url title)
 inlineToDoc (InlineImage url title _) = DocPic (Picture url title)
@@ -52,18 +53,11 @@ inlineToDoc _ = error "unimplemented"
 
 blockToDoc :: Block (DocH a b) -> DocH a b
 blockToDoc (BlockPara d) = DocParagraph d
-blockToDoc (BlockCode _ c) = DocCodeBlock (DocString c)
+blockToDoc (BlockCode l c) = DocCodeBlock (CodeBlock l (DocString c))
 blockToDoc (BlockHeading lvl d) = DocHeader (Header lvl d)
 blockToDoc (BlockPlainText d) = d
 blockToDoc _ = error "unimplemented"
 
-
-instance Semigroup (DocH a b) where
-  (<>) = DocAppend
-
-instance Monoid (DocH a b) where
-  mempty = DocEmpty
-  mappend = (<>)
 
 stripEnd :: String -> String
 stripEnd = dropWhileEnd isSpace
