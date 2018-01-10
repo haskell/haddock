@@ -37,7 +37,8 @@ import           Prelude hiding (takeWhile)
 import qualified Prelude as P
 
 
-import Documentation.Markdown.Block (markdown)
+import Documentation.Markdown.Parse (markdown)
+import Documentation.Markdown.Types (docToDoc)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -97,7 +98,7 @@ parseParas :: String -- ^ String to parse
            -> MetaDoc mod Identifier
 parseParas input = case parseParasState input of
   (state, a) -> MetaDoc { _meta = Meta { _version = parserStateSince state }
-                        , _doc = markdown input
+                        , _doc = docToDoc (markdown input)
                         }
 
 parseParasState :: String -> (ParserState, DocH mod Identifier)
