@@ -412,6 +412,8 @@ instance Binary DocOption where
             putByte bh 3
     put_ bh OptShowExtensions = do
             putByte bh 4
+    put_ bh OptMarkdown = do
+            putByte bh 5
     get bh = do
             h <- getByte bh
             case h of
@@ -425,6 +427,8 @@ instance Binary DocOption where
                     return OptNotHome
               4 -> do
                     return OptShowExtensions
+              5 -> do
+                    return OptMarkdown
               _ -> fail "invalid binary data found"
 
 
@@ -446,7 +450,7 @@ instance Binary Example where
         result <- get bh
         return (Example expression result)
 
-instance Binary Hyperlink where
+instance Binary a => Binary (Hyperlink a) where
     put_ bh (Hyperlink url label) = do
         put_ bh url
         put_ bh label
@@ -585,6 +589,9 @@ instance (Binary mod, Binary id) => Binary (DocH mod id) where
     put_ bh (DocTable x) = do
             putByte bh 23
             put_ bh x
+    put_ bh (DocBlockQuote al) = do
+            putByte bh 24
+            put_ bh al
 
     get bh = do
             h <- getByte bh
@@ -661,6 +668,9 @@ instance (Binary mod, Binary id) => Binary (DocH mod id) where
               23 -> do
                     x <- get bh
                     return (DocTable x)
+              24 -> do
+                    x <- get bh
+                    return (DocBlockQuote x)
               _ -> error "invalid binary data found in the interface file"
 
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Documentation.Markdown.Inlines (
         parseInlines
       , pHtmlTag
@@ -148,6 +147,7 @@ pInline :: ReferenceMap -> Parser Inlines
 pInline refmap =
            pAsciiStr
        <|> pSpace
+       <|> pMath
        <|> pEnclosure '*' refmap  -- strong/emph
        <|> (notAfter isAlphaNum *> pEnclosure '_' refmap)
        <|> pCode
@@ -245,7 +245,7 @@ pUri scheme = do
   guard $ not $ null x
   let (rawuri, endingpunct) =
         case last x of
-             c | c `elem` (".;?!:," :: String) ->
+             c | c `elem` ".;?!:," ->
                (scheme <> ":" <> L.init x, singleton (Str (pure c)))
              _ -> (scheme <> ":" <> x, mempty)
   return $ autoLink rawuri <> endingpunct
@@ -272,6 +272,25 @@ uriScanner st '+' = Just st
 uriScanner st '/' = Just st
 uriScanner _ c | isSpace c = Nothing
 uriScanner st _ = Just st
+
+
+pMath :: Parser Inlines
+pMath = do
+
+  -- First/last characters between '$' are non-space
+  char '$'
+  f <- peekChar
+  guard (maybe True (not . isSpace) f)
+  str <- many (satisfy (/= '$'))
+  l <- peekLastChar
+  guard (maybe False (not . isSpace) l)
+  char '$'
+  
+  -- The last '$' is not followed by a digit
+  n <- peekChar
+  guard (maybe True (not . isDigit) n)
+
+  pure (singleton (Math str))
 
 -- Parses material enclosed in *s, **s, _s, or __s.
 -- Designed to avoid backtracking.

@@ -77,7 +77,8 @@ overIdentifier f d = g d
     g (DocOrderedList x) = DocOrderedList $ fmap g x
     g (DocDefList x) = DocDefList $ fmap (\(y, z) -> (g y, g z)) x
     g (DocCodeBlock (CodeBlock l x)) = DocCodeBlock . CodeBlock l $ g x
-    g (DocHyperlink x) = DocHyperlink x
+    g (DocBlockQuote x) = DocBlockQuote (g x)
+    g (DocHyperlink (Hyperlink u x)) = DocHyperlink . Hyperlink u $ fmap g x
     g (DocPic x) = DocPic x
     g (DocMathInline x) = DocMathInline x
     g (DocMathDisplay x) = DocMathDisplay x
@@ -254,7 +255,7 @@ mathDisplay = DocMathDisplay . decodeUtf8
 markdownImage :: Parser (DocH mod a)
 markdownImage = fromHyperlink <$> ("!" *> linkParser)
   where
-    fromHyperlink (Hyperlink url label) = DocPic (Picture url label)
+    fromHyperlink (Hyperlink url label) = DocPic (Picture url (fmap (\(DocString l) -> l) label))
 
 -- | Paragraph parser, called by 'parseParas'.
 paragraph :: Parser (DocH mod Identifier)
@@ -725,7 +726,7 @@ codeblock =
           | otherwise = Just $ c == '\n'
 
 hyperlink :: Parser (DocH mod a)
-hyperlink = DocHyperlink . makeLabeled Hyperlink . decodeUtf8
+hyperlink = DocHyperlink . makeLabeled (\u d -> Hyperlink u (fmap DocString d)) . decodeUtf8
               <$> disallowNewline ("<" *> takeUntil ">")
             <|> autoUrl
             <|> markdownLink
@@ -733,8 +734,8 @@ hyperlink = DocHyperlink . makeLabeled Hyperlink . decodeUtf8
 markdownLink :: Parser (DocH mod a)
 markdownLink = DocHyperlink <$> linkParser
 
-linkParser :: Parser Hyperlink
-linkParser = flip Hyperlink <$> label <*> (whitespace *> url)
+linkParser :: Parser (Hyperlink (DocH mod a))
+linkParser = flip Hyperlink <$> (fmap DocString <$> label) <*> (whitespace *> url)
   where
     label :: Parser (Maybe String)
     label = Just . strip . decode <$> ("[" *> takeUntil "]")

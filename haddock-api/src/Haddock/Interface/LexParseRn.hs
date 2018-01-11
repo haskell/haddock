@@ -131,9 +131,10 @@ rename dflags gre = rn
       DocOrderedList docs -> DocOrderedList <$> traverse rn docs
       DocDefList list -> DocDefList <$> traverse (\(a, b) -> (,) <$> rn a <*> rn b) list
       DocCodeBlock (CodeBlock lbl doc) -> DocCodeBlock . CodeBlock lbl <$> rn doc
+      DocBlockQuote doc -> DocBlockQuote <$> rn doc
       DocIdentifierUnchecked x -> pure (DocIdentifierUnchecked x)
       DocModule str -> pure (DocModule str)
-      DocHyperlink l -> pure (DocHyperlink l)
+      DocHyperlink (Hyperlink url doc) -> DocHyperlink . Hyperlink url <$> traverse rn doc
       DocPic str -> pure (DocPic str)
       DocMathInline str -> pure (DocMathInline str)
       DocMathDisplay str -> pure (DocMathDisplay str)

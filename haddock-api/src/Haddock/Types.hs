@@ -463,6 +463,7 @@ instance (NFData a, NFData mod)
     DocOrderedList a          -> a `deepseq` ()
     DocDefList a              -> a `deepseq` ()
     DocCodeBlock a            -> a `deepseq` ()
+    DocBlockQuote a           -> a `deepseq` ()
     DocHyperlink a            -> a `deepseq` ()
     DocPic a                  -> a `deepseq` ()
     DocMathInline a           -> a `deepseq` ()
@@ -486,7 +487,7 @@ instance NFData id => NFData (CodeBlock id) where
 instance NFData id => NFData (Header id) where
   rnf (Header a b) = a `deepseq` b `deepseq` ()
 
-instance NFData Hyperlink where
+instance NFData id => NFData (Hyperlink id) where
   rnf (Hyperlink a b) = a `deepseq` b `deepseq` ()
 
 instance NFData Picture where
@@ -548,6 +549,7 @@ data DocOption
   | OptNotHome         -- ^ Not the best place to get docs for things
                        -- exported by this module.
   | OptShowExtensions  -- ^ Render enabled extensions for this module.
+  | OptMarkdown        -- ^ Expect documentation to be in the Markdown format
   deriving (Eq, Show)
 
 

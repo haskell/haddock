@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Documentation.Markdown.Parse (
          markdown
        ) where
@@ -79,12 +78,17 @@ data ContainerType = Document
                    | ListItem { markerColumn :: Int
                               , padding      :: Int
                               , listType     :: ListType }
+                   | Definition { markerColumn :: Int
+                                , defined :: String }
                    | FencedCode { startColumn :: Int
                                 , fence :: String
                                 , info :: String }
                    | IndentedCode
                    | RawHtmlBlock
                    | Reference
+                   -- TODO: defintions
+                   --       examples
+                   --       property list
                    deriving (Eq, Show)
 
 instance Show Container where
@@ -457,7 +461,7 @@ leaf lastLineIsText = scanNonindentSpace *> (
    <|> (Rule <$ scanHRuleLine)
    <|> textLineOrBlank
   )
-  where removeATXSuffix t = case L.dropWhileEnd (`elem` (" #" :: String)) t of
+  where removeATXSuffix t = case L.dropWhileEnd (`elem` " #") t of
                                  t' | null t' -> t'
                                       -- an escaped \#
                                     | last t' == '\\' -> t' <> "#"

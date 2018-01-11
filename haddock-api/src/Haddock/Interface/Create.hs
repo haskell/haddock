@@ -297,6 +297,7 @@ parseOption "prune"           = return (Just OptPrune)
 parseOption "ignore-exports"  = return (Just OptIgnoreExports)
 parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
+parseOption "markdown"        = return (Just OptMarkdown)
 parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
 
 

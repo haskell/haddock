@@ -1135,7 +1135,8 @@ parLatexMarkup ppId = Markup {
   markupOrderedList          = \p v -> enumeratedList (map ($v) p) $$ text "",
   markupDefList              = \l v -> descriptionList (map (\(a,b) -> (a v, b v)) l),
   markupCodeBlock            = \(CodeBlock _ p) _ -> quote (verb (p Verb)) $$ text "",
-  markupHyperlink            = \l _ -> markupLink l,
+  markupBlockQuote           = \p v -> quote (p v), 
+  markupHyperlink            = \l v -> markupLink (fmap ($v) l),
   markupAName                = \_ _ -> empty,
   markupProperty             = \p _ -> quote $ verb $ text p,
   markupExample              = \e _ -> quote $ verb $ text $ unlines $ map exampleToString e,
@@ -1156,7 +1157,7 @@ parLatexMarkup ppId = Markup {
     fixString Mono  s = latexMonoFilter s
 
     markupLink (Hyperlink url mLabel) = case mLabel of
-      Just label -> text "\\href" <> braces (text url) <> braces (text label)
+      Just label -> text "\\href" <> braces (text url) <> braces label
       Nothing    -> text "\\url"  <> braces (text url)
 
     -- Is there a better way of doing this? Just a space is an aribtrary choice.

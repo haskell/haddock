@@ -59,11 +59,12 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupOrderedList          = ordList,
   markupDefList              = defList,
   markupCodeBlock            = \(CodeBlock _ d) -> pre d,
+  markupBlockQuote           = blockquote,
   markupHyperlink            = \(Hyperlink url mLabel)
-                               -> if insertAnchors
-                                  then anchor ! [href url]
-                                       << fromMaybe url mLabel
-                                  else toHtml $ fromMaybe url mLabel,
+                               -> let u = fromMaybe (toHtml url) (fmap toHtml mLabel)
+                                  in if insertAnchors
+                                       then anchor ! [href url] << u
+                                       else u,
   markupAName                = \aname
                                -> if insertAnchors
                                   then namedAnchor aname << ""
