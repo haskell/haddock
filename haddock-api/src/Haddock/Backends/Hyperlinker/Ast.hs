@@ -112,6 +112,8 @@ binds = everythingInRenamedSource
     fun term = case cast term of
         (Just (GHC.FunBind _ (GHC.L sspan name) _ _ _ :: GHC.HsBind GHC.GhcRn)) ->
             pure (sspan, RtkBind name)
+        (Just (GHC.PatSynBind _ (GHC.PSB _ (GHC.L sspan name) _ _ _))) ->
+            pure (sspan, RtkBind name)
         _ -> empty
     pat term = case cast term of
         (Just ((GHC.L sspan (GHC.VarPat _ name)) :: GHC.LPat GHC.GhcRn)) ->
@@ -149,6 +151,8 @@ decls (group, _, _, _) = concatMap ($ group)
     fun term = case cast term of
         (Just (GHC.FunBind _ (GHC.L sspan name) _ _ _ :: GHC.HsBind GHC.GhcRn))
             | GHC.isExternalName name -> pure (sspan, RtkDecl name)
+        (Just (GHC.PatSynBind _ (GHC.PSB _ (GHC.L sspan name) _ _ _)))
+            | GHC.isExternalName name -> pure (sspan, RtkDecl name)
         _ -> empty
     con term = case cast term of
         (Just (cdcl :: GHC.ConDecl GHC.GhcRn)) ->
@@ -167,6 +171,7 @@ decls (group, _, _, _) = concatMap ($ group)
           -> map (decl . fmap GHC.extFieldOcc) $ GHC.cd_fld_names field
         Nothing -> empty
     sig (GHC.L _ (GHC.TypeSig _ names _)) = map decl names
+    sig (GHC.L _ (GHC.PatSynSig _ names _)) = map decl names
     sig _ = []
     decl (GHC.L sspan name) = (sspan, RtkDecl name)
     tyref (GHC.L sspan name) = (sspan, RtkType name)
@@ -185,10 +190,11 @@ imports src@(_, imps, _, _) =
         (Just (GHC.IEThingAll _ t)) -> pure $ typ $ GHC.ieLWrappedName t
         (Just (GHC.IEThingWith _ t _ vs _fls)) ->
           [typ $ GHC.ieLWrappedName t] ++ map (var . GHC.ieLWrappedName) vs
+        (Just (GHC.IEModuleContents _ m)) -> pure $ modu m
         _ -> empty
     typ (GHC.L sspan name) = (sspan, RtkType name)
     var (GHC.L sspan name) = (sspan, RtkVar name)
-    imp idecl | not . GHC.ideclImplicit $ idecl =
-        let (GHC.L sspan name) = GHC.ideclName idecl
-        in Just (sspan, RtkModule name)
-    imp _ = Nothing
+    modu (GHC.L sspan name) = (sspan, RtkModule name)
+    imp idecl
+      | not . GHC.ideclImplicit $ idecl = Just (modu (GHC.ideclName idecl))
+      | otherwise = Nothing

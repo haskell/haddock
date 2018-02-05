@@ -404,9 +404,6 @@ inPragma False tok =
     IToptions_prag      {} -> True
     ITinclude_prag      {} -> True
     ITlanguage_prag        -> True
-    ITvect_prag         {} -> True
-    ITvect_scalar_prag  {} -> True
-    ITnovect_prag       {} -> True
     ITminimal_prag      {} -> True
     IToverlappable_prag {} -> True
     IToverlapping_prag  {} -> True
