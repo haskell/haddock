@@ -582,21 +582,21 @@ filterDecls = filter (isHandled . unL . fst)
 expandSigDecls :: [LHsDecl name] -> [LHsDecl name]
 expandSigDecls = concatMap f
   where
-    f (L l (SigD sig))              = [ L l (SigD s) | s <- expandSig sig ]
+    f (L l (SigD x sig))              = [ L l (SigD x s) | s <- expandSig sig ]
 
     -- also expand type signatures for class methods
-    f (L l (TyClD cls@ClassDecl{})) =
-      [ L l (TyClD cls { tcdSigs = concatMap expandLSig (tcdSigs cls) }) ]
+    f (L l (TyClD x cls@ClassDecl{})) =
+      [ L l (TyClD x cls { tcdSigs = concatMap expandLSig (tcdSigs cls) }) ]
     f x = [x]
 
 expandLSig :: LSig name -> [LSig name]
 expandLSig (L l sig) = [ L l s | s <- expandSig sig ]
 
 expandSig :: Sig name -> [Sig name]
-expandSig (TypeSig names t)      = [ TypeSig [n] t      | n <- names ]
-expandSig (ClassOpSig b names t) = [ ClassOpSig b [n] t | n <- names ]
-expandSig (PatSynSig names t)    = [ PatSynSig [n] t    | n <- names ]
-expandSig x                      = [x]
+expandSig (TypeSig x names t)      = [ TypeSig x [n] t      | n <- names ]
+expandSig (ClassOpSig x b names t) = [ ClassOpSig x b [n] t | n <- names ]
+expandSig (PatSynSig x names t)    = [ PatSynSig x [n] t    | n <- names ]
+expandSig x                        = [x]
 
 -- | Go through all class declarations and filter their sub-declarations
 filterClasses :: [(LHsDecl a, doc)] -> [(LHsDecl a, doc)]
@@ -663,8 +663,9 @@ mkExportItems
   instIfaceMap dflags =
   case exportList of
     Nothing      ->
-      fullModuleContents is_sig modMap thisMod semMod warnings exportedNames
-        decls maps fixMap splices instIfaceMap dflags allExports
+      fullModuleContents is_sig modMap thisMod semMod warnings gre
+        exportedNames decls maps fixMap splices instIfaceMap dflags
+        allExports
     Just exports -> liftM concat $ mapM lookupExport exports
   where
     lookupExport (IEGroup _ lev docStr, _)  = liftErrMsg $ do
@@ -1001,6 +1002,7 @@ fullModuleContents :: Bool               -- is it a signature
                    -> Module             -- this module
                    -> Module             -- semantic module
                    -> WarningMap
+                   -> GlobalRdrEnv      -- ^ The renaming environment
                    -> [Name]             -- exported names (orig)
                    -> [LHsDecl GhcRn]    -- renamed source declarations
                    -> Maps
@@ -1010,10 +1012,11 @@ fullModuleContents :: Bool               -- is it a signature
                    -> DynFlags
                    -> Avails
                    -> ErrMsgGhc [ExportItem GhcRn]
-fullModuleContents is_sig modMap thisMod semMod warnings exportedNames
+fullModuleContents is_sig modMap thisMod semMod warnings gre exportedNames
   decls maps@(_, _, declMap, _) fixMap splices instIfaceMap dflags avails = do
   let availEnv = availsToNameEnv (nubAvails avails)
   (concat . concat) `fmap` (for decls $ \decl -> do
+{-
     for (getMainDeclBinder (unLoc decl)) $ \nm -> do
       case lookupNameEnv availEnv nm of
         Just avail
@@ -1027,6 +1030,26 @@ fullModuleContents is_sig modMap thisMod semMod warnings exportedNames
                semMod warnings exportedNames maps fixMap
                splices instIfaceMap dflags avail
         Nothing -> pure [])
+-}
+    case decl of
+      (L _ (DocD _ (DocGroup lev docStr))) -> do
+        doc <- liftErrMsg (processDocString dflags gre docStr)
+        return [[ExportGroup lev "" doc]]
+      (L _ (DocD _ (DocCommentNamed _ docStr))) -> do
+        doc <- liftErrMsg (processDocStringParas dflags gre docStr)
+        return [[ExportDoc doc]]
+      (L _ (ValD _ valDecl))
+        | name:_ <- collectHsBindBinders valDecl
+        , Just (L _ SigD{}:_) <- filter isSigD <$> M.lookup name declMap
+        -> return []
+      _ ->
+        for (getMainDeclBinder (unLoc decl)) $ \nm -> do
+          case lookupNameEnv availEnv nm of
+            Just avail ->
+              availExportItem is_sig modMap thisMod
+                semMod warnings exportedNames maps fixMap
+                splices instIfaceMap dflags avail
+            Nothing -> pure [])
   where
     isSigD (L _ SigD{}) = True
     isSigD _            = False
