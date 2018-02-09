@@ -34,14 +34,18 @@ module Haddock.Options (
   reexportFlags,
   readIfaceArgs,
   optPackageName,
-  optPackageVersion
+  optPackageVersion,
+  modulePackageInfo
 ) where
 
 
 import qualified Data.Char as Char
 import           Data.Version
+import           Control.Applicative
+import           Control.Arrow ( (&&&) )
 import           Distribution.Verbosity
 import           FastString
+import           GHC ( DynFlags, Module, moduleUnitId )
 import           Haddock.Types
 import           Haddock.Utils
 import           Packages
@@ -344,3 +348,21 @@ readIfaceArgs flags = [ parseIfaceOption s | Flag_ReadInterface s <- flags ]
 optLast :: [a] -> Maybe a
 optLast [] = Nothing
 optLast xs = Just (last xs)
+
+
+-- | This function has a potential to return 'Nothing' because package name and
+-- versions can no longer reliably be extracted in all cases: if the package is
+-- not installed yet then this info is no longer available.
+--
+-- The @--package-name@ and @--package-version@ Haddock flags allow the user to
+-- specify this information manually and it is returned here if present.
+modulePackageInfo :: DynFlags
+                  -> [Flag] -- ^ Haddock flags are checked as they may contain
+                            -- the package name or version provided by the user
+                            -- which we prioritise
+                  -> Module
+                  -> Maybe (PackageName, Data.Version.Version)
+modulePackageInfo dflags flags modu = cmdline <|> pkgDb
+  where
+    cmdline = (,) <$> optPackageName flags <*> optPackageVersion flags
+    pkgDb = (packageName &&& packageVersion) <$> lookupPackage dflags (moduleUnitId modu)

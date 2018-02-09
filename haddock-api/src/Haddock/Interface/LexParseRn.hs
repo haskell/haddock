@@ -53,15 +53,15 @@ processDocString :: DynFlags -> GlobalRdrEnv -> HsDocString -> ErrMsgM (Doc Name
 processDocString dflags gre (HsDocString fs) =
   rename dflags gre $ parseString dflags (unpackFS fs)
 
-processModuleHeader :: DynFlags -> GlobalRdrEnv -> SafeHaskellMode -> Maybe LHsDocString
+processModuleHeader :: DynFlags -> Maybe Package -> GlobalRdrEnv -> SafeHaskellMode -> Maybe LHsDocString
                     -> ErrMsgM (HaddockModInfo Name, Maybe (MDoc Name))
-processModuleHeader dflags gre safety mayStr = do
+processModuleHeader dflags pkgName gre safety mayStr = do
   (hmi, doc) <-
     case mayStr of
       Nothing -> return failure
       Just (L _ (HsDocString fs)) -> do
         let str = unpackFS fs
-            (hmi, doc) = parseModuleHeader dflags str
+            (hmi, doc) = parseModuleHeader dflags pkgName str
         !descr <- case hmi_description hmi of
                     Just hmi_descr -> Just <$> rename dflags gre hmi_descr
                     Nothing        -> pure Nothing
