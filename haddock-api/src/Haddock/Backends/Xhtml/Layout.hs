@@ -237,8 +237,8 @@ subFamInstDetails :: String -- ^ Instance unique id (for anchor generation)
                   -> Html   -- ^ Type or data family instance
                   -> Html   -- ^ Source module TODO: use this
                   -> Html
-subFamInstDetails iid fi _ =
-    subInstSection iid << thediv ! [theclass "src"] << fi
+subFamInstDetails iid fi mdl =
+    subInstSection iid << (p mdl <+> (thediv ! [theclass "src"] << fi))
 
 subInstSection :: String -- ^ Instance unique id (for anchor generation)
                -> Html
