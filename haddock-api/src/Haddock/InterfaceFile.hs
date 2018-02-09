@@ -486,8 +486,13 @@ instance Binary a => Binary (TableCell a) where
         return (TableCell i j c)
 
 instance Binary Meta where
-  put_ bh Meta { _version = v } = put_ bh v
-  get bh = (\v -> Meta { _version = v }) <$> get bh
+    put_ bh (Meta v p) = do
+        put_ bh v
+        put_ bh p
+    get bh = do
+        v <- get bh
+        p <- get bh
+        return (Meta v p)
 
 instance (Binary mod, Binary id) => Binary (MetaDoc mod id) where
   put_ bh MetaDoc { _meta = m, _doc = d } = do

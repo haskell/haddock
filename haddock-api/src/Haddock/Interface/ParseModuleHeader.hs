@@ -52,7 +52,7 @@ parseModuleHeader dflags str0 =
           hmi_safety = Nothing,
           hmi_language = Nothing, -- set in LexParseRn
           hmi_extensions = [] -- also set in LexParseRn
-          }, parseParas dflags str9)
+          }, parseParas dflags Nothing str9)
 
 -- | This function is how we read keys.
 --

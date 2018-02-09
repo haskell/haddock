@@ -85,6 +85,7 @@ createInterface tm flags modMap instIfaceMap = do
       !instances     = modInfoInstances mi
       !fam_instances = md_fam_insts md
       !exportedNames = modInfoExportsWithSelectors mi
+      !unit          = moduleUnitId mdl
 
       (TcGblEnv { tcg_rdr_env = gre
                 , tcg_warns   = warnings
@@ -130,13 +131,13 @@ createInterface tm flags modMap instIfaceMap = do
   warningMap <- liftErrMsg (mkWarningMap dflags warnings gre exportedNames)
 
   maps@(!docMap, !argMap, !declMap, _) <-
-    liftErrMsg (mkMaps dflags gre localInsts declsWithDocs)
+    liftErrMsg (mkMaps dflags unit gre localInsts declsWithDocs)
 
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre
+  exportItems <- mkExportItems is_sig modMap unit mdl sem_mdl allWarnings gre
                    exportedNames decls maps fixMap unrestrictedImportedMods
                    splices exports all_exports instIfaceMap dflags
 
@@ -346,11 +347,12 @@ type Maps = (DocMap Name, ArgMap Name, DeclMap, InstMap)
 -- find its names, its subordinates, and its doc strings. Process doc strings
 -- into 'Doc's.
 mkMaps :: DynFlags
+       -> UnitId
        -> GlobalRdrEnv
        -> [Name]
        -> [(LHsDecl GhcRn, [HsDocString])]
        -> ErrMsgM Maps
-mkMaps dflags gre instances decls = do
+mkMaps dflags unit gre instances decls = do
   (a, b, c) <- unzip3 <$> traverse mappings decls
   pure ( f' (map (nubByName fst) a)
        , f  (filterMapping (not . M.null) b)
@@ -377,8 +379,8 @@ mkMaps dflags gre instances decls = do
           declDoc :: [HsDocString] -> Map Int HsDocString
                   -> ErrMsgM (Maybe (MDoc Name), Map Int (MDoc Name))
           declDoc strs m = do
-            doc' <- processDocStrings dflags gre strs
-            m'   <- traverse (processDocStringParas dflags gre) m
+            doc' <- processDocStrings dflags pkg gre strs
+            m'   <- traverse (processDocStringParas dflags pkg gre) m
             pure (doc', m')
 
       (doc, args) <- declDoc docStrs (typeDocs decl)
@@ -413,6 +415,8 @@ mkMaps dflags gre instances decls = do
               _ -> getInstLoc d
     names l (DerivD {}) = maybeToList (M.lookup l instanceMap) -- See note [2].
     names _ decl = getMainDeclBinder decl
+
+    pkg = Just (show unit)
 
 -- Note [2]:
 ------------
@@ -605,6 +609,7 @@ collectDocs = go Nothing []
 mkExportItems
   :: Bool               -- is it a signature
   -> IfaceMap
+  -> UnitId             -- this package
   -> Module             -- this module
   -> Module             -- semantic module
   -> WarningMap
@@ -621,29 +626,31 @@ mkExportItems
   -> DynFlags
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
-  is_sig modMap thisMod semMod warnings gre exportedNames decls
+  is_sig modMap unit thisMod semMod warnings gre exportedNames decls
   maps fixMap unrestricted_imp_mods splices exportList allExports
   instIfaceMap dflags =
   case exportList of
     Nothing      ->
-      fullModuleContents is_sig modMap thisMod semMod warnings gre
+      fullModuleContents is_sig modMap unit thisMod semMod warnings gre
         exportedNames decls maps fixMap splices instIfaceMap dflags
         allExports
     Just exports -> liftM concat $ mapM lookupExport exports
   where
+    pkg = Just (show unit)
+
     lookupExport (IEGroup lev docStr, _)  = liftErrMsg $ do
       doc <- processDocString dflags gre docStr
       return [ExportGroup lev "" doc]
 
     lookupExport (IEDoc docStr, _)        = liftErrMsg $ do
-      doc <- processDocStringParas dflags gre docStr
+      doc <- processDocStringParas dflags pkg gre docStr
       return [ExportDoc doc]
 
     lookupExport (IEDocNamed str, _)      = liftErrMsg $
       findNamedDoc str [ unL d | d <- decls ] >>= \case
         Nothing -> return  []
         Just docStr -> do
-          doc <- processDocStringParas dflags gre docStr
+          doc <- processDocStringParas dflags pkg gre docStr
           return [ExportDoc doc]
 
     lookupExport (IEModuleContents (L _ mod_name), _)
@@ -962,6 +969,7 @@ moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
 
 fullModuleContents :: Bool               -- is it a signature
                    -> IfaceMap
+                   -> UnitId             -- this package
                    -> Module             -- this module
                    -> Module             -- semantic module
                    -> WarningMap
@@ -975,16 +983,17 @@ fullModuleContents :: Bool               -- is it a signature
                    -> DynFlags
                    -> Avails
                    -> ErrMsgGhc [ExportItem GhcRn]
-fullModuleContents is_sig modMap thisMod semMod warnings gre exportedNames
+fullModuleContents is_sig modMap unit thisMod semMod warnings gre exportedNames
   decls maps@(_, _, declMap, _) fixMap splices instIfaceMap dflags avails = do
   let availEnv = availsToNameEnv (nubAvails avails)
+      pkg = Just (show unit)
   (concat . concat) `fmap` (for decls $ \decl -> do
     case decl of
       (L _ (DocD (DocGroup lev docStr))) -> do
         doc <- liftErrMsg (processDocString dflags gre docStr)
         return [[ExportGroup lev "" doc]]
       (L _ (DocD (DocCommentNamed _ docStr))) -> do
-        doc <- liftErrMsg (processDocStringParas dflags gre docStr)
+        doc <- liftErrMsg (processDocStringParas dflags pkg gre docStr)
         return [[ExportDoc doc]]
       (L _ (ValD valDecl))
         | name:_ <- collectHsBindBinders valDecl

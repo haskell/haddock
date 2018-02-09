@@ -194,9 +194,9 @@ hackMarkup fmt' h' =
                          in (markupAppend fmt x y, m ++ m')
 
 renderMeta :: DocMarkup id Html -> Meta -> Html
-renderMeta fmt (Meta { _version = Just x }) =
+renderMeta fmt (Meta { _version = Just x, _package = pkg }) =
   markupParagraph fmt . markupEmphasis fmt . toHtml $
-    "Since: " ++ formatVersion x
+    "Since: " ++ maybe "" (++ "-") pkg ++ formatVersion x
   where
     formatVersion v = concat . intersperse "." $ map show v
 renderMeta _ _ = noHtml
