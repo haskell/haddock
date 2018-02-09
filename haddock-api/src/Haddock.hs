@@ -25,7 +25,6 @@ module Haddock (
   withGhc
 ) where
 
-import Data.Version
 import Haddock.Backends.Xhtml
 import Haddock.Backends.Xhtml.Meta
 import Haddock.Backends.Xhtml.Themes (getThemes)
@@ -42,7 +41,6 @@ import Haddock.Options
 import Haddock.Utils
 
 import Control.Monad hiding (forM_)
-import Control.Applicative
 import Data.Foldable (forM_, foldl')
 import Data.Traversable (for)
 import Data.List (isPrefixOf)
@@ -270,7 +268,6 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
     pkgKey           = moduleUnitId pkgMod
     pkgStr           = Just (unitIdString pkgKey)
     pkgNameVer       = modulePackageInfo dflags flags pkgMod
-    pkgName          = fmap (\p' -> let (PackageName p, _) = p' in unpackFS p) pkgNameVer
 
     (srcBase, srcModule, srcEntity, srcLEntity) = sourceUrls flags
 
