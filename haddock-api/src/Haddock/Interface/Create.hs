@@ -319,6 +319,7 @@ mkDocOpts mbOpts flags mdl = do
     -- Later flags override earlier ones
     go os m | m == Flag_HideModule mdlStr     = OptHide : os
             | m == Flag_ShowModule mdlStr     = filter (/= OptHide) os
+            | m == Flag_ShowAllModules        = filter (/= OptHide) os
             | m == Flag_IgnoreAllExports      = OptIgnoreExports : os
             | m == Flag_ShowExtensions mdlStr = OptIgnoreExports : os
             | otherwise                       = os
