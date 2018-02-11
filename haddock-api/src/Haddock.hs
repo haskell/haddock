@@ -268,6 +268,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
     pkgKey           = moduleUnitId pkgMod
     pkgStr           = Just (unitIdString pkgKey)
     pkgNameVer       = modulePackageInfo dflags flags pkgMod
+    pkgName          = fmap (unpackFS . (\(PackageName n) -> n) . fst) pkgNameVer
 
     (srcBase, srcModule, srcEntity, srcLEntity) = sourceUrls flags
 
@@ -336,7 +337,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
            ppHtmlContents dflags' odir title pkgStr
                      themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
                      allVisibleIfaces True prologue pretty
-                     (makeContentsQual qual)
+                     pkgName (makeContentsQual qual)
       return ()
     copyHtmlBits odir libDir themes withQuickjump
 
@@ -346,7 +347,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
            ppHtml dflags' title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
                   themes opt_mathjax sourceUrls' opt_wiki_urls
-                  opt_contents_url opt_index_url unicode qual
+                  opt_contents_url opt_index_url unicode pkgName qual
                   pretty withQuickjump
       return ()
     copyHtmlBits odir libDir themes withQuickjump
