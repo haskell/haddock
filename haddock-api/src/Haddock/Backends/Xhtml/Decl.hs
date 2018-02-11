@@ -620,7 +620,7 @@ ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) m
             pdata = keyword "data" <+> typ
             pdecl = pdata <+> ppShortDataDecl False True dd [] unicode qual
   where
-    mname = maybe noHtml (\m -> hsep [toHtml "(Defined in", ppModule m, toHtml ")"]) mdl
+    mname = maybe noHtml (\m -> toHtml "Defined in" <+> ppModule m) mdl
     iid = instanceId origin no orphan ihd
     typ = ppAppNameTypes ihdClsName ihdTypes unicode qual
 
