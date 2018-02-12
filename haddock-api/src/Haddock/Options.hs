@@ -29,6 +29,7 @@ module Haddock.Options (
   optLaTeXStyle,
   optMathjax,
   qualification,
+  sinceQualification,
   verbosity,
   ghcFlags,
   reexportFlags,
@@ -107,6 +108,7 @@ data Flag
   | Flag_PackageName String
   | Flag_PackageVersion String
   | Flag_Reexport String
+  | Flag_SinceQualification String
   deriving (Eq, Show)
 
 
@@ -214,7 +216,9 @@ options backwardsCompat =
     Option [] ["package-name"] (ReqArg Flag_PackageName "NAME")
       "name of the package being documented",
     Option [] ["package-version"] (ReqArg Flag_PackageVersion "VERSION")
-      "version of the package being documented in usual x.y.z.w format"
+      "version of the package being documented in usual x.y.z.w format",
+    Option []  ["since-qual"] (ReqArg Flag_SinceQualification "QUAL")
+      "package qualification of @since, one of\n'always' (default) or 'only-external'"
   ]
 
 
@@ -314,6 +318,14 @@ qualification flags =
       [arg]          -> Left $ "unknown qualification type " ++ show arg
       _:_            -> Left "qualification option given multiple times"
 
+sinceQualification :: [Flag] -> Either String SinceQual
+sinceQualification flags =
+  case map (map Char.toLower) [ str | Flag_SinceQualification str <- flags ] of
+      []             -> Right Always
+      ["always"]     -> Right Always
+      ["external"]   -> Right External
+      [arg]          -> Left $ "unknown since-qualification type " ++ show arg
+      _:_            -> Left "since-qualification option given multiple times"
 
 verbosity :: [Flag] -> Verbosity
 verbosity flags =

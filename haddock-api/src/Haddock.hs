@@ -149,7 +149,8 @@ haddockWithGhc ghc args = handleTopExceptions $ do
   -- or which exits with an error or help message.
   (flags, files) <- parseHaddockOpts args
   shortcutFlags flags
-  qual <- case qualification flags of {Left msg -> throwE msg; Right q -> return q}
+  qual <- rightOrThrowE (qualification flags)
+  sinceQual <- rightOrThrowE (sinceQualification flags)
 
   -- inject dynamic-too into flags before we proceed
   flags' <- ghc flags $ do
@@ -182,7 +183,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
           }
 
       -- Render the interfaces.
-      liftIO $ renderStep dflags flags qual packages ifaces
+      liftIO $ renderStep dflags flags sinceQual qual packages ifaces
 
     else do
       when (any (`elem` [Flag_Html, Flag_Hoogle, Flag_LaTeX]) flags) $
@@ -192,7 +193,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
       packages <- liftIO $ readInterfaceFiles freshNameCache (readIfaceArgs flags)
 
       -- Render even though there are no input files (usually contents/index).
-      liftIO $ renderStep dflags flags qual packages []
+      liftIO $ renderStep dflags flags sinceQual qual packages []
 
 -- | Create warnings about potential misuse of -optghc
 warnings :: [String] -> [String]
@@ -226,8 +227,9 @@ readPackagesAndProcessModules flags files = do
     return (packages, ifaces, homeLinks)
 
 
-renderStep :: DynFlags -> [Flag] -> QualOption -> [(DocPaths, InterfaceFile)] -> [Interface] -> IO ()
-renderStep dflags flags qual pkgs interfaces = do
+renderStep :: DynFlags -> [Flag] -> SinceQual -> QualOption
+           -> [(DocPaths, InterfaceFile)] -> [Interface] -> IO ()
+renderStep dflags flags sinceQual nameQual pkgs interfaces = do
   updateHTMLXRefs pkgs
   let
     ifaceFiles = map snd pkgs
@@ -236,12 +238,12 @@ renderStep dflags flags qual pkgs interfaces = do
       ((_, Just path), ifile) <- pkgs
       iface <- ifInstalledIfaces ifile
       return (instMod iface, path)
-
-  render dflags flags qual interfaces installedIfaces extSrcMap
+  render dflags flags sinceQual nameQual interfaces installedIfaces extSrcMap
 
 -- | Render the interfaces with whatever backend is specified in the flags.
-render :: DynFlags -> [Flag] -> QualOption -> [Interface] -> [InstalledInterface] -> Map Module FilePath -> IO ()
-render dflags flags qual ifaces installedIfaces extSrcMap = do
+render :: DynFlags -> [Flag] -> SinceQual -> QualOption -> [Interface]
+       -> [InstalledInterface] -> Map Module FilePath -> IO ()
+render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
 
   let
     title                = fromMaybe "" (optTitle flags)
@@ -269,6 +271,9 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
     pkgStr           = Just (unitIdString pkgKey)
     pkgNameVer       = modulePackageInfo dflags flags pkgMod
     pkgName          = fmap (unpackFS . (\(PackageName n) -> n) . fst) pkgNameVer
+    sincePkg         = case sinceQual of
+                         External -> pkgName
+                         Always -> Nothing
 
     (srcBase, srcModule, srcEntity, srcLEntity) = sourceUrls flags
 
@@ -337,7 +342,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
            ppHtmlContents dflags' odir title pkgStr
                      themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
                      allVisibleIfaces True prologue pretty
-                     pkgName (makeContentsQual qual)
+                     sincePkg (makeContentsQual qual)
       return ()
     copyHtmlBits odir libDir themes withQuickjump
 
@@ -347,7 +352,7 @@ render dflags flags qual ifaces installedIfaces extSrcMap = do
            ppHtml dflags' title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
                   themes opt_mathjax sourceUrls' opt_wiki_urls
-                  opt_contents_url opt_index_url unicode pkgName qual
+                  opt_contents_url opt_index_url unicode sincePkg qual
                   pretty withQuickjump
       return ()
     copyHtmlBits odir libDir themes withQuickjump
@@ -609,6 +614,11 @@ getPrologue dflags flags =
       str <- hGetContents h -- semi-closes the handle
       return . Just $! parseParas dflags Nothing str
     _ -> throwE "multiple -p/--prologue options"
+
+
+rightOrThrowE :: Either String b -> IO b
+rightOrThrowE (Left msg) = throwE msg
+rightOrThrowE (Right x) = pure x
 
 
 #ifdef IN_GHC_TREE
