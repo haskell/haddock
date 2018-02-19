@@ -392,7 +392,7 @@ mkMaps dflags gre instances decls = do
           subNs = [ n | (n, _, _) <- subs ]
           dm = [ (n, d) | (n, Just d) <- zip ns (repeat doc) ++ zip subNs subDocs ]
           am = [ (n, args) | n <- ns ] ++ zip subNs subArgs
-          cm = [ (n, expandSigDecls [ldecl]) | n <- ns ++ subNs ]
+          cm = [ (n, [ldecl]) | n <- ns ++ subNs ]
 
       seqList ns `seq`
         seqList subNs `seq`
@@ -574,30 +574,6 @@ filterDecls = filter (isHandled . unL . fst)
     -- we keep doc declarations to be able to get at named docs
     isHandled (DocD {})   = True
     isHandled _ = False
-
--- | A type signature can have multiple names, like:
---   foo, bar :: Types..
---
--- We go through the list of declarations and expand type signatures, so
--- that every type signature has exactly one name!
-expandSigDecls :: [LHsDecl name] -> [LHsDecl name]
-expandSigDecls = concatMap f
-  where
-    f (L l (SigD x sig))              = [ L l (SigD x s) | s <- expandSig sig ]
-
-    -- also expand type signatures for class methods
-    f (L l (TyClD x cls@ClassDecl{})) =
-      [ L l (TyClD x cls { tcdSigs = concatMap expandLSig (tcdSigs cls) }) ]
-    f x = [x]
-
-expandLSig :: LSig name -> [LSig name]
-expandLSig (L l sig) = [ L l s | s <- expandSig sig ]
-
-expandSig :: Sig name -> [Sig name]
-expandSig (TypeSig x names t)      = [ TypeSig x [n] t      | n <- names ]
-expandSig (ClassOpSig x b names t) = [ ClassOpSig x b [n] t | n <- names ]
-expandSig (PatSynSig x names t)    = [ PatSynSig x [n] t    | n <- names ]
-expandSig x                        = [x]
 
 -- | Go through all class declarations and filter their sub-declarations
 filterClasses :: [(LHsDecl a, doc)] -> [(LHsDecl a, doc)]
