@@ -539,13 +539,11 @@ ppClassDecl instances doc subdocs
 
     methodTable =
       text "\\haddockpremethods{}\\textbf{Methods}" $$
-      vcat  [ ppFunSig doc names (hsSigWcType typ) unicode
+      vcat  [ ppFunSig doc [name] (hsSigWcType typ) unicode
             | L _ (TypeSig _ lnames typ) <- lsigs
-            , let doc = lookupAnySubdoc (head names) subdocs
-                  names = map unLoc lnames ]
-              -- FIXME: is taking just the first name ok? Is it possible that
-              -- there are different subdocs for different names in a single
-              -- type signature?
+            , name <- map unLoc lnames
+            , let doc = lookupAnySubdoc name subdocs
+            ]
 
     instancesBit = ppDocInstances unicode instances
 
