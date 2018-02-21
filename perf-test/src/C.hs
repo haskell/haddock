@@ -1,0 +1,70 @@
+module C where
+
+import B01
+import B02
+import B03
+import B04
+import B05
+import B06
+import B07
+import B08
+import B09
+import B10
+import B11
+import B12
+import B13
+import B14
+import B15
+import B16
+import B17
+import B18
+import B19
+import B20
+import B21
+import B22
+import B23
+import B24
+import B25
+import B26
+import B27
+import B28
+import B29
+import B30
+import B31
+import B32
+
+-- | baz is the bottom of all the nodes and should be built last
+baz :: String
+baz =
+  bar01 ++
+  bar02 ++
+  bar03 ++
+  bar04 ++
+  bar05 ++
+  bar06 ++
+  bar07 ++
+  bar08 ++
+  bar09 ++
+  bar10 ++
+  bar11 ++
+  bar12 ++
+  bar13 ++
+  bar14 ++
+  bar15 ++
+  bar16 ++
+  bar17 ++
+  bar18 ++
+  bar19 ++
+  bar20 ++
+  bar21 ++
+  bar22 ++
+  bar23 ++
+  bar24 ++
+  bar25 ++
+  bar26 ++
+  bar27 ++
+  bar28 ++
+  bar29 ++
+  bar30 ++
+  bar31 ++
+  bar32
