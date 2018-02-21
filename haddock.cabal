@@ -51,6 +51,7 @@ extra-source-files:
   latex-test/src/Simple/*.hs
   latex-test/ref/Simple/*.tex
   latex-test/ref/Simple/*.sty
+  perf-test/src/*.hs
 
 flag in-ghc-tree
   description: Are we in a GHC tree?
@@ -143,7 +144,7 @@ executable haddock
       Haddock.GhcUtils
       Haddock.Syb
       Haddock.Convert
-      
+
       Paths_haddock
   else
     -- in order for haddock's advertised version number to have proper meaning,
@@ -200,6 +201,14 @@ test-suite hoogle-test
   main-is:            Main.hs
   hs-source-dirs:     hoogle-test
   build-depends:      base, filepath, haddock-test == 0.0.1
+
+test-suite perf-test
+  type:               exitcode-stdio-1.0
+  build-tool-depends: haddock:haddock
+  default-language:   Haskell2010
+  main-is:            Main.hs
+  hs-source-dirs:     perf-test
+  build-depends:      base, filepath, haddock-test == 0.0.1, time
 
 source-repository head
   type:     git

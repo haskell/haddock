@@ -42,19 +42,27 @@ import Haddock.Options hiding (verbosity)
 import Haddock.Types
 import Haddock.Utils
 
+import Control.Concurrent (forkIOWithUnmask, killThread)
+import Control.Concurrent.MVar
+import Control.Concurrent.QSem
 import Control.Monad
 import Data.List
 import qualified Data.Map as Map
+import Data.Maybe
 import qualified Data.Set as Set
 import Distribution.Verbosity
 import System.Directory
 import System.FilePath
 import Text.Printf
 
+import GHC.Conc ( getNumProcessors)
+
 import Digraph
 import DynFlags hiding (verbosity)
 import Exception
 import GHC hiding (verbosity)
+import GhcMake
+import GhcMonad
 import HscTypes
 import FastString (unpackFS)
 import MonadUtils (liftIO)
@@ -162,17 +170,52 @@ createIfaces0 verbosity modules flags instIfaceMap =
 
 createIfaces :: Verbosity -> [Flag] -> InstIfaceMap -> ModuleGraph -> Ghc [Interface]
 createIfaces verbosity flags instIfaceMap mods = do
-  let sortedMods = flattenSCCs $ topSortModuleGraph False mods Nothing
-  out verbosity normal "Haddock coverage:"
-  (ifaces, _) <- foldM f ([], Map.empty) sortedMods
-  return (reverse ifaces)
-  where
-    f (ifaces, ifaceMap) modSummary = do
-      x <- processModule verbosity modSummary flags ifaceMap instIfaceMap
-      return $ case x of
-        Just iface -> (iface:ifaces, Map.insert (ifaceMod iface) iface ifaceMap)
-        Nothing    -> (ifaces, ifaceMap) -- Boot modules don't generate ifaces.
+  hsc_env <- getSession
+  let dflags = hsc_dflags hsc_env
+  let full_mg = topSortModuleGraph False mods Nothing
 
+  graph' <- liftIO $ forM full_mg $ \m ->
+    case m of
+      CyclicSCC _ -> return Nothing
+      AcyclicSCC ms -> do
+        mvar <- newEmptyMVar
+        return (Just (moduleName $ ms_mod ms, (ms, mvar)))
+  let graph = catMaybes graph'
+      dep_graph = Map.fromList graph
+
+  n_jobs <- case parMakeCount dflags of
+                   Nothing -> liftIO getNumProcessors
+                   Just n -> return n
+
+  par_sem <- liftIO $ newQSem n_jobs
+
+  let
+    withSem sem = bracket_ (waitQSem sem) (signalQSem sem)
+
+    spawnWorkers s = forM graph $ \(_mn, (m, mvar)) ->
+      forkIOWithUnmask $ \_unmask -> withSem par_sem $ do
+        let imps = map unLoc $ ms_home_imps m
+            deps = [ r | dep <- imps
+                       , Just r <- [Map.lookup dep dep_graph] ]
+        ifaces <- forM deps $ \(ms, imvar) -> do
+          r <- readMVar imvar
+          case r of
+            Nothing -> return Nothing
+            Just m' -> return (Just (ms_mod ms, m'))
+        let ifaceMap = Map.fromList $ catMaybes ifaces
+        x <- reflectGhc
+          (processModule verbosity m flags ifaceMap instIfaceMap) s
+        putMVar mvar x
+
+    killWorkers = uninterruptibleMask_ . mapM_ killThread
+
+  ifaces <-
+    reifyGhc $ \s ->
+      liftIO $ bracket (spawnWorkers s) killWorkers $ \_ ->
+        forM (Map.elems dep_graph) $ \(_, mvar) -> do
+          readMVar mvar
+
+  return (reverse $ catMaybes ifaces)
 
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe Interface)
 processModule verbosity modsum flags modMap instIfaceMap = do
