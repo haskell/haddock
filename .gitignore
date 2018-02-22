@@ -7,6 +7,7 @@
 /hypsrc-test/out/
 /latex-test/out/
 /hoogle-test/out/
+/perf-test/out/
 
 /doc/haddock
 /doc/haddock.ps
