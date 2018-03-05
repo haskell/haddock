@@ -94,9 +94,12 @@ variables =
 types :: GHC.RenamedSource -> LTokenDetails
 types = everythingInRenamedSource ty
   where
+    ty :: forall a. Data a => a -> [(GHC.SrcSpan, TokenDetails)]
     ty term = case cast term of
         (Just ((GHC.L sspan (GHC.HsTyVar _ _ name)) :: GHC.LHsType GHC.GhcRn)) ->
             pure (sspan, RtkType (GHC.unLoc name))
+        (Just ((GHC.L sspan (GHC.HsOpTy _ l name r)) :: GHC.LHsType GHC.GhcRn)) ->
+            (sspan, RtkType (GHC.unLoc name)):(ty l ++ ty r)
         _ -> empty
 
 -- | Obtain details map for identifier bindings.
@@ -142,6 +145,7 @@ decls :: GHC.RenamedSource -> LTokenDetails
 decls (group, _, _, _) = concatMap ($ group)
     [ concat . map typ . concat . map GHC.group_tyclds . GHC.hs_tyclds
     , everythingInRenamedSource fun . GHC.hs_valds
+    , everythingInRenamedSource fix . GHC.hs_fixds
     , everythingInRenamedSource (con `Syb.combine` ins)
     ]
   where
@@ -149,7 +153,10 @@ decls (group, _, _, _) = concatMap ($ group)
         GHC.DataDecl { tcdLName = name } -> pure . decl $ name
         GHC.SynDecl _ name _ _ _ -> pure . decl $ name
         GHC.FamDecl _ fam -> pure . decl $ GHC.fdLName fam
-        GHC.ClassDecl{..} -> [decl tcdLName] ++ concatMap sig tcdSigs
+        GHC.ClassDecl{..} ->
+          [decl tcdLName]
+            ++ concatMap sig tcdSigs
+            ++ concatMap tyfam tcdATs
         GHC.XTyClDecl {} -> GHC.panic "haddock:decls"
     fun term = case cast term of
         (Just (GHC.FunBind _ (GHC.L sspan name) _ _ _ :: GHC.HsBind GHC.GhcRn))
@@ -173,8 +180,17 @@ decls (group, _, _, _) = concatMap ($ group)
         Just (field :: GHC.ConDeclField GHC.GhcRn)
           -> map (decl . fmap GHC.extFieldOcc) $ GHC.cd_fld_names field
         Nothing -> empty
+    fix term = case cast term of
+        Just ((GHC.FixitySig _ names _) :: GHC.FixitySig GHC.GhcRn)
+          -> map decl names
+        Just (GHC.XFixitySig {} :: GHC.FixitySig GHC.GhcRn)
+          -> GHC.panic "haddock:decls"
+        Nothing -> empty
+    tyfam (GHC.L _ (GHC.FamilyDecl{..})) = [decl fdLName]
+    tyfam (GHC.L _ (GHC.XFamilyDecl {})) = GHC.panic "haddock:decls"
     sig (GHC.L _ (GHC.TypeSig _ names _)) = map decl names
     sig (GHC.L _ (GHC.PatSynSig _ names _)) = map decl names
+    sig (GHC.L _ (GHC.ClassOpSig _ _ names _)) = map decl names
     sig _ = []
     decl (GHC.L sspan name) = (sspan, RtkDecl name)
     tyref (GHC.L sspan name) = (sspan, RtkType name)
