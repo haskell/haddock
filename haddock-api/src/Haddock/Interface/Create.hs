@@ -1054,7 +1054,9 @@ extractDecl declMap name decl
                              FamEqn { feqn_tycon = L _ n
                                     , feqn_pats  = tys
                                     , feqn_rhs   = defn }}))) ->
-        SigD <$> extractRecSel name n tys (dd_cons defn)
+        if isDataConName name
+        then SigD <$> extractPatternSyn name n tys (dd_cons defn)
+        else SigD <$> extractRecSel name n tys (dd_cons defn)
       InstD (ClsInstD ClsInstDecl { cid_datafam_insts = insts }) ->
         let matches = [ d' | L _ d'@(DataFamInstDecl (HsIB { hsib_body = d }))
                                <- insts
