@@ -615,8 +615,8 @@ ppInstances links origin instances splice unicode qual
   where
     instName = getOccString origin
     instDecl :: Int -> DocInstance DocNameI -> (SubDecl,Located DocName)
-    instDecl no (inst, mdoc, loc) =
-        ((ppInstHead links splice unicode qual mdoc origin False no inst), loc)
+    instDecl no (inst, mdoc, loc, mdl) =
+        ((ppInstHead links splice unicode qual mdoc origin False no inst mdl), loc)
 
 
 ppOrphanInstances :: LinksInfo
@@ -630,8 +630,8 @@ ppOrphanInstances links instances splice unicode qual
     instOrigin inst = OriginClass (ihdClsName inst)
 
     instDecl :: Int -> DocInstance DocNameI -> (SubDecl,Located DocName)
-    instDecl no (inst, mdoc, loc) =
-        ((ppInstHead links splice unicode qual mdoc (instOrigin inst) True no inst), loc)
+    instDecl no (inst, mdoc, loc, mdl) =
+        ((ppInstHead links splice unicode qual mdoc (instOrigin inst) True no inst mdl), loc)
 
 
 ppInstHead :: LinksInfo -> Splice -> Unicode -> Qualification
@@ -640,13 +640,14 @@ ppInstHead :: LinksInfo -> Splice -> Unicode -> Qualification
            -> Bool -- ^ Is instance orphan
            -> Int  -- ^ Normal
            -> InstHead DocNameI
+           -> Maybe Module
            -> SubDecl
-ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) =
+ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) mdl =
     case ihdInstType of
         ClassInst { .. } ->
             ( subInstHead iid $ ppContextNoLocs clsiCtx unicode qual HideEmptyContexts <+> typ
             , mdoc
-            , [subInstDetails iid ats sigs]
+            , [subInstDetails iid ats sigs mname]
             )
           where
             sigs = ppInstanceSigs links splice unicode qual clsiSigs
@@ -654,7 +655,7 @@ ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) =
         TypeInst rhs ->
             ( subInstHead iid ptype
             , mdoc
-            , [subFamInstDetails iid prhs]
+            , [subFamInstDetails iid prhs mname]
             )
           where
             ptype = keyword "type" <+> typ
@@ -663,11 +664,12 @@ ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) =
         DataInst dd ->
             ( subInstHead iid pdata
             , mdoc
-            , [subFamInstDetails iid pdecl])
+            , [subFamInstDetails iid pdecl mname])
           where
             pdata = keyword "data" <+> typ
             pdecl = pdata <+> ppShortDataDecl False True dd [] unicode qual
   where
+    mname = maybe noHtml (\m -> toHtml "Defined in" <+> ppModule m) mdl
     iid = instanceId origin no orphan ihd
     typ = ppAppNameTypes ihdClsName ihdTypes unicode qual
 

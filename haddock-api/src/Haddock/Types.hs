@@ -390,7 +390,7 @@ mkPseudoFamilyDecl (XFamilyDecl {}) = panic "haddock:mkPseudoFamilyDecl"
 
 
 -- | An instance head that may have documentation and a source location.
-type DocInstance name = (InstHead name, Maybe (MDoc (IdP name)), Located (IdP name))
+type DocInstance name = (InstHead name, Maybe (MDoc (IdP name)), Located (IdP name), Maybe Module)
 
 -- | The head of an instance. Consists of a class name, a list of type
 -- parameters (which may be annotated with kinds), and an instance type
