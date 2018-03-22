@@ -400,7 +400,7 @@ readInterfaceFiles :: MonadIO m
                    -> [(DocPaths, FilePath)]
                    -> m [(DocPaths, InterfaceFile)]
 readInterfaceFiles name_cache_accessor pairs = do
-  catMaybes `liftM` mapM tryReadIface pairs
+  catMaybes `liftM` mapM ({-# SCC readInterfaceFile #-} tryReadIface) pairs
   where
     -- try to read an interface, warn if we can't
     tryReadIface (paths, file) =
