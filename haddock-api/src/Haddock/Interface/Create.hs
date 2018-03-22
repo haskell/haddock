@@ -85,8 +85,8 @@ createInterface tm flags modMap instIfaceMap = do
       !instances     = modInfoInstances mi
       !fam_instances = md_fam_insts md
       !exportedNames = modInfoExportsWithSelectors mi
-      pkgNameVer     = modulePackageInfo dflags flags mdl
-      pkgName        = fmap (unpackFS . (\(PackageName n) -> n) . fst) pkgNameVer
+      (pkgNameFS, _) = modulePackageInfo dflags flags mdl
+      pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
 
       (TcGblEnv { tcg_rdr_env = gre
                 , tcg_warns   = warnings

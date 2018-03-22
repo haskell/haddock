@@ -43,7 +43,6 @@ module Haddock.Options (
 import qualified Data.Char as Char
 import           Data.Version
 import           Control.Applicative
-import           Control.Arrow ( (&&&) )
 import           Distribution.Verbosity
 import           FastString
 import           GHC ( DynFlags, Module, moduleUnitId )
@@ -373,8 +372,10 @@ modulePackageInfo :: DynFlags
                             -- the package name or version provided by the user
                             -- which we prioritise
                   -> Module
-                  -> Maybe (PackageName, Data.Version.Version)
-modulePackageInfo dflags flags modu = cmdline <|> pkgDb
+                  -> (Maybe PackageName, Maybe Data.Version.Version)
+modulePackageInfo dflags flags modu =
+  ( optPackageName flags    <|> fmap packageName pkgDb
+  , optPackageVersion flags <|> fmap packageVersion pkgDb
+  )
   where
-    cmdline = (,) <$> optPackageName flags <*> optPackageVersion flags
-    pkgDb = (packageName &&& packageVersion) <$> lookupPackage dflags (moduleUnitId modu)
+    pkgDb = lookupPackage dflags (moduleUnitId modu)

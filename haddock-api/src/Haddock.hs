@@ -270,7 +270,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
     pkgKey           = moduleUnitId pkgMod
     pkgStr           = Just (unitIdString pkgKey)
     pkgNameVer       = modulePackageInfo dflags flags pkgMod
-    pkgName          = fmap (unpackFS . (\(PackageName n) -> n) . fst) pkgNameVer
+    pkgName          = fmap (unpackFS . (\(PackageName n) -> n)) (fst pkgNameVer)
     sincePkg         = case sinceQual of
                          External -> pkgName
                          Always -> Nothing
@@ -362,7 +362,12 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
   -- might want to fix that if/when these two get some work on them
   when (Flag_Hoogle `elem` flags) $ do
     case pkgNameVer of
-      Nothing -> putStrLn . unlines $
+      (Just (PackageName pkgNameFS), Just pkgVer) ->
+          let pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
+                         | otherwise = unpackFS pkgNameFS
+          in ppHoogle dflags' pkgNameStr pkgVer title (fmap _doc prologue)
+               visibleIfaces odir
+      _ -> putStrLn . unlines $
           [ "haddock: Unable to find a package providing module "
             ++ moduleNameString (moduleName pkgMod) ++ ", skipping Hoogle."
           , ""
@@ -370,14 +375,6 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
             ++ " using the --package-name"
           , "         and --package-version arguments."
           ]
-      Just (PackageName pkgNameFS, pkgVer) ->
-          let pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
-                         | otherwise = unpackFS pkgNameFS
-          in withTiming (pure dflags') "ppHoogle" (const ()) $ do
-               _ <- {-# SCC ppHoogle #-}
-                    ppHoogle dflags' pkgNameStr pkgVer title (fmap _doc prologue)
-                      visibleIfaces odir
-               return ()
 
   when (Flag_LaTeX `elem` flags) $ do
     withTiming (pure dflags') "ppLatex" (const ()) $ do
