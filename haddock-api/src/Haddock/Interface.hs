@@ -44,6 +44,7 @@ import Haddock.Utils
 
 import Control.Monad
 import Data.List
+import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Distribution.Verbosity
@@ -61,6 +62,7 @@ import MonadUtils (liftIO)
 import TcRnTypes (tcg_rdr_env)
 import RdrName (plusGlobalRdrEnv)
 import ErrUtils (withTiming)
+import Name (nameModule_maybe)
 
 #if defined(mingw32_HOST_OS)
 import System.IO
@@ -100,7 +102,12 @@ processModules verbosity modules flags extIfaces = do
 
   out verbosity verbose "Building cross-linking environment..."
   -- Combine the link envs of the external packages into one
-  let extLinks  = Map.unions (map ifLinkEnv extIfaces)
+  let unionFunc :: Name -> Module -> Module -> Module
+      unionFunc name module1 _ = fromMaybe module1 (nameModule_maybe name)
+
+      extLinks  = foldl (Map.unionWithKey unionFunc)
+                        Map.empty
+                        (map ifLinkEnv extIfaces)
       homeLinks = buildHomeLinks interfaces' -- Build the environment for the home
                                              -- package
       links     = homeLinks `Map.union` extLinks
