@@ -580,6 +580,12 @@ data HideEmptyContexts
   = HideEmptyContexts
   | ShowEmptyToplevelContexts
 
+-- | When to qualify @since@ annotations with their package
+data SinceQual
+  = Always
+  | External -- ^ only qualify when the thing being annotated is from
+             -- an external package
+
 -----------------------------------------------------------------------------
 -- * Error handling
 -----------------------------------------------------------------------------
