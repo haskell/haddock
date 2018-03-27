@@ -31,7 +31,6 @@ import Haddock.Backends.Xhtml.Themes (getThemes)
 import Haddock.Backends.LaTeX
 import Haddock.Backends.Hoogle
 import Haddock.Backends.Hyperlinker
-import Haddock.Backends.Hyperlinker.Utils (hypSrcDir)
 import Haddock.Interface
 import Haddock.Interface.Json
 import Haddock.Parser
@@ -59,9 +58,8 @@ import Foreign.C
 import Data.Int
 #endif
 
-import System.FilePath
-
 #ifdef IN_GHC_TREE
+import System.FilePath
 #else
 import qualified GHC.Paths as GhcPaths
 import Paths_haddock_api (getDataDir)
@@ -237,10 +235,7 @@ renderStep dflags flags sinceQual nameQual pkgs interfaces = do
     ifaceFiles = map snd pkgs
     installedIfaces = concatMap ifInstalledIfaces ifaceFiles
     extSrcMap = Map.fromList $ do
-      ((linkBase, msrcPath), ifile) <- pkgs
-      let path = case msrcPath of
-                   Just srcPath -> srcPath
-                   Nothing      -> linkBase </> hypSrcDir
+      ((_, Just path), ifile) <- pkgs
       iface <- ifInstalledIfaces ifile
       return (instMod iface, path)
   render dflags flags sinceQual nameQual interfaces installedIfaces extSrcMap
