@@ -45,8 +45,6 @@ import           Data.Text (Text)
 import           Data.Maybe (isJust)
 import           Data.Char (isSpace)
 
-import Debug.Trace
-
 #if MIN_VERSION_base(4,9,0)
 import           Text.Read.Lex                      (isSymbolChar)
 #else
@@ -134,7 +132,7 @@ choice' [p] = p
 choice' (p : ps) = try p <|> choice' ps
 
 parse :: Parser a -> Text -> (ParserState, a)
-parse p = either err id . parseOnly (p <* endOfInput) . encodeUtf8 . T.unpack
+parse p = either err id . parseOnly (p {- <* endOfInput -}) . encodeUtf8 . T.unpack
   where
     err = error . ("Haddock.Parser.parse: " ++)
 
@@ -151,11 +149,10 @@ parseParas pkg input = case parseParasState input of
                         }
 
 parseParasState :: String -> (ParserState, DocH mod Identifier)
-parseParasState x = trace (show x) $
-    (parse p . T.pack . (++ "\n") . filter (/= '\r') $ x)
+parseParasState = parse p . T.pack . (++ "\n") . filter (/= '\r')
   where
     p :: Parser (DocH mod Identifier)
-    p = docConcat <$> (try paragraph `Parsec.sepEndBy` try (skipHorizontalSpace *> string "\n"))
+    p = docConcat <$> (paragraph `Parsec.sepEndBy` many (try (skipHorizontalSpace *> "\n")))
 
 parseParagraphs :: String -> Parser (DocH mod Identifier)
 parseParagraphs input = case parseParasState input of
@@ -318,7 +315,7 @@ markdownImage = fromHyperlink <$> ("!" *> linkParser)
 
 -- | Paragraph parser, called by 'parseParas'.
 paragraph :: Parser (DocH mod Identifier)
-paragraph = try examples <|> try table <|> do
+paragraph =  try examples <|> try table <|> do
   indent <- takeIndent
   choice' [ since
           , unorderedList indent
@@ -730,10 +727,10 @@ examples = DocExamples <$> (many (skipHorizontalSpace *> "\n") *> go)
         substituteBlankLine xs = xs
 
 nonEmptyLine :: Parser Text 
-nonEmptyLine = mfilter (T.any (not . isSpace)) takeLine
+nonEmptyLine = try (mfilter (T.any (not . isSpace)) takeLine)
 
 takeLine :: Parser Text
-takeLine = takeWhile (/= '\n') <* endOfLine
+takeLine = try (takeWhile (/= '\n') <* endOfLine)
 
 endOfLine :: Parser ()
 endOfLine = void "\n" <|> endOfInput
