@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- |
 -- Module      :  Documentation.Haddock.Parser.Util
 -- Copyright   :  (c) Mateusz Kowalczyk 2013-2014,
@@ -20,53 +20,49 @@ module Documentation.Haddock.Parser.Util (
 , skipHorizontalSpace
 ) where
 
+import qualified Data.Text as T
+import           Data.Text (Text)
+
 import           Control.Applicative
 import           Control.Monad (mfilter)
-import           Documentation.Haddock.Parser.Monad hiding (isHorizontalSpace)
-import           Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as BS
+import           Documentation.Haddock.Parser.Monad
 import           Prelude hiding (takeWhile)
 
-#if MIN_VERSION_bytestring(0,10,2)
-import           Data.ByteString.Char8 (unsnoc)
-#else
-unsnoc :: ByteString -> Maybe (ByteString, Char)
+import           Data.Char (isSpace)
+
+unsnoc :: Text -> Maybe (Text, Char)
 unsnoc bs
-  | BS.null bs = Nothing
-  | otherwise = Just (BS.init bs, BS.last bs)
-#endif
+  | T.null bs = Nothing
+  | otherwise = Just (T.init bs, T.last bs)
 
 -- | Remove all leading and trailing whitespace
-strip :: String -> String
-strip = (\f -> f . f) $ dropWhile isSpace . reverse
+strip :: Text -> Text  
+strip = T.strip 
 
 isHorizontalSpace :: Char -> Bool
-isHorizontalSpace = inClass " \t\f\v\r"
+isHorizontalSpace c = c `elem` [' ','\t','\f','\v','\r']
 
 skipHorizontalSpace :: Parser ()
 skipHorizontalSpace = skipWhile isHorizontalSpace
 
-takeHorizontalSpace :: Parser BS.ByteString
+takeHorizontalSpace :: Parser Text 
 takeHorizontalSpace = takeWhile isHorizontalSpace
 
-makeLabeled :: (String -> Maybe String -> a) -> String -> a
-makeLabeled f input = case break isSpace $ removeEscapes $ strip input of
-  (uri, "")    -> f uri Nothing
-  (uri, label) -> f uri (Just $ dropWhile isSpace label)
+makeLabeled :: (String -> Maybe String -> a) -> Text -> a
+makeLabeled f input = case T.break isSpace $ removeEscapes $ strip input of
+  (uri, "")    -> f (T.unpack uri) Nothing
+  (uri, label) -> f (T.unpack uri) (Just . T.unpack $ T.stripStart label)
 
 -- | Remove escapes from given string.
 --
 -- Only do this if you do not process (read: parse) the input any further.
-removeEscapes :: String -> String
-removeEscapes "" = ""
-removeEscapes ('\\':'\\':xs) = '\\' : removeEscapes xs
-removeEscapes ('\\':xs) = removeEscapes xs
-removeEscapes (x:xs) = x : removeEscapes xs
+removeEscapes :: Text -> Text
+removeEscapes = T.filter (/= '\\') . T.replace "\\\\" "\\"
 
-takeUntil :: ByteString -> Parser ByteString
-takeUntil end_ = dropEnd <$> requireEnd (scan (False, end) p) >>= gotSome
+takeUntil :: Text -> Parser Text 
+takeUntil end_ = T.dropEnd (T.length end_) <$> requireEnd (scan (False, end) p) >>= gotSome
   where
-    end = BS.unpack end_
+    end = T.unpack end_ 
 
     p :: (Bool, String) -> Char -> Maybe (Bool, String)
     p acc c = case acc of
@@ -75,9 +71,8 @@ takeUntil end_ = dropEnd <$> requireEnd (scan (False, end) p) >>= gotSome
       (_, x:xs) | x == c -> Just (False, xs)
       _ -> Just (c == '\\', end)
 
-    dropEnd = BS.reverse . BS.drop (length end) . BS.reverse
-    requireEnd = mfilter (BS.isSuffixOf end_)
+    requireEnd = mfilter (T.isSuffixOf end_)
 
     gotSome xs
-      | BS.null xs = fail "didn't get any content"
+      | T.null xs = fail "didn't get any content"
       | otherwise = return xs
