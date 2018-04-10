@@ -1,21 +1,26 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, TypeFamilies, BangPatterns, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Documentation.Haddock.Parser.Monad where
 
 import qualified Text.Parsec.Char as Parsec
 import qualified Text.Parsec as Parsec
 
 import qualified Data.Text as T
-
-import           Data.Text (Text)
+import           Data.Text                   ( Text )
 
 import           Control.Applicative
 import           Control.Monad
 import           Data.String
 import           Data.Bits
-import           Data.Char (isDigit, ord, isHexDigit)
-import           Data.List (foldl')
+import           Data.Char                   ( isDigit, ord, isHexDigit )
+import           Data.List                   ( foldl' )
 
-import           Documentation.Haddock.Types (Version)
+import           Documentation.Haddock.Types ( Version )
 
 newtype ParserState = ParserState {
   parserStateSince :: Maybe Version
@@ -47,12 +52,6 @@ char =  Parsec.char
 many' :: Parser a -> Parser [a]
 many' = Parsec.manyAccum (\x xs -> x `seq` x : xs)
 
-anyChar :: Parser Char
-anyChar = Parsec.anyChar
-
-notChar :: Char -> Parser Char
-notChar c = Parsec.satisfy (/= c)
-
 satisfy :: (Char -> Bool) -> Parser Char
 satisfy = Parsec.satisfy
 
@@ -79,15 +78,15 @@ skipWhile = Parsec.skipMany . Parsec.satisfy
 
 take :: Int -> Parser Text
 take = fmap T.pack . go
-  where go !n | n <= 0 = pure []
-              | otherwise = liftA2 (:) anyChar (go (n - 1)) <|> pure ""
+  where go !n | n <= 0 = pure ""
+              | otherwise = liftA2 (:) Parsec.anyChar (go (n - 1)) <|> pure ""
 
 scan :: s -> (s -> Char -> Maybe s) -> Parser Text 
 scan s f = fmap T.pack (go s)
   where go s1 = do { cOpt <- peekChar
                    ; case cOpt >>= f s1 of
                        Nothing -> pure ""
-                       Just s2 -> liftA2 (:) anyChar (go s2)
+                       Just s2 -> liftA2 (:) Parsec.anyChar (go s2)
                    }
 
 takeWhile :: (Char -> Bool) -> Parser Text

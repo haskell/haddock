@@ -41,7 +41,6 @@ import           Text.Parsec (try)
 import qualified Data.Text as T
 import           Data.Text (Text)
 
-import           Data.Maybe (isJust)
 import           Data.Char (isSpace)
 
 #if MIN_VERSION_base(4,9,0)
@@ -53,14 +52,6 @@ import           Data.Char                          (GeneralCategory (..),
 
 -- $setup
 -- >>> :set -XOverloadedStrings
-
--- | Like 'elem' but for 'Text'
-contains :: Char -> Text -> Bool
-contains c = isJust . T.find (== c)
-
--- | Like 'elem' but for 'Text'
-notContains :: Char -> Text -> Bool
-notContains c = not . contains c 
 
 #if !MIN_VERSION_base(4,9,0)
 -- inlined from base-4.10.0.0
@@ -225,7 +216,7 @@ skipSpecialChar = DocString . return <$> satisfy (`elem` specialChar)
 -- DocEmphasis (DocString "Hello world")
 emphasis :: Parser (DocH mod Identifier)
 emphasis = DocEmphasis . parseStringBS <$>
-  mfilter ('\n' `notContains`) ("/" *> takeWhile1_ (/= '/') <* "/")
+  mfilter ('\n' `notInClass`) ("/" *> takeWhile1_ (/= '/') <* "/")
 
 -- | Bold parser.
 --
@@ -235,7 +226,7 @@ bold :: Parser (DocH mod Identifier)
 bold = DocBold . parseStringBS <$> disallowNewline ("__" *> takeUntil "__")
 
 disallowNewline :: Parser Text -> Parser Text
-disallowNewline = mfilter ('\n' `notContains`)
+disallowNewline = mfilter ('\n' `notInClass`)
 
 -- | Like `takeWhile`, but unconditionally take escaped characters.
 takeWhile_ :: (Char -> Bool) -> Parser Text
@@ -545,8 +536,8 @@ textParagraphThatStartsWithMarkdownLink :: Parser (DocH mod Identifier)
 textParagraphThatStartsWithMarkdownLink = docParagraph <$> (docAppend <$> markdownLink <*> optionalTextParagraph)
   where
     optionalTextParagraph :: Parser (DocH mod Identifier)
-    optionalTextParagraph = choice [ docAppend <$> whitespace <*> textParagraph
-                                   , pure DocEmpty ]
+    optionalTextParagraph = choice' [ docAppend <$> whitespace <*> textParagraph
+                                    , pure DocEmpty ]
 
     whitespace :: Parser (DocH mod a)
     whitespace = DocString <$> (f <$> takeHorizontalSpace <*> optional "\n")
@@ -590,7 +581,7 @@ definitionList :: Text -> Parser (DocH mod Identifier)
 definitionList indent = DocDefList <$> p
   where
     p = do
-      label <- "[" *> (parseStringBS <$> takeWhile1_ (`notContains` "]\n")) <* ("]" <* optional ":")
+      label <- "[" *> (parseStringBS <$> takeWhile1_ (`notInClass` "]\n")) <* ("]" <* optional ":")
       c <- takeLine
       (cs, items) <- more indent p
       let contents = parseText . dropNLs . T.unlines $ c : cs
@@ -822,7 +813,7 @@ autoUrl = mkLink <$> url
     url = mappend <$> choice' [ "http://", "https://", "ftp://"] <*> takeWhile1 (not . isSpace)
     mkLink :: Text -> DocH mod a
     mkLink s = case unsnoc s of
-      Just (xs, x) | x `contains` ",.!?" -> DocHyperlink (Hyperlink (T.unpack xs) Nothing) `docAppend` DocString [x]
+      Just (xs, x) | x `inClass` ",.!?" -> DocHyperlink (Hyperlink (T.unpack xs) Nothing) `docAppend` DocString [x]
       _ -> DocHyperlink (Hyperlink (T.unpack s) Nothing)
 
 -- | Parses strings between identifier delimiters. Consumes all input that it
@@ -838,7 +829,7 @@ parseValid = p some
       c <- peekChar'
       case c of
         '`' -> return vs
-        '\'' -> (\x -> vs ++ "'" ++ x) <$> choice' [ "'" *> p many', return vs ]
+        '\'' -> choice' [ (\x -> vs ++ "'" ++ x) <$> ("'" *> p many'), return vs ]
         _ -> fail "outofvalid"
 
 -- | Parses identifiers with help of 'parseValid'. Asks GHC for

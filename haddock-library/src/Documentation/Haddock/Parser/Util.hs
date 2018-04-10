@@ -13,6 +13,8 @@
 module Documentation.Haddock.Parser.Util (
   unsnoc
 , strip
+, inClass
+, notInClass
 , takeUntil
 , removeEscapes
 , makeLabeled
@@ -28,8 +30,10 @@ import           Control.Monad (mfilter)
 import           Documentation.Haddock.Parser.Monad
 import           Prelude hiding (takeWhile)
 
+import           Data.Maybe (isJust)
 import           Data.Char (isSpace)
 
+-- | Like 'T.uncons', but for the last character instead of the first.
 unsnoc :: Text -> Maybe (Text, Char)
 unsnoc bs
   | T.null bs = Nothing
@@ -39,14 +43,25 @@ unsnoc bs
 strip :: Text -> Text  
 strip = T.strip 
 
-isHorizontalSpace :: Char -> Bool
-isHorizontalSpace c = c `elem` [' ','\t','\f','\v','\r']
+-- | Like 'elem' but for 'Text'
+inClass :: Char -> Text -> Bool
+inClass c = isJust . T.find (== c)
 
+-- | Like 'notElem' but for 'Text'
+notInClass :: Char -> Text -> Bool
+notInClass c = not . inClass c 
+
+-- | Characters that count as horizontal space
+horizontalSpace :: Text
+horizontalSpace = " \t\f\v\r"
+
+-- | Skip and ignore leading horizontal space
 skipHorizontalSpace :: Parser ()
-skipHorizontalSpace = skipWhile isHorizontalSpace
+skipHorizontalSpace = skipWhile (`inClass` horizontalSpace)
 
+-- | Take leading horizontal space
 takeHorizontalSpace :: Parser Text 
-takeHorizontalSpace = takeWhile isHorizontalSpace
+takeHorizontalSpace = takeWhile (`inClass` horizontalSpace)
 
 makeLabeled :: (String -> Maybe String -> a) -> Text -> a
 makeLabeled f input = case T.break isSpace $ removeEscapes $ strip input of
@@ -59,6 +74,8 @@ makeLabeled f input = case T.break isSpace $ removeEscapes $ strip input of
 removeEscapes :: Text -> Text
 removeEscapes = T.filter (/= '\\') . T.replace "\\\\" "\\"
 
+-- | Consume characters from the input up to and including the given pattern.
+-- Return everything consumed except for the end pattern itself.
 takeUntil :: Text -> Parser Text 
 takeUntil end_ = T.dropEnd (T.length end_) <$> requireEnd (scan (False, end) p) >>= gotSome
   where
