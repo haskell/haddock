@@ -352,7 +352,7 @@ table = do
 
     -- then we parse all consequtive rows starting and ending with + or |,
     -- of the width `len`.
-    restRows <- many (parseRestRows len)
+    restRows <- many (try (parseRestRows len))
 
     -- Now we gathered the table block, the next step is to split the block
     -- into cells.
@@ -641,7 +641,7 @@ indentedParagraphs indent =
 -- | Grab as many fully indented paragraphs as we can.
 dropFrontOfPara :: Parser Text -> Parser [Text]
 dropFrontOfPara sp = do
-  currentParagraph <- some (sp *> takeNonEmptyLine)
+  currentParagraph <- some (try (sp *> takeNonEmptyLine))
   followingParagraphs <-
     choice' [ skipHorizontalSpace *> nextPar -- we have more paragraphs to take
             , skipHorizontalSpace *> nlList -- end of the ride, remember the newline
@@ -673,7 +673,9 @@ takeNonEmptyLine = do
 takeIndent :: Parser Text 
 takeIndent = do
   indent <- takeHorizontalSpace
-  try ("\n" *> takeIndent) <|> return indent
+  choice' [ "\n" *> takeIndent
+          , return indent
+          ]
 
 -- | Blocks of text of the form:
 --
@@ -684,19 +686,20 @@ takeIndent = do
 birdtracks :: Parser (DocH mod a)
 birdtracks = DocCodeBlock . DocString . T.unpack . T.intercalate "\n" . stripSpace <$> some line
   where
-    line = skipHorizontalSpace *> ">" *> takeLine
+    line = try (skipHorizontalSpace *> ">" *> takeLine)
 
 stripSpace :: [Text] -> [Text]
 stripSpace = fromMaybe <*> mapM strip'
   where
-    strip' t | T.null t = Just t
-             | T.head t == ' ' = Just (T.tail t)
-             | otherwise = Nothing
+    strip' t = case T.uncons t of
+                 Nothing -> Just ""
+                 Just (' ',t') -> Just t'
+                 _ -> Nothing
 
 -- | Parses examples. Examples are a paragraph level entitity (separated by an empty line).
 -- Consecutive examples are accepted.
 examples :: Parser (DocH mod a)
-examples = DocExamples <$> (many (skipHorizontalSpace *> "\n") *> go)
+examples = DocExamples <$> (many (try (skipHorizontalSpace *> "\n")) *> go)
   where
     go :: Parser [Example]
     go = do
@@ -762,18 +765,15 @@ codeblock =
     -- and we lose information about whether the last line belongs to @ or to
     -- text which we need to decide whether we actually want to be dropping
     -- anything at all.
- --   splitByNl = unfoldr (\x -> case x of
- --                                '\n':s -> Just (span (/= '\n') s)
- --                                _      -> Nothing)
- --               . ('\n' :)
-    splitByNl = unfoldr (\x -> if T.null x || T.head x == '\n'
-                                   then Nothing
-                                   else Just (T.span (/= '\n') (T.tail x)))
+    splitByNl = unfoldr (\x -> case T.uncons x of
+                                 Just ('\n',x') -> Just (T.span (/= '\n') x')
+                                 _ -> Nothing)
                 . ("\n" <>)
 
-    dropSpace t | T.null t = Just t
-                | T.head t == ' ' = Just (T.tail t)
-                | otherwise = Nothing
+    dropSpace t = case T.uncons t of
+                    Nothing -> Just ""
+                    Just (' ',t') -> Just t'
+                    _ -> Nothing
 
     block' = scan False p
       where
@@ -816,7 +816,7 @@ linkParser = flip Hyperlink <$> label <*> (whitespace *> url)
 autoUrl :: Parser (DocH mod a)
 autoUrl = mkLink <$> url
   where
-    url = mappend <$> ("http://" <|> "https://" <|> "ftp://") <*> takeWhile1 (not . isSpace)
+    url = mappend <$> choice' [ "http://", "https://", "ftp://"] <*> takeWhile1 (not . isSpace)
     mkLink :: Text -> DocH mod a
     mkLink s = case unsnoc s of
       Just (xs, x) | x `contains` ",.!?" -> DocHyperlink (Hyperlink (T.unpack xs) Nothing) `docAppend` DocString [x]
