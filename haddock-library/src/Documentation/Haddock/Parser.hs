@@ -139,25 +139,29 @@ parseParas pkg input = case parseParasState input of
                         }
 
 parseParasState :: String -> (ParserState, DocH mod Identifier)
-parseParasState = parse p . T.pack . (++ "\n") . filter (/= '\r')
+parseParasState = parse (emptyLines *> p) . T.pack . (++ "\n") . filter (/= '\r')
   where
     p :: Parser (DocH mod Identifier)
-    p = docConcat <$> (paragraph `Parsec.sepEndBy` many (try (skipHorizontalSpace *> "\n")))
+    p = docConcat <$> many (paragraph <* emptyLines)
+
+    emptyLines :: Parser ()
+    emptyLines = void $ many (try (skipHorizontalSpace *> "\n"))
 
 parseParagraphs :: String -> Parser (DocH mod Identifier)
 parseParagraphs input = case parseParasState input of
   (state, a) -> setParserState state >> return a
 
--- | Parse a text paragraph. Actually just a wrapper over 'parseStringBS' which
--- drops leading whitespace and encodes the string to UTF8 first.
+-- | Variant of 'parseText' for 'String' instead of 'Text'
 parseString :: String -> DocH mod Identifier
-parseString = parseStringBS . T.pack . dropWhile isSpace . filter (/= '\r')
+parseString = parseText . T.pack
 
+-- | Parse a text paragraph. Actually just a wrapper over 'parseParagraph' which
+-- drops leading whitespace.
 parseText :: Text -> DocH mod Identifier
-parseText = parseStringBS . T.dropWhile isSpace . T.filter (/= '\r')
+parseText = parseParagraph . T.dropWhile isSpace . T.filter (/= '\r')
 
-parseStringBS :: Text -> DocH mod Identifier
-parseStringBS = snd . parse p
+parseParagraph :: Text -> DocH mod Identifier
+parseParagraph = snd . parse p
   where
     p :: Parser (DocH mod Identifier)
     p = docConcat <$> many (choice' [ monospace
@@ -215,7 +219,7 @@ skipSpecialChar = DocString . return <$> satisfy (`elem` specialChar)
 -- >>> parseString "/Hello world/"
 -- DocEmphasis (DocString "Hello world")
 emphasis :: Parser (DocH mod Identifier)
-emphasis = DocEmphasis . parseStringBS <$>
+emphasis = DocEmphasis . parseParagraph <$>
   mfilter ('\n' `notInClass`) ("/" *> takeWhile1_ (/= '/') <* "/")
 
 -- | Bold parser.
@@ -223,7 +227,7 @@ emphasis = DocEmphasis . parseStringBS <$>
 -- >>> parseString "__Hello world__"
 -- DocBold (DocString "Hello world")
 bold :: Parser (DocH mod Identifier)
-bold = DocBold . parseStringBS <$> disallowNewline ("__" *> takeUntil "__")
+bold = DocBold . parseParagraph <$> disallowNewline ("__" *> takeUntil "__")
 
 disallowNewline :: Parser Text -> Parser Text
 disallowNewline = mfilter ('\n' `notInClass`)
@@ -254,7 +258,7 @@ anchor = DocAName . T.unpack <$>
 -- >>> parseString "@cruel@"
 -- DocMonospaced (DocString "cruel")
 monospace :: Parser (DocH mod Identifier)
-monospace = DocMonospaced . parseStringBS
+monospace = DocMonospaced . parseParagraph
             <$> ("@" *> takeWhile1_ (/= '@') <* "@")
 
 -- | Module names.
@@ -488,7 +492,7 @@ tableStepFour rs hdrIndex cells =  case hdrIndex of
     init' [_]      = []
     init' (x : xs) = x : init' xs
 
-    rowsDoc = (fmap . fmap) parseStringBS rows
+    rowsDoc = (fmap . fmap) parseParagraph rows
 
     rows = map makeRow (init' yTabStops)
       where
@@ -581,7 +585,7 @@ definitionList :: Text -> Parser (DocH mod Identifier)
 definitionList indent = DocDefList <$> p
   where
     p = do
-      label <- "[" *> (parseStringBS <$> takeWhile1_ (`notInClass` "]\n")) <* ("]" <* optional ":")
+      label <- "[" *> (parseParagraph <$> takeWhile1_ (`notInClass` "]\n")) <* ("]" <* optional ":")
       c <- takeLine
       (cs, items) <- more indent p
       let contents = parseText . dropNLs . T.unlines $ c : cs
@@ -743,7 +747,7 @@ property = DocProperty . T.unpack . T.strip <$> ("prop>" *> takeWhile1 (/= '\n')
 -- for markup.
 codeblock :: Parser (DocH mod Identifier)
 codeblock =
-  DocCodeBlock . parseStringBS . dropSpaces
+  DocCodeBlock . parseParagraph . dropSpaces
   <$> ("@" *> skipHorizontalSpace *> "\n" *> block' <* "@")
   where
     dropSpaces xs =
