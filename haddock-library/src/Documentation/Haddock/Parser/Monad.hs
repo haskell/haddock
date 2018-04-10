@@ -30,7 +30,7 @@ instance (a ~ Text) => IsString (Parser a) where
   fromString = fmap T.pack . Parsec.string
 
 parseOnly :: Parser a -> Text -> Either String (ParserState, a)
-parseOnly p t = case Parsec.runParser p' initialParserState "TODO" t of
+parseOnly p t = case Parsec.runParser p' initialParserState "<haddock>" t of
                   Left e -> Left (show e)
                   Right (x,s) -> Right (s,x)
   where p' = (,) <$> p <*> Parsec.getState
@@ -43,16 +43,6 @@ setSince since = Parsec.modifyState (\st -> st {parserStateSince = Just since})
 
 char :: Char -> Parser Char
 char =  Parsec.char
-
--- | TODO: remove and use 'peekChar'
--- | Peek a unicode character and return the number of bytes that it took up
-peekUnicode :: Parser Char 
-peekUnicode = peekChar' 
-
--- TODO: remove and use 'satisfy', which now works over unicode
--- | Like 'satisfy', but consuming a unicode character
-satisfyUnicode :: (Char -> Bool) -> Parser Char
-satisfyUnicode = satisfy 
 
 many' :: Parser a -> Parser [a]
 many' = Parsec.manyAccum (\x xs -> x `seq` x : xs)

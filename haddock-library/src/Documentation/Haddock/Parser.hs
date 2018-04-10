@@ -275,8 +275,8 @@ moduleName = DocModule <$> (char '"' *> modid <* char '"')
   where
     modid = intercalate "." <$> conid `Parsec.sepBy1` "."
     conid = (:)
-      <$> satisfyUnicode (\c -> isAlpha c && isUpper c)
-      <*> many (satisfyUnicode conChar <|> char '\\' <|> char '#')
+      <$> satisfy (\c -> isAlpha c && isUpper c)
+      <*> many (satisfy conChar <|> char '\\' <|> char '#')
 
     conChar c = isAlphaNum c || c == '_'
 
@@ -314,19 +314,21 @@ markdownImage = fromHyperlink <$> ("!" *> linkParser)
 
 -- | Paragraph parser, called by 'parseParas'.
 paragraph :: Parser (DocH mod Identifier)
-paragraph =  try examples <|> try table <|> do
-  indent <- takeIndent
-  choice' [ since
-          , unorderedList indent
-          , orderedList indent
-          , birdtracks
-          , codeblock
-          , property
-          , header
-          , textParagraphThatStartsWithMarkdownLink
-          , definitionList indent
-          , docParagraph <$> textParagraph
-          ]
+paragraph = choice' [ examples
+                    , table
+                    , do indent <- takeIndent
+                         choice' [ since
+                                 , unorderedList indent
+                                 , orderedList indent
+                                 , birdtracks
+                                 , codeblock
+                                 , property
+                                 , header
+                                 , textParagraphThatStartsWithMarkdownLink
+                                 , definitionList indent
+                                 , docParagraph <$> textParagraph
+                                 ]
+                    ]
 
 -- | Provides support for grid tables.
 --
@@ -543,7 +545,8 @@ textParagraphThatStartsWithMarkdownLink :: Parser (DocH mod Identifier)
 textParagraphThatStartsWithMarkdownLink = docParagraph <$> (docAppend <$> markdownLink <*> optionalTextParagraph)
   where
     optionalTextParagraph :: Parser (DocH mod Identifier)
-    optionalTextParagraph = try (docAppend <$> whitespace <*> textParagraph) <|> pure DocEmpty
+    optionalTextParagraph = choice [ docAppend <$> whitespace <*> textParagraph
+                                   , pure DocEmpty ]
 
     whitespace :: Parser (DocH mod a)
     whitespace = DocString <$> (f <$> takeHorizontalSpace <*> optional "\n")
@@ -828,14 +831,14 @@ autoUrl = mkLink <$> url
 parseValid :: Parser String
 parseValid = p some
   where
-    idChar = satisfyUnicode (\c -> isAlphaNum c || isSymbolChar c || c == '_')
+    idChar = satisfy (\c -> isAlphaNum c || isSymbolChar c || c == '_')
 
     p p' = do
       vs <- p' idChar
       c <- peekChar'
       case c of
         '`' -> return vs
-        '\'' -> (\x -> vs ++ "'" ++ x) <$> try ("'" *> p many') <|> return vs
+        '\'' -> (\x -> vs ++ "'" ++ x) <$> choice' [ "'" *> p many', return vs ]
         _ -> fail "outofvalid"
 
 -- | Parses identifiers with help of 'parseValid'. Asks GHC for
