@@ -32,7 +32,6 @@ import           Documentation.Haddock.Doc
 import           Documentation.Haddock.Parser.Monad hiding (take, endOfLine)
 import           Documentation.Haddock.Parser.Util
 import           Documentation.Haddock.Types
-import           Documentation.Haddock.Utf8
 import           Prelude hiding (takeWhile)
 import qualified Prelude as P
 
@@ -132,7 +131,7 @@ choice' [p] = p
 choice' (p : ps) = try p <|> choice' ps
 
 parse :: Parser a -> Text -> (ParserState, a)
-parse p = either err id . parseOnly (p {- <* endOfInput -}) . encodeUtf8 . T.unpack
+parse p = either err id . parseOnly (p <* endOfInput)
   where
     err = error . ("Haddock.Parser.parse: " ++)
 

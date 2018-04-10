@@ -7,13 +7,11 @@ import qualified Text.Parsec as Parsec
 import qualified Data.Text as T
 
 import           Data.Text (Text)
-import           Data.ByteString (ByteString)
 
 import           Control.Applicative
 import           Control.Monad
 import           Data.String
 import           Data.Bits
-import           Data.Maybe (isJust)
 import           Data.Char (isDigit, ord, isHexDigit)
 import           Data.List (foldl')
 
@@ -26,13 +24,13 @@ newtype ParserState = ParserState {
 initialParserState :: ParserState
 initialParserState = ParserState Nothing
 
-type Parser = Parsec.Parsec ByteString ParserState
+type Parser = Parsec.Parsec Text ParserState
 
 instance (a ~ Text) => IsString (Parser a) where
   fromString = fmap T.pack . Parsec.string
 
-parseOnly :: Parser a -> ByteString -> Either String (ParserState, a)
-parseOnly p b = case Parsec.runParser p' initialParserState "TODO" b of
+parseOnly :: Parser a -> Text -> Either String (ParserState, a)
+parseOnly p t = case Parsec.runParser p' initialParserState "TODO" t of
                   Left e -> Left (show e)
                   Right (x,s) -> Right (s,x)
   where p' = (,) <$> p <*> Parsec.getState
