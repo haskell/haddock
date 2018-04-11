@@ -16,20 +16,24 @@
 -- to be
 --
 -- @'toRegular' . '_doc' . 'parseParas'@
-module Documentation.Haddock.Parser ( parseString, parseParas
-                                    , overIdentifier, toRegular, Identifier
-                                    ) where
+module Documentation.Haddock.Parser (
+  parseString,
+  parseParas,
+  overIdentifier,
+  toRegular,
+  Identifier
+) where
 
 import           Control.Applicative
 import           Control.Arrow (first)
 import           Control.Monad
-import           Data.Char (chr, isUpper, isAlpha, isAlphaNum)
-import           Data.List (intercalate, unfoldr, elemIndex)
+import           Data.Char (chr, isUpper, isAlpha, isAlphaNum, isSpace)
+import           Data.List (intercalate, unfoldr, elemIndex, notElem)
 import           Data.Maybe (fromMaybe, mapMaybe)
 import           Data.Monoid
 import qualified Data.Set as Set
 import           Documentation.Haddock.Doc
-import           Documentation.Haddock.Parser.Monad hiding (take, endOfLine)
+import           Documentation.Haddock.Parser.Monad
 import           Documentation.Haddock.Parser.Util
 import           Documentation.Haddock.Types
 import           Prelude hiding (takeWhile)
@@ -40,8 +44,6 @@ import           Text.Parsec (try)
 
 import qualified Data.Text as T
 import           Data.Text (Text)
-
-import           Data.Char (isSpace)
 
 #if MIN_VERSION_base(4,9,0)
 import           Text.Read.Lex                      (isSymbolChar)
@@ -122,7 +124,7 @@ choice' [p] = p
 choice' (p : ps) = try p <|> choice' ps
 
 parse :: Parser a -> Text -> (ParserState, a)
-parse p = either err id . parseOnly (p <* endOfInput)
+parse p = either err id . parseOnly (p <* Parsec.eof)
   where
     err = error . ("Haddock.Parser.parse: " ++)
 
@@ -149,7 +151,7 @@ parseParasState = parse (emptyLines *> p) . T.pack . (++ "\n") . filter (/= '\r'
 
 parseParagraphs :: String -> Parser (DocH mod Identifier)
 parseParagraphs input = case parseParasState input of
-  (state, a) -> setParserState state >> return a
+  (state, a) -> Parsec.putState state *> pure a
 
 -- | Variant of 'parseText' for 'String' instead of 'Text'
 parseString :: String -> DocH mod Identifier
@@ -212,7 +214,7 @@ string' = DocString . unescape . T.unpack <$> takeWhile1_ (`notElem` specialChar
 -- This is done to skip over any special characters belonging to other
 -- elements but which were not deemed meaningful at their positions.
 skipSpecialChar :: Parser (DocH mod a)
-skipSpecialChar = DocString . return <$> satisfy (`elem` specialChar)
+skipSpecialChar = DocString . return <$> Parsec.oneOf specialChar
 
 -- | Emphasis parser.
 --
@@ -220,7 +222,7 @@ skipSpecialChar = DocString . return <$> satisfy (`elem` specialChar)
 -- DocEmphasis (DocString "Hello world")
 emphasis :: Parser (DocH mod Identifier)
 emphasis = DocEmphasis . parseParagraph <$>
-  mfilter ('\n' `notInClass`) ("/" *> takeWhile1_ (/= '/') <* "/")
+  disallowNewline ("/" *> takeWhile1_ (/= '/') <* "/")
 
 -- | Bold parser.
 --
@@ -230,18 +232,18 @@ bold :: Parser (DocH mod Identifier)
 bold = DocBold . parseParagraph <$> disallowNewline ("__" *> takeUntil "__")
 
 disallowNewline :: Parser Text -> Parser Text
-disallowNewline = mfilter ('\n' `notInClass`)
+disallowNewline = mfilter (T.all (/= '\n'))
 
 -- | Like `takeWhile`, but unconditionally take escaped characters.
 takeWhile_ :: (Char -> Bool) -> Parser Text
-takeWhile_ p = scan False p_
+takeWhile_ p = scan p_ False
   where
     p_ escaped c
       | escaped = Just False
       | not $ p c = Nothing
       | otherwise = Just (c == '\\')
 
--- | Like `takeWhile1`, but unconditionally take escaped characters.
+-- | Like 'takeWhile1', but unconditionally take escaped characters.
 takeWhile1_ :: (Char -> Bool) -> Parser Text
 takeWhile1_ = mfilter (not . T.null) . takeWhile_
 
@@ -266,14 +268,14 @@ monospace = DocMonospaced . parseParagraph
 -- Note that we allow '#' and '\' to support anchors (old style anchors are of
 -- the form "SomeModule\#anchor").
 moduleName :: Parser (DocH mod a)
-moduleName = DocModule <$> (char '"' *> modid <* char '"')
+moduleName = DocModule <$> ("\"" *> modid <* "\"")
   where
     modid = intercalate "." <$> conid `Parsec.sepBy1` "."
     conid = (:)
-      <$> satisfy (\c -> isAlpha c && isUpper c)
-      <*> many (satisfy conChar <|> char '\\' <|> char '#')
+      <$> Parsec.satisfy (\c -> isAlpha c && isUpper c)
+      <*> many (conChar <|> Parsec.oneOf "\\#")
 
-    conChar c = isAlphaNum c || c == '_'
+    conChar = Parsec.alphaNum <|> Parsec.char '_'
 
 -- | Picture parser, surrounded by \<\< and \>\>. It's possible to specify
 -- a title for the picture.
@@ -359,15 +361,15 @@ table = do
     parseFirstRow = do
         skipHorizontalSpace
         -- upper-left corner is +
-        c <- char '+'
-        cs <- some (char '-' <|> char '+')
+        c <- Parsec.char '+'
+        cs <- some (Parsec.char '-' <|> Parsec.char '+')
 
         -- upper right corner is + too
         guard (last cs == '+')
 
         -- trailing space
         skipHorizontalSpace
-        _ <- char '\n'
+        _ <- Parsec.newline
 
         return (T.cons c $ T.pack cs)
 
@@ -375,13 +377,13 @@ table = do
     parseRestRows l = do
         skipHorizontalSpace
 
-        c <- char '|' <|> char '+'
-        bs <- scan (l - 2) predicate
-        c2 <- char '|' <|> char '+'
+        c <- Parsec.char '|' <|> Parsec.char '+'
+        bs <- scan predicate (l - 2)
+        c2 <- Parsec.char '|' <|> Parsec.char '+'
 
         -- trailing space
         skipHorizontalSpace
-        _ <- char '\n'
+        _ <- Parsec.newline
 
         return (T.cons c (T.snoc bs c2))
       where
@@ -585,7 +587,7 @@ definitionList :: Text -> Parser (DocH mod Identifier)
 definitionList indent = DocDefList <$> p
   where
     p = do
-      label <- "[" *> (parseParagraph <$> takeWhile1_ (`notInClass` "]\n")) <* ("]" <* optional ":")
+      label <- "[" *> (parseParagraph <$> takeWhile1_ (`notElem` ("]\n" :: String))) <* ("]" <* optional ":")
       c <- takeLine
       (cs, items) <- more indent p
       let contents = parseText . dropNLs . T.unlines $ c : cs
@@ -620,7 +622,7 @@ moreListItems :: Text -> Parser a
               -> Parser ([Text], Either (DocH mod Identifier) a)
 moreListItems indent item = (,) [] . Right <$> indentedItem
   where
-    indentedItem = string indent *> skipSpace *> item
+    indentedItem = string indent *> Parsec.spaces *> item
 
 -- | Helper for 'innerList' and 'definitionList' which simply takes
 -- a line of text and attempts to parse more list content with 'more'.
@@ -643,7 +645,7 @@ dropFrontOfPara sp = do
   followingParagraphs <-
     choice' [ skipHorizontalSpace *> nextPar -- we have more paragraphs to take
             , skipHorizontalSpace *> nlList -- end of the ride, remember the newline
-            , endOfInput *> return [] -- nothing more to take at all
+            , Parsec.eof *> return []       -- nothing more to take at all
             ]
   return (currentParagraph ++ followingParagraphs)
   where
@@ -660,7 +662,7 @@ nonSpace xs
 --  Doesn't discard the trailing newline.
 takeNonEmptyLine :: Parser Text
 takeNonEmptyLine = do
-    l <- takeWhile1 (/= '\n') >>= nonSpace
+    l <- takeWhile1 (Parsec.noneOf "\n") >>= nonSpace
     _ <- "\n"
     pure (l <> "\n")
 
@@ -730,17 +732,17 @@ nonEmptyLine :: Parser Text
 nonEmptyLine = try (mfilter (T.any (not . isSpace)) takeLine)
 
 takeLine :: Parser Text
-takeLine = try (takeWhile (/= '\n') <* endOfLine)
+takeLine = try (takeWhile (Parsec.noneOf "\n") <* endOfLine)
 
 endOfLine :: Parser ()
-endOfLine = void "\n" <|> endOfInput
+endOfLine = void "\n" <|> Parsec.eof 
 
 -- | Property parser.
 --
 -- >>> snd <$> parseOnly property "prop> hello world"
 -- Right (DocProperty "hello world")
 property :: Parser (DocH mod a)
-property = DocProperty . T.unpack . T.strip <$> ("prop>" *> takeWhile1 (/= '\n'))
+property = DocProperty . T.unpack . T.strip <$> ("prop>" *> takeWhile1 (Parsec.noneOf "\n"))
 
 -- |
 -- Paragraph level codeblock. Anything between the two delimiting \@ is parsed
@@ -773,7 +775,7 @@ codeblock =
                     Just (' ',t') -> Just t'
                     _ -> Nothing
 
-    block' = scan False p
+    block' = scan p False
       where
         p isNewline c
           | isNewline && c == '@' = Nothing
@@ -795,7 +797,7 @@ linkParser :: Parser Hyperlink
 linkParser = flip Hyperlink <$> label <*> (whitespace *> url)
   where
     label :: Parser (Maybe String)
-    label = Just . decode . strip <$> ("[" *> takeUntil "]")
+    label = Just . decode . T.strip <$> ("[" *> takeUntil "]")
 
     whitespace :: Parser ()
     whitespace = skipHorizontalSpace <* optional ("\n" *> skipHorizontalSpace)
@@ -814,11 +816,17 @@ linkParser = flip Hyperlink <$> label <*> (whitespace *> url)
 autoUrl :: Parser (DocH mod a)
 autoUrl = mkLink <$> url
   where
-    url = mappend <$> choice' [ "http://", "https://", "ftp://"] <*> takeWhile1 (not . isSpace)
+    url = mappend <$> choice' [ "http://", "https://", "ftp://"] <*> takeWhile1 (Parsec.satisfy (not . isSpace))
+    
     mkLink :: Text -> DocH mod a
-    mkLink s = case unsnoc s of
-      Just (xs, x) | x `inClass` ",.!?" -> DocHyperlink (Hyperlink (T.unpack xs) Nothing) `docAppend` DocString [x]
-      _ -> DocHyperlink (Hyperlink (T.unpack s) Nothing)
+    mkLink s = case T.unsnoc s of
+      Just (xs,x) | x `elem` (",.!?" :: String) -> DocHyperlink (mkHyperlink xs) `docAppend` DocString [x]
+      _ -> DocHyperlink (mkHyperlink s)
+
+    mkHyperlink :: Text -> Hyperlink
+    mkHyperlink lnk = Hyperlink (T.unpack lnk) Nothing
+
+
 
 -- | Parses strings between identifier delimiters. Consumes all input that it
 -- deems to be valid in an identifier. Note that it simply blindly consumes
@@ -826,14 +834,14 @@ autoUrl = mkLink <$> url
 parseValid :: Parser String
 parseValid = p some
   where
-    idChar = satisfy (\c -> isAlphaNum c || isSymbolChar c || c == '_')
+    idChar = Parsec.satisfy (\c -> isAlphaNum c || isSymbolChar c || c == '_')
 
     p p' = do
       vs <- p' idChar
       c <- peekChar'
       case c of
         '`' -> return vs
-        '\'' -> choice' [ (\x -> vs ++ "'" ++ x) <$> ("'" *> p many'), return vs ]
+        '\'' -> choice' [ (\x -> vs ++ "'" ++ x) <$> ("'" *> p many), return vs ]
         _ -> fail "outofvalid"
 
 -- | Parses identifiers with help of 'parseValid'. Asks GHC for
@@ -845,4 +853,4 @@ identifier = do
   e <- idDelim
   return $ DocIdentifier (o, vid, e)
   where
-    idDelim = satisfy (\c -> c == '\'' || c == '`')
+    idDelim = Parsec.satisfy (\c -> c == '\'' || c == '`')

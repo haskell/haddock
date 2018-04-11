@@ -11,16 +11,14 @@
 --
 -- Various utility functions used by the parser.
 module Documentation.Haddock.Parser.Util (
-  unsnoc
-, strip
-, inClass
-, notInClass
-, takeUntil
-, removeEscapes
-, makeLabeled
-, takeHorizontalSpace
-, skipHorizontalSpace
+  takeUntil,
+  removeEscapes,
+  makeLabeled,
+  takeHorizontalSpace,
+  skipHorizontalSpace,
 ) where
+
+import qualified Text.Parsec as Parsec
 
 import qualified Data.Text as T
 import           Data.Text (Text)
@@ -30,41 +28,22 @@ import           Control.Monad (mfilter)
 import           Documentation.Haddock.Parser.Monad
 import           Prelude hiding (takeWhile)
 
-import           Data.Maybe (isJust)
 import           Data.Char (isSpace)
 
--- | Like 'T.uncons', but for the last character instead of the first.
-unsnoc :: Text -> Maybe (Text, Char)
-unsnoc bs
-  | T.null bs = Nothing
-  | otherwise = Just (T.init bs, T.last bs)
-
--- | Remove all leading and trailing whitespace
-strip :: Text -> Text  
-strip = T.strip 
-
--- | Like 'elem' but for 'Text'
-inClass :: Char -> Text -> Bool
-inClass c = isJust . T.find (== c)
-
--- | Like 'notElem' but for 'Text'
-notInClass :: Char -> Text -> Bool
-notInClass c = not . inClass c 
-
 -- | Characters that count as horizontal space
-horizontalSpace :: Text
+horizontalSpace :: [Char]
 horizontalSpace = " \t\f\v\r"
 
 -- | Skip and ignore leading horizontal space
 skipHorizontalSpace :: Parser ()
-skipHorizontalSpace = skipWhile (`inClass` horizontalSpace)
+skipHorizontalSpace = Parsec.skipMany (Parsec.oneOf horizontalSpace)
 
 -- | Take leading horizontal space
 takeHorizontalSpace :: Parser Text 
-takeHorizontalSpace = takeWhile (`inClass` horizontalSpace)
+takeHorizontalSpace = takeWhile (Parsec.oneOf horizontalSpace)
 
 makeLabeled :: (String -> Maybe String -> a) -> Text -> a
-makeLabeled f input = case T.break isSpace $ removeEscapes $ strip input of
+makeLabeled f input = case T.break isSpace $ removeEscapes $ T.strip input of
   (uri, "")    -> f (T.unpack uri) Nothing
   (uri, label) -> f (T.unpack uri) (Just . T.unpack $ T.stripStart label)
 
@@ -72,12 +51,17 @@ makeLabeled f input = case T.break isSpace $ removeEscapes $ strip input of
 --
 -- Only do this if you do not process (read: parse) the input any further.
 removeEscapes :: Text -> Text
-removeEscapes = T.filter (/= '\\') . T.replace "\\\\" "\\"
+removeEscapes = T.unfoldr go
+  where
+  go :: Text -> Maybe (Char, Text)
+  go xs = case T.uncons xs of
+            Just ('\\',ys) -> T.uncons ys
+            unconsed -> unconsed
 
 -- | Consume characters from the input up to and including the given pattern.
 -- Return everything consumed except for the end pattern itself.
 takeUntil :: Text -> Parser Text 
-takeUntil end_ = T.dropEnd (T.length end_) <$> requireEnd (scan (False, end) p) >>= gotSome
+takeUntil end_ = T.dropEnd (T.length end_) <$> requireEnd (scan p (False, end)) >>= gotSome
   where
     end = T.unpack end_ 
 
