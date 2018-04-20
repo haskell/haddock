@@ -182,7 +182,7 @@ decls (group, _, _, _) = concatMap ($ group)
         Nothing -> empty
     fix term = case cast term of
         Just ((GHC.FixitySig _ names _) :: GHC.FixitySig GHC.GhcRn)
-          -> map decl names
+          -> map (\(GHC.L sspan x) -> (sspan, RtkVar x)) names
         Just (GHC.XFixitySig {} :: GHC.FixitySig GHC.GhcRn)
           -> GHC.panic "haddock:decls"
         Nothing -> empty
