@@ -93,6 +93,7 @@ data Flag
   | Flag_ShowModule String
   | Flag_ShowAllModules
   | Flag_ShowExtensions String
+  | Flag_HideHyperlinked String
   | Flag_OptGhc String
   | Flag_GhcLibDir String
   | Flag_GhcVersion
@@ -195,6 +196,8 @@ options backwardsCompat =
       "behave as if not modules have the hide attribute",
     Option [] ["show-extensions"] (ReqArg Flag_ShowExtensions "MODULE")
       "behave as if MODULE has the show-extensions attribute",
+    Option [] ["hide-hyperlinked"] (ReqArg Flag_HideHyperlinked "MODULE")
+      "don't generate hyperlinked source for MODULE",
     Option [] ["optghc"] (ReqArg Flag_OptGhc "OPTION")
       "option to be forwarded to GHC",
     Option []  ["ghc-version"]  (NoArg Flag_GhcVersion)

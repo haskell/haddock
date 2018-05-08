@@ -529,6 +529,7 @@ data DocOption
   | OptNotHome         -- ^ Not the best place to get docs for things
                        -- exported by this module.
   | OptShowExtensions  -- ^ Render enabled extensions for this module.
+  | OptHideHyperlinked -- ^ Do not generate hyperlinked sources for this module
   deriving (Eq, Show)
 
 

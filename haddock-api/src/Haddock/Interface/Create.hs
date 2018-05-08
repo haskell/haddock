@@ -335,6 +335,7 @@ mkDocOpts mbOpts flags mdl = do
             | m == Flag_ShowAllModules        = filter (/= OptHide) os
             | m == Flag_IgnoreAllExports      = OptIgnoreExports : os
             | m == Flag_ShowExtensions mdlStr = OptIgnoreExports : os
+            | m == Flag_HideHyperlinked mdlStr = OptHideHyperlinked : os
             | otherwise                       = os
 
 parseOption :: String -> ErrMsgM (Maybe DocOption)
@@ -343,6 +344,7 @@ parseOption "prune"           = return (Just OptPrune)
 parseOption "ignore-exports"  = return (Just OptIgnoreExports)
 parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
+parseOption "hide-hyperlinked" = return (Just OptHideHyperlinked)
 parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
 
 
