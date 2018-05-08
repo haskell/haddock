@@ -102,8 +102,11 @@ spec = do
       it "doesn't parse empty identifiers" $ do
         "``" `shouldParseTo` "``"
 
-      it "can parse infix identifiers" $ do
+      it "can parse an identifier in infix notation enclosed within backticks" $ do
         "``infix``" `shouldParseTo` "`" <> DocIdentifier "infix" <> "`"
+
+      it "can parse identifiers in infix notation enclosed within single quotes" $ do
+        "'`infix`'" `shouldParseTo` "`" <> DocIdentifier "infix" <> "`"
 
       it "parses a pretend-identifier that starts with a digit as a string" $ do
         "'0foo'" `shouldParseTo` "'0foo'"
