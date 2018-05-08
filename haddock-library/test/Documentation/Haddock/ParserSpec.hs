@@ -86,6 +86,9 @@ spec = do
       it "parses identifiers enclosed within backticks" $ do
         "`foo`" `shouldParseTo` DocIdentifier "foo"
 
+      it "doesn't parse a composed function as an identifier" $ do
+        "'foo.bar'" `shouldParseTo` "'foo.bar'"
+
       it "parses a word with an one of the delimiters in it as DocString" $ do
           "don't" `shouldParseTo` "don't"
 
@@ -101,6 +104,15 @@ spec = do
 
       it "can parse infix identifiers" $ do
         "``infix``" `shouldParseTo` "`" <> DocIdentifier "infix" <> "`"
+
+      it "parses a pretend-identifier that starts with a digit as a string" $ do
+        "'0foo'" `shouldParseTo` "'0foo'"
+
+      it "can parse an identifier preceded by a single quote and a digit" $ do
+        "'0'foo'" `shouldParseTo` "'0" <> DocIdentifier "foo"
+
+      it "doesn't parse a mix of letters and operator symbols" $ do
+        "'f$'" `shouldParseTo` "'f$'"
 
     context "when parsing URLs" $ do
       it "parses a URL" $ do
