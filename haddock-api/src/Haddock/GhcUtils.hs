@@ -119,7 +119,7 @@ sigNameNoLoc (FixSig (FixitySig ns _)) = map unLoc ns
 sigNameNoLoc _                         = []
 
 
-uniquifyName :: (NamedThing name, SetName name) => name -> name
+uniquifyName :: SetName name => name -> name
 uniquifyName = liftA2 setName (updateName . getName) id
   where
     updateName = liftA2 setNameUnique id $
