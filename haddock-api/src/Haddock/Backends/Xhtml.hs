@@ -11,7 +11,7 @@
 -- Stability   :  experimental
 -- Portability :  portable
 -----------------------------------------------------------------------------
-{-# LANGUAGE CPP, NamedFieldPuns #-}
+{-# LANGUAGE CPP, FlexibleContexts, NamedFieldPuns #-}
 module Haddock.Backends.Xhtml (
   ppHtml, copyHtmlBits,
   ppHtmlIndex, ppHtmlContents,
@@ -390,7 +390,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
     exportSubs ExportDecl { expItemSubDocs } = map fst expItemSubDocs
     exportSubs _ = []
 
-    exportName :: ExportItem name -> [IdP name]
+    exportName :: SetName (IdP name) => ExportItem name -> [IdP name]
     exportName ExportDecl { expItemDecl } = getMainDeclBinder (unLoc expItemDecl)
     exportName ExportNoDecl { expItemName } = [expItemName]
     exportName _ = []

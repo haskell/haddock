@@ -64,14 +64,14 @@ ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
              [Located DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode pkg qual =
-  ppFunSig summary links loc doc (map unLoc lnames) lty fixities
+  ppFunSig summary links loc mempty doc (map unLoc lnames) lty fixities
            splice unicode pkg qual
 
-ppFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
+ppFunSig :: Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl DocName ->
             [DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
             Splice -> Unicode -> Maybe Package -> Qualification -> Html
-ppFunSig summary links loc doc docnames typ fixities splice unicode pkg qual =
-  ppSigLike summary links loc mempty doc docnames fixities (unLoc typ, pp_typ)
+ppFunSig summary links loc leader doc docnames typ fixities splice unicode pkg qual =
+  ppSigLike summary links loc leader doc docnames fixities (unLoc typ, pp_typ)
             splice unicode pkg qual HideEmptyContexts
   where
     pp_typ = ppLType unicode qual HideEmptyContexts typ
@@ -188,7 +188,7 @@ ppFor :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
       -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppFor summary links loc doc (ForeignImport (L _ name) typ _ _) fixities
       splice unicode pkg qual
-  = ppFunSig summary links loc doc [name] (hsSigType typ) fixities splice unicode pkg qual
+  = ppFunSig summary links loc mempty doc [name] (hsSigType typ) fixities splice unicode pkg qual
 ppFor _ _ _ _ _ _ _ _ _ _ = error "ppFor"
 
 
@@ -475,7 +475,7 @@ ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, t
 
                 -- ToDo: add associated type defaults
 
-            [ ppFunSig summary links loc doc names (hsSigWcType typ)
+            [ ppFunSig summary links loc mempty doc names (hsSigWcType typ)
                        [] splice unicode pkg qual
               | L _ (TypeSig lnames typ) <- sigs
               , let doc = lookupAnySubdoc (head names) subdocs
@@ -523,16 +523,35 @@ ppClassDecl summary links instances fixities loc d subdocs
                             doc = lookupAnySubdoc (unL $ fdLName $ unL at) subdocs
                             subfixs = [ f | f@(n',_) <- fixities, n == n' ] ]
 
-    methodBit = subMethods [ ppFunSig summary links loc doc [name] (hsSigType typ)
+    namesFixities names = [ f | n <- names
+                          , f@(n', _) <- fixities
+                          , n == n'
+                          ]
+
+    ppDefaultFunSig (names', typ', doc') = ppFunSig summary links loc
+        (keyword "default") doc' names' (hsSigType typ') [] splice unicode pkg qual
+
+    methodBit = subMethods [ ppFunSig summary links loc mempty doc names (hsSigType typ)
                                       subfixs splice unicode pkg qual
-                           | L _ (ClassOpSig _ lnames typ) <- lsigs
-                           , name <- map unLoc lnames
-                           , let doc = lookupAnySubdoc name subdocs
-                                 subfixs = [ f | f@(n',_) <- fixities
-                                               , name == n' ]
+                                  <+> subDefaults defaultsSigs
+                           | L _ (ClassOpSig False lnames typ) <- lsigs
+                           , let doc = lookupAnySubdoc (head names) subdocs
+                                 names = map unLoc lnames
+                                 subfixs = namesFixities names
+                                 nameStrs = getOccString . getName <$> names
+                                 defaults = flip Map.lookup defaultMethods <$> nameStrs
+                                 defaultsSigs = ppDefaultFunSig <$> catMaybes defaults
                            ]
                            -- N.B. taking just the first name is ok. Signatures with multiple names
                            -- are expanded so that each name gets its own signature.
+
+    defaultMethods = Map.fromList
+        [ (nameStr, (names, typ, doc))
+        | L _ (ClassOpSig True lnames typ) <- lsigs
+        , let names   = map (uniquifyName . unLoc) lnames
+              nameStr = getOccString $ getName $ head names
+              doc     = lookupAnySubdoc (head names) subdocs
+        ]
 
     minimalBit = case [ s | MinimalSig _ (L _ s) <- sigs ] of
       -- Miminal complete definition = every shown method
