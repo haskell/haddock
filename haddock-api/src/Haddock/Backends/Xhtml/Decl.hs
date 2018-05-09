@@ -526,8 +526,8 @@ ppClassDecl summary links instances fixities loc d subdocs
     namesFixities name = [ f | f@(n', _) <- fixities
                              , name == n' ]
 
-    ppDefaultFunSig (names', typ', doc') = ppFunSig summary links loc
-        (keyword "default") doc' names' (hsSigType typ') [] splice unicode pkg qual
+    ppDefaultFunSig (name', typ', doc') = ppFunSig summary links loc
+        (keyword "default") doc' [name'] (hsSigType typ') [] splice unicode pkg qual
 
     methodBit = subMethods [ ppFunSig summary links loc mempty doc [name] (hsSigType typ)
                                       subfixs splice unicode pkg qual
@@ -535,7 +535,7 @@ ppClassDecl summary links instances fixities loc d subdocs
                            | L _ (ClassOpSig False lnames typ) <- lsigs
                            , let names = map unLoc lnames
                            , name <- names
-                           , let doc = lookupAnySubdoc (head names) subdocs
+                           , let doc = lookupAnySubdoc name subdocs
                                  subfixs = namesFixities name
                                  nameStr = getOccString $ getName name
                                  default_ = Map.lookup nameStr defaultMethods
@@ -545,11 +545,11 @@ ppClassDecl summary links instances fixities loc d subdocs
                            -- are expanded so that each name gets its own signature.
 
     defaultMethods = Map.fromList
-        [ (nameStr, (names, typ, doc))
+        [ (nameStr, (name, typ, doc))
         | L _ (ClassOpSig True lnames typ) <- lsigs
-        , let names   = map (uniquifyName . unLoc) lnames
-              nameStr = getOccString $ getName $ head names
-              doc     = lookupAnySubdoc (head names) subdocs
+        , name <- map (uniquifyName . unLoc ) lnames
+        , let nameStr = getOccString $ getName name
+              doc     = lookupAnySubdoc name subdocs
         ]
 
     minimalBit = case [ s | MinimalSig _ (L _ s) <- sigs ] of
