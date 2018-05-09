@@ -523,24 +523,23 @@ ppClassDecl summary links instances fixities loc d subdocs
                             doc = lookupAnySubdoc (unL $ fdLName $ unL at) subdocs
                             subfixs = [ f | f@(n',_) <- fixities, n == n' ] ]
 
-    namesFixities names = [ f | n <- names
-                          , f@(n', _) <- fixities
-                          , n == n'
-                          ]
+    namesFixities name = [ f | f@(n', _) <- fixities
+                             , name == n' ]
 
     ppDefaultFunSig (names', typ', doc') = ppFunSig summary links loc
         (keyword "default") doc' names' (hsSigType typ') [] splice unicode pkg qual
 
-    methodBit = subMethods [ ppFunSig summary links loc mempty doc names (hsSigType typ)
+    methodBit = subMethods [ ppFunSig summary links loc mempty doc [name] (hsSigType typ)
                                       subfixs splice unicode pkg qual
-                                  <+> subDefaults defaultsSigs
+                                  <+> subDefaults defaultSig
                            | L _ (ClassOpSig False lnames typ) <- lsigs
+                           , let names = map unLoc lnames
+                           , name <- names
                            , let doc = lookupAnySubdoc (head names) subdocs
-                                 names = map unLoc lnames
-                                 subfixs = namesFixities names
-                                 nameStrs = getOccString . getName <$> names
-                                 defaults = flip Map.lookup defaultMethods <$> nameStrs
-                                 defaultsSigs = ppDefaultFunSig <$> catMaybes defaults
+                                 subfixs = namesFixities name
+                                 nameStr = getOccString $ getName name
+                                 default_ = Map.lookup nameStr defaultMethods
+                                 defaultSig = ppDefaultFunSig <$> maybeToList default_
                            ]
                            -- N.B. taking just the first name is ok. Signatures with multiple names
                            -- are expanded so that each name gets its own signature.
