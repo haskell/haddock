@@ -23,7 +23,7 @@ description:
   without any documentation annotations, Haddock can generate useful documentation
   from your source code.
   .
-  <<https://cdn.rawgit.com/haskell/haddock/master/doc/cheatsheet/haddocks.svg>>
+  <<https://cdn.rawgit.com/haskell/haddock/v2.20/doc/cheatsheet/haddocks.svg>>
 license:              BSD3
 license-file:         LICENSE
 author:               Simon Marlow, David Waern
