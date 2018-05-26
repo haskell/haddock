@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wwarn #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedLists #-}
   -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Interface.LexParseRn
@@ -19,6 +20,11 @@ module Haddock.Interface.LexParseRn
   ) where
 
 import Data.List
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Documentation.Haddock.Doc (metaDocConcat)
 import DynFlags (languageExtensions)
 import qualified GHC.LanguageExtensions as LangExt
@@ -79,52 +85,41 @@ processModuleHeader dflags pkgName gre safety mayStr = do
   where
     failure = (emptyHaddockModInfo, Nothing)
 
--- | Takes a 'GlobalRdrEnv' which (hopefully) contains all the
+-- | Takes a @'Map' 'String' ('Set' 'Name')@ which (hopefully) contains all the
 -- definitions and a parsed comment and we attempt to make sense of
 -- where the identifiers in the comment point to. We're in effect
 -- trying to convert 'RdrName's to 'Name's, with some guesswork and
 -- fallbacks in case we can't locate the identifiers.
 --
 -- See the comments in the source for implementation commentary.
-rename :: DynFlags -> GlobalRdrEnv -> Doc RdrName -> ErrMsgM (Doc Name)
-rename dflags gre = rn
+rename :: DynFlags -> Map String (Set Name) -> Doc RdrName -> ErrMsgM (Doc Name)
+rename dflags namesMap = rn
   where
     rn d = case d of
       DocAppend a b -> DocAppend <$> rn a <*> rn b
       DocParagraph doc -> DocParagraph <$> rn doc
       DocIdentifier x -> do
-        -- Generate the choices for the possible kind of thing this
-        -- is.
-        let choices = dataTcOccs x
-        -- Try to look up all the names in the GlobalRdrEnv that match
-        -- the names.
-        let names = concatMap (\c -> map gre_name (lookupGRE_RdrName c gre)) choices
+        let x' = rdrNameString x
+            names = Map.findWithDefault Set.empty x' namesMap
 
         case names of
-          -- We found no names in the env so we start guessing.
-          [] ->
-            case choices of
-              -- This shouldn't happen as 'dataTcOccs' always returns at least its input.
-              [] -> pure (DocMonospaced (DocString (showPpr dflags x)))
-
-              -- There was nothing in the environment so we need to
-              -- pick some default from what's available to us. We
-              -- diverge here from the old way where we would default
-              -- to type constructors as we're much more likely to
-              -- actually want anchors to regular definitions than
-              -- type constructor names (such as in #253). So now we
-              -- only get type constructor links if they are actually
-              -- in scope.
-              a:_ -> outOfScope dflags a
+          -- There was nothing in the environment so we need to
+          -- pick some default from what's available to us. We
+          -- diverge here from the old way where we would default
+          -- to type constructors as we're much more likely to
+          -- actually want anchors to regular definitions than
+          -- type constructor names (such as in #253). So now we
+          -- only get type constructor links if they are actually
+          -- in scope.
+          [] -> outOfScope dflags x
 
           -- There is only one name in the environment that matches so
           -- use it.
           [a] -> pure (DocIdentifier a)
+
           -- But when there are multiple names available, default to
-          -- type constructors: somewhat awfully GHC returns the
-          -- values in the list positionally.
-          a:b:_ | isTyConName a -> pure (DocIdentifier a)
-                | otherwise -> pure (DocIdentifier b)
+          -- type constructors.
+          _ -> pure (DocIdentifier (fromMaybe (Set.findMin names) (find isTyConName names)))
 
       DocWarning doc -> DocWarning <$> rn doc
       DocEmphasis doc -> DocEmphasis <$> rn doc
@@ -168,3 +163,6 @@ outOfScope dflags x =
       tell ["Warning: '" ++ showPpr dflags a ++ "' is out of scope."]
       pure (monospaced a)
     monospaced a = DocMonospaced (DocString (showPpr dflags a))
+
+rdrNameString :: RdrName -> String
+rdrNameString = occNameString . rdrNameOcc
