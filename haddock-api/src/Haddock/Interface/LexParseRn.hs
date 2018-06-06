@@ -34,7 +34,7 @@ import RdrName
 import EnumSet
 import RnEnv (dataTcOccs)
 
-processDocStrings :: DynFlags -> GlobalRdrEnv -> [HsDocString]
+processDocStrings :: DynFlags -> GlobalRdrEnv -> [HsDoc Name]
                   -> ErrMsgM (Maybe (MDoc Name))
 processDocStrings dflags gre strs = do
   mdoc <- metaDocConcat <$> traverse (processDocStringParas dflags gre) strs
@@ -45,22 +45,22 @@ processDocStrings dflags gre strs = do
     MetaDoc { _meta = Meta { _version = Nothing }, _doc = DocEmpty } -> pure Nothing
     x -> pure (Just x)
 
-processDocStringParas :: DynFlags -> GlobalRdrEnv -> HsDocString -> ErrMsgM (MDoc Name)
-processDocStringParas dflags gre hds =
-  overDocF (rename dflags gre) $ parseParas dflags (unpackHDS hds)
+processDocStringParas :: DynFlags -> GlobalRdrEnv -> HsDoc Name -> ErrMsgM (MDoc Name)
+processDocStringParas dflags gre hsDoc =
+  overDocF (rename dflags gre) $ parseParas dflags (unpackHDS (hsDocString hsDoc))
 
-processDocString :: DynFlags -> GlobalRdrEnv -> HsDocString -> ErrMsgM (Doc Name)
-processDocString dflags gre hds =
-  rename dflags gre $ parseString dflags (unpackHDS hds)
+processDocString :: DynFlags -> GlobalRdrEnv -> HsDoc Name -> ErrMsgM (Doc Name)
+processDocString dflags gre hsDoc =
+  rename dflags gre $ parseString dflags (unpackHDS (hsDocString hsDoc))
 
-processModuleHeader :: DynFlags -> GlobalRdrEnv -> SafeHaskellMode -> Maybe LHsDocString
+processModuleHeader :: DynFlags -> GlobalRdrEnv -> SafeHaskellMode -> Maybe (LHsDoc Name)
                     -> ErrMsgM (HaddockModInfo Name, Maybe (MDoc Name))
 processModuleHeader dflags gre safety mayStr = do
   (hmi, doc) <-
     case mayStr of
       Nothing -> return failure
-      Just (L _ hds) -> do
-        let str = unpackHDS hds
+      Just (L _ hsDoc) -> do
+        let str = unpackHDS (hsDocString hsDoc)
             (hmi, doc) = parseModuleHeader dflags str
         !descr <- case hmi_description hmi of
                     Just hmi_descr -> Just <$> rename dflags gre hmi_descr
