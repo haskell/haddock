@@ -308,7 +308,9 @@ parseWarning dflags gre w = case w of
   WarningTxt    _ msg -> format "Warning: "    (foldMap (fastStringToByteString . sl_fs . unLoc) msg)
   where
     format x bs = DocWarning . DocParagraph . DocAppend (DocString x)
-                  <$> processDocString dflags gre undefined -- (mkHsDocStringUtf8ByteString bs)
+                  <$> processDocString dflags gre (bsToHsDoc bs)
+    -- FIXME: We need to provide lexed and renamed warnings from GHC
+    bsToHsDoc bs = HsDoc (mkHsDocStringUtf8ByteString bs) []
 
 
 -------------------------------------------------------------------------------
