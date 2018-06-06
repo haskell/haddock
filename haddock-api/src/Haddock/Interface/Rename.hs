@@ -171,8 +171,8 @@ renameDocumentation (Documentation mDoc mWarning) =
   Documentation <$> mapM renameDoc mDoc <*> mapM renameDoc mWarning
 
 
-renameLDocHsSyn :: LHsDocString -> RnM LHsDocString
-renameLDocHsSyn = return
+renameLDocHsSyn :: LHsDoc Name -> RnM (LHsDoc DocName)
+renameLDocHsSyn = undefined
 
 
 renameDoc :: Traversable t => t Name -> RnM (t DocName)

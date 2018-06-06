@@ -37,7 +37,7 @@ import RdrName
 import EnumSet
 import RnEnv (dataTcOccs)
 
-processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDocString]
+processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDoc Name]
                   -> ErrMsgM (Maybe (MDoc Name))
 processDocStrings dflags pkg gre strs = do
   mdoc <- metaDocConcat <$> traverse (processDocStringParas dflags pkg gre) strs
@@ -48,22 +48,22 @@ processDocStrings dflags pkg gre strs = do
     MetaDoc { _meta = Meta Nothing Nothing, _doc = DocEmpty } -> pure Nothing
     x -> pure (Just x)
 
-processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDocString -> ErrMsgM (MDoc Name)
-processDocStringParas dflags pkg gre hds =
-  overDocF (rename dflags gre) $ parseParas dflags pkg (unpackHDS hds)
+processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDoc Name -> ErrMsgM (MDoc Name)
+processDocStringParas dflags pkg gre hsDoc =
+  overDocF (rename dflags gre) $ parseParas dflags pkg (unpackHDS (hsDocString hsDoc))
 
-processDocString :: DynFlags -> GlobalRdrEnv -> HsDocString -> ErrMsgM (Doc Name)
-processDocString dflags gre hds =
-  rename dflags gre $ parseString dflags (unpackHDS hds)
+processDocString :: DynFlags -> GlobalRdrEnv -> HsDoc Name -> ErrMsgM (Doc Name)
+processDocString dflags gre hsDoc =
+  rename dflags gre $ parseString dflags (unpackHDS (hsDocString hsDoc))
 
-processModuleHeader :: DynFlags -> Maybe Package -> GlobalRdrEnv -> SafeHaskellMode -> Maybe LHsDocString
+processModuleHeader :: DynFlags -> Maybe Package -> GlobalRdrEnv -> SafeHaskellMode -> Maybe (LHsDoc Name)
                     -> ErrMsgM (HaddockModInfo Name, Maybe (MDoc Name))
 processModuleHeader dflags pkgName gre safety mayStr = do
   (hmi, doc) <-
     case mayStr of
       Nothing -> return failure
-      Just (L _ hds) -> do
-        let str = unpackHDS hds
+      Just (L _ hsDoc) -> do
+        let str = unpackHDS (hsDocString hsDoc)
             (hmi, doc) = parseModuleHeader dflags pkgName str
         !descr <- case hmi_description hmi of
                     Just hmi_descr -> Just <$> rename dflags gre hmi_descr

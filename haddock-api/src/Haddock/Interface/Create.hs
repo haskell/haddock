@@ -308,7 +308,7 @@ parseWarning dflags gre w = case w of
   WarningTxt    _ msg -> format "Warning: "    (foldMap (fastStringToByteString . sl_fs . unLoc) msg)
   where
     format x bs = DocWarning . DocParagraph . DocAppend (DocString x)
-                  <$> processDocString dflags gre (mkHsDocStringUtf8ByteString bs)
+                  <$> processDocString dflags gre undefined -- (mkHsDocStringUtf8ByteString bs)
 
 
 -------------------------------------------------------------------------------
@@ -360,7 +360,7 @@ mkMaps :: DynFlags
        -> Maybe Package  -- this package
        -> GlobalRdrEnv
        -> [Name]
-       -> [(LHsDecl GhcRn, [HsDocString])]
+       -> [(LHsDecl GhcRn, [HsDoc Name])]
        -> ErrMsgM Maps
 mkMaps dflags pkgName gre instances decls = do
   (a, b, c) <- unzip3 <$> traverse mappings decls
@@ -379,14 +379,14 @@ mkMaps dflags pkgName gre instances decls = do
     filterMapping :: (b -> Bool) ->  [[(a, b)]] -> [[(a, b)]]
     filterMapping p = map (filter (p . snd))
 
-    mappings :: (LHsDecl GhcRn, [HsDocString])
+    mappings :: (LHsDecl GhcRn, [HsDoc Name])
              -> ErrMsgM ( [(Name, MDoc Name)]
                         , [(Name, Map Int (MDoc Name))]
                         , [(Name,  [LHsDecl GhcRn])]
                         )
     mappings (ldecl, docStrs) = do
       let L l decl = ldecl
-          declDoc :: [HsDocString] -> Map Int HsDocString
+          declDoc :: [HsDoc Name] -> Map Int (HsDoc Name)
                   -> ErrMsgM (Maybe (MDoc Name), Map Int (MDoc Name))
           declDoc strs m = do
             doc' <- processDocStrings dflags pkgName gre strs
@@ -396,7 +396,7 @@ mkMaps dflags pkgName gre instances decls = do
       (doc, args) <- declDoc docStrs (declTypeDocs decl)
 
       let
-          subs :: [(Name, [HsDocString], Map Int HsDocString)]
+          subs :: [(Name, [HsDoc Name], Map Int (HsDoc Name))]
           subs = subordinates instanceMap decl
 
       (subDocs, subArgs) <- unzip <$> traverse (\(_, strs, m) -> declDoc strs m) subs
@@ -447,7 +447,7 @@ mkMaps dflags pkgName gre instances decls = do
 -- family of a type class.
 subordinates :: InstMap
              -> HsDecl GhcRn
-             -> [(Name, [HsDocString], Map Int HsDocString)]
+             -> [(Name, [HsDoc Name], Map Int (HsDoc Name))]
 subordinates instMap decl = case decl of
   InstD _ (ClsInstD _ d) -> do
     DataFamInstDecl { dfid_eqn = HsIB { hsib_body =
@@ -464,7 +464,7 @@ subordinates instMap decl = case decl of
     classSubs dd = [ (name, doc, declTypeDocs d) | (L _ d, doc) <- classDecls dd
                    , name <- getMainDeclBinder d, not (isValD d)
                    ]
-    dataSubs :: HsDataDefn GhcRn -> [(Name, [HsDocString], Map Int HsDocString)]
+    dataSubs :: HsDataDefn GhcRn -> [(Name, [HsDoc Name], Map Int (HsDoc Name))]
     dataSubs dd = constrs ++ fields ++ derivs
       where
         cons = map unL $ (dd_cons dd)
@@ -481,7 +481,7 @@ subordinates instMap decl = case decl of
                   , Just instName <- [M.lookup l instMap] ]
 
 -- | Extract constructor argument docs from inside constructor decls.
-conArgDocs :: ConDecl GhcRn -> Map Int HsDocString
+conArgDocs :: ConDecl GhcRn -> Map Int (HsDoc Name)
 conArgDocs con = case getConArgs con of
                    PrefixCon args -> go 0 (map unLoc args ++ ret)
                    InfixCon arg1 arg2 -> go 0 ([unLoc arg1, unLoc arg2] ++ ret)
@@ -497,7 +497,7 @@ conArgDocs con = case getConArgs con of
             _ -> []
 
 -- | Extract function argument docs from inside top-level decls.
-declTypeDocs :: HsDecl GhcRn -> Map Int HsDocString
+declTypeDocs :: HsDecl GhcRn -> Map Int (HsDoc Name)
 declTypeDocs (SigD  _ (TypeSig _ _ ty))          = typeDocs (unLoc (hsSigWcType ty))
 declTypeDocs (SigD  _ (ClassOpSig _ _ _ ty))     = typeDocs (unLoc (hsSigType ty))
 declTypeDocs (SigD  _ (PatSynSig _ _ ty))        = typeDocs (unLoc (hsSigType ty))
@@ -506,7 +506,7 @@ declTypeDocs (TyClD _ (SynDecl { tcdRhs = ty })) = typeDocs (unLoc ty)
 declTypeDocs _ = M.empty
 
 -- | Extract function argument docs from inside types.
-typeDocs :: HsType GhcRn -> Map Int HsDocString
+typeDocs :: HsType GhcRn -> Map Int (HsDoc Name)
 typeDocs = go 0
   where
     go n (HsForAllTy { hst_body = ty }) = go n (unLoc ty)
@@ -518,7 +518,7 @@ typeDocs = go 0
 
 -- | All the sub declarations of a class (that we handle), ordered by
 -- source location, with documentation attached if it exists.
-classDecls :: TyClDecl GhcRn -> [(LHsDecl GhcRn, [HsDocString])]
+classDecls :: TyClDecl GhcRn -> [(LHsDecl GhcRn, [HsDoc Name])]
 classDecls class_ = filterDecls . collectDocs . sortByLoc $ decls
   where
     decls = docs ++ defs ++ sigs ++ ats
@@ -530,9 +530,8 @@ classDecls class_ = filterDecls . collectDocs . sortByLoc $ decls
 
 -- | The top-level declarations of a module that we care about,
 -- ordered by source location, with documentation attached if it exists.
-topDecls :: HsGroup GhcRn -> [(LHsDecl GhcRn, [HsDocString])]
-topDecls =
-  filterClasses . filterDecls . collectDocs . sortByLoc . ungroup
+topDecls :: HsGroup GhcRn -> [(LHsDecl GhcRn, [HsDoc Name])]
+topDecls = filterClasses . filterDecls . collectDocs . sortByLoc . ungroup
 
 -- | Extract a map of fixity declarations only
 mkFixMap :: HsGroup GhcRn -> FixMap
@@ -612,7 +611,7 @@ filterClasses decls = [ if isClassD d then (L loc (filterClass d), doc) else x
 
 
 -- | Collect docs and attach them to the right declarations.
-collectDocs :: [LHsDecl a] -> [(LHsDecl a, [HsDocString])]
+collectDocs :: [LHsDecl a] -> [(LHsDecl a, [HsDoc (IdP a)])]
 collectDocs = go Nothing []
   where
     go Nothing _ [] = []
@@ -1221,7 +1220,7 @@ mkTokenizedSrc dflags ms src = do
     filepath = msHsFilePath ms
 
 -- | Find a stand-alone documentation comment by its name.
-findNamedDoc :: String -> [HsDecl GhcRn] -> ErrMsgM (Maybe HsDocString)
+findNamedDoc :: String -> [HsDecl GhcRn] -> ErrMsgM (Maybe (HsDoc Name))
 findNamedDoc name = search
   where
     search [] = do

@@ -356,12 +356,6 @@ serialiseName bh name _ = do
 -- * GhcBinary instances
 -------------------------------------------------------------------------------
 
-
-instance (Ord k, Binary k, Binary v) => Binary (Map k v) where
-  put_ bh m = put_ bh (Map.toList m)
-  get bh = fmap (Map.fromList) (get bh)
-
-
 instance Binary InterfaceFile where
   put_ bh (InterfaceFile env ifaces) = do
     put_ bh env
