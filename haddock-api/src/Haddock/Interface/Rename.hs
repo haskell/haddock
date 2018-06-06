@@ -172,8 +172,13 @@ renameDocumentation (Documentation mDoc mWarning) =
 
 
 renameLDocHsSyn :: LHsDoc Name -> RnM (LHsDoc DocName)
-renameLDocHsSyn = undefined
-
+renameLDocHsSyn = traverse renameHsDoc
+  where
+    renameHsDoc :: HsDoc Name -> RnM (HsDoc DocName)
+    renameHsDoc (HsDoc s ids) =
+        HsDoc s <$> traverse renameId ids
+    renameId (HsDocIdentifier span_ s names) =
+      HsDocIdentifier span_ s <$> renameDoc names
 
 renameDoc :: Traversable t => t Name -> RnM (t DocName)
 renameDoc = traverse rename
