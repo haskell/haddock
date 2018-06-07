@@ -64,6 +64,130 @@ import BasicTypes ( StringLiteral(..), SourceText(..), WarningTxt(..), WarningSo
 import qualified Outputable as O
 import HsDecls ( getConArgs )
 
+createInterface' :: ModIface
+                 -> [Flag]       -- Boolean flags
+                 -> IfaceMap     -- Locally processed modules
+                 -> InstIfaceMap -- External, already installed interfaces
+                 -> ErrMsgGhc Interface
+createInterface' mod_iface flags modMap instIfaceMap = do
+
+  let docs           = mi_docs mod_iface
+      ms             = pm_mod_summary . tm_parsed_module $ tm
+      mi             = moduleInfo tm
+      L _ hsm        = parsedSource tm
+      !safety        = modInfoSafe mi
+      mdl            = mi_module mod_iface
+      sem_mdl        = tcg_semantic_mod (fst (tm_internals_ tm))
+      is_sig         = isJust (mi_sig_of mod_iface)
+      dflags         = ms_hspp_opts ms
+      !instances     = modInfoInstances mi
+      !fam_instances = md_fam_insts md
+      !exportedNames = modInfoExportsWithSelectors mi
+
+      (TcGblEnv { tcg_rdr_env = gre
+                , tcg_warns   = warnings
+                , tcg_exports = all_exports
+                }, md) = tm_internals_ tm
+
+  -- The renamed source should always be available to us, but it's best
+  -- to be on the safe side.
+  (group_, imports, mayExports, mayDocHeader) <-
+    case renamedSource tm of
+      Nothing -> do
+        liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
+        return (emptyRnGroup, [], Nothing, Nothing)
+      Just x -> return x
+
+  opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
+
+  -- Process the top-level module header documentation.
+  (!info, mbDoc) <- liftErrMsg $ processModuleHeader dflags gre safety mayDocHeader
+
+  let declsWithDocs = topDecls group_
+
+      exports0 = fmap (reverse . map (first unLoc)) mayExports
+      exports
+        | OptIgnoreExports `elem` opts = Nothing
+        | otherwise = exports0
+
+      unrestrictedImportedMods
+        -- module re-exports are only possible with
+        -- explicit export list
+        | Just{} <- exports
+        = unrestrictedModuleImports (map unLoc imports)
+        | otherwise = M.empty
+
+      fixMap = mkFixMap group_
+      (decls, _) = unzip declsWithDocs
+      localInsts = filter (nameIsLocalOrFrom sem_mdl)
+                        $  map getName instances
+                        ++ map getName fam_instances
+      -- Locations of all TH splices
+      splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
+
+  warningMap <- liftErrMsg (mkWarningMap dflags warnings gre exportedNames)
+
+  maps@(!docMap, !argMap, !declMap, _) <-
+    liftErrMsg (mkMaps dflags gre localInsts declsWithDocs)
+
+  let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
+
+  -- The MAIN functionality: compute the export items which will
+  -- each be the actual documentation of this module.
+  exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre
+                   exportedNames decls maps fixMap unrestrictedImportedMods
+                   splices exports all_exports instIfaceMap dflags
+
+  let !visibleNames = mkVisibleNames maps exportItems opts
+
+  -- Measure haddock documentation coverage.
+  let prunedExportItems0 = pruneExportItems exportItems
+      !haddockable = 1 + length exportItems -- module + exports
+      !haddocked = (if isJust mbDoc then 1 else 0) + length prunedExportItems0
+      !coverage = (haddockable, haddocked)
+
+  -- Prune the export list to just those declarations that have
+  -- documentation, if the 'prune' option is on.
+  let prunedExportItems'
+        | OptPrune `elem` opts = prunedExportItems0
+        | otherwise = exportItems
+      !prunedExportItems = seqList prunedExportItems' `seq` prunedExportItems'
+
+  let !aliases =
+        mkAliasMap dflags $ tm_renamed_source tm
+
+  modWarn <- liftErrMsg (moduleWarning dflags gre warnings)
+
+  tokenizedSrc <- mkMaybeTokenizedSrc flags tm
+
+  return $! Interface {
+    ifaceMod               = mdl -- Done
+  , ifaceIsSig             = is_sig -- Done
+  , ifaceOrigFilename      = msHsFilePath ms
+  , ifaceInfo              = info
+  , ifaceDoc               = Documentation mbDoc modWarn
+  , ifaceRnDoc             = Documentation Nothing Nothing
+  , ifaceOptions           = opts
+  , ifaceDocMap            = docMap
+  , ifaceArgMap            = argMap
+  , ifaceRnDocMap          = M.empty -- Done
+  , ifaceRnArgMap          = M.empty -- Done
+  , ifaceExportItems       = prunedExportItems
+  , ifaceRnExportItems     = [] -- Done
+  , ifaceExports           = exportedNames
+  , ifaceVisibleExports    = visibleNames
+  , ifaceDeclMap           = declMap
+  , ifaceFixMap            = fixMap
+  , ifaceModuleAliases     = aliases
+  , ifaceInstances         = instances
+  , ifaceFamInstances      = fam_instances
+  , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
+  , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
+  , ifaceHaddockCoverage   = coverage
+  , ifaceWarningMap        = warningMap
+  , ifaceTokenizedSrc      = tokenizedSrc -- Ignore
+  }
+
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological

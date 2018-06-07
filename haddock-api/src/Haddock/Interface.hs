@@ -61,6 +61,10 @@ import MonadUtils (liftIO)
 import TcRnTypes (tcg_rdr_env)
 import RdrName (plusGlobalRdrEnv)
 import ErrUtils (withTiming)
+import ExtractDocs
+import Outputable
+import LoadIface
+import MkIface
 
 #if defined(mingw32_HOST_OS)
 import System.IO
@@ -182,13 +186,20 @@ processModule verbosity modsum flags modMap instIfaceMap = do
     ic_rn_gbl_env = ic_rn_gbl_env old_IC `plusGlobalRdrEnv` new_rdr_env
   } }
 
+  dm <- desugarModule tm
+  hsc_env' <- getSession
+  let mod_guts = dm_core_module dm
+  let mod_details = snd (tm_internals_ tm)
+  (_iface, _bl) <- liftIO $ mkIface hsc_env' Nothing mod_details mod_guts
+  dflags <- getDynFlags
+  -- liftIO $ putStrLn $ (showSDoc dflags . pprModIface) iface
+
   if not $ isBootSummary modsum then do
     out verbosity verbose "Creating interface..."
     (interface, msgs) <- {-# SCC createIterface #-}
                         withTiming getDynFlags "createInterface" (const ()) $ do
                           runWriterGhc $ createInterface tm flags modMap instIfaceMap
     liftIO $ mapM_ putStrLn (nub msgs)
-    dflags <- getDynFlags
     let (haddockable, haddocked) = ifaceHaddockCoverage interface
         percentage = round (fromIntegral haddocked * 100 / fromIntegral haddockable :: Double) :: Int
         modString = moduleString (ifaceMod interface)
