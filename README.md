@@ -69,3 +69,12 @@ changes, you should be working on `ghc-head` branch.
 See instructions at
 https://ghc.haskell.org/trac/ghc/wiki/WorkingConventions/Git/Submodules
 for an example workflow.
+
+### Updating `html-test`
+
+When accepting any changes in the output of `html-test`, it is important
+to use the `--haddock-path` option. For example:
+
+```
+cabal new-run -- html-test --haddock-path $(find dist-newstyle/ -executable -type f -name haddock) --accept
+```
