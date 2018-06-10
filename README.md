@@ -33,7 +33,7 @@ and then proceed using your favourite build tool.
 ```bash
 cabal new-build -w ghc-8.4.1
 # build & run the test suite
-cabal new-test -w ghc-8.4.1
+cabal new-test -w ghc-8.4.1 all
 ```
 
 #### Using Cabal sandboxes
