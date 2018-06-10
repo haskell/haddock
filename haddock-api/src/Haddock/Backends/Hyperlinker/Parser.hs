@@ -234,6 +234,7 @@ classify tok =
     ITqualified            -> TkKeyword
     ITthen                 -> TkKeyword
     ITtype                 -> TkKeyword
+    ITvia                  -> TkKeyword
     ITwhere                -> TkKeyword
 
     ITforall            {} -> TkKeyword
