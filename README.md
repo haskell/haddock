@@ -65,11 +65,7 @@ stack test
 ### Git Branches
 
 If you're a GHC developer and want to update Haddock to work with your
-changes, you should be working on `ghc-head` branch instead of `master`.
+changes, you should be working on `ghc-head` branch.
 See instructions at
 https://ghc.haskell.org/trac/ghc/wiki/WorkingConventions/Git/Submodules
 for an example workflow.
-
-The `master` branch usually requires a GHC from the latest GHC stable
-branch. The required GHC version can be inferred from the version
-bounds on `ghc` in the respective `.cabal` files.
