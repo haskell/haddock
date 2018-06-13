@@ -58,8 +58,9 @@ import Packages   ( lookupModuleInAllPackages, PackageName(..) )
 import Bag
 import RdrName
 import TcRnTypes
-import FastString ( unpackFS, fastStringToByteString)
-import BasicTypes ( StringLiteral(..), SourceText(..) )
+import FastString (fastStringToByteString, unpackFS )
+import HsDecls ( getConArgs )
+import BasicTypes ( StringLiteral(..), SourceText(..), WarningTxt(..), WarningSort(..) )
 import qualified Outputable as O
 import HsDecls ( getConArgs )
 
@@ -286,7 +287,7 @@ lookupModuleDyn dflags Nothing mdlName =
 -- Warnings
 -------------------------------------------------------------------------------
 
-mkWarningMap :: DynFlags -> Warnings -> GlobalRdrEnv -> [Name] -> ErrMsgM WarningMap
+mkWarningMap :: DynFlags -> Warnings (LHsDoc Name) -> GlobalRdrEnv -> [Name] -> ErrMsgM WarningMap
 mkWarningMap dflags warnings gre exps = case warnings of
   NoWarnings  -> pure M.empty
   WarnAll _   -> pure M.empty
@@ -297,20 +298,20 @@ mkWarningMap dflags warnings gre exps = case warnings of
               , let n = gre_name elt, n `elem` exps ]
     in M.fromList <$> traverse (bitraverse pure (parseWarning dflags gre)) ws'
 
-moduleWarning :: DynFlags -> GlobalRdrEnv -> Warnings -> ErrMsgM (Maybe (Doc Name))
+moduleWarning :: DynFlags -> GlobalRdrEnv -> Warnings (LHsDoc Name) -> ErrMsgM (Maybe (Doc Name))
 moduleWarning _ _ NoWarnings = pure Nothing
 moduleWarning _ _ (WarnSome _) = pure Nothing
 moduleWarning dflags gre (WarnAll w) = Just <$> parseWarning dflags gre w
 
-parseWarning :: DynFlags -> GlobalRdrEnv -> WarningTxt -> ErrMsgM (Doc Name)
-parseWarning dflags gre w = case w of
-  DeprecatedTxt _ msg -> format "Deprecated: " (foldMap (fastStringToByteString . sl_fs . unLoc) msg)
-  WarningTxt    _ msg -> format "Warning: "    (foldMap (fastStringToByteString . sl_fs . unLoc) msg)
+parseWarning :: DynFlags -> GlobalRdrEnv -> WarningTxt (LHsDoc Name) -> ErrMsgM (Doc Name)
+parseWarning dflags gre (WarningTxt sort_ _lbl msgs) =
+  format heading (foldl' appendHsDoc (HsDoc (mkHsDocString "") []) (unLoc <$> msgs))
   where
-    format x bs = DocWarning . DocParagraph . DocAppend (DocString x)
-                  <$> processDocString dflags gre (bsToHsDoc bs)
-    -- FIXME: We need to provide lexed and renamed warnings from GHC
-    bsToHsDoc bs = HsDoc (mkHsDocStringUtf8ByteString bs) []
+    format x msg = DocWarning . DocParagraph . DocAppend (DocString x)
+                   <$> processDocString dflags gre msg
+    heading = case sort_ of
+      WsWarning -> "Warning: "
+      WsDeprecated -> "Deprected: "
 
 
 -------------------------------------------------------------------------------
