@@ -72,7 +72,7 @@ createInterface' :: ModIface
 createInterface' mod_iface flags modMap instIfaceMap = do
 
   let docs           = mi_docs mod_iface
-      ms             = pm_mod_summary . tm_parsed_module $ tm
+      ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
       mi             = moduleInfo tm
       L _ hsm        = parsedSource tm
       !safety        = modInfoSafe mi
@@ -163,10 +163,10 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
-  , ifaceOrigFilename      = msHsFilePath ms
-  , ifaceInfo              = info
+  , ifaceOrigFilename      = msHsFilePath ms -- TODO: Via ModSummary? But how?
+  , ifaceInfo              = info -- TODO: Adjust processModuleHeader
   , ifaceDoc               = Documentation mbDoc modWarn
-  , ifaceRnDoc             = Documentation Nothing Nothing
+  , ifaceRnDoc             = Documentation Nothing Nothing -- Done
   , ifaceOptions           = opts
   , ifaceDocMap            = docMap
   , ifaceArgMap            = argMap
@@ -177,14 +177,14 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceExports           = exportedNames
   , ifaceVisibleExports    = visibleNames
   , ifaceDeclMap           = declMap
-  , ifaceFixMap            = fixMap
-  , ifaceModuleAliases     = aliases
-  , ifaceInstances         = instances
-  , ifaceFamInstances      = fam_instances
+  , ifaceFixMap            = fixMap -- TODO: extract from mi_fixities
+  , ifaceModuleAliases     = aliases -- TODO: Not sure how to get it, do we really need it?
+  , ifaceInstances         = instances -- TODO: Try tcIfaceInst
+  , ifaceFamInstances      = fam_instances -- TODO: Try tcIfaceFamInst
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
   , ifaceHaddockCoverage   = coverage
-  , ifaceWarningMap        = warningMap
+  , ifaceWarningMap        = warningMap -- TODO: extract from mi_warns
   , ifaceTokenizedSrc      = tokenizedSrc -- Ignore
   }
 
