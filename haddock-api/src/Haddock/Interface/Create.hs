@@ -72,14 +72,15 @@ createInterface' :: ModIface
 createInterface' mod_iface flags modMap instIfaceMap = do
 
   let docs           = mi_docs mod_iface
+      mdl            = mi_module mod_iface
+      is_sig         = isJust (mi_sig_of mod_iface)
+      safety         = getSafeMode (mi_trust mod_iface)
+{-
       ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
       mi             = moduleInfo tm
       L _ hsm        = parsedSource tm
       !safety        = modInfoSafe mi
-      mdl            = mi_module mod_iface
       sem_mdl        = tcg_semantic_mod (fst (tm_internals_ tm))
-      is_sig         = isJust (mi_sig_of mod_iface)
-      dflags         = ms_hspp_opts ms
       !instances     = modInfoInstances mi
       !fam_instances = md_fam_insts md
       !exportedNames = modInfoExportsWithSelectors mi
@@ -97,8 +98,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
         liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
         return (emptyRnGroup, [], Nothing, Nothing)
       Just x -> return x
-
-  opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
 
   -- Process the top-level module header documentation.
   (!info, mbDoc) <- liftErrMsg $ processModuleHeader dflags gre safety mayDocHeader
@@ -159,33 +158,38 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   modWarn <- liftErrMsg (moduleWarning dflags gre warnings)
 
   tokenizedSrc <- mkMaybeTokenizedSrc flags tm
+-}
+
+  let dflags = undefined -- TODO: ms_hspp_opts ms
+  opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
+
 
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
-  , ifaceOrigFilename      = msHsFilePath ms -- TODO: Via ModSummary? But how?
-  , ifaceInfo              = info -- TODO: Adjust processModuleHeader
-  , ifaceDoc               = Documentation mbDoc modWarn
+  , ifaceOrigFilename      = undefined -- msHsFilePath ms -- TODO: Via ModSummary? But how?
+  , ifaceInfo              = undefined -- TODO: Adjust processModuleHeader, mi_globals verwenden?
+  , ifaceDoc               = undefined -- TODO: Dite
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
-  , ifaceOptions           = opts
-  , ifaceDocMap            = docMap
-  , ifaceArgMap            = argMap
+  , ifaceOptions           = undefined
+  , ifaceDocMap            = undefined
+  , ifaceArgMap            = undefined
   , ifaceRnDocMap          = M.empty -- Done
   , ifaceRnArgMap          = M.empty -- Done
-  , ifaceExportItems       = prunedExportItems
+  , ifaceExportItems       = undefined
   , ifaceRnExportItems     = [] -- Done
-  , ifaceExports           = exportedNames
-  , ifaceVisibleExports    = visibleNames
-  , ifaceDeclMap           = declMap
-  , ifaceFixMap            = fixMap -- TODO: extract from mi_fixities
-  , ifaceModuleAliases     = aliases -- TODO: Not sure how to get it, do we really need it?
-  , ifaceInstances         = instances -- TODO: Try tcIfaceInst
-  , ifaceFamInstances      = fam_instances -- TODO: Try tcIfaceFamInst
+  , ifaceExports           = undefined
+  , ifaceVisibleExports    = undefined
+  , ifaceDeclMap           = undefined
+  , ifaceFixMap            = undefined -- TODO: extract from mi_fixities
+  , ifaceModuleAliases     = undefined -- TODO: Not sure how to get it, do we really need it?
+  , ifaceInstances         = undefined -- TODO: Try tcIfaceInst
+  , ifaceFamInstances      = undefined -- TODO: Try tcIfaceFamInst
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
-  , ifaceHaddockCoverage   = coverage
-  , ifaceWarningMap        = warningMap -- TODO: extract from mi_warns
-  , ifaceTokenizedSrc      = tokenizedSrc -- Ignore
+  , ifaceHaddockCoverage   = undefined
+  , ifaceWarningMap        = undefined -- TODO: extract from mi_warns
+  , ifaceTokenizedSrc      = undefined -- Ignore
   }
 
 
