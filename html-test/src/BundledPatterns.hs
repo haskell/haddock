@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds, GADTs, KindSignatures, PatternSynonyms, TypeOperators,
              ViewPatterns #-}
+{-# LANGUAGE StarIsType #-}
 module BundledPatterns (Vec(Nil,(:>)), RTree (LR,BR)) where
 
 import GHC.TypeLits

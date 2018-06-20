@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies, UndecidableInstances, PolyKinds, TypeOperators, DataKinds, MultiParamTypeClasses, GADTs #-}
+{-# LANGUAGE StarIsType #-}
 
 -- | Doc for: module TypeFamilies
 module TypeFamilies where
