@@ -27,6 +27,7 @@ import Data.List
 import Data.Ord
 import qualified Data.Map as Map
 import Documentation.Haddock.Doc (metaDocConcat)
+import qualified Documentation.Haddock.Parser as LibParser
 import DynFlags (getDynFlags, languageExtensions)
 import qualified GHC.LanguageExtensions as LangExt
 import GHC
@@ -39,10 +40,10 @@ import RdrName
 import EnumSet
 import RnEnv (dataTcOccs)
 
-processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDoc Name]
+processDocStrings :: Maybe Package -> GlobalRdrEnv -> [HsDoc Name]
                   -> ErrMsgGhc (Maybe (MDoc Name))
-processDocStrings dflags pkg gre strs = do
-  mdoc <- metaDocConcat <$> traverse (processDocStringParas dflags pkg gre) strs
+processDocStrings pkg gre strs = do
+  mdoc <- metaDocConcat <$> traverse (processDocStringParas pkg gre) strs
   case mdoc of
     -- We check that we don't have any version info to render instead
     -- of just checking if there is no comment: there may not be a
@@ -50,13 +51,13 @@ processDocStrings dflags pkg gre strs = do
     MetaDoc { _meta = Meta Nothing Nothing, _doc = DocEmpty } -> pure Nothing
     x -> pure (Just x)
 
-processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDoc Name -> ErrMsgGhc (MDoc Name)
-processDocStringParas dflags pkg gre hsDoc =
-  overDocF (rename gre) $ parseParas dflags pkg (unpackHDS (hsDocString hsDoc))
+processDocStringParas :: Maybe Package -> GlobalRdrEnv -> HsDoc Name -> ErrMsgGhc (MDoc Name)
+processDocStringParas pkg gre hsDoc =
+  overDocF (rename gre) $ LibParser.parseParas pkg (unpackHDS (hsDocString hsDoc))
 
-processDocString :: DynFlags -> GlobalRdrEnv -> HsDoc Name -> ErrMsgGhc (Doc Name)
-processDocString dflags gre hsDoc =
-  rename gre $ parseString dflags (unpackHDS (hsDocString hsDoc))
+processDocString :: GlobalRdrEnv -> HsDoc Name -> ErrMsgGhc (Doc Name)
+processDocString gre hsDoc =
+  rename gre $ LibParser.parseString (unpackHDS (hsDocString hsDoc))
 
 processModuleHeader :: DynFlags -> Maybe Package -> GlobalRdrEnv -> SafeHaskellMode -> Maybe (LHsDoc Name)
                     -> ErrMsgGhc (HaddockModInfo Name, Maybe (MDoc Name))
@@ -66,7 +67,7 @@ processModuleHeader dflags pkgName gre safety mayStr = do
       Nothing -> return failure
       Just (L _ hsDoc) -> do
         let str = unpackHDS (hsDocString hsDoc)
-            (hmi, doc) = parseModuleHeader dflags pkgName str
+            (hmi, doc) = parseModuleHeader pkgName str
         !descr <- case hmi_description hmi of
                     Just hmi_descr -> Just <$> rename gre hmi_descr
                     Nothing        -> pure Nothing
@@ -91,8 +92,8 @@ processModuleHeader dflags pkgName gre safety mayStr = do
 -- fallbacks in case we can't locate the identifiers.
 --
 -- See the comments in the source for implementation commentary.
-rename :: GlobalRdrEnv -> Doc RdrName -> ErrMsgGhc (Doc Name)
-rename gre = rn
+rename :: GlobalRdrEnv -> Doc Identifier -> ErrMsgGhc (Doc Name)
+rename gre = undefined rn
   where
     rn d = case d of
       DocAppend a b -> DocAppend <$> rn a <*> rn b

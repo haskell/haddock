@@ -11,6 +11,7 @@
 -----------------------------------------------------------------------------
 module Haddock.Interface.ParseModuleHeader (parseModuleHeader) where
 
+import qualified Documentation.Haddock.Parser as P
 import Control.Monad (mplus)
 import Data.Char
 import DynFlags
@@ -24,8 +25,8 @@ import RdrName
 -- NB.  The headers must be given in the order Module, Description,
 -- Copyright, License, Maintainer, Stability, Portability, except that
 -- any or all may be omitted.
-parseModuleHeader :: DynFlags -> Maybe Package -> String -> (HaddockModInfo RdrName, MDoc RdrName)
-parseModuleHeader dflags pkgName str0 =
+parseModuleHeader :: Maybe Package -> String -> (HaddockModInfo Identifier, MDoc Identifier)
+parseModuleHeader pkgName str0 =
    let
       getKey :: String -> String -> (Maybe String,String)
       getKey key str = case parseKey key str of
@@ -43,7 +44,7 @@ parseModuleHeader dflags pkgName str0 =
       (portabilityOpt,str9) = getKey "Portability" str8
 
    in (HaddockModInfo {
-          hmi_description = parseString dflags <$> descriptionOpt,
+          hmi_description = P.parseString <$> descriptionOpt,
           hmi_copyright = copyrightOpt,
           hmi_license = spdxLicenceOpt `mplus` licenseOpt `mplus` licenceOpt,
           hmi_maintainer = maintainerOpt,
@@ -52,7 +53,7 @@ parseModuleHeader dflags pkgName str0 =
           hmi_safety = Nothing,
           hmi_language = Nothing, -- set in LexParseRn
           hmi_extensions = [] -- also set in LexParseRn
-          }, parseParas dflags pkgName str9)
+          }, P.parseParas pkgName str9)
 
 -- | This function is how we read keys.
 --
