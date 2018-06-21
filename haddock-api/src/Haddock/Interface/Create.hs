@@ -413,6 +413,8 @@ lookupModuleDyn dflags Nothing mdlName =
 -- Warnings
 -------------------------------------------------------------------------------
 
+-- TODO: Either find a different way of looking up the OccNames or change the Warnings or
+-- WarningMap type.
 mkWarningMap :: DynFlags -> Warnings (LHsDoc Name) -> GlobalRdrEnv -> [Name] -> ErrMsgGhc WarningMap
 mkWarningMap dflags warnings gre exps = case warnings of
   NoWarnings  -> pure M.empty
