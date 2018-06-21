@@ -586,6 +586,17 @@ data SinceQual
              -- an external package
 
 -----------------------------------------------------------------------------
+-- * Renaming
+-----------------------------------------------------------------------------
+
+-- | Validates and renames an identifier.
+--
+-- [@Nothing@]: The input is not a valid identifier.
+--
+-- [@Just []@]: The input is a valid identifier but it's not in scope.
+type Renamer = String -> Maybe [Name]
+
+-----------------------------------------------------------------------------
 -- * Error handling
 -----------------------------------------------------------------------------
 

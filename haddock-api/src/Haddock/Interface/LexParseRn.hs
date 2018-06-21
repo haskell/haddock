@@ -17,6 +17,7 @@ module Haddock.Interface.LexParseRn
   , processDocStringParas
   , processDocStrings
   , processModuleHeader
+  , docIdEnvRenamer
   ) where
 
 import Avail
@@ -24,6 +25,7 @@ import Control.Arrow
 import Control.Monad
 import Data.List
 import Data.Ord
+import qualified Data.Map as Map
 import Documentation.Haddock.Doc (metaDocConcat)
 import DynFlags (languageExtensions)
 import qualified GHC.LanguageExtensions as LangExt
@@ -38,7 +40,7 @@ import EnumSet
 import RnEnv (dataTcOccs)
 
 processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDoc Name]
-                  -> ErrMsgM (Maybe (MDoc Name))
+                  -> ErrMsgGhc (Maybe (MDoc Name))
 processDocStrings dflags pkg gre strs = do
   mdoc <- metaDocConcat <$> traverse (processDocStringParas dflags pkg gre) strs
   case mdoc of
@@ -48,16 +50,16 @@ processDocStrings dflags pkg gre strs = do
     MetaDoc { _meta = Meta Nothing Nothing, _doc = DocEmpty } -> pure Nothing
     x -> pure (Just x)
 
-processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDoc Name -> ErrMsgM (MDoc Name)
+processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDoc Name -> ErrMsgGhc (MDoc Name)
 processDocStringParas dflags pkg gre hsDoc =
   overDocF (rename dflags gre) $ parseParas dflags pkg (unpackHDS (hsDocString hsDoc))
 
-processDocString :: DynFlags -> GlobalRdrEnv -> HsDoc Name -> ErrMsgM (Doc Name)
+processDocString :: DynFlags -> GlobalRdrEnv -> HsDoc Name -> ErrMsgGhc (Doc Name)
 processDocString dflags gre hsDoc =
   rename dflags gre $ parseString dflags (unpackHDS (hsDocString hsDoc))
 
 processModuleHeader :: DynFlags -> Maybe Package -> GlobalRdrEnv -> SafeHaskellMode -> Maybe (LHsDoc Name)
-                    -> ErrMsgM (HaddockModInfo Name, Maybe (MDoc Name))
+                    -> ErrMsgGhc (HaddockModInfo Name, Maybe (MDoc Name))
 processModuleHeader dflags pkgName gre safety mayStr = do
   (hmi, doc) <-
     case mayStr of
@@ -89,7 +91,7 @@ processModuleHeader dflags pkgName gre safety mayStr = do
 -- fallbacks in case we can't locate the identifiers.
 --
 -- See the comments in the source for implementation commentary.
-rename :: DynFlags -> GlobalRdrEnv -> Doc RdrName -> ErrMsgM (Doc Name)
+rename :: DynFlags -> GlobalRdrEnv -> Doc RdrName -> ErrMsgGhc (Doc Name)
 rename dflags gre = rn
   where
     rn d = case d of
@@ -155,7 +157,7 @@ rename dflags gre = rn
 -- users shouldn't rely on this doing the right thing. See tickets
 -- #253 and #375 on the confusion this causes depending on which
 -- default we pick in 'rename'.
-outOfScope :: DynFlags -> RdrName -> ErrMsgM (Doc a)
+outOfScope :: DynFlags -> RdrName -> ErrMsgGhc (Doc a)
 outOfScope dflags x =
   case x of
     Unqual occ -> warnAndMonospace occ
@@ -164,9 +166,10 @@ outOfScope dflags x =
     Exact name -> warnAndMonospace name  -- Shouldn't happen since x is out of scope
   where
     warnAndMonospace a = do
-      tell ["Warning: '" ++ showPpr dflags a ++ "' is out of scope.\n" ++
-            "    If you qualify the identifier, haddock can try to link it\n" ++
-            "    it anyway."]
+      liftErrMsg $
+        tell ["Warning: '" ++ showPpr dflags a ++ "' is out of scope.\n" ++
+              "    If you qualify the identifier, haddock can try to link it\n" ++
+              "    it anyway."]
       pure (monospaced a)
     monospaced a = DocMonospaced (DocString (showPpr dflags a))
 
@@ -178,7 +181,7 @@ outOfScope dflags x =
 ambiguous :: DynFlags
           -> RdrName
           -> [GlobalRdrElt] -- ^ More than one @gre@s sharing the same `RdrName` above.
-          -> ErrMsgM (Doc Name)
+          -> ErrMsgGhc (Doc Name)
 ambiguous dflags x gres = do
   let noChildren = map availName (gresToAvailInfo gres)
       dflt = maximumBy (comparing (isLocalName &&& isTyConName)) noChildren
@@ -192,10 +195,13 @@ ambiguous dflags x gres = do
   -- of the same name, but not the only constructor.
   -- For example, for @data D = C | D@, someone may want to reference the @D@
   -- constructor.
-  when (length noChildren > 1) $ tell [msg]
+  when (length noChildren > 1) $ liftErrMsg $ tell [msg]
   pure (DocIdentifier dflt)
   where
     isLocalName (nameSrcLoc -> RealSrcLoc {}) = True
     isLocalName _ = False
     x_str = '\'' : showPpr dflags x ++ "'"
     defnLoc = showSDoc dflags . pprNameDefnLoc
+
+docIdEnvRenamer :: DocIdEnv -> Renamer
+docIdEnvRenamer doc_id_env s = Map.lookup s (Map.mapKeysMonotonic unpackHDS doc_id_env)
