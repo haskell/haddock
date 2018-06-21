@@ -77,6 +77,9 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       is_sig         = isJust (mi_sig_of mod_iface)
       safety         = getSafeMode (mi_trust mod_iface)
       dflags         = error "We shouldn't need DynFlags anymore"
+      renamer        = docIdEnvRenamer (docs_id_env mod_iface_docs)
+      (pkgNameFS, _) = modulePackageInfo dflags flags mdl
+      pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
 {-
       ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
       mi             = moduleInfo tm
@@ -100,9 +103,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
         liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
         return (emptyRnGroup, [], Nothing, Nothing)
       Just x -> return x
-
-  -- Process the top-level module header documentation.
-  (!info, mbDoc) <- liftErrMsg $ processModuleHeader dflags gre safety mayDocHeader
 
   let declsWithDocs = topDecls group_
 
@@ -164,12 +164,16 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
 
+  -- Process the top-level module header documentation.
+  (!info, mbDoc) <- processModuleHeader dflags pkgName renamer safety
+                    (hsDoc'String <$> docs_mod_hdr mod_iface_docs)
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
   , ifaceOrigFilename      = undefined -- msHsFilePath ms -- TODO: Via ModSummary? But how?
-  , ifaceInfo              = undefined -- TODO: Adjust processModuleHeader, mi_globals verwenden?
-  , ifaceDoc               = undefined -- TODO: Dite
+  , ifaceInfo              = info -- Done
+  , ifaceDoc               = Documentation mbDoc (error "modWarn") -- TODO
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
   , ifaceOptions           = opts -- Done
   , ifaceDocMap            = undefined -- TODO
@@ -242,7 +246,8 @@ createInterface tm flags modMap instIfaceMap = do
   opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
 
   -- Process the top-level module header documentation.
-  (!info, mbDoc) <- processModuleHeader dflags pkgName renamer safety mayDocHeader
+  (!info, mbDoc) <- processModuleHeader dflags pkgName renamer safety
+                    (hsDocString . unLoc <$> mayDocHeader)
 
   let declsWithDocs = topDecls group_
 

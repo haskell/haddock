@@ -59,14 +59,14 @@ processDocString :: Renamer -> HsDoc Name -> ErrMsgGhc (Doc Name)
 processDocString renamer hsDoc =
   rename renamer $ LibParser.parseString (unpackHDS (hsDocString hsDoc))
 
-processModuleHeader :: DynFlags -> Maybe Package -> Renamer -> SafeHaskellMode -> Maybe (LHsDoc Name)
+processModuleHeader :: DynFlags -> Maybe Package -> Renamer -> SafeHaskellMode -> Maybe HsDocString
                     -> ErrMsgGhc (HaddockModInfo Name, Maybe (MDoc Name))
 processModuleHeader dflags pkgName renamer safety mayStr = do
   (hmi, doc) <-
     case mayStr of
       Nothing -> return failure
-      Just (L _ hsDoc) -> do
-        let str = unpackHDS (hsDocString hsDoc)
+      Just hds -> do
+        let str = unpackHDS hds
             (hmi, doc) = parseModuleHeader pkgName str
         !descr <- case hmi_description hmi of
                     Just hmi_descr -> Just <$> rename renamer hmi_descr
