@@ -71,10 +71,11 @@ createInterface' :: ModIface
                  -> ErrMsgGhc Interface
 createInterface' mod_iface flags modMap instIfaceMap = do
 
-  let docs           = mi_docs mod_iface
+  let mod_iface_docs = fromJust (mi_docs mod_iface)
       mdl            = mi_module mod_iface
       is_sig         = isJust (mi_sig_of mod_iface)
       safety         = getSafeMode (mi_trust mod_iface)
+      dflags         = error "We shouldn't need DynFlags anymore"
 {-
       ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
       mi             = moduleInfo tm
@@ -160,9 +161,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   tokenizedSrc <- mkMaybeTokenizedSrc flags tm
 -}
 
-  let dflags = undefined -- TODO: ms_hspp_opts ms
-  opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
-
+  opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
 
   return $! Interface {
     ifaceMod               = mdl -- Done
@@ -171,27 +170,26 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceInfo              = undefined -- TODO: Adjust processModuleHeader, mi_globals verwenden?
   , ifaceDoc               = undefined -- TODO: Dite
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
-  , ifaceOptions           = undefined
-  , ifaceDocMap            = undefined
-  , ifaceArgMap            = undefined
+  , ifaceOptions           = opts -- Done
+  , ifaceDocMap            = undefined -- TODO
+  , ifaceArgMap            = undefined -- TODO
   , ifaceRnDocMap          = M.empty -- Done
   , ifaceRnArgMap          = M.empty -- Done
-  , ifaceExportItems       = undefined
+  , ifaceExportItems       = undefined -- TODO
   , ifaceRnExportItems     = [] -- Done
-  , ifaceExports           = undefined
-  , ifaceVisibleExports    = undefined
-  , ifaceDeclMap           = undefined
+  , ifaceExports           = undefined -- TODO
+  , ifaceVisibleExports    = undefined -- TODO
+  , ifaceDeclMap           = undefined -- TODO
   , ifaceFixMap            = undefined -- TODO: extract from mi_fixities
   , ifaceModuleAliases     = undefined -- TODO: Not sure how to get it, do we really need it?
   , ifaceInstances         = undefined -- TODO: Try tcIfaceInst
   , ifaceFamInstances      = undefined -- TODO: Try tcIfaceFamInst
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
-  , ifaceHaddockCoverage   = undefined
+  , ifaceHaddockCoverage   = undefined -- TODO
   , ifaceWarningMap        = undefined -- TODO: extract from mi_warns
   , ifaceTokenizedSrc      = undefined -- Ignore
   }
-
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological
