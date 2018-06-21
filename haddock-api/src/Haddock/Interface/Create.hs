@@ -215,8 +215,9 @@ createInterface tm flags modMap instIfaceMap = do
       !exportedNames = modInfoExportsWithSelectors mi
       (pkgNameFS, _) = modulePackageInfo dflags flags mdl
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
+      renamer        = error "createInterface: no renamer here"
 
-      (TcGblEnv { tcg_rdr_env = gre
+      (TcGblEnv { tcg_rdr_env = _gre
                 , tcg_warns   = warnings
                 , tcg_exports = all_exports
                 }, md) = tm_internals_ tm
@@ -241,7 +242,7 @@ createInterface tm flags modMap instIfaceMap = do
   opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
 
   -- Process the top-level module header documentation.
-  (!info, mbDoc) <- processModuleHeader dflags pkgName gre safety mayDocHeader
+  (!info, mbDoc) <- processModuleHeader dflags pkgName renamer safety mayDocHeader
 
   let declsWithDocs = topDecls group_
 
@@ -265,16 +266,16 @@ createInterface tm flags modMap instIfaceMap = do
       -- Locations of all TH splices
       splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
 
-  warningMap <- mkWarningMap warnings gre exportedNames
+  warningMap <- mkWarningMap warnings renamer exportedNames
 
   maps@(!docMap, !argMap, !declMap, _) <-
-    mkMaps pkgName gre localInsts declsWithDocs
+    mkMaps pkgName renamer localInsts declsWithDocs
 
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap pkgName mdl sem_mdl allWarnings gre
+  exportItems <- mkExportItems is_sig modMap pkgName mdl sem_mdl allWarnings renamer
                    exportedNames decls maps fixMap unrestrictedImportedMods
                    splices exports all_exports instIfaceMap
 
@@ -296,7 +297,7 @@ createInterface tm flags modMap instIfaceMap = do
   let !aliases =
         mkAliasMap dflags $ tm_renamed_source tm
 
-  modWarn <- moduleWarning gre warnings
+  modWarn <- moduleWarning renamer warnings
 
   tokenizedSrc <- mkMaybeTokenizedSrc dflags flags tm
 
@@ -416,28 +417,28 @@ lookupModuleDyn dflags Nothing mdlName =
 
 -- TODO: Either find a different way of looking up the OccNames or change the Warnings or
 -- WarningMap type.
-mkWarningMap :: Warnings (LHsDoc Name) -> GlobalRdrEnv -> [Name] -> ErrMsgGhc WarningMap
-mkWarningMap warnings gre exps = case warnings of
+mkWarningMap :: Warnings (LHsDoc Name) -> Renamer -> [Name] -> ErrMsgGhc WarningMap
+mkWarningMap warnings renamer exps = case warnings of
   NoWarnings  -> pure M.empty
   WarnAll _   -> pure M.empty
   WarnSome ws ->
     let ws' = [ (n, w)
               | (occ, w) <- ws
-              , elt <- lookupGlobalRdrEnv gre occ
+              , elt <- lookupGlobalRdrEnv (error "Hmm") occ
               , let n = gre_name elt, n `elem` exps ]
-    in M.fromList <$> traverse (bitraverse pure (parseWarning gre)) ws'
+    in M.fromList <$> traverse (bitraverse pure (parseWarning renamer)) ws'
 
-moduleWarning :: GlobalRdrEnv -> Warnings (LHsDoc Name) -> ErrMsgGhc (Maybe (Doc Name))
+moduleWarning :: Renamer -> Warnings (LHsDoc Name) -> ErrMsgGhc (Maybe (Doc Name))
 moduleWarning _ NoWarnings = pure Nothing
 moduleWarning _ (WarnSome _) = pure Nothing
-moduleWarning gre (WarnAll w) = Just <$> parseWarning gre w
+moduleWarning renamer (WarnAll w) = Just <$> parseWarning renamer w
 
-parseWarning :: GlobalRdrEnv -> WarningTxt (LHsDoc Name) -> ErrMsgGhc (Doc Name)
-parseWarning gre (WarningTxt sort_ _lbl msgs) =
+parseWarning :: Renamer -> WarningTxt (LHsDoc Name) -> ErrMsgGhc (Doc Name)
+parseWarning renamer (WarningTxt sort_ _lbl msgs) =
   format heading (foldl' appendHsDoc (HsDoc (mkHsDocString "") []) (unLoc <$> msgs))
   where
     format x msg = DocWarning . DocParagraph . DocAppend (DocString x)
-                   <$> processDocString gre msg
+                   <$> processDocString renamer msg
     heading = case sort_ of
       WsWarning -> "Warning: "
       WsDeprecated -> "Deprected: "
@@ -489,11 +490,11 @@ type Maps = (DocMap Name, ArgMap Name, DeclMap, InstMap)
 -- find its names, its subordinates, and its doc strings. Process doc strings
 -- into 'Doc's.
 mkMaps :: Maybe Package  -- this package
-       -> GlobalRdrEnv
+       -> Renamer
        -> [Name]
        -> [(LHsDecl GhcRn, [HsDoc Name])]
        -> ErrMsgGhc Maps
-mkMaps pkgName gre instances decls = do
+mkMaps pkgName renamer instances decls = do
   (a, b, c) <- unzip3 <$> traverse mappings decls
   pure ( f' (map (nubByName fst) a)
        , f  (filterMapping (not . M.null) b)
@@ -520,8 +521,8 @@ mkMaps pkgName gre instances decls = do
           declDoc :: [HsDoc Name] -> Map Int (HsDoc Name)
                   -> ErrMsgGhc (Maybe (MDoc Name), Map Int (MDoc Name))
           declDoc strs m = do
-            doc' <- processDocStrings pkgName gre strs
-            m'   <- traverse (processDocStringParas pkgName gre) m
+            doc' <- processDocStrings pkgName renamer strs
+            m'   <- traverse (processDocStringParas pkgName renamer) m
             pure (doc', m')
 
       (doc, args) <- declDoc docStrs (declTypeDocs decl)
@@ -770,7 +771,7 @@ mkExportItems
   -> Module             -- this module
   -> Module             -- semantic module
   -> WarningMap
-  -> GlobalRdrEnv
+  -> Renamer
   -> [Name]             -- exported names (orig)
   -> [LHsDecl GhcRn]    -- renamed source declarations
   -> Maps
@@ -782,29 +783,29 @@ mkExportItems
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
-  is_sig modMap pkgName thisMod semMod warnings gre exportedNames decls
+  is_sig modMap pkgName thisMod semMod warnings renamer exportedNames decls
   maps fixMap unrestricted_imp_mods splices exportList allExports
   instIfaceMap =
   case exportList of
     Nothing      ->
-      fullModuleContents is_sig modMap pkgName thisMod semMod warnings gre
+      fullModuleContents is_sig modMap pkgName thisMod semMod warnings renamer
         exportedNames decls maps fixMap splices instIfaceMap
         allExports
     Just exports -> liftM concat $ mapM lookupExport exports
   where
     lookupExport (IEGroup _ lev docStr, _)  = do
-      doc <- processDocString gre docStr
+      doc <- processDocString renamer docStr
       return [ExportGroup lev "" doc]
 
     lookupExport (IEDoc _ docStr, _)        = do
-      doc <- processDocStringParas pkgName gre docStr
+      doc <- processDocStringParas pkgName renamer docStr
       return [ExportDoc doc]
 
     lookupExport (IEDocNamed _ str, _)      =
       findNamedDoc str [ unL d | d <- decls ] >>= \case
         Nothing -> return  []
         Just docStr -> do
-          doc <- processDocStringParas pkgName gre docStr
+          doc <- processDocStringParas pkgName renamer docStr
           return [ExportDoc doc]
 
     lookupExport (IEModuleContents _ (L _ mod_name), _)
@@ -1128,7 +1129,7 @@ fullModuleContents :: Bool               -- is it a signature
                    -> Module             -- this module
                    -> Module             -- semantic module
                    -> WarningMap
-                   -> GlobalRdrEnv      -- ^ The renaming environment
+                   -> Renamer
                    -> [Name]             -- exported names (orig)
                    -> [LHsDecl GhcRn]    -- renamed source declarations
                    -> Maps
@@ -1137,16 +1138,16 @@ fullModuleContents :: Bool               -- is it a signature
                    -> InstIfaceMap
                    -> Avails
                    -> ErrMsgGhc [ExportItem GhcRn]
-fullModuleContents is_sig modMap pkgName thisMod semMod warnings gre exportedNames
+fullModuleContents is_sig modMap pkgName thisMod semMod warnings renamer exportedNames
   decls maps@(_, _, declMap, _) fixMap splices instIfaceMap avails = do
   let availEnv = availsToNameEnv (nubAvails avails)
   (concat . concat) `fmap` (for decls $ \decl -> do
     case decl of
       (L _ (DocD _ (DocGroup lev docStr))) -> do
-        doc <- processDocString gre docStr
+        doc <- processDocString renamer docStr
         return [[ExportGroup lev "" doc]]
       (L _ (DocD _ (DocCommentNamed _ docStr))) -> do
-        doc <- processDocStringParas pkgName gre docStr
+        doc <- processDocStringParas pkgName renamer docStr
         return [[ExportDoc doc]]
       (L _ (ValD _ valDecl))
         | name:_ <- collectHsBindBinders valDecl
