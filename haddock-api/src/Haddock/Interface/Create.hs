@@ -83,6 +83,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       (pkgNameFS, _) = modulePackageInfo dflags flags mdl
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
       warnings       = mi_warns mod_iface
+      !exportedNames = concatMap availNamesWithSelectors (mi_exports mod_iface)
 {-
       ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
       mi             = moduleInfo tm
@@ -128,8 +129,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
                         ++ map getName fam_instances
       -- Locations of all TH splices
       splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
-
-  warningMap <- liftErrMsg (mkWarningMap dflags warnings gre exportedNames)
 
   maps@(!docMap, !argMap, !declMap, _) <-
     liftErrMsg (mkMaps dflags gre localInsts declsWithDocs)
@@ -178,6 +177,8 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   docMap <- traverse process (docs_decls mod_iface_docs)
   argMap <- traverse (traverse process) (docs_args mod_iface_docs)
 
+  warningMap <- mkWarningMap (hsDoc'String <$> warnings) renamer exportedNames
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
@@ -202,7 +203,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
   , ifaceHaddockCoverage   = undefined -- TODO
-  , ifaceWarningMap        = undefined -- TODO: extract from mi_warns
+  , ifaceWarningMap        = warningMap -- Done
   , ifaceTokenizedSrc      = undefined -- Ignore
   }
 
@@ -438,11 +439,17 @@ mkWarningMap warnings renamer exps = case warnings of
   NoWarnings  -> pure M.empty
   WarnAll _   -> pure M.empty
   WarnSome ws ->
+    -- Not sure if this is equivalent to the original code below.
+    let expsOccEnv = mkOccEnv [(nameOccName n, n) | n <- exps]
+        ws' = flip mapMaybe ws $ \(occ, w) ->
+                (,w) <$> lookupOccEnv expsOccEnv occ
+    {-
     let ws' = [ (n, w)
               | (occ, w) <- ws
-              , elt <- lookupGlobalRdrEnv (error "Hmm") occ
+              , elt <- lookupGlobalRdrEnv gre occ
               , let n = gre_name elt, n `elem` exps ]
-    in M.fromList <$> traverse (bitraverse pure (parseWarning renamer)) ws'
+    -}
+    in M.fromList <$> traverse (traverse (parseWarning renamer)) ws'
 
 moduleWarning :: Renamer -> Warnings HsDocString -> ErrMsgGhc (Maybe (Doc Name))
 moduleWarning _ NoWarnings = pure Nothing
