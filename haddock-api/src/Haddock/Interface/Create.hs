@@ -165,8 +165,10 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
 
   -- Process the top-level module header documentation.
-  (!info, mbDoc) <- processModuleHeader dflags pkgName renamer safety
-                    (hsDoc'String <$> docs_mod_hdr mod_iface_docs)
+  (!info, mbDoc) <- processModuleHeader pkgName renamer safety
+                                        (docs_language mod_iface_docs)
+                                        (docs_extensions mod_iface_docs)
+                                        (hsDoc'String <$> docs_mod_hdr mod_iface_docs)
 
   return $! Interface {
     ifaceMod               = mdl -- Done
@@ -246,7 +248,8 @@ createInterface tm flags modMap instIfaceMap = do
   opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
 
   -- Process the top-level module header documentation.
-  (!info, mbDoc) <- processModuleHeader dflags pkgName renamer safety
+  (!info, mbDoc) <- processModuleHeader pkgName renamer safety
+                    undefined undefined
                     (hsDocString . unLoc <$> mayDocHeader)
 
   let declsWithDocs = topDecls group_
