@@ -80,6 +80,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       renamer        = docIdEnvRenamer (docs_id_env mod_iface_docs)
       (pkgNameFS, _) = modulePackageInfo dflags flags mdl
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
+      warnings       = mi_warns mod_iface
 {-
       ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
       mi             = moduleInfo tm
@@ -157,7 +158,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   let !aliases =
         mkAliasMap dflags $ tm_renamed_source tm
 
-  modWarn <- liftErrMsg (moduleWarning dflags gre warnings)
 
   tokenizedSrc <- mkMaybeTokenizedSrc flags tm
 -}
@@ -170,12 +170,14 @@ createInterface' mod_iface flags modMap instIfaceMap = do
                                         (docs_extensions mod_iface_docs)
                                         (hsDoc'String <$> docs_mod_hdr mod_iface_docs)
 
+  modWarn <- moduleWarning renamer (hsDoc'String <$> warnings)
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
   , ifaceOrigFilename      = undefined -- msHsFilePath ms -- TODO: Via ModSummary? But how?
   , ifaceInfo              = info -- Done
-  , ifaceDoc               = Documentation mbDoc (error "modWarn") -- TODO
+  , ifaceDoc               = Documentation mbDoc modWarn -- Done
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
   , ifaceOptions           = opts -- Done
   , ifaceDocMap            = undefined -- TODO
@@ -274,7 +276,7 @@ createInterface tm flags modMap instIfaceMap = do
       -- Locations of all TH splices
       splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
 
-  warningMap <- mkWarningMap warnings renamer exportedNames
+  warningMap <- mkWarningMap (hsDocString . unLoc <$> warnings) renamer exportedNames
 
   maps@(!docMap, !argMap, !declMap, _) <-
     mkMaps pkgName renamer localInsts declsWithDocs
@@ -305,7 +307,7 @@ createInterface tm flags modMap instIfaceMap = do
   let !aliases =
         mkAliasMap dflags $ tm_renamed_source tm
 
-  modWarn <- moduleWarning renamer warnings
+  modWarn <- moduleWarning renamer (hsDocString . unLoc <$> warnings)
 
   tokenizedSrc <- mkMaybeTokenizedSrc dflags flags tm
 
@@ -425,7 +427,7 @@ lookupModuleDyn dflags Nothing mdlName =
 
 -- TODO: Either find a different way of looking up the OccNames or change the Warnings or
 -- WarningMap type.
-mkWarningMap :: Warnings (LHsDoc Name) -> Renamer -> [Name] -> ErrMsgGhc WarningMap
+mkWarningMap :: Warnings HsDocString -> Renamer -> [Name] -> ErrMsgGhc WarningMap
 mkWarningMap warnings renamer exps = case warnings of
   NoWarnings  -> pure M.empty
   WarnAll _   -> pure M.empty
@@ -436,14 +438,14 @@ mkWarningMap warnings renamer exps = case warnings of
               , let n = gre_name elt, n `elem` exps ]
     in M.fromList <$> traverse (bitraverse pure (parseWarning renamer)) ws'
 
-moduleWarning :: Renamer -> Warnings (LHsDoc Name) -> ErrMsgGhc (Maybe (Doc Name))
+moduleWarning :: Renamer -> Warnings HsDocString -> ErrMsgGhc (Maybe (Doc Name))
 moduleWarning _ NoWarnings = pure Nothing
 moduleWarning _ (WarnSome _) = pure Nothing
 moduleWarning renamer (WarnAll w) = Just <$> parseWarning renamer w
 
-parseWarning :: Renamer -> WarningTxt (LHsDoc Name) -> ErrMsgGhc (Doc Name)
+parseWarning :: Renamer -> WarningTxt HsDocString -> ErrMsgGhc (Doc Name)
 parseWarning renamer (WarningTxt sort_ _lbl msgs) =
-  format heading (foldl' appendHsDoc (HsDoc (mkHsDocString "") []) (unLoc <$> msgs))
+  format heading (foldl' appendHDSAsParagraphs (mkHsDocString "") msgs)
   where
     format x msg = DocWarning . DocParagraph . DocAppend (DocString x)
                    <$> processDocString renamer msg
@@ -802,7 +804,7 @@ mkExportItems
     Just exports -> liftM concat $ mapM lookupExport exports
   where
     lookupExport (IEGroup _ lev docStr, _)  = do
-      doc <- processDocString renamer docStr
+      doc <- processDocString renamer (hsDocString docStr)
       return [ExportGroup lev "" doc]
 
     lookupExport (IEDoc _ docStr, _)        = do
@@ -1152,7 +1154,7 @@ fullModuleContents is_sig modMap pkgName thisMod semMod warnings renamer exporte
   (concat . concat) `fmap` (for decls $ \decl -> do
     case decl of
       (L _ (DocD _ (DocGroup lev docStr))) -> do
-        doc <- processDocString renamer docStr
+        doc <- processDocString renamer (hsDocString docStr)
         return [[ExportGroup lev "" doc]]
       (L _ (DocD _ (DocCommentNamed _ docStr))) -> do
         doc <- processDocStringParas pkgName renamer docStr

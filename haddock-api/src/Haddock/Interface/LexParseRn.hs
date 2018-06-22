@@ -55,9 +55,9 @@ processDocStringParas :: Maybe Package -> Renamer -> HsDoc Name -> ErrMsgGhc (MD
 processDocStringParas pkg renamer hsDoc =
   overDocF (rename renamer) $ LibParser.parseParas pkg (unpackHDS (hsDocString hsDoc))
 
-processDocString :: Renamer -> HsDoc Name -> ErrMsgGhc (Doc Name)
-processDocString renamer hsDoc =
-  rename renamer $ LibParser.parseString (unpackHDS (hsDocString hsDoc))
+processDocString :: Renamer -> HsDocString -> ErrMsgGhc (Doc Name)
+processDocString renamer hds =
+  rename renamer $ LibParser.parseString (unpackHDS hds)
 
 processModuleHeader :: Maybe Package -> Renamer -> SafeHaskellMode
                     -> Maybe Language -> EnumSet LangExt.Extension
