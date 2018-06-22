@@ -174,8 +174,9 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   modWarn <- moduleWarning renamer (hsDoc'String <$> warnings)
 
-  docMap <- traverse (processDocStringParas pkgName renamer . hsDoc'String)
-                     (docs_decls mod_iface_docs)
+  let process = processDocStringParas pkgName renamer . hsDoc'String
+  docMap <- traverse process (docs_decls mod_iface_docs)
+  argMap <- traverse (traverse process) (docs_args mod_iface_docs)
 
   return $! Interface {
     ifaceMod               = mdl -- Done
@@ -186,7 +187,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
   , ifaceOptions           = opts -- Done
   , ifaceDocMap            = docMap -- Done
-  , ifaceArgMap            = undefined -- TODO
+  , ifaceArgMap            = argMap -- Done
   , ifaceRnDocMap          = M.empty -- Done
   , ifaceRnArgMap          = M.empty -- Done
   , ifaceExportItems       = undefined -- TODO
