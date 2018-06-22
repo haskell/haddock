@@ -40,7 +40,7 @@ import RdrName
 import EnumSet
 import RnEnv (dataTcOccs)
 
-processDocStrings :: Maybe Package -> Renamer -> [HsDoc Name]
+processDocStrings :: Maybe Package -> Renamer -> [HsDocString]
                   -> ErrMsgGhc (Maybe (MDoc Name))
 processDocStrings pkg renamer strs = do
   mdoc <- metaDocConcat <$> traverse (processDocStringParas pkg renamer) strs
@@ -51,9 +51,9 @@ processDocStrings pkg renamer strs = do
     MetaDoc { _meta = Meta Nothing Nothing, _doc = DocEmpty } -> pure Nothing
     x -> pure (Just x)
 
-processDocStringParas :: Maybe Package -> Renamer -> HsDoc Name -> ErrMsgGhc (MDoc Name)
-processDocStringParas pkg renamer hsDoc =
-  overDocF (rename renamer) $ LibParser.parseParas pkg (unpackHDS (hsDocString hsDoc))
+processDocStringParas :: Maybe Package -> Renamer -> HsDocString -> ErrMsgGhc (MDoc Name)
+processDocStringParas pkg renamer hds =
+  overDocF (rename renamer) $ LibParser.parseParas pkg (unpackHDS hds)
 
 processDocString :: Renamer -> HsDocString -> ErrMsgGhc (Doc Name)
 processDocString renamer hds =

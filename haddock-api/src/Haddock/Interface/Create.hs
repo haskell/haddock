@@ -71,13 +71,15 @@ createInterface' :: ModIface
                  -> InstIfaceMap -- External, already installed interfaces
                  -> ErrMsgGhc Interface
 createInterface' mod_iface flags modMap instIfaceMap = do
+  dflags <- getDynFlags
 
   let mod_iface_docs = fromJust (mi_docs mod_iface)
       mdl            = mi_module mod_iface
       is_sig         = isJust (mi_sig_of mod_iface)
       safety         = getSafeMode (mi_trust mod_iface)
-      dflags         = error "We shouldn't need DynFlags anymore"
       renamer        = docIdEnvRenamer (docs_id_env mod_iface_docs)
+
+      -- Not sure whether the relevant info is in these dflags
       (pkgNameFS, _) = modulePackageInfo dflags flags mdl
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
       warnings       = mi_warns mod_iface
@@ -172,6 +174,9 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   modWarn <- moduleWarning renamer (hsDoc'String <$> warnings)
 
+  docMap <- traverse (processDocStringParas pkgName renamer . hsDoc'String)
+                     (docs_decls mod_iface_docs)
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
@@ -180,7 +185,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceDoc               = Documentation mbDoc modWarn -- Done
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
   , ifaceOptions           = opts -- Done
-  , ifaceDocMap            = undefined -- TODO
+  , ifaceDocMap            = docMap -- Done
   , ifaceArgMap            = undefined -- TODO
   , ifaceRnDocMap          = M.empty -- Done
   , ifaceRnArgMap          = M.empty -- Done
@@ -531,8 +536,8 @@ mkMaps pkgName renamer instances decls = do
           declDoc :: [HsDoc Name] -> Map Int (HsDoc Name)
                   -> ErrMsgGhc (Maybe (MDoc Name), Map Int (MDoc Name))
           declDoc strs m = do
-            doc' <- processDocStrings pkgName renamer strs
-            m'   <- traverse (processDocStringParas pkgName renamer) m
+            doc' <- processDocStrings pkgName renamer (hsDocString <$> strs)
+            m'   <- traverse (processDocStringParas pkgName renamer . hsDocString) m
             pure (doc', m')
 
       (doc, args) <- declDoc docStrs (declTypeDocs decl)
@@ -808,14 +813,14 @@ mkExportItems
       return [ExportGroup lev "" doc]
 
     lookupExport (IEDoc _ docStr, _)        = do
-      doc <- processDocStringParas pkgName renamer docStr
+      doc <- processDocStringParas pkgName renamer (hsDocString docStr)
       return [ExportDoc doc]
 
     lookupExport (IEDocNamed _ str, _)      =
       findNamedDoc str [ unL d | d <- decls ] >>= \case
         Nothing -> return  []
         Just docStr -> do
-          doc <- processDocStringParas pkgName renamer docStr
+          doc <- processDocStringParas pkgName renamer (hsDocString docStr)
           return [ExportDoc doc]
 
     lookupExport (IEModuleContents _ (L _ mod_name), _)
@@ -1157,7 +1162,7 @@ fullModuleContents is_sig modMap pkgName thisMod semMod warnings renamer exporte
         doc <- processDocString renamer (hsDocString docStr)
         return [[ExportGroup lev "" doc]]
       (L _ (DocD _ (DocCommentNamed _ docStr))) -> do
-        doc <- processDocStringParas pkgName renamer docStr
+        doc <- processDocStringParas pkgName renamer (hsDocString docStr)
         return [[ExportDoc doc]]
       (L _ (ValD _ valDecl))
         | name:_ <- collectHsBindBinders valDecl
