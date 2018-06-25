@@ -83,6 +83,16 @@ data Interface = Interface
   , ifaceIsSig           :: !Bool
 
     -- | Original file name of the module.
+    --
+    -- As of haddock-api 2.20 the filename is used only by a few (legacy?)
+    -- options when constructing URLs for source links in
+    -- 'Haddock.Backends.Xhtml.srcButton'.
+    --
+    -- The options are @--source-entity@, @--source-module@ and
+    -- @--comments-entity@
+
+    -- TODO: Remove this field as we don't want to provide the file path via
+    -- ModIface.
   , ifaceOrigFilename    :: !FilePath
 
     -- | Textual information about the module.

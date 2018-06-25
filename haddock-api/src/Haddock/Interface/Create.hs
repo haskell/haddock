@@ -182,9 +182,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
-  , ifaceOrigFilename      = error "Not available via ModIface"
-    -- ^ This is used by a few (legacy?) options via srcButton:
-    -- --source-entity, --source-module, --comments-entity
+  , ifaceOrigFilename      = error "Not available via ModIface" -- Done
   , ifaceInfo              = info -- Done
   , ifaceDoc               = Documentation mbDoc modWarn -- Done
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
