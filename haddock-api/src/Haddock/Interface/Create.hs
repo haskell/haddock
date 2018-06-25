@@ -182,7 +182,9 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
-  , ifaceOrigFilename      = undefined -- msHsFilePath ms -- TODO: Via ModSummary? But how?
+  , ifaceOrigFilename      = undefined -- TODO: We may be able to derive the filename via two ways:
+                                       -- * For regular library modules, use the .hi-file name.
+                                       -- * For executable (Main) modules, look at the  
   , ifaceInfo              = info -- Done
   , ifaceDoc               = Documentation mbDoc modWarn -- Done
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
