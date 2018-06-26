@@ -188,6 +188,8 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   mod_details <- liftGhcToErrMsgGhc $ withSession $ \hsc_env -> do
     liftIO $ initIfaceCheck (Outputable.text "createInterface'") hsc_env (typecheckIface mod_iface)
 
+  declMap <- mkDeclMap mod_details
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
@@ -203,9 +205,9 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceRnArgMap          = M.empty -- Done
   , ifaceExportItems       = undefined -- TODO
   , ifaceRnExportItems     = [] -- Done
-  , ifaceExports           = undefined -- TODO
+  , ifaceExports           = exportedNames -- Done
   , ifaceVisibleExports    = undefined -- TODO
-  , ifaceDeclMap           = undefined -- TODO
+  , ifaceDeclMap           = declMap -- Done
   , ifaceFixMap            = fixMap -- Done
   , ifaceModuleAliases     = undefined -- TODO: Remove entire field together with @--qual=aliased@.
   , ifaceInstances         = md_insts mod_details -- Done
@@ -356,6 +358,30 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceTokenizedSrc      = tokenizedSrc
   }
 
+mkDeclMap :: ModDetails -> ErrMsgGhc DeclMap
+mkDeclMap mod_details = do
+    dflags <- getDynFlags
+
+    let convert_ :: Name -> ErrMsgM (Maybe (HsDecl GhcRn))
+        convert_ name =
+          case lookupNameEnv (md_types mod_details) name of
+            Nothing -> do
+              tell ["createInterface': Didn't find " ++ O.showPpr dflags name ++ " in md_types"]
+              pure Nothing
+            Just t -> case tyThingToLHsDecl t of
+              Left msg -> do
+                tell ["createInterface': " ++ msg]
+                pure Nothing
+              Right (msgs, decl) -> do
+                tell msgs
+                pure (Just decl)
+
+    decls <- liftErrMsg $ forM (md_exports mod_details) $ \avail -> do
+      let mainName = availName avail
+          allNames = availNamesWithSelectors avail
+      decls <- catMaybes <$> traverse convert_ allNames
+      pure (mainName, map noLoc decls)
+    pure (M.fromList decls)
 
 -- | Given all of the @import M as N@ declarations in a package,
 -- create a mapping from the module identity of M, to an alias N
