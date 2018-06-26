@@ -200,6 +200,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceDeclMap           = undefined -- TODO
   , ifaceFixMap            = fixMap -- Done
   , ifaceModuleAliases     = undefined -- TODO: Not sure how to get it, do we really need it?
+                                       -- Needed only with @--qual=aliased@.
   , ifaceInstances         = undefined -- TODO: Try tcIfaceInst
   , ifaceFamInstances      = undefined -- TODO: Try tcIfaceFamInst
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
