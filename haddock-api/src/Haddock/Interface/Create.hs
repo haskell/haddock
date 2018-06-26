@@ -40,6 +40,7 @@ import Data.List
 import Data.Maybe
 import Data.Ord
 import Control.Applicative
+import Control.Arrow ((&&&))
 import Control.Exception (evaluate)
 import Control.Monad
 import Data.Traversable
@@ -84,6 +85,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
       warnings       = mi_warns mod_iface
       !exportedNames = concatMap availNamesWithSelectors (mi_exports mod_iface)
+      fixMap         = mkFixMap exportedNames (mi_fixities mod_iface)
 {-
       ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
       mi             = moduleInfo tm
@@ -196,7 +198,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceExports           = undefined -- TODO
   , ifaceVisibleExports    = undefined -- TODO
   , ifaceDeclMap           = undefined -- TODO
-  , ifaceFixMap            = undefined -- TODO: extract from mi_fixities
+  , ifaceFixMap            = fixMap -- Done
   , ifaceModuleAliases     = undefined -- TODO: Not sure how to get it, do we really need it?
   , ifaceInstances         = undefined -- TODO: Try tcIfaceInst
   , ifaceFamInstances      = undefined -- TODO: Try tcIfaceFamInst
@@ -275,7 +277,7 @@ createInterface tm flags modMap instIfaceMap = do
         = unrestrictedModuleImports (map unLoc imports)
         | otherwise = M.empty
 
-      fixMap = mkFixMap group_
+      fixMap = mkFixMap undefined undefined
       (decls, _) = unzip declsWithDocs
       localInsts = filter (nameIsLocalOrFrom sem_mdl)
                         $  map getName instances
@@ -689,11 +691,12 @@ topDecls :: HsGroup GhcRn -> [(LHsDecl GhcRn, [HsDoc Name])]
 topDecls = filterClasses . filterDecls . collectDocs . sortByLoc . ungroup
 
 -- | Extract a map of fixity declarations only
-mkFixMap :: HsGroup GhcRn -> FixMap
-mkFixMap group_ = M.fromList [ (n,f)
-                             | L _ (FixitySig _ ns f) <- hs_fixds group_,
-                               L _ n <- ns ]
-
+mkFixMap :: [Name] -> [(OccName, Fixity)] -> FixMap
+mkFixMap exps occFixs =
+    M.fromList $ flip mapMaybe occFixs $ \(occ, fix_) ->
+      (,fix_) <$> lookupOccEnv expsOccEnv occ
+  where
+    expsOccEnv = mkOccEnv (map (nameOccName &&& id) exps)
 
 -- | Take all declarations except pragmas, infix decls, rules from an 'HsGroup'.
 ungroup :: HsGroup GhcRn -> [LHsDecl GhcRn]
