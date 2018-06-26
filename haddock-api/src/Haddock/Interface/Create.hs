@@ -184,7 +184,8 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
-  , ifaceOrigFilename      = error "Not available via ModIface" -- Done
+  , ifaceOrigFilename      = error "Not available via ModIface" -- TODO: Remove entire field
+                                                                -- together with %F syntax
   , ifaceInfo              = info -- Done
   , ifaceDoc               = Documentation mbDoc modWarn -- Done
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
@@ -199,8 +200,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceVisibleExports    = undefined -- TODO
   , ifaceDeclMap           = undefined -- TODO
   , ifaceFixMap            = fixMap -- Done
-  , ifaceModuleAliases     = undefined -- TODO: Not sure how to get it, do we really need it?
-                                       -- Needed only with @--qual=aliased@.
+  , ifaceModuleAliases     = undefined -- TODO: Remove entire field together with @--qual=aliased@.
   , ifaceInstances         = undefined -- TODO: Try tcIfaceInst
   , ifaceFamInstances      = undefined -- TODO: Try tcIfaceFamInst
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
