@@ -51,13 +51,17 @@ import qualified Module
 import qualified SrcLoc
 import ConLike (ConLike(..))
 import GHC
+import GhcMonad
 import HscTypes
 import Name
 import NameSet
 import NameEnv
+import qualified Outputable
 import Packages   ( lookupModuleInAllPackages, PackageName(..) )
 import Bag
 import RdrName
+import TcIface
+import TcRnMonad
 import TcRnTypes
 import FastString (fastStringToByteString, unpackFS )
 import HsDecls ( getConArgs )
@@ -181,6 +185,9 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   warningMap <- mkWarningMap (hsDoc'String <$> warnings) renamer exportedNames
 
+  mod_details <- liftGhcToErrMsgGhc $ withSession $ \hsc_env -> do
+    liftIO $ initIfaceCheck (Outputable.text "createInterface'") hsc_env (typecheckIface mod_iface)
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
@@ -201,8 +208,8 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceDeclMap           = undefined -- TODO
   , ifaceFixMap            = fixMap -- Done
   , ifaceModuleAliases     = undefined -- TODO: Remove entire field together with @--qual=aliased@.
-  , ifaceInstances         = undefined -- TODO: Try tcIfaceInst
-  , ifaceFamInstances      = undefined -- TODO: Try tcIfaceFamInst
+  , ifaceInstances         = md_insts mod_details -- Done
+  , ifaceFamInstances      = md_fam_insts mod_details -- Done
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
   , ifaceHaddockCoverage   = undefined -- TODO
