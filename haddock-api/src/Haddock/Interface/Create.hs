@@ -817,6 +817,62 @@ collectDocs = go Nothing []
 
     finished decl docs rest = (decl, reverse docs) : rest
 
+mkExportItems'
+  :: DocStructure
+--  -> Bool               -- is it a signature
+--  -> IfaceMap
+--  -> Maybe Package      -- this package
+--  -> Module             -- this module
+--  -> Module             -- semantic module
+--  -> WarningMap
+--  -> Renamer
+--  -> [Name]             -- exported names (orig)
+--  -> [LHsDecl GhcRn]    -- renamed source declarations
+--  -> Maps
+--  -> FixMap
+--  -> M.Map ModuleName [ModuleName]
+--  -> [SrcSpan]          -- splice locations
+--  -> Avails             -- exported stuff from this module
+--  -> InstIfaceMap
+  -> ErrMsgGhc [ExportItem GhcRn]
+mkExportItems' dsItems = do
+    concat <$> traverse lookupExport dsItems
+  where
+    lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
+    lookupExport = \case
+      DsiSectionHeading _lev _hsDoc' -> undefined
+      DsiDocChunk _hsDoc' -> undefined
+      DsiNamedChunkRef _ref -> undefined
+      DsiExports _avails -> undefined
+      DsiModExport _mod_name -> undefined
+{-
+    lookupExport :: (IE GhcRn, Avails) -> ErrMsgGhc [ExportItem GhcRn]
+    lookupExport (IEGroup _ lev docStr, _)  = do
+      doc <- processDocString renamer (hsDocString docStr)
+      return [ExportGroup lev "" doc]
+
+    lookupExport (IEDoc _ docStr, _)        = do
+      doc <- processDocStringParas pkgName renamer (hsDocString docStr)
+      return [ExportDoc doc]
+
+    lookupExport (IEDocNamed _ str, _)      =
+      findNamedDoc str [ unL d | d <- decls ] >>= \case
+        Nothing -> return  []
+        Just docStr -> do
+          doc <- processDocStringParas pkgName renamer (hsDocString docStr)
+          return [ExportDoc doc]
+
+    lookupExport (IEModuleContents _ (L _ mod_name), _)
+      -- only consider exporting a module if we are sure we
+      -- are really exporting the whole module and not some
+      -- subset. We also look through module aliases here.
+      | Just mods <- M.lookup mod_name unrestricted_imp_mods
+      , not (null mods)
+      = concat <$> traverse (moduleExport thisMod modMap instIfaceMap) mods
+
+    lookupExport (_, avails) =
+      concat <$> traverse availExport (nubAvails avails)
+-}
 
 -- | Build the list of items that will become the documentation, from the
 -- export list.  At this point, the list of ExportItems is in terms of
@@ -853,6 +909,7 @@ mkExportItems
         allExports
     Just exports -> liftM concat $ mapM lookupExport exports
   where
+    lookupExport :: (IE GhcRn, Avails) -> ErrMsgGhc [ExportItem GhcRn]
     lookupExport (IEGroup _ lev docStr, _)  = do
       doc <- processDocString renamer (hsDocString docStr)
       return [ExportGroup lev "" doc]
