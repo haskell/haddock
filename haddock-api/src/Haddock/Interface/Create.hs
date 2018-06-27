@@ -147,7 +147,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
                    exportedNames decls maps fixMap unrestrictedImportedMods
                    splices exports all_exports instIfaceMap dflags
 
-  let !visibleNames = mkVisibleNames maps exportItems opts
 
   -- Measure haddock documentation coverage.
   let prunedExportItems0 = pruneExportItems exportItems
@@ -190,13 +189,15 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   declMap <- mkDeclMap mod_details
 
+  let maps = (docMap, argMap, declMap,
+              M.empty) -- FIXME: InstMap)
+
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
                                 is_sig modMap pkgName mdl
                                 mdl -- FIXME: This should be the "semantic module"
-                                warningMap renamer exportedNames
-                                (docMap, argMap, declMap,
-                                 M.empty) -- The InstMap, shouldn't be need though.
+                                warningMap -- TODO: This should allWarnings
+                                renamer exportedNames maps
                                 fixMap
                                 M.empty -- FIXME: unrestricted module imports.
                                         -- We currently don't know what aliases we
@@ -205,6 +206,8 @@ createInterface' mod_iface flags modMap instIfaceMap = do
                                    -- splices we also don't know the locations of
                                    -- our declarations.
                                 instIfaceMap
+
+  let !visibleNames = mkVisibleNames maps exportItems opts
 
   return $! Interface {
     ifaceMod               = mdl -- Done
@@ -222,7 +225,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceExportItems       = exportItems
   , ifaceRnExportItems     = [] -- Done
   , ifaceExports           = exportedNames -- Done
-  , ifaceVisibleExports    = undefined -- TODO
+  , ifaceVisibleExports    = visibleNames -- Done
   , ifaceDeclMap           = declMap -- Done
   , ifaceFixMap            = fixMap -- Done
   , ifaceModuleAliases     = undefined -- TODO: Remove entire field together with @--qual=aliased@.
