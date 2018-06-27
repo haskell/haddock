@@ -190,6 +190,22 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   declMap <- mkDeclMap mod_details
 
+  exportItems <- mkExportItems' (docs_structure mod_iface_docs)
+                                (docs_named_chunks mod_iface_docs)
+                                is_sig modMap pkgName mdl
+                                mdl -- FIXME: This should be the "semantic module"
+                                warningMap renamer exportedNames
+                                (docMap, argMap, declMap,
+                                 M.empty) -- The InstMap, shouldn't be need though.
+                                fixMap
+                                M.empty -- FIXME: unrestricted module imports.
+                                        -- We currently don't know what aliases we
+                                        -- import modules with.
+                                [] -- FIXME: "splices". Apart from the locations of
+                                   -- splices we also don't know the locations of
+                                   -- our declarations.
+                                instIfaceMap
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
@@ -203,7 +219,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceArgMap            = argMap -- Done
   , ifaceRnDocMap          = M.empty -- Done
   , ifaceRnArgMap          = M.empty -- Done
-  , ifaceExportItems       = undefined -- TODO
+  , ifaceExportItems       = exportItems
   , ifaceRnExportItems     = [] -- Done
   , ifaceExports           = exportedNames -- Done
   , ifaceVisibleExports    = undefined -- TODO
@@ -819,60 +835,59 @@ collectDocs = go Nothing []
 
 mkExportItems'
   :: DocStructure
---  -> Bool               -- is it a signature
---  -> IfaceMap
---  -> Maybe Package      -- this package
---  -> Module             -- this module
---  -> Module             -- semantic module
---  -> WarningMap
---  -> Renamer
---  -> [Name]             -- exported names (orig)
+  -> Map String HsDoc' -- Named chunks
+  -> Bool               -- is it a signature
+  -> IfaceMap
+  -> Maybe Package      -- this package
+  -> Module             -- this module
+  -> Module             -- semantic module
+  -> WarningMap
+  -> Renamer
+  -> [Name]             -- exported names (orig)
 --  -> [LHsDecl GhcRn]    -- renamed source declarations
---  -> Maps
---  -> FixMap
---  -> M.Map ModuleName [ModuleName]
---  -> [SrcSpan]          -- splice locations
+  -> Maps
+  -> FixMap
+  -> M.Map ModuleName [ModuleName]
+  -> [SrcSpan]          -- splice locations
 --  -> Avails             -- exported stuff from this module
---  -> InstIfaceMap
+  -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
-mkExportItems' dsItems = do
+mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warnings renamer exportedNames maps fixMap unrestricted_imp_mods splices instIfaceMap = do
     concat <$> traverse lookupExport dsItems
   where
     lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
     lookupExport = \case
-      DsiSectionHeading _lev _hsDoc' -> undefined
-      DsiDocChunk _hsDoc' -> undefined
-      DsiNamedChunkRef _ref -> undefined
-      DsiExports _avails -> undefined
-      DsiModExport _mod_name -> undefined
-{-
-    lookupExport :: (IE GhcRn, Avails) -> ErrMsgGhc [ExportItem GhcRn]
-    lookupExport (IEGroup _ lev docStr, _)  = do
-      doc <- processDocString renamer (hsDocString docStr)
-      return [ExportGroup lev "" doc]
+      DsiSectionHeading lev hsDoc' -> do
+        doc <- processDocString renamer (hsDoc'String hsDoc')
+        pure [ExportGroup lev "" doc]
+      DsiDocChunk hsDoc' -> do
+        doc <- processDocStringParas mbPkgName renamer (hsDoc'String hsDoc')
+        pure [ExportDoc doc]
+      DsiNamedChunkRef ref -> do
+        case M.lookup ref namedChunks of
+          Nothing -> do
+            liftErrMsg $ tell ["Cannot find documentation for: $" ++ ref]
+            pure []
+          Just hsDoc' -> do
+            doc <- processDocStringParas mbPkgName renamer (hsDoc'String hsDoc')
+            pure [ExportDoc doc]
+      DsiExports avails ->
+        -- TODO: We probably don't need nubAvails here.
+        -- mkDocStructureFromExportList already uses it.
+        concat <$> traverse availExport (nubAvails avails)
+      DsiModExport mod_name
+        -- only consider exporting a module if we are sure we
+        -- are really exporting the whole module and not some
+        -- subset. We also look through module aliases here.
+        | Just mods <- M.lookup mod_name unrestricted_imp_mods
+        , not (null mods)
+        -> concat <$> traverse (moduleExport thisMod ifaceMap instIfaceMap) mods
+      DsiModExport _ -> pure [] -- TODO: maybe we're missing some avails here?!
+        -- concat <$> traverse availExport (nubAvails avails)
 
-    lookupExport (IEDoc _ docStr, _)        = do
-      doc <- processDocStringParas pkgName renamer (hsDocString docStr)
-      return [ExportDoc doc]
-
-    lookupExport (IEDocNamed _ str, _)      =
-      findNamedDoc str [ unL d | d <- decls ] >>= \case
-        Nothing -> return  []
-        Just docStr -> do
-          doc <- processDocStringParas pkgName renamer (hsDocString docStr)
-          return [ExportDoc doc]
-
-    lookupExport (IEModuleContents _ (L _ mod_name), _)
-      -- only consider exporting a module if we are sure we
-      -- are really exporting the whole module and not some
-      -- subset. We also look through module aliases here.
-      | Just mods <- M.lookup mod_name unrestricted_imp_mods
-      , not (null mods)
-      = concat <$> traverse (moduleExport thisMod modMap instIfaceMap) mods
-
-    lookupExport (_, avails) =
-      concat <$> traverse availExport (nubAvails avails)
--}
+    availExport avail =
+      availExportItem is_sig ifaceMap thisMod semMod warnings exportedNames
+        maps fixMap splices instIfaceMap avail
 
 -- | Build the list of items that will become the documentation, from the
 -- export list.  At this point, the list of ExportItems is in terms of
