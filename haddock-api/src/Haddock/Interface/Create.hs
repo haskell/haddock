@@ -190,7 +190,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   declMap <- mkDeclMap mod_details
 
   let maps = (docMap, argMap, declMap,
-              M.empty) -- FIXME: InstMap)
+              M.empty) -- FIXME: InstMap, needed for mkVisibleNames
 
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
@@ -229,13 +229,15 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceDeclMap           = declMap -- Done
   , ifaceFixMap            = fixMap -- Done
   , ifaceModuleAliases     = undefined -- TODO: Remove entire field together with @--qual=aliased@.
+                                       -- Actually we need roughly the same info for
+                                       -- unrestrictedModuleImports, so we might as well keep it.
   , ifaceInstances         = md_insts mod_details -- Done
   , ifaceFamInstances      = md_fam_insts mod_details -- Done
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
   , ifaceHaddockCoverage   = undefined -- TODO
   , ifaceWarningMap        = warningMap -- Done
-  , ifaceTokenizedSrc      = undefined -- Ignore
+  , ifaceTokenizedSrc      = Nothing -- Ignore for now.
   }
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
