@@ -134,6 +134,8 @@ data Interface = Interface
     -- | All \"visible\" names exported by the module.
     -- A visible name is a name that will show up in the documentation of the
     -- module.
+    --
+    -- Names from modules that are entirely re-exported don't count as visible.
   , ifaceVisibleExports  :: ![Name]
 
     -- | Aliases of module imports as in @import A.B.C as C@.
