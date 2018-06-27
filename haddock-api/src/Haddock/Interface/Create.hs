@@ -209,10 +209,16 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   let !visibleNames = mkVisibleNames maps exportItems opts
 
+  -- Measure haddock documentation coverage.
+  let prunedExportItems0 = pruneExportItems exportItems
+      !haddockable = 1 + length exportItems -- module + exports
+      !haddocked = (if isJust mbDoc then 1 else 0) + length prunedExportItems0
+      !coverage = (haddockable, haddocked)
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
-  , ifaceOrigFilename      = error "Not available via ModIface" -- TODO: Remove entire field
+  , ifaceOrigFilename      = "this/field/will/be/Removed.hs"    -- TODO: Remove entire field
                                                                 -- together with %F syntax
   , ifaceInfo              = info -- Done
   , ifaceDoc               = Documentation mbDoc modWarn -- Done
@@ -228,14 +234,14 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceVisibleExports    = visibleNames -- Done
   , ifaceDeclMap           = declMap -- Done
   , ifaceFixMap            = fixMap -- Done
-  , ifaceModuleAliases     = undefined -- TODO: Remove entire field together with @--qual=aliased@.
+  , ifaceModuleAliases     = M.empty   -- TODO: Remove entire field together with @--qual=aliased@.
                                        -- Actually we need roughly the same info for
                                        -- unrestrictedModuleImports, so we might as well keep it.
   , ifaceInstances         = md_insts mod_details -- Done
   , ifaceFamInstances      = md_fam_insts mod_details -- Done
   , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
   , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
-  , ifaceHaddockCoverage   = undefined -- TODO
+  , ifaceHaddockCoverage   = coverage -- Done
   , ifaceWarningMap        = warningMap -- Done
   , ifaceTokenizedSrc      = Nothing -- Ignore for now.
   }
