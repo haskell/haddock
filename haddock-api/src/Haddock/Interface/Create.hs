@@ -94,82 +94,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       warnings       = mi_warns mod_iface
       !exportedNames = concatMap availNamesWithSelectors (mi_exports mod_iface)
       fixMap         = mkFixMap exportedNames (mi_fixities mod_iface)
-{-
-      ms             = pm_mod_summary . tm_parsed_module $ tm -- Try getModSummary
-      mi             = moduleInfo tm
-      L _ hsm        = parsedSource tm
-      !safety        = modInfoSafe mi
-      !instances     = modInfoInstances mi
-      !fam_instances = md_fam_insts md
-      !exportedNames = modInfoExportsWithSelectors mi
-
-      (TcGblEnv { tcg_rdr_env = gre
-                , tcg_warns   = warnings
-                , tcg_exports = all_exports
-                }, md) = tm_internals_ tm
-
-  -- The renamed source should always be available to us, but it's best
-  -- to be on the safe side.
-  (group_, imports, mayExports, mayDocHeader) <-
-    case renamedSource tm of
-      Nothing -> do
-        liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
-        return (emptyRnGroup, [], Nothing, Nothing)
-      Just x -> return x
-
-  let declsWithDocs = topDecls group_
-
-      exports0 = fmap (reverse . map (first unLoc)) mayExports
-      exports
-        | OptIgnoreExports `elem` opts = Nothing
-        | otherwise = exports0
-
-      unrestrictedImportedMods
-        -- module re-exports are only possible with
-        -- explicit export list
-        | Just{} <- exports
-        = unrestrictedModuleImports (map unLoc imports)
-        | otherwise = M.empty
-
-      fixMap = mkFixMap group_
-      (decls, _) = unzip declsWithDocs
-      localInsts = filter (nameIsLocalOrFrom sem_mdl)
-                        $  map getName instances
-                        ++ map getName fam_instances
-      -- Locations of all TH splices
-      splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
-
-  maps@(!docMap, !argMap, !declMap, _) <-
-    liftErrMsg (mkMaps dflags gre localInsts declsWithDocs)
-
-  let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
-
-  -- The MAIN functionality: compute the export items which will
-  -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap mdl sem_mdl allWarnings gre
-                   exportedNames decls maps fixMap unrestrictedImportedMods
-                   splices exports all_exports instIfaceMap dflags
-
-
-  -- Measure haddock documentation coverage.
-  let prunedExportItems0 = pruneExportItems exportItems
-      !haddockable = 1 + length exportItems -- module + exports
-      !haddocked = (if isJust mbDoc then 1 else 0) + length prunedExportItems0
-      !coverage = (haddockable, haddocked)
-
-  -- Prune the export list to just those declarations that have
-  -- documentation, if the 'prune' option is on.
-  let prunedExportItems'
-        | OptPrune `elem` opts = prunedExportItems0
-        | otherwise = exportItems
-      !prunedExportItems = seqList prunedExportItems' `seq` prunedExportItems'
-
-  let !aliases =
-        mkAliasMap dflags $ tm_renamed_source tm
-
-
-  tokenizedSrc <- mkMaybeTokenizedSrc flags tm
--}
 
   opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
 
@@ -205,19 +129,35 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   let maps = (docMap, argMap, declMap, instanceMap)
       allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
+      -- FIXME: Remove entire field together with @--qual=aliased@.
+      -- Actually we need roughly the same info for
+      -- unrestrictedModuleImports, so we might as well keep it.
+      aliases = M.empty
+      -- !aliases = mkAliasMap dflags $ tm_renamed_source tm
+
+      -- FIXME: We currently don't know what aliases we import modules with.
+      unrestrictedImportedMods = M.empty
+        {-
+        -- module re-exports are only possible with
+        -- explicit export list
+        | Just{} <- exports
+        = unrestrictedModuleImports (map unLoc imports)
+        | otherwise = M.empty
+        -}
+
+      -- Locations of all TH splices
+      splices = [] -- FIXME
+      -- splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
+
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
-                                is_sig modMap pkgName mdl
-                                sem_mdl
-                                allWarnings
-                                renamer exportedNames maps
-                                fixMap
-                                M.empty -- FIXME: unrestricted module imports.
-                                        -- We currently don't know what aliases we
-                                        -- import modules with.
-                                [] -- FIXME: "splices". Apart from the locations of
-                                   -- splices we also don't know the locations of
-                                   -- our declarations.
+                                is_sig modMap pkgName mdl sem_mdl allWarnings
+                                renamer
+                                exportedNames -- FIXME: Respect OptIgnoreExports
+                                              -- But where do we get _all_ the
+                                              -- declarations then?
+                                              -- -> mi_decls / md_types
+                                maps fixMap unrestrictedImportedMods splices
                                 instIfaceMap
 
   let !visibleNames = mkVisibleNames maps exportItems opts
@@ -252,9 +192,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceVisibleExports    = visibleNames
   , ifaceDeclMap           = declMap
   , ifaceFixMap            = fixMap
-  , ifaceModuleAliases     = M.empty   -- TODO: Remove entire field together with @--qual=aliased@.
-                                       -- Actually we need roughly the same info for
-                                       -- unrestrictedModuleImports, so we might as well keep it.
+  , ifaceModuleAliases     = aliases
   , ifaceInstances         = instances
   , ifaceFamInstances      = fam_instances
   , ifaceOrphanInstances   = []
