@@ -192,12 +192,13 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   let maps = (docMap, argMap, declMap,
               M.empty) -- FIXME: InstMap, needed for mkVisibleNames
+      allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
                                 is_sig modMap pkgName mdl
                                 mdl -- FIXME: This should be the "semantic module"
-                                warningMap -- TODO: This should allWarnings
+                                allWarnings
                                 renamer exportedNames maps
                                 fixMap
                                 M.empty -- FIXME: unrestricted module imports.
