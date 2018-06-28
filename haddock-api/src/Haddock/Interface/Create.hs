@@ -190,11 +190,19 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   mod_details <- liftGhcToErrMsgGhc $ withSession $ \hsc_env -> do
     liftIO $ initIfaceCheck (Outputable.text "createInterface'") hsc_env (typecheckIface mod_iface)
 
+  -- Are these all the (fam_)instances that we need?
+  let instances = md_insts mod_details
+      fam_instances = md_fam_insts mod_details
+
   -- FIXME: md_types doesn't include the TyThings from re-exported modules.
   declMap <- mkDeclMap mod_details
 
-  let maps = (docMap, argMap, declMap,
-              M.empty) -- FIXME: InstMap, needed for mkVisibleNames
+  let localInsts = filter (nameIsLocalOrFrom sem_mdl)
+                        $  map getName instances
+                        ++ map getName fam_instances
+      instanceMap = M.fromList (map (getSrcSpan &&& id) localInsts)
+
+  let maps = (docMap, argMap, declMap, instanceMap)
       allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
@@ -247,8 +255,8 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceModuleAliases     = M.empty   -- TODO: Remove entire field together with @--qual=aliased@.
                                        -- Actually we need roughly the same info for
                                        -- unrestrictedModuleImports, so we might as well keep it.
-  , ifaceInstances         = md_insts mod_details
-  , ifaceFamInstances      = md_fam_insts mod_details
+  , ifaceInstances         = instances
+  , ifaceFamInstances      = fam_instances
   , ifaceOrphanInstances   = []
   , ifaceRnOrphanInstances = []
   , ifaceHaddockCoverage   = coverage
