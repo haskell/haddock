@@ -228,31 +228,31 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       !prunedExportItems = seqList prunedExportItems' `seq` prunedExportItems'
 
   return $! Interface {
-    ifaceMod               = mdl -- Done
-  , ifaceIsSig             = is_sig -- Done
-  , ifaceInfo              = info -- Done
-  , ifaceDoc               = Documentation mbDoc modWarn -- Done
-  , ifaceRnDoc             = Documentation Nothing Nothing -- Done
-  , ifaceOptions           = opts -- Done
-  , ifaceDocMap            = docMap -- Done
-  , ifaceArgMap            = argMap -- Done
-  , ifaceRnDocMap          = M.empty -- Done
-  , ifaceRnArgMap          = M.empty -- Done
-  , ifaceExportItems       = prunedExportItems -- Done
-  , ifaceRnExportItems     = [] -- Done
-  , ifaceExports           = exportedNames -- Done
-  , ifaceVisibleExports    = visibleNames -- Done
-  , ifaceDeclMap           = declMap -- Done
-  , ifaceFixMap            = fixMap -- Done
+    ifaceMod               = mdl
+  , ifaceIsSig             = is_sig
+  , ifaceInfo              = info
+  , ifaceDoc               = Documentation mbDoc modWarn
+  , ifaceRnDoc             = Documentation Nothing Nothing
+  , ifaceOptions           = opts
+  , ifaceDocMap            = docMap
+  , ifaceArgMap            = argMap
+  , ifaceRnDocMap          = M.empty
+  , ifaceRnArgMap          = M.empty
+  , ifaceExportItems       = prunedExportItems
+  , ifaceRnExportItems     = []
+  , ifaceExports           = exportedNames
+  , ifaceVisibleExports    = visibleNames
+  , ifaceDeclMap           = declMap
+  , ifaceFixMap            = fixMap
   , ifaceModuleAliases     = M.empty   -- TODO: Remove entire field together with @--qual=aliased@.
                                        -- Actually we need roughly the same info for
                                        -- unrestrictedModuleImports, so we might as well keep it.
-  , ifaceInstances         = md_insts mod_details -- Done
-  , ifaceFamInstances      = md_fam_insts mod_details -- Done
-  , ifaceOrphanInstances   = [] -- Done: Filled in `attachInstances`
-  , ifaceRnOrphanInstances = [] -- Done: Filled in `renameInterface`
-  , ifaceHaddockCoverage   = coverage -- Done
-  , ifaceWarningMap        = warningMap -- Done
+  , ifaceInstances         = md_insts mod_details
+  , ifaceFamInstances      = md_fam_insts mod_details
+  , ifaceOrphanInstances   = []
+  , ifaceRnOrphanInstances = []
+  , ifaceHaddockCoverage   = coverage
+  , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = Nothing -- Ignore for now.
   }
 
