@@ -80,6 +80,10 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   let mod_iface_docs = fromJust (mi_docs mod_iface)
       mdl            = mi_module mod_iface
+
+      -- Not sure if this is right.
+      sem_mdl        = fromMaybe mdl (mi_sig_of mod_iface)
+
       is_sig         = isJust (mi_sig_of mod_iface)
       safety         = getSafeMode (mi_trust mod_iface)
       renamer        = docIdEnvRenamer (docs_id_env mod_iface_docs)
@@ -95,7 +99,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       mi             = moduleInfo tm
       L _ hsm        = parsedSource tm
       !safety        = modInfoSafe mi
-      sem_mdl        = tcg_semantic_mod (fst (tm_internals_ tm))
       !instances     = modInfoInstances mi
       !fam_instances = md_fam_insts md
       !exportedNames = modInfoExportsWithSelectors mi
@@ -197,7 +200,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
                                 is_sig modMap pkgName mdl
-                                mdl -- FIXME: This should be the "semantic module"
+                                sem_mdl
                                 allWarnings
                                 renamer exportedNames maps
                                 fixMap
