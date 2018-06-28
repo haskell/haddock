@@ -416,7 +416,7 @@ mkDeclMap mod_details = do
       let mainName = availName avail
           allNames = availNamesWithSelectors avail
       decls <- catMaybes <$> traverse convert_ allNames
-      pure (mainName, map noLoc decls)
+      pure (mainName, map noLoc decls) -- FIXME: Find the true locations.
     pure (M.fromList decls)
 
 -- | Given all of the @import M as N@ declarations in a package,
