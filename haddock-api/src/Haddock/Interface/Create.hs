@@ -219,8 +219,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
-  , ifaceOrigFilename      = "this/field/will/be/Removed.hs"    -- TODO: Remove entire field
-                                                                -- together with %F syntax
   , ifaceInfo              = info -- Done
   , ifaceDoc               = Documentation mbDoc modWarn -- Done
   , ifaceRnDoc             = Documentation Nothing Nothing -- Done
@@ -361,7 +359,6 @@ createInterface tm flags modMap instIfaceMap = do
   return $! Interface {
     ifaceMod               = mdl
   , ifaceIsSig             = is_sig
-  , ifaceOrigFilename      = msHsFilePath ms
   , ifaceInfo              = info
   , ifaceDoc               = Documentation mbDoc modWarn
   , ifaceRnDoc             = Documentation Nothing Nothing
@@ -864,7 +861,7 @@ mkExportItems'
 --  -> Avails             -- exported stuff from this module
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
-mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warnings renamer exportedNames maps fixMap unrestricted_imp_mods splices instIfaceMap = do
+mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warnings renamer exportedNames maps fixMap _unrestricted_imp_mods splices instIfaceMap = do
     concat <$> traverse lookupExport dsItems
   where
     lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
@@ -887,15 +884,8 @@ mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warn
         -- TODO: We probably don't need nubAvails here.
         -- mkDocStructureFromExportList already uses it.
         concat <$> traverse availExport (nubAvails avails)
-      DsiModExport mod_name
-        -- only consider exporting a module if we are sure we
-        -- are really exporting the whole module and not some
-        -- subset. We also look through module aliases here.
-        | Just mods <- M.lookup mod_name unrestricted_imp_mods
-        , not (null mods)
-        -> concat <$> traverse (moduleExport thisMod ifaceMap instIfaceMap) mods
-      DsiModExport _ -> pure [] -- TODO: maybe we're missing some avails here?!
-        -- concat <$> traverse availExport (nubAvails avails)
+      DsiModExport _ _ ->
+        error "mkExportItems': I wish I was better at rebasing"
 
     availExport avail =
       availExportItem is_sig ifaceMap thisMod semMod warnings exportedNames

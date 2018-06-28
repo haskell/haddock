@@ -147,9 +147,9 @@ options backwardsCompat =
       "URL for a source code link on the contents\nand index pages",
     Option ['s'] (if backwardsCompat then ["source", "source-module"] else ["source-module"])
       (ReqArg Flag_SourceModuleURL "URL")
-      "URL for a source code link for each module\n(using the %{FILE} or %{MODULE} vars)",
+      "URL for a source code link for each module\n(using the %{MODULE} var)",
     Option []  ["source-entity"]  (ReqArg Flag_SourceEntityURL "URL")
-      "URL for a source code link for each entity\n(using the %{FILE}, %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
+      "URL for a source code link for each entity\n(using the %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
     Option []  ["source-entity-line"] (ReqArg Flag_SourceLEntityURL "URL")
       "URL for a source code link for each entity.\nUsed if name links are unavailable, eg. for TH splices.",
     Option []  ["comments-base"]   (ReqArg Flag_WikiBaseURL "URL")
@@ -157,7 +157,7 @@ options backwardsCompat =
     Option []  ["comments-module"]  (ReqArg Flag_WikiModuleURL "URL")
       "URL for a comments link for each module\n(using the %{MODULE} var)",
     Option []  ["comments-entity"]  (ReqArg Flag_WikiEntityURL "URL")
-      "URL for a comments link for each entity\n(using the %{FILE}, %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
+      "URL for a comments link for each entity\n(using the %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
     Option ['c']  ["css", "theme"] (ReqArg Flag_CSS "PATH")
       "the CSS file or theme directory to use for HTML output",
     Option []  ["built-in-themes"] (NoArg Flag_BuiltInThemes)

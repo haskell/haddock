@@ -136,8 +136,7 @@ srcButton :: SourceURLs -> Maybe Interface -> Maybe Html
 srcButton (Just src_base_url, _, _, _) Nothing =
   Just (anchor ! [href src_base_url] << "Source")
 srcButton (_, Just src_module_url, _, _) (Just iface) =
-  let url = spliceURL (Just $ ifaceOrigFilename iface)
-                      (Just $ ifaceMod iface) Nothing Nothing src_module_url
+  let url = spliceURL (Just $ ifaceMod iface) Nothing Nothing src_module_url
    in Just (anchor ! [href url] << "Source")
 srcButton _ _ =
   Nothing
@@ -148,7 +147,7 @@ wikiButton (Just wiki_base_url, _, _) Nothing =
   Just (anchor ! [href wiki_base_url] << "User Comments")
 
 wikiButton (_, Just wiki_module_url, _) (Just mdl) =
-  let url = spliceURL Nothing (Just mdl) Nothing Nothing wiki_module_url
+  let url = spliceURL (Just mdl) Nothing Nothing wiki_module_url
    in Just (anchor ! [href url] << "User Comments")
 
 wikiButton _ _ =

@@ -24,7 +24,7 @@ hypSrcModuleFile = hypSrcModuleFile' . moduleName
 
 hypSrcModuleFile' :: ModuleName -> FilePath
 hypSrcModuleFile' mdl = spliceURL'
-    Nothing (Just mdl) Nothing Nothing moduleFormat
+    (Just mdl) Nothing Nothing moduleFormat
 
 hypSrcModuleUrl :: Module -> String
 hypSrcModuleUrl = hypSrcModuleFile
@@ -34,11 +34,11 @@ hypSrcModuleUrl' = hypSrcModuleFile'
 
 hypSrcNameUrl :: Name -> String
 hypSrcNameUrl name = spliceURL
-    Nothing Nothing (Just name) Nothing nameFormat
+    Nothing (Just name) Nothing nameFormat
 
 hypSrcLineUrl :: Int -> String
 hypSrcLineUrl line = spliceURL
-    Nothing Nothing Nothing (Just spn) lineFormat
+    Nothing Nothing (Just spn) lineFormat
   where
     loc = mkSrcLoc nilFS line 1
     spn = mkSrcSpan loc loc
