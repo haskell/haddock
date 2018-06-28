@@ -17,7 +17,7 @@
 -- which creates a Haddock 'Interface' from the typechecking
 -- results 'TypecheckedModule' from GHC.
 -----------------------------------------------------------------------------
-module Haddock.Interface.Create (createInterface) where
+module Haddock.Interface.Create (createInterface, createInterface') where
 
 import Documentation.Haddock.Doc (metaDocAppend)
 import Documentation.Haddock.Utf8 as Utf8

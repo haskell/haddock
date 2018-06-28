@@ -190,7 +190,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
   hsc_env' <- getSession
   let mod_guts = dm_core_module dm
   let mod_details = snd (tm_internals_ tm)
-  (_iface, _bl) <- liftIO $ mkIface hsc_env' Nothing mod_details mod_guts
+  (iface, _bl) <- liftIO $ mkIface hsc_env' Nothing mod_details mod_guts
   dflags <- getDynFlags
   -- liftIO $ putStrLn $ (showSDoc dflags . pprModIface) iface
 
@@ -198,7 +198,8 @@ processModule verbosity modsum flags modMap instIfaceMap = do
     out verbosity verbose "Creating interface..."
     (interface, msgs) <- {-# SCC createIterface #-}
                         withTiming getDynFlags "createInterface" (const ()) $ do
-                          runWriterGhc $ createInterface tm flags modMap instIfaceMap
+                          --runWriterGhc $ createInterface tm flags modMap instIfaceMap
+                          runWriterGhc $ createInterface' iface flags modMap instIfaceMap
     liftIO $ mapM_ putStrLn (nub msgs)
     let (haddockable, haddocked) = ifaceHaddockCoverage interface
         percentage = round (fromIntegral haddocked * 100 / fromIntegral haddockable :: Double) :: Int
