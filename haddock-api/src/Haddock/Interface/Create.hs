@@ -220,6 +220,13 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       !haddocked = (if isJust mbDoc then 1 else 0) + length prunedExportItems0
       !coverage = (haddockable, haddocked)
 
+  -- Prune the export list to just those declarations that have
+  -- documentation, if the 'prune' option is on.
+  let prunedExportItems'
+        | OptPrune `elem` opts = prunedExportItems0
+        | otherwise = exportItems
+      !prunedExportItems = seqList prunedExportItems' `seq` prunedExportItems'
+
   return $! Interface {
     ifaceMod               = mdl -- Done
   , ifaceIsSig             = is_sig -- Done
@@ -231,7 +238,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceArgMap            = argMap -- Done
   , ifaceRnDocMap          = M.empty -- Done
   , ifaceRnArgMap          = M.empty -- Done
-  , ifaceExportItems       = exportItems
+  , ifaceExportItems       = prunedExportItems -- Done
   , ifaceRnExportItems     = [] -- Done
   , ifaceExports           = exportedNames -- Done
   , ifaceVisibleExports    = visibleNames -- Done
