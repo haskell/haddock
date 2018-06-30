@@ -131,12 +131,12 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
       -- FIXME: Remove entire field together with @--qual=aliased@.
-      -- Actually we need roughly the same info for
-      -- unrestrictedModuleImports, so we might as well keep it.
       aliases = M.empty
       -- !aliases = mkAliasMap dflags $ tm_renamed_source tm
 
       -- FIXME: We currently don't know what aliases we import modules with.
+      -- We'll put the complete info on re-exported modules into docs_structure
+      -- in GHC and make unrestrictedModuleImports redundant.
       unrestrictedImportedMods = M.empty
         {-
         -- module re-exports are only possible with
