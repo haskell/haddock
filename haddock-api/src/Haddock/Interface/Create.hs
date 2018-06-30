@@ -119,6 +119,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       fam_instances = md_fam_insts mod_details
 
   -- FIXME: md_types doesn't include the TyThings from re-exported modules.
+  -- Use the modMap IfaceMap for those modules.
   declMap <- mkDeclMap mod_details
 
   let localInsts = filter (nameIsLocalOrFrom sem_mdl)
