@@ -527,6 +527,7 @@ emptyHaddockModInfo = HaddockModInfo
 data DocOption
   = OptHide            -- ^ This module should not appear in the docs.
   | OptPrune
+    -- FIXME: Remove OptIgnoreExports
   | OptIgnoreExports   -- ^ Pretend everything is exported.
   | OptNotHome         -- ^ Not the best place to get docs for things
                        -- exported by this module.

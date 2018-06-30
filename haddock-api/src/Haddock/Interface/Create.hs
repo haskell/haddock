@@ -153,13 +153,8 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
                                 is_sig modMap pkgName mdl sem_mdl allWarnings
-                                renamer
-                                exportedNames -- FIXME: Respect OptIgnoreExports
-                                              -- But where do we get _all_ the
-                                              -- declarations then?
-                                              -- -> mi_decls / md_types
-                                maps fixMap unrestrictedImportedMods splices
-                                instIfaceMap
+                                renamer exportedNames maps fixMap
+                                unrestrictedImportedMods splices instIfaceMap
 
   let !visibleNames = mkVisibleNames maps exportItems opts
 
