@@ -61,6 +61,7 @@ import qualified Outputable
 import Packages   ( lookupModuleInAllPackages, PackageName(..) )
 import Bag
 import RdrName
+import SrcLoc
 import TcIface
 import TcRnMonad
 import TcRnTypes
@@ -148,7 +149,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
         -}
 
       -- Locations of all TH splices
-      splices = map RealSrcSpan (S.toList (docs_splices mod_iface_docs))
+      splices = S.toList (docs_splices mod_iface_docs)
 
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
@@ -272,7 +273,10 @@ createInterface tm flags modMap instIfaceMap = do
                         $  map getName instances
                         ++ map getName fam_instances
       -- Locations of all TH splices
-      splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
+      splices = flip mapMaybe [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
+                              (\case
+                                 RealSrcSpan rss -> Just rss
+                                 UnhelpfulSpan _ -> Nothing)
 
   warningMap <- mkWarningMap (hsDocString . unLoc <$> warnings) renamer exportedNames
 
@@ -814,7 +818,7 @@ mkExportItems'
   -> Maps
   -> FixMap
   -> M.Map ModuleName [ModuleName]
-  -> [SrcSpan]          -- splice locations
+  -> [RealSrcSpan]        -- splice locations
 --  -> Avails             -- exported stuff from this module
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
@@ -867,7 +871,7 @@ mkExportItems
   -> Maps
   -> FixMap
   -> M.Map ModuleName [ModuleName]
-  -> [SrcSpan]          -- splice locations
+  -> [RealSrcSpan]      -- splice locations
   -> Maybe [(IE GhcRn, Avails)]
   -> Avails             -- exported stuff from this module
   -> InstIfaceMap
@@ -922,7 +926,7 @@ availExportItem :: Bool               -- is it a signature
                 -> [Name]             -- exported names (orig)
                 -> Maps
                 -> FixMap
-                -> [SrcSpan]          -- splice locations
+                -> [RealSrcSpan]      -- splice locations
                 -> InstIfaceMap
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
@@ -938,10 +942,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
       case r of
         ([L l (ValD _ _)], (doc, _)) -> do
           -- Top-level binding without type signature
-          --
-          -- TODO: At least with Hi Haddock, the splice locations don't seem to be
-          -- equal to any declaration locations, but rather surround them.
-          export <- hiValExportItem t l doc (l `elem` splices) $ M.lookup t fixMap
+          export <- hiValExportItem t l doc (isSplice l) $ M.lookup t fixMap
           return [export]
         (ds, docs_) | decl : _ <- filter (not . isValD . unLoc) ds ->
           let declNames = getMainDeclBinder (unL decl)
@@ -1094,6 +1095,10 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
         constructor_names =
           filter isDataConName (availSubordinates avail)
 
+    isSplice :: SrcSpan -> Bool
+    isSplice (RealSrcSpan rss0) = any (\rss -> rss `containsSpan` rss0) splices
+    isSplice UnhelpfulSpan {} = False
+
 -- this heavily depends on the invariants stated in Avail
 availExportsDecl :: AvailInfo -> Bool
 availExportsDecl (AvailTC ty_name names _)
@@ -1228,7 +1233,7 @@ fullModuleContents :: Bool               -- is it a signature
                    -> [LHsDecl GhcRn]    -- renamed source declarations
                    -> Maps
                    -> FixMap
-                   -> [SrcSpan]          -- splice locations
+                   -> [RealSrcSpan]      -- splice locations
                    -> InstIfaceMap
                    -> Avails
                    -> ErrMsgGhc [ExportItem GhcRn]
