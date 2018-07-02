@@ -121,7 +121,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
 
   -- FIXME: md_types doesn't include the TyThings from re-exported modules.
   -- Use the modMap IfaceMap for those modules.
-  declMap <- mkDeclMap mod_details
+  declMap <- mkDeclMap mod_details (docs_locations mod_iface_docs)
 
   let localInsts = filter (nameIsLocalOrFrom sem_mdl)
                         $  map getName instances
@@ -336,11 +336,11 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceTokenizedSrc      = tokenizedSrc
   }
 
-mkDeclMap :: ModDetails -> ErrMsgGhc DeclMap
-mkDeclMap mod_details = do
+mkDeclMap :: ModDetails -> Map Name SrcSpan -> ErrMsgGhc DeclMap
+mkDeclMap mod_details loc_map = do
     dflags <- getDynFlags
 
-    let convert_ :: Name -> ErrMsgM (Maybe (HsDecl GhcRn))
+    let convert_ :: Name -> ErrMsgM (Maybe (LHsDecl GhcRn))
         convert_ name =
           case lookupNameEnv (md_types mod_details) name of
             Nothing -> do
@@ -352,13 +352,17 @@ mkDeclMap mod_details = do
                 pure Nothing
               Right (msgs, decl) -> do
                 tell msgs
-                pure (Just decl)
+                case M.lookup name loc_map of
+                  Nothing -> do
+                    tell ["mkDeclMap: Didn't find a location for " ++ O.showPpr dflags name]
+                    pure (Just (noLoc decl))
+                  Just loc -> pure (Just (L loc decl))
 
     decls <- liftErrMsg $ forM (md_exports mod_details) $ \avail -> do
       let mainName = availName avail
           allNames = availNamesWithSelectors avail
       decls <- catMaybes <$> traverse convert_ allNames
-      pure (mainName, map noLoc decls) -- FIXME: Find the true locations.
+      pure (mainName, decls)
     pure (M.fromList decls)
 
 -- | Given all of the @import M as N@ declarations in a package,
