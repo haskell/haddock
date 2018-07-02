@@ -36,6 +36,7 @@ import Data.Bitraversable
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import Data.Map (Map)
+import qualified Data.Set as S
 import Data.List
 import Data.Maybe
 import Data.Ord
@@ -147,8 +148,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
         -}
 
       -- Locations of all TH splices
-      splices = [] -- FIXME
-      -- splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
+      splices = map RealSrcSpan (S.toList (docs_splices mod_iface_docs))
 
   exportItems <- mkExportItems' (docs_structure mod_iface_docs)
                                 (docs_named_chunks mod_iface_docs)
@@ -934,6 +934,9 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
       case r of
         ([L l (ValD _ _)], (doc, _)) -> do
           -- Top-level binding without type signature
+          --
+          -- TODO: At least with Hi Haddock, the splice locations don't seem to be
+          -- equal to any declaration locations, but rather surround them.
           export <- hiValExportItem t l doc (l `elem` splices) $ M.lookup t fixMap
           return [export]
         (ds, docs_) | decl : _ <- filter (not . isValD . unLoc) ds ->
