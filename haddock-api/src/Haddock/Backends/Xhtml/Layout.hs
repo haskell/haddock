@@ -33,7 +33,7 @@ module Haddock.Backends.Xhtml.Layout (
   subEquations,
   subFields,
   subInstances, subOrphanInstances,
-  subInstHead, subInstDetails, subFamInstDetails,
+  subInstHead, subInstDetails, subFamInstDetails, subDataFamInstDetails,
   subMethods,
   subMinimal,
 
@@ -238,10 +238,17 @@ subInstDetails iid ats mets mdl =
 
 subFamInstDetails :: String -- ^ Instance unique id (for anchor generation)
                   -> Html   -- ^ Type or data family instance
-                  -> Html   -- ^ Source module TODO: use this
+                  -> Html   -- ^ Source module
                   -> Html
 subFamInstDetails iid fi mdl =
     subInstSection iid << (p mdl <+> (thediv ! [theclass "src"] << fi))
+
+subDataFamInstDetails :: String -- ^ Instance unique id (for anchor generation)
+                  -> Html   -- ^ Type or data family instance
+                  -> Html   -- ^ Source module
+                  -> Html
+subDataFamInstDetails iid fi mdl =
+    subInstSection iid << (p mdl <+> (thediv << fi))
 
 subInstSection :: String -- ^ Instance unique id (for anchor generation)
                -> Html
