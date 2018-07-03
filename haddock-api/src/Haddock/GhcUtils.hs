@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, FlexibleContexts, FlexibleInstances, ViewPatterns #-}
+{-# LANGUAGE BangPatterns, FlexibleInstances, FlexibleContexts, ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_HADDOCK hide #-}
 -----------------------------------------------------------------------------
