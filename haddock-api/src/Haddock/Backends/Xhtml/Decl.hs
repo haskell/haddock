@@ -295,9 +295,10 @@ ppFamDecl summary associated links instances fixities subdocs loc doc decl splic
 
   where
     docname = unLoc $ fdLName decl
+    fix = ppFixities (filter (\(n,_) -> n == docname) fixities) qual
 
     header_ = topDeclElem links loc splice [docname] $
-       ppFamHeader summary associated decl unicode qual <+> ppFixities fixities qual
+       ppFamHeader summary associated decl unicode qual <+> fix 
 
     instancesBit
       | FamilyDecl { fdInfo = ClosedTypeFamily mb_eqns } <- decl
@@ -305,7 +306,7 @@ ppFamDecl summary associated links instances fixities subdocs loc doc decl splic
       = subEquations pkg qual $ map (ppFamDeclEqn . unLoc) $ fromMaybe [] mb_eqns
 
       | otherwise
-      = ppInstances links (OriginFamily docname) instances subdocs splice unicode pkg qual
+      = ppInstances links (OriginFamily docname) instances fixities subdocs splice unicode pkg qual
 
     -- Individual equation of a closed type family
     ppFamDeclEqn :: TyFamInstEqn DocNameI -> SubDecl
@@ -587,7 +588,7 @@ ppClassDecl summary links instances fixities loc d subdocs
       where wrap | p = parens | otherwise = id
     ppMinimal p (Parens x) = ppMinimal p (unLoc x)
 
-    instancesBit = ppInstances links (OriginClass nm) instances subdocs
+    instancesBit = ppInstances links (OriginClass nm) instances [] subdocs
         splice unicode pkg qual
 
 ppClassDecl _ _ _ _ _ _ _ _ _ _ _ _ = error "declaration type not supported by ppShortClassDecl"
@@ -595,17 +596,18 @@ ppClassDecl _ _ _ _ _ _ _ _ _ _ _ _ = error "declaration type not supported by p
 
 ppInstances :: LinksInfo
             -> InstOrigin DocName -> [DocInstance DocNameI]
+            -> [(DocName, Fixity)]
             -> [(DocName, DocForDecl DocName)]
             -> Splice -> Unicode -> Maybe Package -> Qualification
             -> Html
-ppInstances links origin instances subdocs splice unicode pkg qual
+ppInstances links origin instances fixities subdocs splice unicode pkg qual
   = subInstances pkg qual instName links True (zipWith instDecl [1..] instances)
   -- force Splice = True to use line URLs
   where
     instName = getOccString origin
     instDecl :: Int -> DocInstance DocNameI -> (SubDecl, Maybe Module, Located DocName)
     instDecl no (inst, mdoc, loc, mdl) =
-        ((ppInstHead links splice unicode qual mdoc subdocs origin False no inst mdl pkg), mdl, loc)
+        ((ppInstHead links splice unicode qual mdoc fixities subdocs origin False no inst mdl pkg), mdl, loc)
 
 
 ppOrphanInstances :: LinksInfo
@@ -620,11 +622,12 @@ ppOrphanInstances links instances splice unicode pkg qual
 
     instDecl :: Int -> DocInstance DocNameI -> (SubDecl, Maybe Module, Located DocName)
     instDecl no (inst, mdoc, loc, mdl) =
-        ((ppInstHead links splice unicode qual mdoc [] (instOrigin inst) True no inst mdl pkg), mdl, loc)
+        ((ppInstHead links splice unicode qual mdoc [] [] (instOrigin inst) True no inst mdl pkg), mdl, loc)
 
 
 ppInstHead :: LinksInfo -> Splice -> Unicode -> Qualification
            -> Maybe (MDoc DocName)
+           -> [(DocName, Fixity)]
            -> [(DocName, DocForDecl DocName)] 
            -> InstOrigin DocName
            -> Bool -- ^ Is instance orphan
@@ -633,7 +636,7 @@ ppInstHead :: LinksInfo -> Splice -> Unicode -> Qualification
            -> Maybe Module
            -> Maybe Package
            -> SubDecl
-ppInstHead links splice unicode qual mdoc subdocs origin orphan no ihd@(InstHead {..}) mdl pkg =
+ppInstHead links splice unicode qual mdoc fixities subdocs origin orphan no ihd@(InstHead {..}) mdl pkg =
     case ihdInstType of
         ClassInst { .. } ->
             ( subInstHead iid $ ppContextNoLocs clsiCtx unicode qual HideEmptyContexts <+> typ
@@ -662,7 +665,11 @@ ppInstHead links splice unicode qual mdoc subdocs origin orphan no ihd@(InstHead
             pdata = pref <+> typ
             cons = dd_cons (tcdDataDefn dd)
             pdecl = subConstructors pkg qual
-                      [ ppSideBySideConstr subdocs [] unicode pkg qual c | c <- cons ]
+                      [ ppSideBySideConstr subdocs subfixs unicode pkg qual c
+                      | c <- cons
+                      , let subfixs = filter (\(n,_) -> any (\cn -> cn == n)
+                                                            (map unLoc (getConNames (unLoc c)))) fixities
+                      ]
   where
     mname = maybe noHtml (\m -> toHtml "Defined in" <+> ppModule m) mdl
     iid = instanceId origin no orphan ihd
@@ -800,9 +807,8 @@ ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
                                             (map unLoc lnames)) fixities
       ]
 
-    instancesBit = ppInstances links (OriginData docname) instances subdocs
+    instancesBit = ppInstances links (OriginData docname) instances [] subdocs
         splice unicode pkg qual
-
 
 ppShortConstr :: Bool -> ConDecl DocNameI -> Unicode -> Qualification -> Html
 ppShortConstr summary con unicode qual = cHead <+> cBody <+> cFoot
