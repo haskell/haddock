@@ -783,6 +783,16 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
           bundledPatSyns <- findBundledPatterns avail
 
           let
+
+          -- default method signature docs only need to be collected if the
+          -- class itself is exported.
+            defMethodSubs =
+                [ (defName, lookupDocForDecl defName warnings docMap argMap)
+                | TyClD ClassDecl{ tcdSigs = sigs } <- [unLoc decl]
+                , L _ defSig@(ClassOpSig True _ _) <- sigs
+                , defName <- map uniquifyName (sigNameNoLoc defSig)
+                ]
+
             patSynNames =
               concatMap (getMainDeclBinder . fst) bundledPatSyns
 
@@ -797,7 +807,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                                             (extractDecl declMap (availName avail) decl)
                      , expItemPats      = bundledPatSyns
                      , expItemMbDoc     = doc
-                     , expItemSubDocs   = subs
+                     , expItemSubDocs   = subs ++ defMethodSubs
                      , expItemInstances = []
                      , expItemFixities  = fixities
                      , expItemSpliced   = False
@@ -924,21 +934,25 @@ hiValExportItem dflags name nLoc doc splice fixity = do
       Just f  -> [(name, f)]
       Nothing -> []
 
+-- | Lookup docs associated with a given name
+lookupDocForDecl :: Name                                     -- ^ key
+                 -> WarningMap -> DocMap Name -> ArgMap Name -- ^ maps
+                 -> DocForDecl Name
+lookupDocForDecl n warnings docMap argMap  = (lookupDoc n, lookupArgDoc n)
+  where
+    lookupDoc name = Documentation (M.lookup name docMap) (M.lookup name warnings)
+    lookupArgDoc x = M.findWithDefault M.empty x argMap
 
 -- | Lookup docs for a declaration from maps.
 lookupDocs :: AvailInfo -> WarningMap -> DocMap Name -> ArgMap Name
            -> (DocForDecl Name, [(Name, DocForDecl Name)])
 lookupDocs avail warnings docMap argMap =
   let n = availName avail in
-  let lookupArgDoc x = M.findWithDefault M.empty x argMap in
-  let doc = (lookupDoc n, lookupArgDoc n) in
-  let subDocs = [ (s, (lookupDoc s, lookupArgDoc s))
+  let doc = lookupDocForDecl n warnings docMap argMap in
+  let subDocs = [ (s, lookupDocForDecl s warnings docMap argMap)
                 | s <- availSubordinates avail
                 ] in
   (doc, subDocs)
-  where
-    lookupDoc name = Documentation (M.lookup name docMap) (M.lookup name warnings)
-
 
 -- | Export the given module as `ExportModule`. We are not concerned with the
 -- single export items of the given module.
