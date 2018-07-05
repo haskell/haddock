@@ -55,16 +55,24 @@ import Digraph
 import DynFlags hiding (verbosity)
 import Exception
 import GHC hiding (verbosity)
+import GhcMake
 import HscTypes
 import FastString (unpackFS)
+import Module
 import MonadUtils (liftIO)
-import TcRnTypes (tcg_rdr_env)
+import TcRnMonad
+import TcRnTypes (tcg_rdr_env, Env)
 import RdrName (plusGlobalRdrEnv)
-import ErrUtils (withTiming)
+import ErrUtils (withTiming, MsgDoc)
 import ExtractDocs
 import Outputable
 import LoadIface
 import MkIface
+import IOEnv
+import Maybes
+import GhcMonad
+import Packages
+import Panic
 
 #if defined(mingw32_HOST_OS)
 import System.IO
@@ -156,13 +164,21 @@ createIfaces0 verbosity modules flags instIfaceMap =
 
 createIfaces :: Verbosity -> [Flag] -> InstIfaceMap -> ModuleGraph -> Ghc [Interface]
 createIfaces verbosity flags instIfaceMap mods = do
+  dflags <- getDynFlags
   let sortedMods = flattenSCCs $ topSortModuleGraph False mods Nothing
+  liftIO $ print $ map (showPpr dflags . ms_mod) sortedMods
+  -- TODO: 
+  -- * Handle failure
+  -- * Use -fno-code?!
+  _ <- load' LoadAllTargets Nothing mods
   out verbosity normal "Haddock coverage:"
   (ifaces, _) <- foldM f ([], Map.empty) sortedMods
   return (reverse ifaces)
   where
     f (ifaces, ifaceMap) modSummary = do
-      x <- {-# SCC processModule #-}
+      x <- {-# SCC processModule #-} do
+           dflags <- getDynFlags
+           liftIO $ putStrLn $ showPpr dflags (ms_mod modSummary)
            withTiming getDynFlags "processModule" (const ()) $ do
              processModule verbosity modSummary flags ifaceMap instIfaceMap
       return $ case x of
@@ -172,7 +188,42 @@ createIfaces verbosity flags instIfaceMap mods = do
 
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe Interface)
 processModule verbosity modsum flags modMap instIfaceMap = do
+  dflags <- getDynFlags
   out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modsum) ++ "..."
+
+  {-
+  mbe_mod_iface <- withSession $ \hsc_env -> do
+    liftIO $ initIfaceCheck (text "processModule 0") hsc_env $ do
+      -- _ <- loadModuleInterface (text "processModule") (ms_mod modsum)
+      findAndReadIface (text "processModule")
+                       (fst (splitModuleInsts (ms_mod modsum)))
+                       (ms_mod modsum)
+                       False
+  (mod_iface, _fp) <- case mbe_mod_iface of
+    Maybes.Failed e -> throwGhcException (CmdLineError (showSDoc dflags e))
+    Maybes.Succeeded r -> return r
+  -}
+
+  {-
+(13:18:41) sjakobi: mpickering: Even with larger libraries, the load order seems fine. I've now found the Note [Home module load error], but don't really understand it yet. I also don't understand the difference between loadUserInterface and loadSysInterface so far.
+(13:20:56) mpickering: are you updating `hsc_env` after loading interfaces?
+(13:21:24) mpickering: Where does GHC do that?
+(13:25:39) sjakobi: haddock already fails to load the very first interface.
+(13:25:39) mpickering: I would look for places where GHC populates the place which fails in the lookup
+(13:25:44) mpickering: and add traces
+(13:25:55) mpickering: add some traces to GHC
+(13:26:01) mpickering: then compile with haddock by the API
+(13:26:06) mpickering: and directly and see what is different
+(13:26:16) mpickering: You could be initialising DynFlags wrong?
+(13:27:29) sjakobi: Thx mpickering. These sound like good ideas.
+-}
+  mod_iface <- withSession $ \hsc_env -> do
+    liftIO $ initIfaceCheck (text "processModule 0") hsc_env $ do
+      loadSysInterface (text "processModule 1")
+                       (ms_mod modsum)
+
+
+  {-
   tm <- {-# SCC "parse/typecheck/load" #-} loadModule =<< typecheckModule =<< parseModule modsum
 
   -- We need to modify the interactive context's environment so that when
@@ -185,13 +236,15 @@ processModule verbosity modsum flags modMap instIfaceMap = do
   setSession hsc_env{ hsc_IC = old_IC {
     ic_rn_gbl_env = ic_rn_gbl_env old_IC `plusGlobalRdrEnv` new_rdr_env
   } }
+  -}
 
+  {-
   dm <- desugarModule tm
   hsc_env' <- getSession
   let mod_guts = dm_core_module dm
   let mod_details = snd (tm_internals_ tm)
   (iface, _bl) <- liftIO $ mkIface hsc_env' Nothing mod_details mod_guts
-  dflags <- getDynFlags
+  -} 
   -- liftIO $ putStrLn $ (showSDoc dflags . pprModIface) iface
 
   if not $ isBootSummary modsum then do
@@ -199,7 +252,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
     (interface, msgs) <- {-# SCC createIterface #-}
                         withTiming getDynFlags "createInterface" (const ()) $ do
                           --runWriterGhc $ createInterface tm flags modMap instIfaceMap
-                          runWriterGhc $ createInterface' iface flags modMap instIfaceMap
+                          runWriterGhc $ createInterface' mod_iface flags modMap instIfaceMap
     liftIO $ mapM_ putStrLn (nub msgs)
     let (haddockable, haddocked) = ifaceHaddockCoverage interface
         percentage = round (fromIntegral haddocked * 100 / fromIntegral haddockable :: Double) :: Int
