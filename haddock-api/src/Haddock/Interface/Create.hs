@@ -80,15 +80,13 @@ createInterface' :: ModIface
 createInterface' mod_iface flags modMap instIfaceMap = do
   dflags <- getDynFlags
 
-  let mod_iface_docs = fromJust (mi_docs mod_iface)
-      mdl            = mi_module mod_iface
+  let mdl            = mi_module mod_iface
 
       -- Not sure if this is right.
       sem_mdl        = fromMaybe mdl (mi_sig_of mod_iface)
 
       is_sig         = isJust (mi_sig_of mod_iface)
       safety         = getSafeMode (mi_trust mod_iface)
-      renamer        = docIdEnvRenamer (docs_id_env mod_iface_docs)
 
       -- Not sure whether the relevant info is in these dflags
       (pkgNameFS, _) = modulePackageInfo dflags flags mdl
@@ -96,6 +94,14 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       warnings       = mi_warns mod_iface
       !exportedNames = concatMap availNamesWithSelectors (mi_exports mod_iface)
       fixMap         = mkFixMap exportedNames (mi_fixities mod_iface)
+
+  mod_iface_docs <- case mi_docs mod_iface of
+    Just docs -> pure docs
+    Nothing -> do
+      liftErrMsg $ tell [O.showPpr dflags mdl ++ " has no docs in its .hi-file"]
+      pure emptyDocs
+
+  let renamer = docIdEnvRenamer (docs_id_env mod_iface_docs)
 
   opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
 

@@ -49,6 +49,7 @@ import qualified Data.Set as Set
 import Distribution.Verbosity
 import System.Directory
 import System.FilePath
+import System.Exit
 import Text.Printf
 
 import Digraph
@@ -151,7 +152,10 @@ createIfaces0 verbosity modules flags instIfaceMap =
       tmp <- liftIO getTemporaryDirectory
       x   <- liftIO getProcessID
       let dir = tmp </> ".haddock-" ++ show x
-      modifySessionDynFlags (setOutputDir dir)
+      -- Why do we change the output dir here?
+      -- In any case mustn't set the hiDir to some path where we won't find the
+      -- .hi-files we need.
+      modifySessionDynFlags (\dflags0 -> (setOutputDir dir dflags0) { hiDir = hiDir dflags0 } )
       withTempDir dir action
 
 
@@ -164,21 +168,20 @@ createIfaces0 verbosity modules flags instIfaceMap =
 
 createIfaces :: Verbosity -> [Flag] -> InstIfaceMap -> ModuleGraph -> Ghc [Interface]
 createIfaces verbosity flags instIfaceMap mods = do
-  dflags <- getDynFlags
+  success <- withTiming getDynFlags "load'" (const ()) $ do
+               load' LoadAllTargets Nothing mods
+  when (failed success) $ do
+    out verbosity normal "load' failed"
+    liftIO exitFailure
+
   let sortedMods = flattenSCCs $ topSortModuleGraph False mods Nothing
-  liftIO $ print $ map (showPpr dflags . ms_mod) sortedMods
-  -- TODO: 
-  -- * Handle failure
-  -- * Use -fno-code?!
-  _ <- load' LoadAllTargets Nothing mods
+
   out verbosity normal "Haddock coverage:"
   (ifaces, _) <- foldM f ([], Map.empty) sortedMods
   return (reverse ifaces)
   where
     f (ifaces, ifaceMap) modSummary = do
       x <- {-# SCC processModule #-} do
-           dflags <- getDynFlags
-           liftIO $ putStrLn $ showPpr dflags (ms_mod modSummary)
            withTiming getDynFlags "processModule" (const ()) $ do
              processModule verbosity modSummary flags ifaceMap instIfaceMap
       return $ case x of
@@ -191,61 +194,10 @@ processModule verbosity modsum flags modMap instIfaceMap = do
   dflags <- getDynFlags
   out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modsum) ++ "..."
 
-  {-
-  mbe_mod_iface <- withSession $ \hsc_env -> do
-    liftIO $ initIfaceCheck (text "processModule 0") hsc_env $ do
-      -- _ <- loadModuleInterface (text "processModule") (ms_mod modsum)
-      findAndReadIface (text "processModule")
-                       (fst (splitModuleInsts (ms_mod modsum)))
-                       (ms_mod modsum)
-                       False
-  (mod_iface, _fp) <- case mbe_mod_iface of
-    Maybes.Failed e -> throwGhcException (CmdLineError (showSDoc dflags e))
-    Maybes.Succeeded r -> return r
-  -}
-
-  {-
-(13:18:41) sjakobi: mpickering: Even with larger libraries, the load order seems fine. I've now found the Note [Home module load error], but don't really understand it yet. I also don't understand the difference between loadUserInterface and loadSysInterface so far.
-(13:20:56) mpickering: are you updating `hsc_env` after loading interfaces?
-(13:21:24) mpickering: Where does GHC do that?
-(13:25:39) sjakobi: haddock already fails to load the very first interface.
-(13:25:39) mpickering: I would look for places where GHC populates the place which fails in the lookup
-(13:25:44) mpickering: and add traces
-(13:25:55) mpickering: add some traces to GHC
-(13:26:01) mpickering: then compile with haddock by the API
-(13:26:06) mpickering: and directly and see what is different
-(13:26:16) mpickering: You could be initialising DynFlags wrong?
-(13:27:29) sjakobi: Thx mpickering. These sound like good ideas.
--}
   mod_iface <- withSession $ \hsc_env -> do
     liftIO $ initIfaceCheck (text "processModule 0") hsc_env $ do
       loadSysInterface (text "processModule 1")
                        (ms_mod modsum)
-
-
-  {-
-  tm <- {-# SCC "parse/typecheck/load" #-} loadModule =<< typecheckModule =<< parseModule modsum
-
-  -- We need to modify the interactive context's environment so that when
-  -- Haddock later looks for instances, it also looks in the modules it
-  -- encountered while typechecking.
-  --
-  -- See https://github.com/haskell/haddock/issues/469.
-  hsc_env@HscEnv{ hsc_IC = old_IC } <- getSession
-  let new_rdr_env = tcg_rdr_env . fst . GHC.tm_internals_ $ tm
-  setSession hsc_env{ hsc_IC = old_IC {
-    ic_rn_gbl_env = ic_rn_gbl_env old_IC `plusGlobalRdrEnv` new_rdr_env
-  } }
-  -}
-
-  {-
-  dm <- desugarModule tm
-  hsc_env' <- getSession
-  let mod_guts = dm_core_module dm
-  let mod_details = snd (tm_internals_ tm)
-  (iface, _bl) <- liftIO $ mkIface hsc_env' Nothing mod_details mod_guts
-  -} 
-  -- liftIO $ putStrLn $ (showSDoc dflags . pprModIface) iface
 
   if not $ isBootSummary modsum then do
     out verbosity verbose "Creating interface..."
