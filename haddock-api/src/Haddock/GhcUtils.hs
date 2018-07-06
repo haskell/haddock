@@ -233,68 +233,85 @@ getGADTConTypeG (XConDecl {}) = panic "getGADTConTypeG"
 -- * Parenthesization
 -------------------------------------------------------------------------------
 
+-- | Precedence level (inside the 'HsType' AST).
+data Precedence
+  = PREC_TOP  -- ^ precedence of 'type' production in GHC's parser
+
+  | PREC_CTX  -- ^ Used for single contexts, eg. ctx => type
+              -- (as opposed to (ctx1, ctx2) => type)
+
+  | PREC_FUN  -- ^ precedence of 'btype' production in GHC's parser
+              -- (used for LH arg of (->))
+
+  | PREC_OP   -- ^ arg of any infix operator
+              -- (we don't keep have fixity info)
+
+  | PREC_CON  -- ^ arg of type application: always parenthesize unless atomic
+  deriving (Eq, Ord)
+
 -- | Add in extra 'HsParTy' where needed to ensure that what would be printed
 -- out using 'ppr' has enough parentheses to be re-parsed properly.
 --
 -- We cannot add parens that may be required by fixities because we do not have
 -- any fixity information to work with in the first place :(.
-reparenType :: (XParTy a ~ NoExt) => HsType a -> HsType a
-reparenType = go pREC_TOP
+reparenTypePrec :: (XParTy a ~ NoExt) => Precedence -> HsType a -> HsType a
+reparenTypePrec = go
   where
 
-  go :: (XParTy a ~ NoExt) => Int -> HsType a -> HsType a
+  -- Shorter name for 'reparenType'
+  go :: (XParTy a ~ NoExt) => Precedence -> HsType a -> HsType a
   go _ (HsBangTy x b ty)     = HsBangTy x b (reparenLType ty)
   go _ (HsTupleTy x con tys) = HsTupleTy x con (map reparenLType tys)
   go _ (HsSumTy x tys)       = HsSumTy x (map reparenLType tys)
   go _ (HsKindSig x ty kind) = HsKindSig x (reparenLType ty) (reparenLType kind)
   go _ (HsListTy x ty)       = HsListTy x (reparenLType ty)
-  go _ (HsIParamTy x n ty)   = HsIParamTy x n (reparenLType ty)
   go _ (HsRecTy x flds)      = HsRecTy x (map (fmap reparenConDeclField) flds)
+  go p (HsDocTy x ty d)      = HsDocTy x (goL p ty) d
   go _ (HsExplicitListTy x p tys) = HsExplicitListTy x p (map reparenLType tys)
   go _ (HsExplicitTupleTy x tys) = HsExplicitTupleTy x (map reparenLType tys)
-  go p (HsDocTy x ty d)      = HsDocTy x (goL p ty) d
+  go p (HsIParamTy x n ty)
+    = paren p PREC_CTX $ HsIParamTy x n (reparenLType ty)
   go p (HsForAllTy x tvs ty)
-    = paren p pREC_FUN $ HsForAllTy x (map (fmap reparenTyVar) tvs) (reparenLType ty)
+    = paren p PREC_FUN $ HsForAllTy x (map (fmap reparenTyVar) tvs) (reparenLType ty)
   go p (HsQualTy x ctxt ty)
-    = paren p pREC_FUN $ HsQualTy x (fmap (map reparenLType) ctxt) (reparenLType ty)
+    = paren p PREC_FUN $ HsQualTy x (fmap (map reparenLType) ctxt) (reparenLType ty)
   go p (HsFunTy x ty1 ty2)
-    = paren p pREC_FUN $ HsFunTy x (goL pREC_FUN ty1) (goL pREC_TOP ty2)
+    = paren p PREC_FUN $ HsFunTy x (goL PREC_FUN ty1) (goL PREC_TOP ty2)
   go p (HsAppTy x fun_ty arg_ty)
-    = paren p pREC_CON $ HsAppTy x (goL pREC_FUN fun_ty) (goL pREC_CON arg_ty)
+    = paren p PREC_CON $ HsAppTy x (goL PREC_FUN fun_ty) (goL PREC_CON arg_ty)
   go p (HsOpTy x ty1 op ty2)
-    = paren p pREC_FUN $ HsOpTy x (goL pREC_OP ty1) op (goL pREC_OP ty2)
+    = paren p PREC_FUN $ HsOpTy x (goL PREC_OP ty1) op (goL PREC_OP ty2)
+  go p (HsParTy _ t) = unLoc $ goL p t -- pretend the paren doesn't exist - it will be added back if needed
   go _ t = t
 
   -- Located variant of 'go'
-  goL :: (XParTy a ~ NoExt) => Int -> LHsType a -> LHsType a
+  goL :: (XParTy a ~ NoExt) => Precedence -> LHsType a -> LHsType a
   goL ctxt_prec = fmap (go ctxt_prec)
-
-  pREC_TOP, pREC_FUN, pREC_OP, pREC_CON :: Int
-  pREC_TOP = 0  -- precedence of 'type' production in GHC's parser
-  pREC_FUN = 1  -- precedence of 'btype' production in GHC's parser
-  pREC_OP  = 2  -- arg of any infix operator (we don't keep have fixity info)
-  pREC_CON = 3  -- arg of type application: always parenthesise unless atomic
 
   -- Optionally wrap a type in parens
   paren :: (XParTy a ~ NoExt)
-        => Int                   -- Precedence of context
-        -> Int                   -- Precedence of top-level operator
+        => Precedence            -- Precedence of context
+        -> Precedence            -- Precedence of top-level operator
         -> HsType a -> HsType a  -- Wrap in parens if (ctxt >= op)
   paren ctxt_prec op_prec | ctxt_prec >= op_prec = HsParTy NoExt . noLoc
                           | otherwise            = id
 
 
--- | Add parenthesis around the types in a 'LHsType' (see 'parenType')
+-- | Add parenthesis around the types in a 'HsType' (see 'reparenTypePrec')
+reparenType :: (XParTy a ~ NoExt) => HsType a -> HsType a
+reparenType = reparenTypePrec PREC_TOP
+
+-- | Add parenthesis around the types in a 'LHsType' (see 'reparenTypePrec')
 reparenLType :: (XParTy a ~ NoExt) => LHsType a -> LHsType a
 reparenLType = fmap reparenType
 
--- | Add parenthesis around the types in a 'HsTyVarBndr' (see 'parenType')
+-- | Add parenthesis around the types in a 'HsTyVarBndr' (see 'reparenTypePrec')
 reparenTyVar :: (XParTy a ~ NoExt) => HsTyVarBndr a -> HsTyVarBndr a
 reparenTyVar (UserTyVar x n) = UserTyVar x n
 reparenTyVar (KindedTyVar x n kind) = KindedTyVar x n (reparenLType kind)
 reparenTyVar v = v
 
--- | Add parenthesis around the types in a 'ConDeclField' (see 'parenType')
+-- | Add parenthesis around the types in a 'ConDeclField' (see 'reparenTypePrec')
 reparenConDeclField :: (XParTy a ~ NoExt) => ConDeclField a -> ConDeclField a
 reparenConDeclField (ConDeclField x n t d) = ConDeclField x n (reparenLType t) d
 reparenConDeclField c = c
