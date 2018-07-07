@@ -282,7 +282,12 @@ reparenTypePrec = go
   go p (HsOpTy x ty1 op ty2)
     = paren p PREC_FUN $ HsOpTy x (goL PREC_OP ty1) op (goL PREC_OP ty2)
   go p (HsParTy _ t) = unLoc $ goL p t -- pretend the paren doesn't exist - it will be added back if needed
-  go _ t = t
+  go _ t@HsTyVar{} = t
+  go _ t@HsStarTy{} = t
+  go _ t@HsSpliceTy{} = t
+  go _ t@HsTyLit{} = t
+  go _ t@HsWildCardTy{} = t
+  go _ t@XHsType{} = t
 
   -- Located variant of 'go'
   goL :: (XParTy a ~ NoExt) => Precedence -> LHsType a -> LHsType a
@@ -309,12 +314,12 @@ reparenLType = fmap reparenType
 reparenTyVar :: (XParTy a ~ NoExt) => HsTyVarBndr a -> HsTyVarBndr a
 reparenTyVar (UserTyVar x n) = UserTyVar x n
 reparenTyVar (KindedTyVar x n kind) = KindedTyVar x n (reparenLType kind)
-reparenTyVar v = v
+reparenTyVar v@XTyVarBndr{} = v
 
 -- | Add parenthesis around the types in a 'ConDeclField' (see 'reparenTypePrec')
 reparenConDeclField :: (XParTy a ~ NoExt) => ConDeclField a -> ConDeclField a
 reparenConDeclField (ConDeclField x n t d) = ConDeclField x n (reparenLType t) d
-reparenConDeclField c = c
+reparenConDeclField c@XConDeclField{} = c
 
 
 -------------------------------------------------------------------------------
