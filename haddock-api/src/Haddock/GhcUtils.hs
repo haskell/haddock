@@ -272,7 +272,7 @@ reparenTypePrec = go
   go p (HsIParamTy x n ty)
     = paren p PREC_CTX $ HsIParamTy x n (reparenLType ty)
   go p (HsForAllTy x tvs ty)
-    = paren p PREC_FUN $ HsForAllTy x (map (fmap reparenTyVar) tvs) (reparenLType ty)
+    = paren p PREC_CTX $ HsForAllTy x (map (fmap reparenTyVar) tvs) (reparenLType ty)
   go p (HsQualTy x ctxt ty)
     = paren p PREC_FUN $ HsQualTy x (fmap (map reparenLType) ctxt) (reparenLType ty)
   go p (HsFunTy x ty1 ty2)
