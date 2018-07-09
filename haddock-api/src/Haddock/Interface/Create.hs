@@ -974,9 +974,14 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                   L loc (SigD _ sig) ->
                     -- fromJust is safe since we already checked in guards
                     -- that 't' is a name declared in this declaration.
-                    let newDecl = L loc . SigD noExt . fromJust $ filterSigNames (== t) sig
-                    in availExportDecl avail newDecl docs_
-
+                    case filterSigNames (== t) sig of
+                      Nothing -> do
+                        liftErrMsg $ tell [
+                          "Warning: " ++ moduleString thisMod ++ ": " ++
+                          pretty dflags sig ++ " doesn't contain " ++ pretty dflags t ]
+                        pure []
+                      Just sig' ->
+                        availExportDecl avail (L loc (SigD noExt sig'))  docs_
                   L loc (TyClD _ cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
                     let sig = maybeToList $ fmap (noLoc . MinimalSig noExt NoSourceText . noLoc . fmap noLoc) mdef
