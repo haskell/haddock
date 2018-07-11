@@ -38,6 +38,8 @@ import qualified Data.Map as M
 import Data.Map (Map)
 import qualified Data.Set as S
 import Data.List
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe
 import Data.Ord
 import Control.Applicative
@@ -142,18 +144,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
       aliases = M.empty
       -- !aliases = mkAliasMap dflags $ tm_renamed_source tm
 
-      -- FIXME: We currently don't know what aliases we import modules with.
-      -- We'll put the complete info on re-exported modules into docs_structure
-      -- in GHC and make unrestrictedModuleImports redundant.
-      unrestrictedImportedMods = M.empty
-        {-
-        -- module re-exports are only possible with
-        -- explicit export list
-        | Just{} <- exports
-        = unrestrictedModuleImports (map unLoc imports)
-        | otherwise = M.empty
-        -}
-
       -- Locations of all TH splices
       splices = S.toList (docs_splices mod_iface_docs)
 
@@ -161,7 +151,7 @@ createInterface' mod_iface flags modMap instIfaceMap = do
                                 (docs_named_chunks mod_iface_docs)
                                 is_sig modMap pkgName mdl sem_mdl allWarnings
                                 renamer exportedNames maps fixMap
-                                unrestrictedImportedMods splices instIfaceMap
+                                splices instIfaceMap
 
   let !visibleNames = mkVisibleNames maps exportItems opts
 
@@ -408,6 +398,34 @@ mkAliasMap dflags mRenamedSource =
              (case ideclName impDecl of SrcLoc.L _ name -> name),
            alias))
         impDecls
+
+-- TODO: Do we need a special case for the current module?
+unrestrictedModExports :: Avails -> [ModuleName]
+                      -> ErrMsgGhc ([Module], Avails)
+                      -- ^ ( modules exported without restriction
+                      --   , remaining exports not included in any
+                      --     of these modules
+                      --   )
+unrestrictedModExports avails mod_names = do
+    let all_names = availsToNameSetWithSelectors avails
+    mods_and_exports <- fmap catMaybes $ for mod_names $ \mod_name -> do
+      mdl <- liftGhcToErrMsgGhc $ findModule mod_name Nothing
+      mb_modinfo <- liftGhcToErrMsgGhc $ getModuleInfo mdl
+      case mb_modinfo of
+        Nothing -> do
+          dflags <- getDynFlags
+          liftErrMsg $ tell [ "Bug: unrestrictedModExports: " ++ pretty dflags mdl]
+          pure Nothing
+        Just modinfo ->
+          pure (Just (mdl, mkNameSet (modInfoExportsWithSelectors modinfo)))
+    let unrestricted = filter (\(_, exps) -> exps `isSubsetOf` all_names) mods_and_exports
+        mod_exps = unionNameSets (map snd unrestricted)
+        remaining = nubAvails (filterAvails (\n -> not (n `elemNameSet` mod_exps)) avails)
+    pure (map fst unrestricted, remaining)
+  where
+    -- TODO: Add a utility based on IntMap.isSubmapOfBy
+    isSubsetOf :: NameSet -> NameSet -> Bool
+    isSubsetOf a b = nameSetAll (`elemNameSet` b) a
 
 -- We want to know which modules are imported without any qualification. This
 -- way we can display module reexports more compactly. This mapping also looks
@@ -823,12 +841,11 @@ mkExportItems'
 --  -> [LHsDecl GhcRn]    -- renamed source declarations
   -> Maps
   -> FixMap
-  -> M.Map ModuleName [ModuleName]
   -> [RealSrcSpan]        -- splice locations
 --  -> Avails             -- exported stuff from this module
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
-mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warnings renamer exportedNames maps fixMap _unrestricted_imp_mods splices instIfaceMap = do
+mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warnings renamer exportedNames maps fixMap splices instIfaceMap = do
     concat <$> traverse lookupExport dsItems
   where
     lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
@@ -851,8 +868,13 @@ mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warn
         -- TODO: We probably don't need nubAvails here.
         -- mkDocStructureFromExportList already uses it.
         concat <$> traverse availExport (nubAvails avails)
-      DsiModExport _ _ ->
-        error "mkExportItems': I wish I was better at rebasing"
+      DsiModExport mod_names avails -> do
+        -- only consider exporting a module if we are sure we
+        -- are really exporting the whole module and not some
+        -- subset.
+        (unrestricted_mods, remaining_avails) <- unrestrictedModExports avails (NE.toList mod_names)
+        avail_exps <- concat <$> traverse availExport remaining_avails
+        pure (map ExportModule unrestricted_mods ++ avail_exps)
 
     availExport avail =
       availExportItem is_sig ifaceMap thisMod semMod warnings exportedNames
