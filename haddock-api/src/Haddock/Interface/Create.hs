@@ -1025,7 +1025,8 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
               case M.lookup (nameModule t) instIfaceMap of
                 Nothing -> do
                    liftErrMsg $ tell
-                      ["Warning: Couldn't find .haddock for export " ++ pretty dflags t]
+                      ["Warning: " ++ pretty dflags thisMod ++
+                       ": Couldn't find .haddock for export " ++ pretty dflags t]
                    let subs_ = availNoDocs avail
                    availExportDecl avail decl (noDocForDecl, subs_)
                 Just iface ->
