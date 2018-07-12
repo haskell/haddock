@@ -140,10 +140,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   let maps = (docMap, argMap, declMap, instanceMap)
       allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
-      -- FIXME: Remove entire field together with @--qual=aliased@.
-      aliases = M.empty
-      -- !aliases = mkAliasMap dflags $ tm_renamed_source tm
-
       -- Locations of all TH splices
       splices = S.toList (docs_splices mod_iface_docs)
 
@@ -185,7 +181,6 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   , ifaceVisibleExports    = visibleNames
   , ifaceDeclMap           = declMap
   , ifaceFixMap            = fixMap
-  , ifaceModuleAliases     = aliases
   , ifaceInstances         = instances
   , ifaceFamInstances      = fam_instances
   , ifaceOrphanInstances   = []
@@ -302,9 +297,6 @@ createInterface tm flags modMap instIfaceMap = do
         | otherwise = exportItems
       !prunedExportItems = seqList prunedExportItems' `seq` prunedExportItems'
 
-  let !aliases =
-        mkAliasMap dflags $ tm_renamed_source tm
-
   modWarn <- moduleWarning renamer (hsDocString . unLoc <$> warnings)
 
   tokenizedSrc <- mkMaybeTokenizedSrc dflags flags tm
@@ -326,7 +318,6 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceVisibleExports    = visibleNames
   , ifaceDeclMap           = declMap
   , ifaceFixMap            = fixMap
-  , ifaceModuleAliases     = aliases
   , ifaceInstances         = instances
   , ifaceFamInstances      = fam_instances
   , ifaceOrphanInstances   = [] -- Filled in `attachInstances`
@@ -364,40 +355,6 @@ mkDeclMap mod_details loc_map = do
       decls <- catMaybes <$> traverse convert_ allNames
       pure (mainName, decls)
     pure (M.fromList decls)
-
--- | Given all of the @import M as N@ declarations in a package,
--- create a mapping from the module identity of M, to an alias N
--- (if there are multiple aliases, we pick the last one.)  This
--- will go in 'ifaceModuleAliases'.
-mkAliasMap :: DynFlags -> Maybe RenamedSource -> M.Map Module ModuleName
-mkAliasMap dflags mRenamedSource =
-  case mRenamedSource of
-    Nothing -> M.empty
-    Just (_,impDecls,_,_) ->
-      M.fromList $
-      mapMaybe (\(SrcLoc.L _ impDecl) -> do
-        SrcLoc.L _ alias <- ideclAs impDecl
-        return $
-          (lookupModuleDyn dflags
-             -- TODO: This is supremely dodgy, because in general the
-             -- UnitId isn't going to look anything like the package
-             -- qualifier (even with old versions of GHC, the
-             -- IPID would be p-0.1, but a package qualifier never
-             -- has a version number it.  (Is it possible that in
-             -- Haddock-land, the UnitIds never have version numbers?
-             -- I, ezyang, have not quite understand Haddock's package
-             -- identifier model.)
-             --
-             -- Additionally, this is simulating some logic GHC already
-             -- has for deciding how to qualify names when it outputs
-             -- them to the user.  We should reuse that information;
-             -- or at least reuse the renamed imports, which know what
-             -- they import!
-             (fmap Module.fsToUnitId $
-              fmap sl_fs $ ideclPkgQual impDecl)
-             (case ideclName impDecl of SrcLoc.L _ name -> name),
-           alias))
-        impDecls
 
 -- TODO: Do we need a special case for the current module?
 unrestrictedModExports :: Avails -> [ModuleName]
@@ -461,18 +418,6 @@ unrestrictedModuleImports idecls =
         Just (True, L _ []) -> True
         -- iii) any other case of qualification
         _                   -> False
-
--- Similar to GHC.lookupModule
--- ezyang: Not really...
-lookupModuleDyn ::
-  DynFlags -> Maybe UnitId -> ModuleName -> Module
-lookupModuleDyn _ (Just pkgId) mdlName =
-  Module.mkModule pkgId mdlName
-lookupModuleDyn dflags Nothing mdlName =
-  case lookupModuleInAllPackages dflags mdlName of
-    (m,_):_ -> m
-    [] -> Module.mkModule Module.mainUnitId mdlName
-
 
 -------------------------------------------------------------------------------
 -- Warnings

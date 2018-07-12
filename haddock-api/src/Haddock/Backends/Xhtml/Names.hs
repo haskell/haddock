@@ -88,22 +88,12 @@ ppQualifyName qual notation name mdl =
         Just _       -> ppFullQualName notation mdl name
         -- some other module, D.x -> D.x
         Nothing      -> ppFullQualName notation mdl name
-    AliasedQual aliases localmdl ->
-      case (moduleString mdl == moduleString localmdl,
-            M.lookup mdl aliases) of
-        (False, Just alias) -> ppQualName notation alias name
-        _ -> ppName notation name
 
 
 ppFullQualName :: Notation -> Module -> Name -> Html
 ppFullQualName notation mdl name = wrapInfix notation (getOccName name) qname
   where
     qname = toHtml $ moduleString mdl ++ '.' : getOccString name
-
-ppQualName :: Notation -> ModuleName -> Name -> Html
-ppQualName notation mdlName name = wrapInfix notation (getOccName name) qname
-  where
-    qname = toHtml $ moduleNameString mdlName ++ '.' : getOccString name
 
 ppName :: Notation -> Name -> Html
 ppName notation name = wrapInfix notation (getOccName name) $ toHtml (getOccString name)

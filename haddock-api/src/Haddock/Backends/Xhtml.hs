@@ -367,8 +367,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
     goInterface iface =
         concatMap (goExport mdl qual) (ifaceRnExportItems iface)
       where
-        aliases = ifaceModuleAliases iface
-        qual    = makeModuleQual qual_opt aliases mdl
+        qual    = makeModuleQual qual_opt mdl
         mdl     = ifaceMod iface
 
     goExport :: Module -> Qualification -> ExportItem DocNameI -> [Value]
@@ -538,7 +537,6 @@ ppHtmlModule odir doctitle themes
   maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
   let
       mdl = ifaceMod iface
-      aliases = ifaceModuleAliases iface
       mdl_str = moduleString mdl
       mdl_str_annot = mdl_str ++ if ifaceIsSig iface
                                     then " (signature)"
@@ -550,7 +548,7 @@ ppHtmlModule odir doctitle themes
                        ")"
         | otherwise
         = toHtml mdl_str
-      real_qual = makeModuleQual qual aliases mdl
+      real_qual = makeModuleQual qual mdl
       html =
         headHtml mdl_str_annot themes maybe_mathjax_url +++
         bodyHtml doctitle (Just iface)

@@ -125,9 +125,6 @@ data Interface = Interface
     -- Names from modules that are entirely re-exported don't count as visible.
   , ifaceVisibleExports  :: ![Name]
 
-    -- | Aliases of module imports as in @import A.B.C as C@.
-  , ifaceModuleAliases   :: !AliasMap
-
     -- | Instances exported by the module.
   , ifaceInstances       :: ![ClsInst]
   , ifaceFamInstances    :: ![FamInst]
@@ -542,23 +539,12 @@ data QualOption
   | OptLocalQual      -- ^ Qualify all imported names fully.
   | OptRelativeQual   -- ^ Like local, but strip module prefix
                       --   from modules in the same hierarchy.
-  | OptAliasedQual    -- ^ Uses aliases of module names
-                      --   as suggested by module import renamings.
-                      --   However, we are unfortunately not able
-                      --   to maintain the original qualifications.
-                      --   Image a re-export of a whole module,
-                      --   how could the re-exported identifiers be qualified?
-
-type AliasMap = Map Module ModuleName
 
 data Qualification
   = NoQual
   | FullQual
   | LocalQual Module
   | RelativeQual Module
-  | AliasedQual AliasMap Module
-       -- ^ @Module@ contains the current module.
-       --   This way we can distinguish imported and local identifiers.
 
 makeContentsQual :: QualOption -> Qualification
 makeContentsQual qual =
@@ -566,12 +552,11 @@ makeContentsQual qual =
     OptNoQual -> NoQual
     _         -> FullQual
 
-makeModuleQual :: QualOption -> AliasMap -> Module -> Qualification
-makeModuleQual qual aliases mdl =
+makeModuleQual :: QualOption -> Module -> Qualification
+makeModuleQual qual mdl =
   case qual of
     OptLocalQual      -> LocalQual mdl
     OptRelativeQual   -> RelativeQual mdl
-    OptAliasedQual    -> AliasedQual aliases mdl
     OptFullQual       -> FullQual
     OptNoQual         -> NoQual
 
