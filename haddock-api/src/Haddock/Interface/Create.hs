@@ -246,10 +246,7 @@ createInterface tm flags modMap instIfaceMap = do
 
   let declsWithDocs = topDecls group_
 
-      exports0 = fmap (reverse . map (first unLoc)) mayExports
-      exports
-        | OptIgnoreExports `elem` opts = Nothing
-        | otherwise = exports0
+      exports = fmap (reverse . map (first unLoc)) mayExports
 
       unrestrictedImportedMods
         -- module re-exports are only possible with
@@ -480,14 +477,11 @@ mkDocOpts mbOpts flags mdl = do
     go os m | m == Flag_HideModule mdlStr     = OptHide : os
             | m == Flag_ShowModule mdlStr     = filter (/= OptHide) os
             | m == Flag_ShowAllModules        = filter (/= OptHide) os
-            | m == Flag_IgnoreAllExports      = OptIgnoreExports : os
-            | m == Flag_ShowExtensions mdlStr = OptIgnoreExports : os
             | otherwise                       = os
 
 parseOption :: String -> ErrMsgM (Maybe DocOption)
 parseOption "hide"            = return (Just OptHide)
 parseOption "prune"           = return (Just OptPrune)
-parseOption "ignore-exports"  = return (Just OptIgnoreExports)
 parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
 parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing

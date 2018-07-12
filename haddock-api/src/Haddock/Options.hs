@@ -89,7 +89,6 @@ data Flag
   | Flag_GenContents
   | Flag_UseIndex String
   | Flag_GenIndex
-  | Flag_IgnoreAllExports
   | Flag_HideModule String
   | Flag_ShowModule String
   | Flag_ShowAllModules
@@ -188,8 +187,6 @@ options backwardsCompat =
       "use a separately-generated HTML index",
     Option [] ["gen-index"] (NoArg Flag_GenIndex)
       "generate an HTML index from specified\ninterfaces",
-    Option [] ["ignore-all-exports"] (NoArg Flag_IgnoreAllExports)
-      "behave as if all modules have the\nignore-exports atribute",
     Option [] ["hide"] (ReqArg Flag_HideModule "MODULE")
       "behave as if MODULE has the hide attribute",
     Option [] ["show"] (ReqArg Flag_ShowModule "MODULE")

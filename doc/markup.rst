@@ -717,7 +717,7 @@ specified in a comma-separated list in an
 ``{-# OPTIONS_HADDOCK ... #-}`` pragma at the top of the module, either
 before or after the module description. For example: ::
 
-    {-# OPTIONS_HADDOCK hide, prune, ignore-exports #-}
+    {-# OPTIONS_HADDOCK hide, prune #-}
 
     -- |Module description
     module A where
@@ -735,11 +735,6 @@ The following attributes are currently understood by Haddock:
 ``prune``
     Omit definitions that have no documentation annotations from the
     generated documentation.
-
-``ignore-exports``
-    Ignore the export list. Generate documentation as if the module had
-    no export list - i.e. all the top-level declarations are exported,
-    and section headings may be given in the body of the module.
 
 ``not-home``
     Indicates that the current module should not be considered to be the

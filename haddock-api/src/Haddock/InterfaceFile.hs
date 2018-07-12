@@ -397,12 +397,10 @@ instance Binary DocOption where
             putByte bh 0
     put_ bh OptPrune = do
             putByte bh 1
-    put_ bh OptIgnoreExports = do
-            putByte bh 2
     put_ bh OptNotHome = do
-            putByte bh 3
+            putByte bh 2
     put_ bh OptShowExtensions = do
-            putByte bh 4
+            putByte bh 3
     get bh = do
             h <- getByte bh
             case h of
@@ -411,10 +409,8 @@ instance Binary DocOption where
               1 -> do
                     return OptPrune
               2 -> do
-                    return OptIgnoreExports
-              3 -> do
                     return OptNotHome
-              4 -> do
+              3 -> do
                     return OptShowExtensions
               _ -> fail "invalid binary data found"
 

@@ -391,13 +391,6 @@ The following options are available:
     :option:`-i` or :option:`--read-interface`). This is used to generate a single
     contents and/or index for multiple sets of Haddock documentation.
 
-.. option:: --ignore-all-exports
-
-    Causes Haddock to behave as if every module has the
-    ``ignore-exports`` attribute (:ref:`module-attrs`). This might be useful for
-    generating implementation documentation rather than interface
-    documentation, for example.
-
 .. option:: --hide <module>
 
     Causes Haddock to behave as if module module has the ``hide``
