@@ -344,7 +344,7 @@ mkDeclMap mod_details loc_map = do
         convert_ name =
           case lookupNameEnv (md_types mod_details) name of
             Nothing -> do
-              tell ["createInterface': Didn't find " ++ O.showPpr dflags name ++ " in md_types"]
+              -- tell ["createInterface': Didn't find " ++ O.showPpr dflags name ++ " in md_types"]
               pure Nothing
             Just t -> case tyThingToLHsDecl t of
               Left msg -> do
