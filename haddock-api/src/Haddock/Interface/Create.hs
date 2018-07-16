@@ -324,7 +324,10 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceTokenizedSrc      = tokenizedSrc
   }
 
+-- TODO: Entirely remove mkDeclMap and DeclMap.
 mkDeclMap :: ModDetails -> Map Name SrcSpan -> ErrMsgGhc DeclMap
+mkDeclMap _ _ = pure M.empty
+{-
 mkDeclMap mod_details loc_map = do
     dflags <- getDynFlags
 
@@ -352,6 +355,7 @@ mkDeclMap mod_details loc_map = do
       decls <- catMaybes <$> traverse convert_ allNames
       pure (mainName, decls)
     pure (M.fromList decls)
+-}
 
 -- TODO: Do we need a special case for the current module?
 unrestrictedModExports :: Avails -> [ModuleName]
@@ -905,7 +909,8 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
     declWith :: AvailInfo -> ErrMsgGhc [ ExportItem GhcRn ]
     declWith avail = do
       dflags <- getDynFlags
-      let t = availName avail
+      let t = availName avail -- 't' may not be in the scope of 'avail'.
+                              -- Example: @data C = D@, where C isn't exported.
       r    <- findDecl avail
       case r of
         ([L l (ValD _ _)], (doc, _)) -> do
@@ -936,11 +941,13 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                   L loc (SigD _ sig) ->
                     -- fromJust is safe since we already checked in guards
                     -- that 't' is a name declared in this declaration.
+                    -- That's wrong.
                     case filterSigNames (== t) sig of
                       Nothing -> do
                         liftErrMsg $ tell [
                           "Warning: " ++ moduleString thisMod ++ ": " ++
-                          pretty dflags sig ++ " doesn't contain " ++ pretty dflags t ]
+                          pretty dflags sig ++ " doesn't contain " ++ pretty dflags t ++
+                          ". Names in the signature: " ++ pretty dflags (sigNameNoLoc sig)]
                         pure []
                       Just sig' ->
                         availExportDecl avail (L loc (SigD noExt sig'))  docs_
@@ -952,25 +959,33 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
 
                   _ -> availExportDecl avail decl docs_
 
-        -- Declaration from another package
         ([], _) -> do
           mayDecl <- hiDecl t
           case mayDecl of
             Nothing -> return [ ExportNoDecl t [] ]
-            Just decl ->
-              -- We try to get the subs and docs
-              -- from the installed .haddock file for that package.
-              -- TODO: This needs to be more sophisticated to deal
-              -- with signature inheritance
-              case M.lookup (nameModule t) instIfaceMap of
-                Nothing -> do
-                   liftErrMsg $ tell
-                      ["Warning: " ++ pretty dflags thisMod ++
-                       ": Couldn't find .haddock for export " ++ pretty dflags t]
-                   let subs_ = availNoDocs avail
-                   availExportDecl avail decl (noDocForDecl, subs_)
-                Just iface ->
-                  availExportDecl avail decl (lookupDocs avail warnings (instDocMap iface) (instArgMap iface))
+            Just decl -> do
+              docs_ <- do
+                let tmod = nameModule t
+                if tmod == thisMod
+                  then pure (lookupDocs avail warnings docMap argMap)
+                  else case M.lookup tmod modMap of
+                    Just iface ->
+                      pure (lookupDocs avail warnings (ifaceDocMap iface) (ifaceArgMap iface))
+                    Nothing ->
+                      -- We try to get the subs and docs
+                      -- from the installed .haddock file for that package.
+                      -- TODO: This needs to be more sophisticated to deal
+                      -- with signature inheritance
+                      case M.lookup (nameModule t) instIfaceMap of
+                        Nothing -> do
+                           liftErrMsg $ tell
+                              ["Warning: " ++ pretty dflags thisMod ++
+                               ": Couldn't find .haddock for export " ++ pretty dflags t]
+                           let subs_ = availNoDocs avail
+                           pure (noDocForDecl, subs_)
+                        Just instIface ->
+                          pure (lookupDocs avail warnings (instDocMap instIface) (instArgMap instIface))
+              availExportDecl avail decl docs_
 
         _ -> return []
 
