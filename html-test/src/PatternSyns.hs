@@ -1,5 +1,4 @@
 {-# LANGUAGE ExistentialQuantification, PatternSynonyms, PolyKinds, TypeOperators #-}
-{-# LANGUAGE StarIsType #-}
 
 -- | Testing some pattern synonyms
 module PatternSyns where

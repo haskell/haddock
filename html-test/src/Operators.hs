@@ -1,6 +1,5 @@
 {-# LANGUAGE PatternSynonyms, TypeOperators, TypeFamilies, MultiParamTypeClasses, GADTs #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE StarIsType #-}
 
 -- | Test operators with or without fixity declarations
 module Operators where
