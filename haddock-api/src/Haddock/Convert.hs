@@ -614,8 +614,10 @@ synifyFamInst fi opaque = do
 {-
 Note [Invariant: Never expand type synonyms]
 
-In haddock, we never want to expand a type synonym, as we want to keep the
-link to the abstraction captured in the synonym.
+In haddock, we never want to expand a type synonym that may be presented to the
+user, as we want to keep the link to the abstraction captured in the synonym.
+
+All code in Haddock.Convert must make sure that this invariant holds.
 
 See https://github.com/haskell/haddock/issues/879 for a bug where this
 invariant didn't hold.
