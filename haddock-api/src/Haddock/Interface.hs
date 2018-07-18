@@ -125,7 +125,7 @@ processModules verbosity modules flags extIfaces = do
          runWriter $ mapM (renameInterface dflags links warnings) interfaces'
   liftIO $ mapM_ putStrLn msgs
 
-  return (interfaces'', homeLinks) -- why do we return homeLinks instead of links?
+  return (interfaces'', homeLinks)
 
 
 --------------------------------------------------------------------------------
