@@ -611,21 +611,33 @@ synifyFamInst fi opaque = do
     annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
     is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars fam_tc)
 
+{-
+Note [Invariant: Never expand type synonyms]
+
+In haddock, we never want to expand a type synonym, as we want to keep the
+link to the abstraction captured in the synonym.
+
+See https://github.com/haskell/haddock/issues/879 for a bug where this
+invariant didn't hold.
+-}
+
 -- | A version of 'TcType.tcSplitSigmaTy' that preserves type synonyms.
 --
--- See https://github.com/haskell/haddock/issues/879 for why we need this.
+-- See Note [Invariant: Never expand type synonyms]
 tcSplitSigmaTyPreserveSynonyms :: Type -> ([TyVar], ThetaType, Type)
 tcSplitSigmaTyPreserveSynonyms ty =
     case tcSplitForAllTysPreserveSynonyms ty of
       (tvs, rho) -> case tcSplitPhiTyPreserveSynonyms rho of
         (theta, tau) -> (tvs, theta, tau)
 
+-- | See Note [Invariant: Never expand type synonyms]
 tcSplitForAllTysPreserveSynonyms :: Type -> ([TyVar], Type)
 tcSplitForAllTysPreserveSynonyms ty = split ty ty []
   where
     split _       (ForAllTy (TvBndr tv _) ty') tvs = split ty' ty' (tv:tvs)
     split orig_ty _                            tvs = (reverse tvs, orig_ty)
 
+-- | See Note [Invariant: Never expand type synonyms]
 tcSplitPhiTyPreserveSynonyms :: Type -> (ThetaType, Type)
 tcSplitPhiTyPreserveSynonyms ty0 = split ty0 []
   where
@@ -634,6 +646,7 @@ tcSplitPhiTyPreserveSynonyms ty0 = split ty0 []
           Just (pred_, ty') -> split ty' (pred_:ts)
           Nothing           -> (reverse ts, ty)
 
+-- | See Note [Invariant: Never expand type synonyms]
 tcSplitPredFunTyPreserveSynonyms_maybe :: Type -> Maybe (PredType, Type)
 tcSplitPredFunTyPreserveSynonyms_maybe (FunTy arg res)
   | isPredTy arg = Just (arg, res)
