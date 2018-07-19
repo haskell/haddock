@@ -285,6 +285,9 @@ noDocForDecl = (Documentation Nothing Nothing, Map.empty)
 -- | Type of environment used to cross-reference identifiers in the syntax.
 type LinkEnv = Map Name Module
 
+-- | An 'RdrName' tagged with some type/value namespace information.
+data NsRdrName = NsRdrName Namespace RdrName
+
 -- | Extends 'Name' with cross-reference information.
 data DocName
   = Documented Name Module

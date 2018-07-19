@@ -41,6 +41,7 @@ import Haddock.Options
 import Haddock.Utils
 
 import Control.Monad hiding (forM_)
+import Data.Bifunctor (second)
 import Data.Foldable (forM_, foldl')
 import Data.Traversable (for)
 import Data.List (isPrefixOf)
@@ -620,7 +621,8 @@ getPrologue dflags flags =
       h <- openFile filename ReadMode
       hSetEncoding h utf8
       str <- hGetContents h -- semi-closes the handle
-      return . Just $! parseParas dflags Nothing str
+      let stripNs (NsRdrName _ rdrName) = rdrName
+      return . Just $! second stripNs $ parseParas dflags Nothing str
     _ -> throwE "multiple -p/--prologue options"
 
 

@@ -74,24 +74,29 @@ isSymbolChar c = not (isPuncChar c) && case generalCategory c of
 #endif
 
 -- | Identifier string surrounded with opening and closing quotes/backticks.
-type Identifier = (Char, String, Char)
+data Identifier = Identifier !Namespace !Char String !Char
 
 -- | Drops the quotes/backticks around all identifiers, as if they
 -- were valid but still 'String's.
 toRegular :: DocH mod Identifier -> DocH mod String
-toRegular = fmap (\(_, x, _) -> x)
+toRegular = fmap (\(Identifier _ _ x _) -> x)
 
 -- | Maps over 'DocIdentifier's over 'String' with potentially failing
 -- conversion using user-supplied function. If the conversion fails,
 -- the identifier is deemed to not be valid and is treated as a
 -- regular string.
-overIdentifier :: (String -> Maybe a)
+overIdentifier :: (Namespace -> String -> Maybe a)
                -> DocH mod Identifier
                -> DocH mod a
 overIdentifier f d = g d
   where
-    g (DocIdentifier (o, x, e)) = case f x of
-      Nothing -> DocString $ o : x ++ [e]
+    showNs :: Namespace -> String
+    showNs Value = "v"
+    showNs Type = "t"
+    showNs None = ""
+
+    g (DocIdentifier (Identifier ns o x e)) = case f ns x of
+      Nothing -> DocString $ showNs ns ++ [o] ++ x ++ [e]
       Just x' -> DocIdentifier x'
     g DocEmpty = DocEmpty
     g (DocAppend x x') = DocAppend (g x) (g x')
@@ -848,9 +853,15 @@ parseValid = p some
 -- 'String' from the string it deems valid.
 identifier :: Parser (DocH mod Identifier)
 identifier = do
+  ns <- Parsec.optionMaybe (Parsec.oneOf "vt")
   o <- idDelim
   vid <- parseValid
   e <- idDelim
-  return $ DocIdentifier (o, vid, e)
+  return $ DocIdentifier (Identifier (namespace ns) o vid e)
   where
-    idDelim = Parsec.satisfy (\c -> c == '\'' || c == '`')
+    idDelim = Parsec.oneOf "\'`"
+
+    namespace (Just 'v') = Value
+    namespace (Just 't') = Type
+    namespace (Just n) = error $ "invalid namespace: " ++ [n]
+    namespace Nothing = None
