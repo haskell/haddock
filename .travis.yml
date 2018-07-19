@@ -35,6 +35,7 @@ matrix:
 
 before_install:
  - HC=${CC}
+ - HCPKG=${HC/ghc/ghc-pkg}
  - unset CC
  - PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH
  - PKGNAME='haddock'
