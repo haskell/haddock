@@ -28,6 +28,7 @@ import           Control.Applicative
 import           Control.Arrow (first)
 import           Control.Monad
 import           Data.Char (chr, isUpper, isAlpha, isAlphaNum, isSpace)
+import           Data.Foldable (asum)
 import           Data.List (intercalate, unfoldr, elemIndex, notElem)
 import           Data.Maybe (fromMaybe, mapMaybe)
 import           Data.Monoid
@@ -90,13 +91,8 @@ overIdentifier :: (Namespace -> String -> Maybe a)
                -> DocH mod a
 overIdentifier f d = g d
   where
-    showNs :: Namespace -> String
-    showNs Value = "v"
-    showNs Type = "t"
-    showNs None = ""
-
     g (DocIdentifier (Identifier ns o x e)) = case f ns x of
-      Nothing -> DocString $ showNs ns ++ [o] ++ x ++ [e]
+      Nothing -> DocString $ renderNs ns ++ [o] ++ x ++ [e]
       Just x' -> DocIdentifier x'
     g DocEmpty = DocEmpty
     g (DocAppend x x') = DocAppend (g x) (g x')
@@ -853,15 +849,13 @@ parseValid = p some
 -- 'String' from the string it deems valid.
 identifier :: Parser (DocH mod Identifier)
 identifier = do
-  ns <- Parsec.optionMaybe (Parsec.oneOf "vt")
+  ns <- asum [ Value <$ Parsec.char 'v'
+             , Type <$ Parsec.char 't'
+             , pure None
+             ]
   o <- idDelim
   vid <- parseValid
   e <- idDelim
-  return $ DocIdentifier (Identifier (namespace ns) o vid e)
+  return $ DocIdentifier (Identifier ns o vid e)
   where
     idDelim = Parsec.oneOf "\'`"
-
-    namespace (Just 'v') = Value
-    namespace (Just 't') = Type
-    namespace (Just n) = error $ "invalid namespace: " ++ [n]
-    namespace Nothing = None

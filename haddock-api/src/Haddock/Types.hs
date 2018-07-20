@@ -286,7 +286,10 @@ noDocForDecl = (Documentation Nothing Nothing, Map.empty)
 type LinkEnv = Map Name Module
 
 -- | An 'RdrName' tagged with some type/value namespace information.
-data NsRdrName = NsRdrName Namespace RdrName
+data NsRdrName = NsRdrName
+  { namespace :: !Namespace
+  , rdrName :: !RdrName
+  }
 
 -- | Extends 'Name' with cross-reference information.
 data DocName

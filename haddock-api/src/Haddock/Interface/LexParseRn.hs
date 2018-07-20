@@ -34,8 +34,8 @@ import Haddock.Types
 import Name
 import Outputable ( showPpr, showSDoc )
 import RdrName
+import RdrHsSyn (setRdrNameSpace)
 import EnumSet
-import RnEnv (dataTcOccs)
 
 processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDocString]
                   -> ErrMsgM (Maybe (MDoc Name))
@@ -96,25 +96,27 @@ rename dflags gre = rn
       DocAppend a b -> DocAppend <$> rn a <*> rn b
       DocParagraph doc -> DocParagraph <$> rn doc
       DocIdentifier (NsRdrName ns x) -> do
+        let occ = rdrNameOcc x
+            isValueName = isDataOcc occ || isVarOcc occ
+
+        let valueNsChoices | isValueName = [x]
+                           | otherwise   = []
+            typeNsChoices  | isValueName = [setRdrNameSpace x tcName]
+                           | otherwise   = [x]
+
         -- Generate the choices for the possible kind of thing this
-        -- is.
-        let choices = dataTcOccs x
+        -- is. We narrow down the possibilities with the namespace (if
+        -- there is one).
+        let choices = case ns of
+                        Value -> valueNsChoices
+                        Type  -> typeNsChoices
+                        None  -> valueNsChoices ++ typeNsChoices
 
         -- Lookup any GlobalRdrElts that match the choices.
-        let names = concatMap (\c -> lookupGRE_RdrName c gre) choices
-        
-        -- Filter according to the namespace
-        let filterNamespace = case ns of
-                                Value -> filter (not . isTyConName)
-                                Type -> filter isTyConName
-                                None -> id
-
-        
-        case filterNamespace names of
+        case concatMap (\c -> lookupGRE_RdrName c gre) choices of
           -- We found no names in the env so we start guessing.
           [] ->
             case choices of
-              -- This shouldn't happen as 'dataTcOccs' always returns at least its input.
               [] -> pure (DocMonospaced (DocString (showPpr dflags x)))
 
               -- There was nothing in the environment so we need to
