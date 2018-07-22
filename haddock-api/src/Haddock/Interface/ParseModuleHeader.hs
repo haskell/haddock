@@ -14,10 +14,7 @@ module Haddock.Interface.ParseModuleHeader (parseModuleHeader) where
 import qualified Documentation.Haddock.Parser as P
 import Control.Monad (mplus)
 import Data.Char
-import DynFlags
-import Haddock.Parser
 import Haddock.Types
-import RdrName
 
 -- -----------------------------------------------------------------------------
 -- Parsing module headers

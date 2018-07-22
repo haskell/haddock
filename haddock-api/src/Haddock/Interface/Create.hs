@@ -32,13 +32,11 @@ import Haddock.Backends.Hyperlinker.Ast as Hyperlinker
 import Haddock.Backends.Hyperlinker.Parser as Hyperlinker
 
 import Data.Bifunctor
-import Data.Bitraversable
 import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import Data.Map (Map)
 import qualified Data.Set as S
 import Data.List
-import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
 import Data.Ord
@@ -60,18 +58,15 @@ import Name
 import NameSet
 import NameEnv
 import qualified Outputable
-import Packages   ( lookupModuleInAllPackages, PackageName(..) )
+import Packages   ( PackageName(..) )
 import Bag
-import RdrName
 import SrcLoc
 import TcIface
 import TcRnMonad
-import TcRnTypes
-import FastString (fastStringToByteString, unpackFS )
+import FastString ( unpackFS )
 import HsDecls ( getConArgs )
-import BasicTypes ( StringLiteral(..), SourceText(..), WarningTxt(..), WarningSort(..) )
+import BasicTypes ( SourceText(..), WarningTxt(..), WarningSort(..) )
 import qualified Outputable as O
-import HsDecls ( getConArgs )
 import DynFlags ( getDynFlags )
 
 createInterface' :: ModIface

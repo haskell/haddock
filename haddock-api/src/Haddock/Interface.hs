@@ -59,21 +59,12 @@ import GHC hiding (verbosity)
 import GhcMake
 import HscTypes
 import FastString (unpackFS)
-import Module
 import MonadUtils (liftIO)
 import TcRnMonad
-import TcRnTypes (tcg_rdr_env, Env)
-import RdrName (plusGlobalRdrEnv)
-import ErrUtils (withTiming, MsgDoc)
-import ExtractDocs
+import ErrUtils (withTiming )
 import Outputable
 import LoadIface
-import MkIface
-import IOEnv
-import Maybes
 import GhcMonad
-import Packages
-import Panic
 
 #if defined(mingw32_HOST_OS)
 import System.IO

@@ -49,7 +49,6 @@ import qualified Data.Map as Map
 import Text.XHtml hiding ( name, title, quote )
 import Data.Maybe (fromMaybe)
 
-import FastString            ( unpackFS )
 import GHC
 import Name (nameOccName)
 

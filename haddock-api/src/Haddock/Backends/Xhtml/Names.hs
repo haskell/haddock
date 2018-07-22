@@ -23,7 +23,6 @@ import Haddock.Types
 import Haddock.Utils
 
 import Text.XHtml hiding ( name, p, quote )
-import qualified Data.Map as M
 import qualified Data.List as List
 
 import GHC hiding (LexicalFixity(..))

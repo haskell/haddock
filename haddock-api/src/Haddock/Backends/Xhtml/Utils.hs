@@ -32,8 +32,6 @@ module Haddock.Backends.Xhtml.Utils (
 
 import Haddock.Utils
 
-import Data.Maybe
-
 import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 

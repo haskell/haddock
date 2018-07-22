@@ -29,7 +29,6 @@ module Haddock.Types (
 import Control.Exception
 import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
-import Control.Monad.IO.Class (MonadIO(..))
 import Data.Typeable
 import Data.Map (Map)
 import Data.Data (Data)

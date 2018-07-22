@@ -27,8 +27,6 @@ import Control.Monad
 import Data.Array
 import Data.IORef
 import Data.List
-import qualified Data.Map as Map
-import Data.Map (Map)
 import Data.Word
 
 import BinIface (getSymtabName, getDictFastString)

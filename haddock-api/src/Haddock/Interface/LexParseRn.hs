@@ -28,7 +28,7 @@ import Data.Ord
 import qualified Data.Map as Map
 import Documentation.Haddock.Doc (metaDocConcat)
 import qualified Documentation.Haddock.Parser as LibParser
-import DynFlags (getDynFlags, languageExtensions, Language)
+import DynFlags (getDynFlags, Language)
 import qualified GHC.LanguageExtensions as LangExt
 import GHC
 import Haddock.Interface.ParseModuleHeader
@@ -38,7 +38,6 @@ import Name
 import Outputable ( showPpr, showSDoc )
 import RdrName
 import EnumSet
-import RnEnv (dataTcOccs)
 
 processDocStrings :: Maybe Package -> Renamer -> [HsDocString]
                   -> ErrMsgGhc (Maybe (MDoc Name))
