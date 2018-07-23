@@ -196,7 +196,7 @@ ambiguous dflags x gres = do
       msg = "Warning: " ++ x_str ++ " is ambiguous. It is defined\n" ++
             concatMap (\n -> "    * " ++ defnLoc n ++ "\n") (map gre_name gres) ++
             "    You may be able to disambiguate the identifier by qualifying it or\n" ++
-            "    by hiding some imports.\n" ++
+            "    by specifying the type/value namespace explicitly.\n" ++
             "    Defaulting to " ++ x_str ++ " defined " ++ defnLoc dflt
   -- TODO: Once we have a syntax for namespace qualification (#667) we may also
   -- want to emit a warning when an identifier is a data constructor for a type
