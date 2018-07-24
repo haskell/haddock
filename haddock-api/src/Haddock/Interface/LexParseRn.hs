@@ -100,7 +100,7 @@ rename dflags gre = rn
             isValueName = isDataOcc occ || isVarOcc occ
 
         let valueNsChoices | isValueName = [x]
-                           | otherwise   = []
+                           | otherwise   = [] -- is this ever possible?
             typeNsChoices  | isValueName = [setRdrNameSpace x tcName]
                            | otherwise   = [x]
 
@@ -117,7 +117,9 @@ rename dflags gre = rn
           -- We found no names in the env so we start guessing.
           [] ->
             case choices of
-              [] -> pure (DocMonospaced (DocString (showPpr dflags x)))
+              -- The only way this can happen is if a value namespace was
+              -- specified on something that cannot be a value.
+              [] -> invalidValue dflags x
 
               -- There was nothing in the environment so we need to
               -- pick some default from what's available to us. We
@@ -127,7 +129,7 @@ rename dflags gre = rn
               -- type constructor names (such as in #253). So now we
               -- only get type constructor links if they are actually
               -- in scope.
-              a:_ -> outOfScope dflags a
+              a:_ -> outOfScope dflags ns a
 
           -- There is only one name in the environment that matches so
           -- use it.
@@ -166,16 +168,21 @@ rename dflags gre = rn
 -- users shouldn't rely on this doing the right thing. See tickets
 -- #253 and #375 on the confusion this causes depending on which
 -- default we pick in 'rename'.
-outOfScope :: DynFlags -> RdrName -> ErrMsgM (Doc a)
-outOfScope dflags x =
+outOfScope :: DynFlags -> Namespace -> RdrName -> ErrMsgM (Doc a)
+outOfScope dflags ns x =
   case x of
     Unqual occ -> warnAndMonospace occ
     Qual mdl occ -> pure (DocIdentifierUnchecked (mdl, occ))
     Orig _ occ -> warnAndMonospace occ
     Exact name -> warnAndMonospace name  -- Shouldn't happen since x is out of scope
   where
+    prefix = case ns of
+               Value -> "the value "
+               Type -> "the type "
+               None -> ""
+
     warnAndMonospace a = do
-      tell ["Warning: '" ++ showPpr dflags a ++ "' is out of scope.\n" ++
+      tell ["Warning: " ++ prefix ++ "'" ++ showPpr dflags a ++ "' is out of scope.\n" ++
             "    If you qualify the identifier, haddock can try to link it\n" ++
             "    it anyway."]
       pure (monospaced a)
@@ -210,3 +217,13 @@ ambiguous dflags x gres = do
     isLocalName _ = False
     x_str = '\'' : showPpr dflags x ++ "'"
     defnLoc = showSDoc dflags . pprNameDefnLoc
+
+-- | Handle value-namespaced names that cannot be for values.
+--
+-- Emits a warning that the value-namespace is invalid on a non-value identifier.
+invalidValue :: DynFlags -> RdrName -> ErrMsgM (Doc a)
+invalidValue dflags x = do
+  tell ["Warning: '" ++ showPpr dflags x ++ "' cannot be value, yet it is\n" ++
+            "    namespaced as such. Did you mean to specify a type namespace\n" ++
+            "    instead?"]
+  pure (DocMonospaced (DocString (showPpr dflags x)))

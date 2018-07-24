@@ -858,4 +858,4 @@ identifier = do
   e <- idDelim
   return $ DocIdentifier (Identifier ns o vid e)
   where
-    idDelim = Parsec.oneOf "\'`"
+    idDelim = Parsec.oneOf "'`"
