@@ -17,6 +17,12 @@ import Data.Maybe
 import System.Directory
 import System.FilePath
 
+import HieTypes
+import HieUtils (recoverFullType)
+import Data.Map as M
+import FastString
+import HieDebug
+
 
 -- | Generate hyperlinked source for given interfaces.
 --
@@ -44,9 +50,22 @@ ppHyperlinkedSource outdir libdir mstyle pretty srcs ifaces = do
 ppHyperlinkedModuleSource :: FilePath -> Bool -> SrcMap -> Interface
                           -> IO ()
 ppHyperlinkedModuleSource srcdir pretty srcs iface =
-    case ifaceTokenizedSrc iface of
-        Just tokens -> writeUtf8File path . html . render' $ tokens
-        Nothing -> return ()
+    case (ifaceTokenizedSrc iface, ifaceHieFile iface) of
+        (Just tokens, Just hiefile) -> do
+            let mast = if M.size asts == 1
+                       then snd <$> M.lookupMin asts
+                       else M.lookup (mkFastString file) asts
+                file = hsFile hiefile
+                asts = getAsts $ hieAST hiefile
+            case mast of
+              Just ast -> do
+                  let types = hieTypes hiefile
+                      flatAst = fmap (\i -> recoverFullType i types) ast
+                  writeUtf8File path . html . render' flatAst $ tokens
+              Nothing -> if M.size asts == 0
+                then return ()
+                else error $ "couldn't find ast for " ++ file ++ show (M.keys asts)
+        _ -> return ()
   where
     render' = render (Just srcCssFile) (Just highlightScript) srcs
     html = if pretty then renderHtml else showHtml

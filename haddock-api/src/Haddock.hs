@@ -447,7 +447,7 @@ readInterfaceFiles name_cache_accessor pairs bypass_version_check = do
 withGhc' :: String -> [String] -> (DynFlags -> Ghc a) -> IO a
 withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
   dynflags  <- getSessionDynFlags
-  dynflags' <- parseGhcFlags (gopt_set dynflags Opt_Haddock) {
+  dynflags' <- parseGhcFlags (foldl' gopt_set dynflags [Opt_IdeInfo, Opt_Haddock]) {
     hscTarget = HscNothing,
     ghcMode   = CompManager,
     ghcLink   = NoLink

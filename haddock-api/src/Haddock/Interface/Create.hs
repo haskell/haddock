@@ -28,7 +28,6 @@ import Haddock.Utils
 import Haddock.Convert
 import Haddock.Interface.LexParseRn
 import Haddock.Backends.Hyperlinker.Types
-import Haddock.Backends.Hyperlinker.Ast as Hyperlinker
 import Haddock.Backends.Hyperlinker.Parser as Hyperlinker
 
 import Data.Bifunctor
@@ -49,7 +48,7 @@ import qualified Avail
 import qualified Module
 import qualified SrcLoc
 import ConLike (ConLike(..))
-import GHC
+import GHC hiding (Token)
 import HscTypes
 import Name
 import NameSet
@@ -61,6 +60,10 @@ import TcRnTypes
 import FastString ( unpackFS, fastStringToByteString)
 import BasicTypes ( StringLiteral(..), SourceText(..), PromotionFlag(..) )
 import qualified Outputable as O
+
+import Data.IORef
+import HieTypes
+import HieBin
 
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
@@ -169,7 +172,7 @@ createInterface tm flags modMap instIfaceMap = do
 
   modWarn <- liftErrMsg (moduleWarning dflags gre warnings)
 
-  tokenizedSrc <- mkMaybeTokenizedSrc dflags flags tm
+  (tokenizedSrc,hieFile) <- mkMaybeTokenizedSrc dflags flags tm
 
   return $! Interface {
     ifaceMod               = mdl
@@ -197,6 +200,7 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceHaddockCoverage   = coverage
   , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = tokenizedSrc
+  , ifaceHieFile           = hieFile
   }
 
 
@@ -1201,30 +1205,37 @@ seqList [] = ()
 seqList (x : xs) = x `seq` seqList xs
 
 mkMaybeTokenizedSrc :: DynFlags -> [Flag] -> TypecheckedModule
-                    -> ErrMsgGhc (Maybe [RichToken])
+                    -> ErrMsgGhc (Maybe [Token], Maybe HieFile)
 mkMaybeTokenizedSrc dflags flags tm
     | Flag_HyperlinkedSource `elem` flags = case renamedSource tm of
         Just src -> do
             tokens <- liftGhcToErrMsgGhc (liftIO (mkTokenizedSrc dflags summary src))
-            return $ Just tokens
+            hiefile <- liftGhcToErrMsgGhc $ do
+              env <- getSession
+              nc <- liftIO $ readIORef $ hsc_NC env
+              let hiefile = ml_hie_file $ ms_location summary
+              (file, nc') <- liftIO $ readHieFile nc hiefile
+              liftIO $ writeIORef (hsc_NC env) nc'
+              return file
+            return (Just tokens,Just hiefile)
         Nothing -> do
             liftErrMsg . tell . pure $ concat
                 [ "Warning: Cannot hyperlink module \""
                 , moduleNameString . ms_mod_name $ summary
                 , "\" because renamed source is not available"
                 ]
-            return Nothing
-    | otherwise = return Nothing
+            return (Nothing,Nothing)
+    | otherwise = return (Nothing,Nothing)
   where
     summary = pm_mod_summary . tm_parsed_module $ tm
 
-mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [RichToken]
+mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [Token]
 mkTokenizedSrc dflags ms src = do
   -- make sure to read the whole file at once otherwise
   -- we run out of file descriptors (see #495)
   rawSrc <- BS.readFile (msHsFilePath ms) >>= evaluate
   let tokens = Hyperlinker.parse dflags filepath (Utf8.decodeUtf8 rawSrc)
-  return $ Hyperlinker.enrich src tokens
+  return tokens
   where
     filepath = msHsFilePath ms
 
