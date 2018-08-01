@@ -26,6 +26,7 @@ import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
 
 import FastString
+import SrcLoc (containsSpan)
 
 type StyleClass = String
 
@@ -37,8 +38,7 @@ render mcss mjs srcs ast tokens = header mcss mjs <> body srcs ast tokens
 body :: SrcMap -> HieAST HieTypeFix -> [Token] -> Html
 body srcs ast tokens = Html.body . Html.pre $ hypsrc
   where
-    hypsrc = mconcat . map (richToken srcs ast) $ tokens
-
+    hypsrc = renderWithAst srcs ast tokens
 
 header :: Maybe FilePath -> Maybe FilePath -> Html
 header mcss mjs
@@ -58,32 +58,54 @@ header mcss mjs =
         , Html.src scriptFile
         ]
 
+splitTokens :: HieAST HieTypeFix -> [Token] -> ([Token],[Token],[Token])
+splitTokens ast toks = (before,during,after)
+  where
+    (before,rest) = break inAst toks
+    (during,after) = break (not . inAst) rest
+    inAst t = nodeSpan ast `containsSpan` tkSpan t
+
+renderWithAst :: SrcMap -> HieAST HieTypeFix -> [Token] -> Html
+renderWithAst srcs ast toks = anchored $ case toks of
+    [tok] | nodeSpan ast == tkSpan tok -> richToken srcs (nodeInfo ast) tok
+    xs -> go (nodeChildren ast) xs
+  where
+    go _ [] = mempty
+    go [] xs = foldMap renderToken xs
+    go (cur:rest) xs =
+        foldMap renderToken before <> renderWithAst srcs cur during <> go rest after
+      where
+        (before,during,after) = splitTokens cur xs
+    anchored c = Map.foldrWithKey anchorOne c (nodeIdentifiers $ nodeInfo ast)
+    anchorOne n dets c = externalAnchor n d $ internalAnchor n d c
+      where d = identInfo dets
+
+renderToken :: Token -> Html
+renderToken Token{..}
+  | tkType == TkSpace = renderSpace (GHC.srcSpanStartLine tkSpan) tkValue
+  | otherwise = tokenSpan ! [ multiclass style ]
+      where
+        style = tokenStyle tkType
+        tokenSpan = Html.thespan (Html.toHtml tkValue)
+
 -- | Given information about the source position of definitions, render a token
-richToken :: SrcMap -> HieAST HieTypeFix -> Token -> Html
-richToken srcs ast Token{..}
+richToken :: SrcMap -> NodeInfo HieTypeFix -> Token -> Html
+richToken srcs details Token{..}
     | tkType == TkSpace = renderSpace (GHC.srcSpanStartLine tkSpan) tkValue
-    | otherwise = annotated $ linked content
+    | otherwise = annotate details $ linked content
   where
     content = tokenSpan ! [ multiclass style ]
     tokenSpan = Html.thespan (Html.toHtml tkValue)
-    style = tokenStyle tkType ++ maybe [] (concatMap richTokenStyle) contexts
+    style = tokenStyle tkType ++ concatMap richTokenStyle contexts
 
-    details = do
-      ast <- selectSmallestContaining tkSpan ast
-      return $ nodeInfo ast
+    contexts = concatMap (Set.elems . identInfo) . Map.elems . nodeIdentifiers $ details
 
-    contexts = concatMap (Set.elems . identInfo) . Map.elems . nodeIdentifiers <$> details
-
-    identDet = details >>=
-      Map.lookupMin . fmap identInfo . nodeIdentifiers
+    -- pick an arbitary identifier to hyperlink with
+    identDet = Map.lookupMin . nodeIdentifiers $ details
 
     -- If we have name information, we can make links
     linked = case identDet of
-      Just (n,d) -> externalAnchor n d . internalAnchor n d . hyperlink srcs n
-      Nothing -> id
-
-    annotated = case details of
-      Just d -> annotate d
+      Just (n,_) -> hyperlink srcs n
       Nothing -> id
 
 annotate :: NodeInfo HieTypeFix -> Html -> Html
