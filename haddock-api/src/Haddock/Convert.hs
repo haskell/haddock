@@ -482,8 +482,7 @@ synifyType _ (TyConApp tc tys)
                   = splitAtList  tys binders
             result_kind  = mkTyConKind remaining_binders res_kind
             result_vars  = tyCoVarsOfType result_kind
-            dropped_vars = fvVarSet $
-                           mapUnionFV injectiveVarsOfBinder dropped_binders
+            dropped_vars = mapUnionVarSet injectiveVarsOfBinder dropped_binders
 
         in not (subVarSet result_vars dropped_vars)
 
