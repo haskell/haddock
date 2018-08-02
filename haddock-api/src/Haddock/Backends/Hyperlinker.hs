@@ -19,9 +19,12 @@ import System.FilePath
 
 import HieTypes
 import HieUtils (recoverFullType)
+import HieBin
 import Data.Map as M
 import FastString
 import HieDebug
+import NameCache
+import UniqSupply
 
 
 -- | Generate hyperlinked source for given interfaces.
@@ -51,7 +54,9 @@ ppHyperlinkedModuleSource :: FilePath -> Bool -> SrcMap -> Interface
                           -> IO ()
 ppHyperlinkedModuleSource srcdir pretty srcs iface =
     case (ifaceTokenizedSrc iface, ifaceHieFile iface) of
-        (Just tokens, Just hiefile) -> do
+        (Just tokens, Just hfp) -> do
+            u <- mkSplitUniqSupply 'a'
+            (hiefile,_) <- readHieFile (initNameCache u []) hfp
             let mast = if M.size asts == 1
                        then snd <$> M.lookupMin asts
                        else M.lookup (mkFastString file) asts

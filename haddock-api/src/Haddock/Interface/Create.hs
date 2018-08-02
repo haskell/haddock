@@ -1205,18 +1205,14 @@ seqList [] = ()
 seqList (x : xs) = x `seq` seqList xs
 
 mkMaybeTokenizedSrc :: DynFlags -> [Flag] -> TypecheckedModule
-                    -> ErrMsgGhc (Maybe [Token], Maybe HieFile)
+                    -> ErrMsgGhc (Maybe [Token], Maybe FilePath)
 mkMaybeTokenizedSrc dflags flags tm
     | Flag_HyperlinkedSource `elem` flags = case renamedSource tm of
         Just src -> do
             tokens <- liftGhcToErrMsgGhc (liftIO (mkTokenizedSrc dflags summary src))
             hiefile <- liftGhcToErrMsgGhc $ do
-              env <- getSession
-              nc <- liftIO $ readIORef $ hsc_NC env
               let hiefile = ml_hie_file $ ms_location summary
-              (file, nc') <- liftIO $ readHieFile nc hiefile
-              liftIO $ writeIORef (hsc_NC env) nc'
-              return file
+              return hiefile
             return (Just tokens,Just hiefile)
         Nothing -> do
             liftErrMsg . tell . pure $ concat

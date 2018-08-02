@@ -90,7 +90,7 @@ span.annot:hover span.annottext{
 span.annot span.annottext:before{
   content: "";
   position: absolute;
-  left: -1em; top: -2em;
+  left: -1em; top: -1em;
   background: #FFFFFF00;
   z-index:-1;
   padding: 2em 2em;
