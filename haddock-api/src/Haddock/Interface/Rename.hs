@@ -179,8 +179,8 @@ renameLDocHsSyn = traverse renameHsDoc
     renameHsDoc :: HsDoc Name -> RnM (HsDoc DocName)
     renameHsDoc (HsDoc s ids) =
         HsDoc s <$> traverse renameId ids
-    renameId (HsDocIdentifier span_ s names) =
-      HsDocIdentifier span_ s <$> renameDoc names
+    renameId (HsDocIdentifier span_ names) =
+      HsDocIdentifier span_ <$> renameDoc names
 
 renameDoc :: Traversable t => t Name -> RnM (t DocName)
 renameDoc = traverse rename
