@@ -19,7 +19,7 @@ module Haddock.Backends.Hoogle (
 import BasicTypes (OverlapFlag(..), OverlapMode(..), SourceText(..))
 import InstEnv (ClsInst(..))
 import Haddock.GhcUtils
-import Haddock.Types hiding (Version)
+import Haddock.Types
 import Haddock.Utils hiding (out)
 
 import HsBinds (emptyLHsBinds)

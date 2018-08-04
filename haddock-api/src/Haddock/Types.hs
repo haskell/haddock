@@ -34,7 +34,19 @@ import Data.Typeable
 import Data.Map (Map)
 import Data.Data (Data)
 import qualified Data.Map as Map
-import Documentation.Haddock.Types
+import Documentation.Haddock.Types ( Example
+                                   , Header
+                                   , Hyperlink
+                                   , Picture
+                                   , DocH(..)
+                                   , Example(..)
+                                   , Header(..)
+                                   , Hyperlink(..)
+                                   , MetaDoc(..)
+                                   , Picture(..)
+                                   , Meta(..)
+                                   , overDoc )
+
 import BasicTypes (Fixity(..))
 
 import GHC hiding (NoLink)
