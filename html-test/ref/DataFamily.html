@@ -1,0 +1,564 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><title
+    >DataFamily</title
+    ><link href="#" rel="stylesheet" type="text/css" title="Ocean"
+     /><link rel="stylesheet" type="text/css" href="#"
+     /><script src="haddock-bundle.min.js" async="async" type="text/javascript"
+    ></script
+    ><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"
+    ></script
+    ></head
+  ><body
+  ><div id="package-header"
+    ><ul class="links" id="page-menu"
+      ><li
+	><a href="#"
+	  >Contents</a
+	  ></li
+	><li
+	><a href="#"
+	  >Index</a
+	  ></li
+	></ul
+      ><p class="caption empty"
+      ></p
+      ></div
+    ><div id="content"
+    ><div id="module-header"
+      ><table class="info"
+	><tr
+	  ><th
+	    >Safe Haskell</th
+	    ><td
+	    >Safe</td
+	    ></tr
+	  ></table
+	><p class="caption"
+	>DataFamily</p
+	></div
+      ><div id="synopsis"
+      ><details id="syn"
+	><summary
+	  >Synopsis</summary
+	  ><ul class="details-toggle" data-details-id="syn"
+	  ><li class="src short"
+	    ><span class="keyword"
+	      >data family</span
+	      > <a href="#"
+	      >Foo</a
+	      > a</li
+	    ><li class="src short"
+	    ><span class="keyword"
+	      >type family</span
+	      > <a href="#"
+	      >Fam</a
+	      > a :: *</li
+	    ></ul
+	  ></details
+	></div
+      ><div id="interface"
+      ><h1
+	>Documentation</h1
+	><div class="top"
+	><p class="src"
+	  ><span class="keyword"
+	    >data family</span
+	    > <a id="t:Foo" class="def"
+	    >Foo</a
+	    > a <span class="fixity"
+	    >infixl 3</span
+	    ><span class="rightedge"
+	    ></span
+	    > <a href="#" class="selflink"
+	    >#</a
+	    ></p
+	  ><div class="doc"
+	  ><p
+	    >some data family</p
+	    ></div
+	  ><div class="subs instances"
+	  ><details id="i:Foo" open="open"
+	    ><summary
+	      >Instances</summary
+	      ><table
+	      ><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Foo:Eq:1"
+		      ></span
+		      > <a href="#" title="Data.Eq"
+		      >Eq</a
+		      > (<a href="#" title="DataFamily"
+		      >Foo</a
+		      > <a href="#" title="Data.Int"
+		      >Int</a
+		      >)</span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc empty"
+		  ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Foo:Eq:1"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div class="subs methods"
+		      ><p class="caption"
+			>Methods</p
+			><p class="src"
+			><a href="#"
+			  >(==)</a
+			  > :: <a href="#" title="DataFamily"
+			  >Foo</a
+			  > <a href="#" title="Data.Int"
+			  >Int</a
+			  > -&gt; <a href="#" title="DataFamily"
+			  >Foo</a
+			  > <a href="#" title="Data.Int"
+			  >Int</a
+			  > -&gt; <a href="#" title="Data.Bool"
+			  >Bool</a
+			  > <a href="#" class="selflink"
+			  >#</a
+			  ></p
+			><p class="src"
+			><a href="#"
+			  >(/=)</a
+			  > :: <a href="#" title="DataFamily"
+			  >Foo</a
+			  > <a href="#" title="Data.Int"
+			  >Int</a
+			  > -&gt; <a href="#" title="DataFamily"
+			  >Foo</a
+			  > <a href="#" title="Data.Int"
+			  >Int</a
+			  > -&gt; <a href="#" title="Data.Bool"
+			  >Bool</a
+			  > <a href="#" class="selflink"
+			  >#</a
+			  ></p
+			></div
+		      ></details
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Foo:Foo:2"
+		      ></span
+		      > <span class="keyword"
+		      >data</span
+		      > <a href="#" title="DataFamily"
+		      >Foo</a
+		      > <a href="#" title="Data.Int"
+		      >Int</a
+		      ></span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc"
+		  ><p
+		    >A plain ADT instance</p
+		    ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Foo:Foo:2"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div
+		      ><div class="subs constructors"
+			><p class="caption"
+			  >Constructors</p
+			  ><table
+			  ><tr
+			    ><td class="src"
+			      ><a id="v:Foo_Int" class="def"
+				>Foo_Int</a
+				> <a href="#" title="Data.Int"
+				>Int</a
+				> <span class="fixity"
+				>infixr 5</span
+				><span class="rightedge"
+				></span
+				></td
+			      ><td class="doc"
+			      ><p
+				>Int</p
+				></td
+			      ></tr
+			    ><tr
+			    ><td class="src"
+			      ><a id="v:Foo_Zero" class="def"
+				>Foo_Zero</a
+				></td
+			      ><td class="doc"
+			      ><p
+				>Zero</p
+				></td
+			      ></tr
+			    ></table
+			  ></div
+			></div
+		      ></details
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Foo:Fam:3"
+		      ></span
+		      > <span class="keyword"
+		      >type</span
+		      > <a href="#" title="DataFamily"
+		      >Fam</a
+		      > (<a href="#" title="DataFamily"
+		      >Foo</a
+		      > <a href="#" title="Data.Int"
+		      >Int</a
+		      >)</span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc"
+		  ><p
+		    >one type instance</p
+		    ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Foo:Fam:3"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div class="src"
+		      ><span class="keyword"
+			>type</span
+			> <a href="#" title="DataFamily"
+			>Fam</a
+			> (<a href="#" title="DataFamily"
+			>Foo</a
+			> <a href="#" title="Data.Int"
+			>Int</a
+			>) = <a href="#" title="Data.Int"
+			>Int</a
+			></div
+		      ></details
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Foo:Fam:4"
+		      ></span
+		      > <span class="keyword"
+		      >type</span
+		      > <a href="#" title="DataFamily"
+		      >Fam</a
+		      > (<a href="#" title="DataFamily"
+		      >Foo</a
+		      > [a])</span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc"
+		  ><p
+		    >another type instance</p
+		    ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Foo:Fam:4"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div class="src"
+		      ><span class="keyword"
+			>type</span
+			> <a href="#" title="DataFamily"
+			>Fam</a
+			> (<a href="#" title="DataFamily"
+			>Foo</a
+			> [a]) = a</div
+		      ></details
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Foo:Foo:5"
+		      ></span
+		      > <span class="keyword"
+		      >newtype</span
+		      > <a href="#" title="DataFamily"
+		      >Foo</a
+		      > [a]</span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc"
+		  ><p
+		    >A newtype instance</p
+		    ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Foo:Foo:5"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div
+		      ><div class="subs constructors"
+			><p class="caption"
+			  >Constructors</p
+			  ><table
+			  ><tr
+			    ><td class="src"
+			      ><a id="v:Foo_List" class="def"
+				>Foo_List</a
+				> [a]</td
+			      ><td class="doc empty"
+			      ></td
+			      ></tr
+			    ></table
+			  ></div
+			></div
+		      ></details
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Foo:Foo:6"
+		      ></span
+		      > <span class="keyword"
+		      >data</span
+		      > <a href="#" title="DataFamily"
+		      >Foo</a
+		      > (a, b)</span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc"
+		  ><p
+		    >A GADT like instance</p
+		    ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Foo:Foo:6"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div
+		      ><div class="subs constructors"
+			><p class="caption"
+			  >Constructors</p
+			  ><table
+			  ><tr
+			    ><td class="src"
+			      ><a id="v:Foo_Eq" class="def"
+				>Foo_Eq</a
+				> <span class="fixity"
+				>infixl 2</span
+				><span class="rightedge"
+				></span
+				></td
+			      ><td class="doc empty"
+			      ></td
+			      ></tr
+			    ><tr
+			    ><td colspan="2"
+			      ><div class="subs fields"
+				><p class="caption"
+				  >Fields</p
+				  ><ul
+				  ><li
+				    ><dfn class="src"
+				      >:: a</dfn
+				      ><div class="doc"
+				      ><p
+					>lhs</p
+					></div
+				      ></li
+				    ><li
+				    ><dfn class="src"
+				      >-&gt; a</dfn
+				      ><div class="doc"
+				      ><p
+					>rhs</p
+					></div
+				      ></li
+				    ><li
+				    ><dfn class="src"
+				      >-&gt; <a href="#" title="DataFamily"
+					>Foo</a
+					> (a, a)</dfn
+				      ><div class="doc"
+				      ><p
+					>output</p
+					></div
+				      ></li
+				    ></ul
+				  ></div
+				></td
+			      ></tr
+			    ><tr
+			    ><td class="src"
+			      ><a id="v:Foo_MaybeEq" class="def"
+				>Foo_MaybeEq</a
+				> :: a -&gt; b -&gt; <a href="#" title="DataFamily"
+				>Foo</a
+				> (a, b)</td
+			      ><td class="doc empty"
+			      ></td
+			      ></tr
+			    ></table
+			  ></div
+			></div
+		      ></details
+		    ></td
+		  ></tr
+		></table
+	      ></details
+	    ></div
+	  ></div
+	><div class="top"
+	><p class="src"
+	  ><span class="keyword"
+	    >type family</span
+	    > <a id="t:Fam" class="def"
+	    >Fam</a
+	    > a :: * <a href="#" class="selflink"
+	    >#</a
+	    ></p
+	  ><div class="doc"
+	  ><p
+	    >some type family</p
+	    ></div
+	  ><div class="subs instances"
+	  ><details id="i:Fam" open="open"
+	    ><summary
+	      >Instances</summary
+	      ><table
+	      ><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Fam:Fam:1"
+		      ></span
+		      > <span class="keyword"
+		      >type</span
+		      > <a href="#" title="DataFamily"
+		      >Fam</a
+		      > (<a href="#" title="DataFamily"
+		      >Foo</a
+		      > <a href="#" title="Data.Int"
+		      >Int</a
+		      >)</span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc"
+		  ><p
+		    >one type instance</p
+		    ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Fam:Fam:1"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div class="src"
+		      ><span class="keyword"
+			>type</span
+			> <a href="#" title="DataFamily"
+			>Fam</a
+			> (<a href="#" title="DataFamily"
+			>Foo</a
+			> <a href="#" title="Data.Int"
+			>Int</a
+			>) = <a href="#" title="Data.Int"
+			>Int</a
+			></div
+		      ></details
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:Fam:Fam:2"
+		      ></span
+		      > <span class="keyword"
+		      >type</span
+		      > <a href="#" title="DataFamily"
+		      >Fam</a
+		      > (<a href="#" title="DataFamily"
+		      >Foo</a
+		      > [a])</span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc"
+		  ><p
+		    >another type instance</p
+		    ></td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:Fam:Fam:2"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>DataFamily</a
+			></p
+		      > <div class="src"
+		      ><span class="keyword"
+			>type</span
+			> <a href="#" title="DataFamily"
+			>Fam</a
+			> (<a href="#" title="DataFamily"
+			>Foo</a
+			> [a]) = a</div
+		      ></details
+		    ></td
+		  ></tr
+		></table
+	      ></details
+	    ></div
+	  ></div
+	></div
+      ></div
+    ><div id="footer"
+    ></div
+    ></body
+  ></html
+>
