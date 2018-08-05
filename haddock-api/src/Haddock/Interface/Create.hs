@@ -106,15 +106,15 @@ createInterface' mod_iface flags modMap instIfaceMap = do
   (!info, mbDoc) <- processModuleHeader pkgName renamer safety
                                         (docs_language mod_iface_docs)
                                         (docs_extensions mod_iface_docs)
-                                        (hsDoc'String <$> docs_mod_hdr mod_iface_docs)
+                                        (hsDocString <$> docs_mod_hdr mod_iface_docs)
 
-  modWarn <- moduleWarning renamer (hsDoc'String <$> warnings)
+  modWarn <- moduleWarning renamer (hsDocString <$> warnings)
 
-  let process = processDocStringParas pkgName renamer . hsDoc'String
+  let process = processDocStringParas pkgName renamer . hsDocString
   docMap <- traverse process (docs_decls mod_iface_docs)
   argMap <- traverse (traverse process) (docs_args mod_iface_docs)
 
-  warningMap <- mkWarningMap (hsDoc'String <$> warnings) renamer exportedNames
+  warningMap <- mkWarningMap (hsDocString <$> warnings) renamer exportedNames
 
   mod_details <- liftGhcToErrMsgGhc $ withSession $ \hsc_env -> do
     liftIO $ initIfaceCheck (Outputable.text "createInterface'") hsc_env (typecheckIface mod_iface)
@@ -790,10 +790,10 @@ mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warn
     lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
     lookupExport = \case
       DsiSectionHeading lev hsDoc' -> do
-        doc <- processDocString renamer (hsDoc'String hsDoc')
+        doc <- processDocString renamer (hsDocString hsDoc')
         pure [ExportGroup lev "" doc]
       DsiDocChunk hsDoc' -> do
-        doc <- processDocStringParas mbPkgName renamer (hsDoc'String hsDoc')
+        doc <- processDocStringParas mbPkgName renamer (hsDocString hsDoc')
         pure [ExportDoc doc]
       DsiNamedChunkRef ref -> do
         case M.lookup ref namedChunks of
@@ -801,7 +801,7 @@ mkExportItems' dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warn
             liftErrMsg $ tell ["Cannot find documentation for: $" ++ ref]
             pure []
           Just hsDoc' -> do
-            doc <- processDocStringParas mbPkgName renamer (hsDoc'String hsDoc')
+            doc <- processDocStringParas mbPkgName renamer (hsDocString hsDoc')
             pure [ExportDoc doc]
       DsiExports avails ->
         -- TODO: We probably don't need nubAvails here.
