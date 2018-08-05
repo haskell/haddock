@@ -65,7 +65,7 @@ import TcIface
 import TcRnMonad
 import FastString ( unpackFS )
 import HsDecls ( getConArgs )
-import BasicTypes ( SourceText(..), WarningTxt(..), WarningSort(..) )
+import BasicTypes ( SourceText(..), WarningTxt(..), WarningSort(..), warningTxtContents )
 import qualified Outputable as O
 import DynFlags ( getDynFlags )
 
@@ -261,7 +261,7 @@ createInterface tm flags modMap instIfaceMap = do
                                  RealSrcSpan rss -> Just rss
                                  UnhelpfulSpan _ -> Nothing)
 
-  warningMap <- mkWarningMap (hsDocString . unLoc <$> warnings) renamer exportedNames
+  warningMap <- mkWarningMap (hsDocString <$> warnings) renamer exportedNames
 
   maps@(!docMap, !argMap, !declMap, _) <-
     mkMaps pkgName renamer localInsts declsWithDocs
@@ -289,7 +289,7 @@ createInterface tm flags modMap instIfaceMap = do
         | otherwise = exportItems
       !prunedExportItems = seqList prunedExportItems' `seq` prunedExportItems'
 
-  modWarn <- moduleWarning renamer (hsDocString . unLoc <$> warnings)
+  modWarn <- moduleWarning renamer (hsDocString <$> warnings)
 
   tokenizedSrc <- mkMaybeTokenizedSrc dflags flags tm
 
@@ -444,7 +444,7 @@ moduleWarning _ (WarnSome _) = pure Nothing
 moduleWarning renamer (WarnAll w) = Just <$> parseWarning renamer w
 
 parseWarning :: Renamer -> WarningTxt HsDocString -> ErrMsgGhc (Doc Name)
-parseWarning renamer (WarningTxt sort_ _lbl msgs) =
+parseWarning renamer w =
   format heading (foldl' appendHDSAsParagraphs (mkHsDocString "") msgs)
   where
     format x msg = DocWarning . DocParagraph . DocAppend (DocString x)
@@ -452,6 +452,7 @@ parseWarning renamer (WarningTxt sort_ _lbl msgs) =
     heading = case sort_ of
       WsWarning -> "Warning: "
       WsDeprecated -> "Deprected: "
+    (sort_, msgs) = warningTxtContents w
 
 
 -------------------------------------------------------------------------------
