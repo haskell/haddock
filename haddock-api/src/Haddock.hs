@@ -362,9 +362,13 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
   -- might want to fix that if/when these two get some work on them
   when (Flag_Hoogle `elem` flags) $ do
     case pkgNameVer of
-      (Just (PackageName pkgNameFS), Just pkgVer) ->
-          let pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
-                         | otherwise = unpackFS pkgNameFS
+      (Just (PackageName pkgNameFS), mpkgVer) ->
+          let
+            pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
+                       | otherwise = unpackFS pkgNameFS
+
+            pkgVer =
+              fromMaybe (mkVersion []) mpkgVer
           in ppHoogle dflags' pkgNameStr pkgVer title (fmap _doc prologue)
                visibleIfaces odir
       _ -> putStrLn . unlines $
