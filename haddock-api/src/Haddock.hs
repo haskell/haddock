@@ -48,6 +48,7 @@ import Control.Exception
 import Data.Maybe
 import Data.IORef
 import Data.Map (Map)
+import Data.Version (mkVersion)
 import qualified Data.Map as Map
 import System.IO
 import System.Exit
