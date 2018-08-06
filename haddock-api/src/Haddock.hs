@@ -48,7 +48,7 @@ import Control.Exception
 import Data.Maybe
 import Data.IORef
 import Data.Map (Map)
-import Data.Version (mkVersion)
+import Data.Version (makeVersion)
 import qualified Data.Map as Map
 import System.IO
 import System.Exit
@@ -369,7 +369,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
                        | otherwise = unpackFS pkgNameFS
 
             pkgVer =
-              fromMaybe (mkVersion []) mpkgVer
+              fromMaybe (makeVersion []) mpkgVer
           in ppHoogle dflags' pkgNameStr pkgVer title (fmap _doc prologue)
                visibleIfaces odir
       _ -> putStrLn . unlines $
