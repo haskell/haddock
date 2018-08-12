@@ -12,7 +12,7 @@ import qualified Name as GHC
 import qualified Unique as GHC
 import HieTypes hiding (Span)
 import HieUtils
-import HieDebug
+import DynFlags (DynFlags)
 
 import System.FilePath.Posix ((</>))
 
@@ -26,19 +26,19 @@ import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
 
 import FastString
-import SrcLoc (containsSpan)
+import SrcLoc
 
 type StyleClass = String
 
 
-render :: Maybe FilePath -> Maybe FilePath -> SrcMap -> HieAST HieTypeFix -> [Token]
+render :: Maybe FilePath -> Maybe FilePath -> DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token]
        -> Html
-render mcss mjs srcs ast tokens = header mcss mjs <> body srcs ast tokens
+render mcss mjs df srcs ast tokens = header mcss mjs <> body df srcs ast tokens
 
-body :: SrcMap -> HieAST HieTypeFix -> [Token] -> Html
-body srcs ast tokens = Html.body . Html.pre $ hypsrc
+body :: DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token] -> Html
+body df srcs ast tokens = Html.body . Html.pre $ hypsrc
   where
-    hypsrc = renderWithAst srcs ast tokens
+    hypsrc = renderWithAst df srcs ast tokens
 
 header :: Maybe FilePath -> Maybe FilePath -> Html
 header mcss mjs
@@ -59,21 +59,24 @@ header mcss mjs =
         ]
 
 splitTokens :: HieAST HieTypeFix -> [Token] -> ([Token],[Token],[Token])
-splitTokens ast toks = (before,during,after)
+splitTokens ast toks' = (initial++before,during,after)
   where
-    (before,rest) = break inAst toks
-    (during,after) = break (not . inAst) rest
-    inAst t = nodeSpan ast `containsSpan` tkSpan t
+    (initial,toks) = span ((== fsLit "lexing") . srcSpanFile . tkSpan) toks'
+    (before,rest) = span leftOf toks
+    (during,after) = span inAst rest
+    leftOf t = realSrcSpanEnd (tkSpan t) <= realSrcSpanStart nodeSp
+    inAst t = nodeSp `containsSpan` tkSpan t
+    nodeSp = nodeSpan ast
 
-renderWithAst :: SrcMap -> HieAST HieTypeFix -> [Token] -> Html
-renderWithAst srcs ast toks = anchored $ case toks of
-    [tok] | nodeSpan ast == tkSpan tok -> richToken srcs (nodeInfo ast) tok
+renderWithAst :: DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token] -> Html
+renderWithAst df srcs ast toks = anchored $ case toks of
+    [tok] | nodeSpan ast == tkSpan tok -> richToken df srcs (nodeInfo ast) tok
     xs -> go (nodeChildren ast) xs
   where
     go _ [] = mempty
     go [] xs = foldMap renderToken xs
     go (cur:rest) xs =
-        foldMap renderToken before <> renderWithAst srcs cur during <> go rest after
+        foldMap renderToken before <> renderWithAst df srcs cur during <> go rest after
       where
         (before,during,after) = splitTokens cur xs
     anchored c = Map.foldrWithKey anchorOne c (nodeIdentifiers $ nodeInfo ast)
@@ -89,10 +92,10 @@ renderToken Token{..}
         tokenSpan = Html.thespan (Html.toHtml tkValue)
 
 -- | Given information about the source position of definitions, render a token
-richToken :: SrcMap -> NodeInfo HieTypeFix -> Token -> Html
-richToken srcs details Token{..}
+richToken :: DynFlags -> SrcMap -> NodeInfo HieTypeFix -> Token -> Html
+richToken df srcs details Token{..}
     | tkType == TkSpace = renderSpace (GHC.srcSpanStartLine tkSpan) tkValue
-    | otherwise = annotate details $ linked content
+    | otherwise = annotate df details $ linked content
   where
     content = tokenSpan ! [ multiclass style ]
     tokenSpan = Html.thespan (Html.toHtml tkValue)
@@ -108,8 +111,8 @@ richToken srcs details Token{..}
       Just (n,_) -> hyperlink srcs n
       Nothing -> id
 
-annotate :: NodeInfo HieTypeFix -> Html -> Html
-annotate ni content =
+annotate :: DynFlags -> NodeInfo HieTypeFix -> Html -> Html
+annotate df ni content =
     Html.thespan (annot <> content) ! [ Html.theclass "annot" ]
   where
     annot
@@ -117,11 +120,11 @@ annotate ni content =
           Html.thespan (Html.toHtml annotation) ! [ Html.theclass "annottext" ]
       | otherwise = mempty
     annotation = typ ++ identTyps
-    typ = unlines $ map show $ nodeType ni
+    typ = unlines $ map (renderHieType df) $ nodeType ni
     typedIdents = [ (n,t) | (n, identType -> Just t) <- Map.toList $ nodeIdentifiers ni ]
     identTyps
       | length typedIdents > 1 || null typ
-          = concatMap (\(n,t) -> printName n ++ " :: " ++ show t ++ "\n") typedIdents
+          = concatMap (\(n,t) -> printName n ++ " :: " ++ renderHieType df t ++ "\n") typedIdents
       | otherwise = ""
 
     printName (Right n) = unpackFS $ GHC.occNameFS $ GHC.getOccName n

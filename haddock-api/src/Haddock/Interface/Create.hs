@@ -172,8 +172,6 @@ createInterface tm flags modMap instIfaceMap = do
 
   modWarn <- liftErrMsg (moduleWarning dflags gre warnings)
 
-  (tokenizedSrc,hieFile) <- mkMaybeTokenizedSrc dflags flags tm
-
   return $! Interface {
     ifaceMod               = mdl
   , ifaceIsSig             = is_sig
@@ -199,8 +197,8 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceRnOrphanInstances = [] -- Filled in `renameInterface`
   , ifaceHaddockCoverage   = coverage
   , ifaceWarningMap        = warningMap
-  , ifaceTokenizedSrc      = tokenizedSrc
-  , ifaceHieFile           = hieFile
+  , ifaceHieFile           = Just $ ml_hie_file $ ms_location ms
+  , ifaceDynFlags          = dflags
   }
 
 
@@ -1203,37 +1201,6 @@ mkVisibleNames (_, _, _, instMap) exports opts
 seqList :: [a] -> ()
 seqList [] = ()
 seqList (x : xs) = x `seq` seqList xs
-
-mkMaybeTokenizedSrc :: DynFlags -> [Flag] -> TypecheckedModule
-                    -> ErrMsgGhc (Maybe [Token], Maybe FilePath)
-mkMaybeTokenizedSrc dflags flags tm
-    | Flag_HyperlinkedSource `elem` flags = case renamedSource tm of
-        Just src -> do
-            tokens <- liftGhcToErrMsgGhc (liftIO (mkTokenizedSrc dflags summary src))
-            hiefile <- liftGhcToErrMsgGhc $ do
-              let hiefile = ml_hie_file $ ms_location summary
-              return hiefile
-            return (Just tokens,Just hiefile)
-        Nothing -> do
-            liftErrMsg . tell . pure $ concat
-                [ "Warning: Cannot hyperlink module \""
-                , moduleNameString . ms_mod_name $ summary
-                , "\" because renamed source is not available"
-                ]
-            return (Nothing,Nothing)
-    | otherwise = return (Nothing,Nothing)
-  where
-    summary = pm_mod_summary . tm_parsed_module $ tm
-
-mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [Token]
-mkTokenizedSrc dflags ms src = do
-  -- make sure to read the whole file at once otherwise
-  -- we run out of file descriptors (see #495)
-  rawSrc <- BS.readFile (msHsFilePath ms) >>= evaluate
-  let tokens = Hyperlinker.parse dflags filepath (Utf8.decodeUtf8 rawSrc)
-  return tokens
-  where
-    filepath = msHsFilePath ms
 
 -- | Find a stand-alone documentation comment by its name.
 findNamedDoc :: String -> [HsDecl GhcRn] -> ErrMsgM (Maybe HsDocString)
