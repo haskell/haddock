@@ -135,7 +135,11 @@ createInterface mod_iface flags modMap instIfaceMap = do
       allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
       -- Locations of all TH splices
-      splices = S.toList (docs_splices mod_iface_docs)
+      -- TODO: We use the splice info in 'Haddock.Backends.Xhtml.Layout.links' to
+      -- determine what kind of link we want to generate. Since we depend on
+      -- declaration locations there, it makes sense to get the splice locations
+      -- together with the other locations from the extended .hie files.
+      splices = []
 
   exportItems <- mkExportItems (docs_structure mod_iface_docs)
                                (docs_named_chunks mod_iface_docs)
