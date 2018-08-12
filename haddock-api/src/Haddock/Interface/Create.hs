@@ -123,9 +123,8 @@ createInterface mod_iface flags modMap instIfaceMap = do
   let instances = md_insts mod_details
       fam_instances = md_fam_insts mod_details
 
-  -- FIXME: md_types doesn't include the TyThings from re-exported modules.
-  -- Use the modMap IfaceMap for those modules.
-  declMap <- mkDeclMap mod_details (docs_locations mod_iface_docs)
+  -- TODO: Entirely remove DeclMap.
+  let declMap = M.empty
 
   let localInsts = filter (nameIsLocalOrFrom sem_mdl)
                         $  map getName instances
@@ -184,39 +183,6 @@ createInterface mod_iface flags modMap instIfaceMap = do
   , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = Nothing -- Ignore for now.
   }
-
--- TODO: Entirely remove mkDeclMap and DeclMap.
-mkDeclMap :: ModDetails -> Map Name SrcSpan -> ErrMsgGhc DeclMap
-mkDeclMap _ _ = pure M.empty
-{-
-mkDeclMap mod_details loc_map = do
-    dflags <- getDynFlags
-
-    let convert_ :: Name -> ErrMsgM (Maybe (LHsDecl GhcRn))
-        convert_ name =
-          case lookupNameEnv (md_types mod_details) name of
-            Nothing -> do
-              -- tell ["createInterface': Didn't find " ++ O.showPpr dflags name ++ " in md_types"]
-              pure Nothing
-            Just t -> case tyThingToLHsDecl t of
-              Left msg -> do
-                tell ["createInterface': " ++ msg]
-                pure Nothing
-              Right (msgs, decl) -> do
-                tell msgs
-                case M.lookup name loc_map of
-                  Nothing -> do
-                    tell ["mkDeclMap: Didn't find a location for " ++ O.showPpr dflags name]
-                    pure (Just (noLoc decl))
-                  Just loc -> pure (Just (L loc decl))
-
-    decls <- liftErrMsg $ forM (md_exports mod_details) $ \avail -> do
-      let mainName = availName avail
-          allNames = availNamesWithSelectors avail
-      decls <- catMaybes <$> traverse convert_ allNames
-      pure (mainName, decls)
-    pure (M.fromList decls)
--}
 
 -- TODO: Do we need a special case for the current module?
 unrestrictedModExports :: Avails -> [ModuleName]
