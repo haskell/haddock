@@ -58,7 +58,7 @@ import Name
 import NameSet
 import NameEnv
 import qualified Outputable
-import Packages   ( PackageName(..) )
+import Packages ( PackageName(..) )
 import Bag
 import SrcLoc
 import TcIface
