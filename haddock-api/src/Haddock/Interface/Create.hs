@@ -121,16 +121,14 @@ createInterface mod_iface flags modMap instIfaceMap = do
     (md_insts &&& md_fam_insts)
        <$> initIfaceCheck (Outputable.text "createInterface'") hsc_env
                           (typecheckIface mod_iface)
-
-  -- TODO: Entirely remove DeclMap.
-  let declMap = M.empty
-
   let localInsts = filter (nameIsLocalOrFrom sem_mdl)
                         $  map getName instances
                         ++ map getName fam_instances
       instanceMap = M.fromList (map (getSrcSpan &&& id) localInsts)
 
-  let maps = (docMap, argMap, declMap, instanceMap)
+      -- TODO: Entirely remove DeclMap.
+  let declMap = M.empty
+      maps = (docMap, argMap, declMap, instanceMap)
       allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
       -- Locations of all TH splices
