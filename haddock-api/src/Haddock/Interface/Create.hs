@@ -138,6 +138,8 @@ createInterface mod_iface flags modMap instIfaceMap = do
       -- together with the other locations from the extended .hie files.
       splices = []
 
+  -- The MAIN functionality: compute the export items which will
+  -- each be the actual documentation of this module.
   exportItems <- mkExportItems (docs_structure mod_iface_docs)
                                (docs_named_chunks mod_iface_docs)
                                is_sig modMap pkgName mdl sem_mdl allWarnings
