@@ -159,6 +159,8 @@ createIfaces0 verbosity modules flags instIfaceMap =
 
 createIfaces :: Verbosity -> [Flag] -> InstIfaceMap -> ModuleGraph -> Ghc [Interface]
 createIfaces verbosity flags instIfaceMap mods = do
+
+  -- Create (if necessary) and load .hi-files.
   success <- withTiming getDynFlags "load'" (const ()) $ do
                load' LoadAllTargets Nothing mods
   when (failed success) $ do
