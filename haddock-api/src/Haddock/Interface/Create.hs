@@ -140,11 +140,10 @@ createInterface mod_iface flags modMap instIfaceMap = do
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems (docs_structure mod_iface_docs)
-                               (docs_named_chunks mod_iface_docs)
-                               is_sig modMap pkgName mdl sem_mdl allWarnings
-                               renamer exportedNames maps fixMap
-                               splices instIfaceMap
+  exportItems <- mkExportItems is_sig modMap pkgName mdl sem_mdl allWarnings renamer
+                   exportedNames maps fixMap splices
+                   (docs_named_chunks mod_iface_docs)
+                   (docs_structure mod_iface_docs) instIfaceMap
 
   let !visibleNames = mkVisibleNames maps exportItems opts
 
@@ -299,9 +298,7 @@ mkFixMap exps occFixs =
     expsOccEnv = mkOccEnv (map (nameOccName &&& id) exps)
 
 mkExportItems
-  :: DocStructure
-  -> Map String HsDoc' -- Named chunks
-  -> Bool               -- is it a signature
+  :: Bool               -- is it a signature
   -> IfaceMap
   -> Maybe Package      -- this package
   -> Module             -- this module
@@ -309,14 +306,16 @@ mkExportItems
   -> WarningMap
   -> Renamer
   -> [Name]             -- exported names (orig)
---  -> [LHsDecl GhcRn]    -- renamed source declarations
   -> Maps
   -> FixMap
-  -> [RealSrcSpan]        -- splice locations
---  -> Avails             -- exported stuff from this module
+  -> [RealSrcSpan]      -- splice locations
+  -> Map String HsDoc'  -- named chunks
+  -> DocStructure
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
-mkExportItems dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warnings renamer exportedNames maps fixMap splices instIfaceMap = do
+mkExportItems
+  is_sig modMap mbPkgName thisMod semMod warnings renamer exportedNames
+  maps fixMap splices namedChunks dsItems instIfaceMap =
     concat <$> traverse lookupExport dsItems
   where
     lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
@@ -340,15 +339,14 @@ mkExportItems dsItems namedChunks is_sig ifaceMap mbPkgName thisMod semMod warni
         -- mkDocStructureFromExportList already uses it.
         concat <$> traverse availExport (nubAvails avails)
       DsiModExport mod_names avails -> do
-        -- only consider exporting a module if we are sure we
-        -- are really exporting the whole module and not some
-        -- subset.
+        -- only consider exporting a module if we are sure we are really
+        -- exporting the whole module and not some subset.
         (unrestricted_mods, remaining_avails) <- unrestrictedModExports avails (NE.toList mod_names)
         avail_exps <- concat <$> traverse availExport remaining_avails
         pure (map ExportModule unrestricted_mods ++ avail_exps)
 
     availExport avail =
-      availExportItem is_sig ifaceMap thisMod semMod warnings exportedNames
+      availExportItem is_sig modMap thisMod semMod warnings exportedNames
         maps fixMap splices instIfaceMap avail
 
 availExportItem :: Bool               -- is it a signature
