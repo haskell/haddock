@@ -116,12 +116,11 @@ createInterface mod_iface flags modMap instIfaceMap = do
 
   warningMap <- mkWarningMap (hsDocString <$> warnings) renamer exportedNames
 
-  mod_details <- liftGhcToErrMsgGhc $ withSession $ \hsc_env -> do
-    liftIO $ initIfaceCheck (Outputable.text "createInterface'") hsc_env (typecheckIface mod_iface)
-
   -- Are these all the (fam_)instances that we need?
-  let instances = md_insts mod_details
-      fam_instances = md_fam_insts mod_details
+  (instances, fam_instances) <- liftGhcToErrMsgGhc $ withSession $ \hsc_env -> liftIO $
+    (md_insts &&& md_fam_insts)
+       <$> initIfaceCheck (Outputable.text "createInterface'") hsc_env
+                          (typecheckIface mod_iface)
 
   -- TODO: Entirely remove DeclMap.
   let declMap = M.empty
