@@ -308,7 +308,7 @@ mkExportItems
   -> [Name]             -- exported names (orig)
   -> Maps
   -> FixMap
-  -> [RealSrcSpan]      -- splice locations
+  -> [SrcSpan]          -- splice locations
   -> Map String HsDoc'  -- named chunks
   -> DocStructure
   -> InstIfaceMap
@@ -357,7 +357,7 @@ availExportItem :: Bool               -- is it a signature
                 -> [Name]             -- exported names (orig)
                 -> Maps
                 -> FixMap
-                -> [RealSrcSpan]      -- splice locations
+                -> [SrcSpan]          -- splice locations
                 -> InstIfaceMap
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
@@ -374,7 +374,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
       case r of
         ([L l (ValD _ _)], (doc, _)) -> do
           -- Top-level binding without type signature
-          export <- hiValExportItem t l doc (isSplice l) $ M.lookup t fixMap
+          export <- hiValExportItem t l doc (l `elem` splices) $ M.lookup t fixMap
           return [export]
         (ds, docs_) | decl : _ <- filter (not . isValD . unLoc) ds ->
           let declNames = getMainDeclBinder (unL decl)
@@ -542,10 +542,6 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
       where
         constructor_names =
           filter isDataConName (availSubordinates avail)
-
-    isSplice :: SrcSpan -> Bool
-    isSplice (RealSrcSpan rss0) = any (\rss -> rss `containsSpan` rss0) splices
-    isSplice UnhelpfulSpan {} = False
 
 -- this heavily depends on the invariants stated in Avail
 availExportsDecl :: AvailInfo -> Bool
