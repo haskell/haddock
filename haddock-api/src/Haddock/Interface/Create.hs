@@ -78,10 +78,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
   dflags <- getDynFlags
 
   let mdl            = mi_module mod_iface
-
-      -- Not sure if this is right.
-      sem_mdl        = fromMaybe mdl (mi_sig_of mod_iface)
-
+      sem_mdl        = mi_semantic_module mod_iface
       is_sig         = isJust (mi_sig_of mod_iface)
       safety         = getSafeMode (mi_trust mod_iface)
 
