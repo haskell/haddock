@@ -435,10 +435,16 @@ withGhc' :: String -> [String] -> (DynFlags -> Ghc a) -> IO a
 withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
   dynflags  <- getSessionDynFlags
   dynflags' <- parseGhcFlags
-                 (foldl' gopt_set dynflags [ Opt_WriteInterface
-                                           , Opt_Haddock
-                                           , Opt_SkipIfaceVersionCheck
-                                           ]) {
+                 (foldl' gopt_set dynflags
+                         [ -- Include docstrings in .hi-files.
+                           Opt_Haddock
+
+                           -- Ignore any aspects of .hi-files except docs.
+                         , Opt_SkipIfaceVersionCheck
+
+                           -- If we can't use an old .hi-file, save the new one.
+                         , Opt_WriteInterface
+                         ]) {
     hscTarget = HscNothing,
     ghcMode   = CompManager,
     ghcLink   = NoLink
