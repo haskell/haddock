@@ -765,6 +765,7 @@ pruneExportItems = filter hasDoc
     hasDoc (ExportDecl{expItemMbDoc = (Documentation d _, _)}) = isJust d
     hasDoc _ = True
 
+
 mkVisibleNames :: Maps -> [ExportItem GhcRn] -> [DocOption] -> [Name]
 mkVisibleNames (_, _, _, instMap) exports opts
   | OptHide `elem` opts = []
