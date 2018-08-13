@@ -398,9 +398,6 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                   -- create an export item for a single name only.  So we
                   -- modify the signature to contain only that single name.
                   L loc (SigD _ sig) ->
-                    -- fromJust is safe since we already checked in guards
-                    -- that 't' is a name declared in this declaration.
-                    -- That's wrong.
                     case filterSigNames (== t) sig of
                       Nothing -> do
                         liftErrMsg $ tell [
