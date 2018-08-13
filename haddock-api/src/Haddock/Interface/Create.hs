@@ -239,9 +239,10 @@ mkWarningMap warnings renamer exps = case warnings of
     in M.fromList <$> traverse (traverse (parseWarning renamer)) ws'
 
 moduleWarning :: Renamer -> Warnings HsDocString -> ErrMsgGhc (Maybe (Doc Name))
-moduleWarning _ NoWarnings = pure Nothing
-moduleWarning _ (WarnSome _) = pure Nothing
-moduleWarning renamer (WarnAll w) = Just <$> parseWarning renamer w
+moduleWarning renamer = \case
+  NoWarnings -> pure Nothing
+  WarnSome _ -> pure Nothing
+  WarnAll w  -> Just <$> parseWarning renamer w
 
 parseWarning :: Renamer -> WarningTxt HsDocString -> ErrMsgGhc (Doc Name)
 parseWarning renamer w =
