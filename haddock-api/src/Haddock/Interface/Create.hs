@@ -184,7 +184,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
   , ifaceRnOrphanInstances = []
   , ifaceHaddockCoverage   = coverage
   , ifaceWarningMap        = warningMap
-  , ifaceTokenizedSrc      = Nothing -- Ignore for now.
+  , ifaceTokenizedSrc      = Nothing -- TODO: Get this from the extended .hie-files.
   }
 
 -- TODO: Do we need a special case for the current module?
