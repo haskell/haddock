@@ -368,7 +368,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
     declWith :: AvailInfo -> ErrMsgGhc [ ExportItem GhcRn ]
     declWith avail = do
       dflags <- getDynFlags
-      let t = availName avail -- 't' may not be in the scope of 'avail'.
+      let t = availName avail -- NB: 't' might not be in the scope of 'avail'.
                               -- Example: @data C = D@, where C isn't exported.
       r    <- findDecl avail
       case r of
