@@ -406,7 +406,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                           ". Names in the signature: " ++ pretty dflags (sigNameNoLoc sig)]
                         pure []
                       Just sig' ->
-                        availExportDecl avail (L loc (SigD noExt sig'))  docs_
+                        availExportDecl avail (L loc (SigD noExt sig')) docs_
                   L loc (TyClD _ cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
                     let sig = maybeToList $ fmap (noLoc . MinimalSig noExt NoSourceText . noLoc . fmap noLoc) mdef
