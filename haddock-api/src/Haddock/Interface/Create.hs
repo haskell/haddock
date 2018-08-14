@@ -19,30 +19,19 @@
 -----------------------------------------------------------------------------
 module Haddock.Interface.Create (createInterface) where
 
-import Documentation.Haddock.Doc (metaDocAppend)
-import Documentation.Haddock.Utf8 as Utf8
 import Haddock.Types
 import Haddock.Options
 import Haddock.GhcUtils
 import Haddock.Utils
 import Haddock.Convert
 import Haddock.Interface.LexParseRn
-import Haddock.Backends.Hyperlinker.Types
-import Haddock.Backends.Hyperlinker.Ast as Hyperlinker
-import Haddock.Backends.Hyperlinker.Parser as Hyperlinker
 
-import Data.Bifunctor
-import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import Data.Map (Map)
-import qualified Data.Set as S
 import Data.List
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
-import Data.Ord
-import Control.Applicative
 import Control.Arrow ((&&&))
-import Control.Exception (evaluate)
 import Control.Monad
 import Data.Traversable
 
@@ -56,11 +45,8 @@ import GhcMonad
 import HscTypes
 import Name
 import NameSet
-import NameEnv
 import qualified Outputable
 import Packages ( PackageName(..) )
-import Bag
-import SrcLoc
 import TcIface
 import TcRnMonad
 import FastString ( unpackFS )
