@@ -170,15 +170,8 @@ renameDocumentation :: Documentation Name -> RnM (Documentation DocName)
 renameDocumentation (Documentation mDoc mWarning) =
   Documentation <$> mapM renameDoc mDoc <*> mapM renameDoc mWarning
 
-
 renameLDocHsSyn :: LHsDoc Name -> RnM (LHsDoc DocName)
-renameLDocHsSyn = traverse renameHsDoc
-  where
-    renameHsDoc :: HsDoc Name -> RnM (HsDoc DocName)
-    renameHsDoc (HsDoc s ids) =
-        HsDoc s <$> traverse renameId ids
-    renameId (HsDocIdentifier span_ names) =
-      HsDocIdentifier span_ <$> renameDoc names
+renameLDocHsSyn = traverse renameDoc
 
 renameDoc :: Traversable t => t Name -> RnM (t DocName)
 renameDoc = traverse rename
