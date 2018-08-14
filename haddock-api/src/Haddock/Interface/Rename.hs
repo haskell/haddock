@@ -45,7 +45,6 @@ renameInterface dflags renamingEnv warnings iface =
       -- are closer to, or maybe even exported by, the current module.
       (renamedExportItems, missingNames1)
         = runRnFM localEnv (renameExportItems (ifaceExportItems iface))
-      -- ^ reports show as missing
 
       (rnDocMap, missingNames2) = runRnFM localEnv (mapM renameDoc (ifaceDocMap iface))
 
@@ -56,7 +55,6 @@ renameInterface dflags renamingEnv warnings iface =
 
       (finalModuleDoc, missingNames5)
         = runRnFM localEnv (renameDocumentation (ifaceDoc iface))
-      -- ^ reports show as missing
 
       -- combine the missing names and filter out the built-ins, which would
       -- otherwise always be missing.
