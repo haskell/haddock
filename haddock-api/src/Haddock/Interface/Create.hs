@@ -451,9 +451,10 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                 , Just f <- [M.lookup n fixMap]
                 ]
 
+          extracted <- extractDecl (availName avail) decl
+
           return [ ExportDecl {
-                       expItemDecl      = restrictTo (fmap fst subs)
-                                            (extractDecl declMap (availName avail) decl)
+                       expItemDecl      = restrictTo (fmap fst subs) extracted
                      , expItemPats      = bundledPatSyns
                      , expItemMbDoc     = doc
                      , expItemSubDocs   = subs
@@ -464,17 +465,18 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
                  ]
 
       | otherwise =
-          return [ ExportDecl {
-                       expItemDecl      = extractDecl declMap sub decl
-                     , expItemPats      = []
-                     , expItemMbDoc     = sub_doc
-                     , expItemSubDocs   = []
-                     , expItemInstances = []
-                     , expItemFixities  = [ (sub, f) | Just f <- [M.lookup sub fixMap] ]
-                     , expItemSpliced   = False
-                     }
-                 | (sub, sub_doc) <- subs
-                 ]
+          let extractSub (sub, sub_doc) = do
+                extracted <- extractDecl sub decl
+                pure (ExportDecl {
+                          expItemDecl      = extracted
+                        , expItemPats      = []
+                        , expItemMbDoc     = sub_doc
+                        , expItemSubDocs   = []
+                        , expItemInstances = []
+                        , expItemFixities  = [ (sub, f) | Just f <- [M.lookup sub fixMap] ]
+                        , expItemSpliced   = False
+                        })
+          in traverse extractSub subs
 
     exportedNameSet = mkNameSet exportedNames
     isExported n = elemNameSet n exportedNameSet
@@ -620,9 +622,9 @@ lookupDocs avail warnings docMap argMap =
 -- it might be an individual record selector or a class method.  In these
 -- cases we have to extract the required declaration (and somehow cobble
 -- together a type signature for it...).
-extractDecl :: DeclMap -> Name -> LHsDecl GhcRn -> LHsDecl GhcRn
-extractDecl declMap name decl
-  | name `elem` getMainDeclBinder (unLoc decl) = decl
+extractDecl :: Name -> LHsDecl GhcRn -> ErrMsgGhc (LHsDecl GhcRn)
+extractDecl name decl
+  | name `elem` getMainDeclBinder (unLoc decl) = pure decl
   | otherwise  =
     case unLoc decl of
       TyClD _ d@ClassDecl {} ->
@@ -645,29 +647,34 @@ extractDecl declMap name decl
         in case (matchesMethod, matchesAssociatedType)  of
           ([s0], _) -> let (n, tyvar_names) = (tcdName d, tyClDeclTyVars d)
                            L pos sig = addClassContext n tyvar_names s0
-                       in L pos (SigD noExt sig)
-          (_, [L pos fam_decl]) -> L pos (TyClD noExt (FamDecl noExt fam_decl))
+                       in pure (L pos (SigD noExt sig))
+          (_, [L pos fam_decl]) -> pure (L pos (TyClD noExt (FamDecl noExt fam_decl)))
 
-          ([], [])
-            | Just (famInstDecl:_) <- M.lookup name declMap
-            -> extractDecl declMap name famInstDecl
+          ([], []) -> do
+            famInstDeclOpt <- hiDecl name
+            case famInstDeclOpt of
+              Nothing -> O.pprPanic "extractDecl" (O.text "Failed to find decl for" O.<+> O.ppr name)
+              Just famInstDecl -> extractDecl name famInstDecl
           _ -> O.pprPanic "extractDecl" (O.text "Ambiguous decl for" O.<+> O.ppr name O.<+> O.text "in class:"
                                          O.$$ O.nest 4 (O.ppr d)
                                          O.$$ O.text "Matches:"
                                          O.$$ O.nest 4 (O.ppr matchesMethod O.<+> O.ppr matchesAssociatedType))
-      TyClD _ d@DataDecl {} ->
+      TyClD _ d@DataDecl {} -> pure $
         let (n, tyvar_tys) = (tcdName d, lHsQTyVarsToTypes (tyClDeclTyVars d))
         in if isDataConName name
            then SigD noExt <$> extractPatternSyn name n tyvar_tys (dd_cons (tcdDataDefn d))
            else SigD noExt <$> extractRecSel name n tyvar_tys (dd_cons (tcdDataDefn d))
       TyClD _ FamDecl {}
         | isValName name
-        , Just (famInst:_) <- M.lookup name declMap
-        -> extractDecl declMap name famInst
+        -> do
+          famInstOpt <- hiDecl name
+          case famInstOpt of
+            Nothing -> O.pprPanic "extractDecl" (O.text "Failed to find decl for" O.<+> O.ppr name)
+            Just famInst -> extractDecl name famInst
       InstD _ (DataFamInstD _ (DataFamInstDecl (HsIB { hsib_body =
                              FamEqn { feqn_tycon = L _ n
                                     , feqn_pats  = tys
-                                    , feqn_rhs   = defn }}))) ->
+                                    , feqn_rhs   = defn }}))) -> pure $
         if isDataConName name
         then SigD noExt <$> extractPatternSyn name n tys (dd_cons defn)
         else SigD noExt <$> extractRecSel name n tys (dd_cons defn)
@@ -680,7 +687,7 @@ extractDecl declMap name decl
                                , name `elem` map unLoc (concatMap (getConNames . unLoc) (dd_cons dd))
                                ]
             in case matches of
-                [d0] -> extractDecl declMap name (noLoc (InstD noExt (DataFamInstD noExt d0)))
+                [d0] -> extractDecl name (noLoc (InstD noExt (DataFamInstD noExt d0)))
                 _    -> error "internal: extractDecl (ClsInstD)"
         | otherwise ->
             let matches = [ d' | L _ d'@(DataFamInstDecl (HsIB { hsib_body = d }))
@@ -692,7 +699,7 @@ extractDecl declMap name decl
                                , extFieldOcc n == name
                           ]
             in case matches of
-              [d0] -> extractDecl declMap name (noLoc . InstD noExt $ DataFamInstD noExt d0)
+              [d0] -> extractDecl name (noLoc . InstD noExt $ DataFamInstD noExt d0)
               _ -> error "internal: extractDecl (ClsInstD)"
       x -> O.pprPanic "extractDecl" (O.ppr x)
 
