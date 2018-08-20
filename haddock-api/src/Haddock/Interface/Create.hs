@@ -110,8 +110,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
                         ++ map getName fam_instances
       instanceMap = M.fromList (map (getSrcSpan &&& id) localInsts)
 
-  let maps = (docMap, argMap, instanceMap)
-      allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
+  let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
       -- Locations of all TH splices
       -- TODO: We use the splice info in 'Haddock.Backends.Xhtml.Layout.links' to
@@ -122,12 +121,12 @@ createInterface mod_iface flags modMap instIfaceMap = do
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap pkgName mdl sem_mdl allWarnings renamer
-                   exportedNames maps fixMap splices
+  exportItems <- mkExportItems modMap pkgName mdl allWarnings renamer
+                   docMap argMap fixMap splices
                    (docs_named_chunks mod_iface_docs)
                    (docs_structure mod_iface_docs) instIfaceMap
 
-  let !visibleNames = mkVisibleNames maps exportItems opts
+  let !visibleNames = mkVisibleNames instanceMap exportItems opts
 
   -- Measure haddock documentation coverage.
   let prunedExportItems0 = pruneExportItems exportItems
@@ -157,7 +156,6 @@ createInterface mod_iface flags modMap instIfaceMap = do
   , ifaceRnExportItems     = []
   , ifaceExports           = exportedNames
   , ifaceVisibleExports    = visibleNames
-  , ifaceDeclMap           = M.empty      -- TODO: get rid of this
   , ifaceFixMap            = fixMap
   , ifaceInstances         = instances
   , ifaceFamInstances      = fam_instances
@@ -270,8 +268,6 @@ parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
 parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
 
-type Maps = (DocMap Name, ArgMap Name, InstMap)
-
 -- | Extract a map of fixity declarations only
 mkFixMap :: [Name] -> [(OccName, Fixity)] -> FixMap
 mkFixMap exps occFixs =
@@ -281,15 +277,13 @@ mkFixMap exps occFixs =
     expsOccEnv = mkOccEnv (map (nameOccName &&& id) exps)
 
 mkExportItems
-  :: Bool               -- is it a signature
-  -> IfaceMap
+  :: IfaceMap
   -> Maybe Package      -- this package
   -> Module             -- this module
-  -> Module             -- semantic module
   -> WarningMap
   -> Renamer
-  -> [Name]             -- exported names (orig)
-  -> Maps
+  -> DocMap Name        -- docs (keyed by 'Name's)
+  -> ArgMap Name        -- docs for arguments (keyed by 'Name's) 
   -> FixMap
   -> [SrcSpan]          -- splice locations
   -> Map String HsDoc'  -- named chunks
@@ -297,8 +291,8 @@ mkExportItems
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
-  is_sig modMap mbPkgName thisMod semMod warnings renamer exportedNames
-  maps fixMap splices namedChunks dsItems instIfaceMap =
+  modMap mbPkgName thisMod warnings renamer 
+  docMap argMap fixMap splices namedChunks dsItems instIfaceMap =
     concat <$> traverse lookupExport dsItems
   where
     lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
@@ -329,23 +323,21 @@ mkExportItems
         pure (map ExportModule unrestricted_mods ++ avail_exps)
 
     availExport avail =
-      availExportItem is_sig modMap thisMod semMod warnings exportedNames
-        maps fixMap splices instIfaceMap avail
+      availExportItem modMap thisMod warnings
+        docMap argMap fixMap splices instIfaceMap avail
 
-availExportItem :: Bool               -- is it a signature
-                -> IfaceMap
+availExportItem :: IfaceMap
                 -> Module             -- this module
-                -> Module             -- semantic module
                 -> WarningMap
-                -> [Name]             -- exported names (orig)
-                -> Maps
+                -> DocMap Name        -- docs (keyed by 'Name's)
+                -> ArgMap Name        -- docs for arguments (keyed by 'Name's) 
                 -> FixMap
                 -> [SrcSpan]          -- splice locations
                 -> InstIfaceMap
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
-availExportItem is_sig modMap thisMod semMod warnings exportedNames
-  (docMap, argMap, _) fixMap splices instIfaceMap
+availExportItem modMap thisMod warnings
+  docMap argMap fixMap splices instIfaceMap
   availInfo = declWith availInfo
   where
     declWith :: AvailInfo -> ErrMsgGhc [ ExportItem GhcRn ]
@@ -482,32 +474,14 @@ hiDecl t = do
 lookupDocs :: AvailInfo -> WarningMap -> DocMap Name -> ArgMap Name
            -> (DocForDecl Name, [(Name, DocForDecl Name)])
 lookupDocs avail warnings docMap argMap =
-  let n = availName avail in
-  let lookupArgDoc x = M.findWithDefault M.empty x argMap in
-  let doc = (lookupDoc n, lookupArgDoc n) in
-  let subDocs = [ (s, (lookupDoc s, lookupArgDoc s))
-                | s <- availSubordinates avail
-                ] in
-  (doc, subDocs)
+  ( lookupDocForDecl (availName avail)
+  , [ (s, lookupDocForDecl s) | s <- availSubordinates avail ]
+  )
   where
-    lookupDoc name = Documentation (M.lookup name docMap) (M.lookup name warnings)
+    lookupDoc x = Documentation (M.lookup x docMap) (M.lookup x warnings)
+    lookupArgDoc x = M.findWithDefault M.empty x argMap
+    lookupDocForDecl x = (lookupDoc x, lookupArgDoc x)
 
-
--- Note [1]:
-------------
--- It is unnecessary to document a subordinate by itself at the top level if
--- any of its parents is also documented. Furthermore, if the subordinate is a
--- record field or a class method, documenting it under its parent
--- indicates its special status.
---
--- A user might expect that it should show up separately, so we issue a
--- warning. It's a fine opportunity to also tell the user she might want to
--- export the subordinate through the parent export item for clarity.
---
--- The code removes top-level subordinates also when the parent is exported
--- through a 'module' export. I think that is fine.
---
--- (For more information, see Trac #69)
 
 -- | Sometimes the declaration we want to export is not the "main" declaration:
 -- it might be an individual record selector or a class method.  In these
@@ -651,8 +625,8 @@ pruneExportItems = filter hasDoc
     hasDoc _ = True
 
 
-mkVisibleNames :: Maps -> [ExportItem GhcRn] -> [DocOption] -> [Name]
-mkVisibleNames (_, _,  instMap) exports opts
+mkVisibleNames :: InstMap -> [ExportItem GhcRn] -> [DocOption] -> [Name]
+mkVisibleNames instMap exports opts
   | OptHide `elem` opts = []
   | otherwise = let ns = concatMap exportName exports
                 in seqList ns `seq` ns
