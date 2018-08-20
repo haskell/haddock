@@ -93,11 +93,6 @@ data Interface = Interface
     -- | Haddock options for this module (prune, not-home, etc).
   , ifaceOptions         :: ![DocOption]
 
-    -- | Declarations originating from the module. Excludes declarations without
-    -- names (instances and stand-alone documentation comments). Includes
-    -- names of subordinate declarations mapped to their parent declarations.
-  , ifaceDeclMap         :: !(Map Name [LHsDecl GhcRn])
-
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
   , ifaceDocMap          :: !(DocMap Name)
