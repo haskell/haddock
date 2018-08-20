@@ -474,8 +474,7 @@ hiDecl t = do
 lookupDocs :: AvailInfo -> WarningMap -> DocMap Name -> ArgMap Name
            -> (DocForDecl Name, [(Name, DocForDecl Name)])
 lookupDocs avail warnings docMap argMap =
-  let n = availName avail in 
-  ( lookupDocForDecl n
+  ( lookupDocForDecl (availName avail)
   , [ (s, lookupDocForDecl s) | s <- availSubordinates avail ]
   )
   where
