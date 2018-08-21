@@ -239,7 +239,7 @@ synifyTyCon coax tc
   -- That seems like an acceptable compromise (they'll just be documented
   -- in prefix position), since, otherwise, the logic (at best) gets much more
   -- complicated. (would use dataConIsInfix.)
-  use_gadt_syntax = any (not . isVanillaDataCon) (tyConDataCons tc)
+  use_gadt_syntax = isGadtSyntaxTyCon tc
   consRaw = map (synifyDataCon use_gadt_syntax) (tyConDataCons tc)
   cons = rights consRaw
   -- "deriving" doesn't affect the signature, no need to specify any.
@@ -338,7 +338,7 @@ synifyDataCon use_gadt_syntax dc =
            then return $ noLoc $
               ConDeclGADT { con_g_ext  = noExt
                           , con_names  = [name]
-                          , con_forall = noLoc True
+                          , con_forall = noLoc False
                           , con_qvars  = synifyTyVars (univ_tvs ++ ex_tvs)
                           , con_mb_cxt = Just ctx
                           , con_args   =  hat
@@ -347,7 +347,7 @@ synifyDataCon use_gadt_syntax dc =
            else return $ noLoc $
               ConDeclH98 { con_ext    = noExt
                          , con_name   = name
-                         , con_forall = noLoc True
+                         , con_forall = noLoc False
                          , con_ex_tvs = map synifyTyVar ex_tvs
                          , con_mb_cxt = Just ctx
                          , con_args   = hat
