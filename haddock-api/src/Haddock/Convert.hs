@@ -288,8 +288,9 @@ synifyInjectivityAnn (Just lhs) tvs (Injective inj) =
     in Just $ noLoc $ InjectivityAnn (noLoc lhs) rhs
 
 synifyFamilyResultSig :: Maybe Name -> Kind -> LFamilyResultSig GhcRn
-synifyFamilyResultSig  Nothing    kind =
-   noLoc $ KindSig  noExt (synifyKindSig kind)
+synifyFamilyResultSig  Nothing    kind
+   | isLiftedTypeKind kind = noLoc $ NoSig noExt
+   | otherwise = noLoc $ KindSig  noExt (synifyKindSig kind)
 synifyFamilyResultSig (Just name) kind =
    noLoc $ TyVarSig noExt (noLoc $ KindedTyVar noExt (noLoc name) (synifyKindSig kind))
 
