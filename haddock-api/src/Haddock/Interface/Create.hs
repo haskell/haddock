@@ -232,7 +232,7 @@ parseWarning renamer w =
                    <$> processDocString renamer msg
     heading = case sort_ of
       WsWarning -> "Warning: "
-      WsDeprecated -> "Deprected: "
+      WsDeprecated -> "Deprecated: "
     (sort_, msgs) = warningTxtContents w
 
 
