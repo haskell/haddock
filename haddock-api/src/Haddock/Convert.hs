@@ -542,25 +542,32 @@ synifyType _ (AppTy t1 t2) = let
   s1 = synifyType WithinType t1
   s2 = synifyType WithinType t2
   in noLoc $ HsAppTy noExt s1 s2
-synifyType _ (FunTy t1 t2) = let
-  s1 = synifyType WithinType t1
-  s2 = synifyType WithinType t2
-  in noLoc $ HsFunTy noExt s1 s2
-synifyType s forallty@(ForAllTy _tv _ty) =
-  let (tvs, ctx, tau) = tcSplitSigmaTyPreserveSynonyms forallty
+synifyType s funty@(FunTy t1 t2)
+  | isPredTy t1 = synifyForAllType s funty
+  | otherwise = let s1 = synifyType WithinType t1
+                    s2 = synifyType WithinType t2
+                in noLoc $ HsFunTy noExt s1 s2
+synifyType s forallty@(ForAllTy _tv _ty) = synifyForAllType s forallty
+
+synifyType _ (LitTy t) = noLoc $ HsTyLit noExt $ synifyTyLit t
+synifyType s (CastTy t _) = synifyType s t
+synifyType _ (CoercionTy {}) = error "synifyType:Coercion"
+
+-- | Process a 'Type' which starts with a forall or a constraint into
+-- an 'HsType'
+synifyForAllType :: SynifyTypeState -> Type -> LHsType GhcRn
+synifyForAllType s ty =
+  let (tvs, ctx, tau) = tcSplitSigmaTyPreserveSynonyms ty
       sPhi = HsQualTy { hst_ctxt = synifyCtx ctx
                       , hst_xqual   = noExt
                       , hst_body = synifyType WithinType tau }
   in case s of
     DeleteTopLevelQuantification -> synifyType ImplicitizeForAll tau
-    WithinType        -> noLoc $ HsForAllTy { hst_bndrs = map synifyTyVar tvs
-                                            , hst_xforall = noExt
-                                            , hst_body  = noLoc sPhi }
-    ImplicitizeForAll -> noLoc sPhi
-
-synifyType _ (LitTy t) = noLoc $ HsTyLit noExt $ synifyTyLit t
-synifyType s (CastTy t _) = synifyType s t
-synifyType _ (CoercionTy {}) = error "synifyType:Coercion"
+    WithinType | not (null tvs)  -> noLoc $ HsForAllTy
+                                              { hst_bndrs = map synifyTyVar tvs
+                                              , hst_xforall = noExt
+                                              , hst_body  = noLoc sPhi }
+    _ -> noLoc sPhi
 
 synifyPatSynType :: PatSyn -> LHsType GhcRn
 synifyPatSynType ps = let
