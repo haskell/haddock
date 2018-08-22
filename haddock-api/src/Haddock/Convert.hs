@@ -418,7 +418,8 @@ data SynifyTypeState
   -- quite understand what's going on.
   | ImplicitizeForAll
   -- ^ beginning of a function definition, in which, to make it look
-  --   less ugly, those rank-1 foralls are made implicit.
+  --   less ugly, those rank-1 foralls (without kind annotations) are made
+  --   implicit.
   | DeleteTopLevelQuantification
   -- ^ because in class methods the context is added to the type
   --   (e.g. adding @forall a. Num a =>@ to @(+) :: a -> a -> a@)
@@ -561,13 +562,21 @@ synifyForAllType s ty =
       sPhi = HsQualTy { hst_ctxt = synifyCtx ctx
                       , hst_xqual   = noExt
                       , hst_body = synifyType WithinType tau }
+      sTvs = map synifyTyVar tvs
+      sTy = HsForAllTy { hst_bndrs = sTvs
+                       , hst_xforall = noExt
+                       , hst_body  = noLoc sPhi }
   in case s of
     DeleteTopLevelQuantification -> synifyType ImplicitizeForAll tau
-    WithinType | not (null tvs)  -> noLoc $ HsForAllTy
-                                              { hst_bndrs = map synifyTyVar tvs
-                                              , hst_xforall = noExt
-                                              , hst_body  = noLoc sPhi }
-    _ -> noLoc sPhi
+
+    -- Put a forall in if there are any type variables
+    WithinType | not (null tvs) -> noLoc sTy
+               | otherwise -> noLoc sPhi
+
+    -- Put a forall in if there are any type variables with explicit
+    -- kind annotations
+    ImplicitizeForAll | any (isHsKindedTyVar . unLoc) sTvs -> noLoc sTy
+                      | otherwise -> noLoc sPhi
 
 synifyPatSynType :: PatSyn -> LHsType GhcRn
 synifyPatSynType ps = let
