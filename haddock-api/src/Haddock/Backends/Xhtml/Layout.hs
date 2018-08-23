@@ -74,8 +74,8 @@ sectionName = paragraph ! [theclass "caption"]
 -- If it would have otherwise been empty, then give it the class ".empty".
 nonEmptySectionName :: Html -> Html
 nonEmptySectionName c
-  | isNoHtml c = paragraph ! [theclass "caption empty"] $ spaceHtml
-  | otherwise  = paragraph ! [theclass "caption"]       $ c
+  | isNoHtml c = thespan ! [theclass "caption empty"] $ spaceHtml
+  | otherwise  = thespan ! [theclass "caption"]       $ c
 
 
 divPackageHeader, divContent, divModuleHeader, divFooter,

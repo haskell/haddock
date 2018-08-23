@@ -1,5 +1,7 @@
 ## Changes in version 2.19.1
 
+ * NewOcean is the new default theme (#721, #782)
+
  * Show where instances are defined (#748)
 
  * `@since` includes package name (#452, #550, #749)
