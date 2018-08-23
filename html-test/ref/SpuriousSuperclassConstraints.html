@@ -118,7 +118,9 @@ Fix spurious superclass constraints bug.</pre
 			><p class="src"
 			><a href="#"
 			  >fmap</a
-			  > :: (a -&gt; b) -&gt; <a href="#" title="SpuriousSuperclassConstraints"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a b. (a -&gt; b) -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
 			  > f a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
@@ -128,7 +130,9 @@ Fix spurious superclass constraints bug.</pre
 			><p class="src"
 			><a href="#"
 			  >(&lt;$)</a
-			  > :: a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a b. a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
 			  > f b -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
@@ -172,7 +176,9 @@ Fix spurious superclass constraints bug.</pre
 			><p class="src"
 			><a href="#"
 			  >pure</a
-			  > :: a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a. a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
 			  > f a <a href="#" class="selflink"
 			  >#</a
@@ -180,7 +186,9 @@ Fix spurious superclass constraints bug.</pre
 			><p class="src"
 			><a href="#"
 			  >(&lt;*&gt;)</a
-			  > :: <a href="#" title="SpuriousSuperclassConstraints"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a b. <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
 			  > f (a -&gt; b) -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
@@ -192,7 +200,9 @@ Fix spurious superclass constraints bug.</pre
 			><p class="src"
 			><a href="#"
 			  >liftA2</a
-			  > :: (a -&gt; b -&gt; c) -&gt; <a href="#" title="SpuriousSuperclassConstraints"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a b c. (a -&gt; b -&gt; c) -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
 			  > f a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
@@ -204,7 +214,9 @@ Fix spurious superclass constraints bug.</pre
 			><p class="src"
 			><a href="#"
 			  >(*&gt;)</a
-			  > :: <a href="#" title="SpuriousSuperclassConstraints"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a b. <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
 			  > f a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
@@ -216,7 +228,9 @@ Fix spurious superclass constraints bug.</pre
 			><p class="src"
 			><a href="#"
 			  >(&lt;*)</a
-			  > :: <a href="#" title="SpuriousSuperclassConstraints"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a b. <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a
 			  > f a -&gt; <a href="#" title="SpuriousSuperclassConstraints"
 			  >SomeType</a

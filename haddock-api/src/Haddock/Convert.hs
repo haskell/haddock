@@ -377,12 +377,19 @@ synifyTyVars ktvs = HsQTvs { hsq_ext = HsQTvsRn { hsq_implicit = []
                            , hsq_explicit = map synifyTyVar ktvs }
 
 synifyTyVar :: TyVar -> LHsTyVarBndr GhcRn
-synifyTyVar tv
-  | isLiftedTypeKind kind = noLoc (UserTyVar noExt (noLoc name))
-  | otherwise             = noLoc (KindedTyVar noExt (noLoc name) (synifyKindSig kind))
+synifyTyVar = synifyTyVar' emptyVarSet
+
+-- | Like 'synifyTyVar', but accepts a set of variables for which to omit kind
+-- signatures (even if they don't have the lifted type kind).
+synifyTyVar' :: VarSet -> TyVar -> LHsTyVarBndr GhcRn
+synifyTyVar' no_kinds tv
+  | isLiftedTypeKind kind || tv `elemVarSet` no_kinds
+  = noLoc (UserTyVar noExt (noLoc name))
+  | otherwise = noLoc (KindedTyVar noExt (noLoc name) (synifyKindSig kind))
   where
     kind = tyVarKind tv
     name = getName tv
+
 
 -- | Annotate (with HsKingSig) a type if the first parameter is True
 -- and if the type contains a free variable.
@@ -562,21 +569,67 @@ synifyForAllType s ty =
       sPhi = HsQualTy { hst_ctxt = synifyCtx ctx
                       , hst_xqual   = noExt
                       , hst_body = synifyType WithinType tau }
+
+      sTy ts = HsForAllTy { hst_bndrs = ts
+                          , hst_xforall = noExt
+                          , hst_body  = noLoc sPhi }
+
       sTvs = map synifyTyVar tvs
-      sTy = HsForAllTy { hst_bndrs = sTvs
-                       , hst_xforall = noExt
-                       , hst_body  = noLoc sPhi }
+
+      no_kinds_needed = noKindTyVars tau
+      sTvs' = map (synifyTyVar' no_kinds_needed) tvs
+
+      -- Figure out what the type variable order would be inferred in the
+      -- absence of an explicit forall
+      ctxTvs = tyCoVarsOfTypesWellScoped ctx
+      restTvs = filter (\tv -> not (tv `elemVarSet` mkVarSet ctxTvs))
+                       (tyCoVarsOfTypeWellScoped tau)
+      tvs' = ctxTvs ++ restTvs
+
   in case s of
     DeleteTopLevelQuantification -> synifyType ImplicitizeForAll tau
 
     -- Put a forall in if there are any type variables
-    WithinType | not (null tvs) -> noLoc sTy
-               | otherwise -> noLoc sPhi
+    WithinType
+      | not (null tvs) -> noLoc (sTy sTvs)
+      | otherwise -> noLoc sPhi
 
-    -- Put a forall in if there are any type variables with explicit
-    -- kind annotations
-    ImplicitizeForAll | any (isHsKindedTyVar . unLoc) sTvs -> noLoc sTy
-                      | otherwise -> noLoc sPhi
+    -- Put a forall in if there are any type variables which require
+    -- explicit kind annotations or if the inferred type variable order
+    -- would be different.
+    ImplicitizeForAll
+      | any (isHsKindedTyVar . unLoc) sTvs' -> noLoc (sTy sTvs')
+      | tvs' /= tvs                         -> noLoc (sTy sTvs')
+      | otherwise -> noLoc sPhi
+
+
+-- | Find the set of type variables whose kind signatures can be properly
+-- inferred just from their uses in the type signature. This means the type
+-- variable to has at least one fully applied use @f x1 x2 ... xn@ where:
+--
+--   * @f@ has a function kind where the arguments have the same kinds
+--     as @x1 x2 ... xn@.
+--
+--   * @f@ has a function kind whose final return has lifted type kind
+--
+noKindTyVars :: Type -> VarSet
+noKindTyVars (TyVarTy var)
+  | isLiftedTypeKind (tyVarKind var) = unitVarSet var
+noKindTyVars ty
+  | (f, xs) <- splitAppTys ty
+  , not (null xs)
+  = let args = map noKindTyVars xs
+        func = case f of
+                 TyVarTy var | (xsKinds, outKind) <- splitFunTys (tyVarKind var)
+                             , xsKinds `eqTypes` map typeKind xs
+                             , isLiftedTypeKind outKind
+                             -> unitVarSet var
+                 _ -> emptyVarSet
+    in unionVarSets (func : args)
+noKindTyVars (ForAllTy _ t) = noKindTyVars t
+noKindTyVars (FunTy t1 t2) = noKindTyVars t1 `unionVarSet` noKindTyVars t2
+noKindTyVars (CastTy t _) = noKindTyVars t
+noKindTyVars _ = emptyVarSet
 
 synifyPatSynType :: PatSyn -> LHsType GhcRn
 synifyPatSynType ps = let

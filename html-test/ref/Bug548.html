@@ -212,7 +212,9 @@
 			><p class="src"
 			><a href="#"
 			  >fmap</a
-			  > :: (a0 -&gt; b0) -&gt; <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0 b0. (a0 -&gt; b0) -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -222,7 +224,9 @@
 			><p class="src"
 			><a href="#"
 			  >(&lt;$)</a
-			  > :: a0 -&gt; <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0 b0. a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b b0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -268,7 +272,9 @@
 			><p class="src"
 			><a href="#"
 			  >pure</a
-			  > :: a0 -&gt; <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0. a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 <a href="#" class="selflink"
 			  >#</a
@@ -276,7 +282,9 @@
 			><p class="src"
 			><a href="#"
 			  >(&lt;*&gt;)</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0 b0. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b (a0 -&gt; b0) -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -288,7 +296,9 @@
 			><p class="src"
 			><a href="#"
 			  >liftA2</a
-			  > :: (a0 -&gt; b0 -&gt; c) -&gt; <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0 b0 c. (a0 -&gt; b0 -&gt; c) -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -300,7 +310,9 @@
 			><p class="src"
 			><a href="#"
 			  >(*&gt;)</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0 b0. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -312,7 +324,9 @@
 			><p class="src"
 			><a href="#"
 			  >(&lt;*)</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0 b0. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -362,7 +376,9 @@
 			><p class="src"
 			><a href="#"
 			  >empty</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 <a href="#" class="selflink"
 			  >#</a
@@ -370,7 +386,9 @@
 			><p class="src"
 			><a href="#"
 			  >(&lt;|&gt;)</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -382,7 +400,9 @@
 			><p class="src"
 			><a href="#"
 			  >some</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -392,7 +412,9 @@
 			><p class="src"
 			><a href="#"
 			  >many</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > a0. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b a0 -&gt; <a href="#" title="Bug548"
 			  >WrappedArrow</a
@@ -450,7 +472,9 @@
 			><p class="src"
 			><a href="#"
 			  >from</a
-			  > :: <a href="#" title="Bug548"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > x. <a href="#" title="Bug548"
 			  >WrappedArrow</a
 			  > a b c -&gt; <a href="#" title="GHC.Generics"
 			  >Rep</a
@@ -462,7 +486,9 @@
 			><p class="src"
 			><a href="#"
 			  >to</a
-			  > :: <a href="#" title="GHC.Generics"
+			  > :: <span class="keyword"
+			  >forall</span
+			  > x. <a href="#" title="GHC.Generics"
 			  >Rep</a
 			  > (<a href="#" title="Bug548"
 			  >WrappedArrow</a
