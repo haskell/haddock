@@ -34,11 +34,12 @@ import FamInstEnv
 import FastString
 import GHC
 import InstEnv
-import Module ( ModuleSet, moduleSetElts )
+import Module ( moduleSetElts, mkModuleSet )
 import MonadUtils (liftIO)
 import Name
 import NameEnv
 import Outputable (text, sep, (<+>))
+import Packages ( moduleToPkgConfAll, ModuleOrigin(..) )
 import PrelNames
 import SrcLoc
 import TyCon
@@ -52,13 +53,30 @@ type Modules = Set.Set Module
 type ExportInfo = (ExportedNames, Modules)
 
 -- Also attaches fixities
-attachInstances :: ExportInfo -> [Interface] -> InstIfaceMap -> ModuleSet -> Ghc [Interface]
-attachInstances expInfo ifaces instIfaceMap mods = do
+attachInstances :: ExportInfo -> [Interface] -> InstIfaceMap -> Ghc [Interface]
+attachInstances expInfo ifaces instIfaceMap = do
+
+  -- We need to keep load modules in which we will look for instances. We've
+  -- somewhat arbitrarily decided to load all modules which are available -
+  -- either directly or from a re-export.
+  --
+  -- See https://github.com/haskell/haddock/issues/469.
+  dflags <- getDynFlags
+  let mod_to_pkg_conf = moduleToPkgConfAll (pkgState dflags)
+      mods = mkModuleSet [ m
+                         | mod_map <- Map.elems mod_to_pkg_conf
+                         , ( m
+                           , ModOrigin { fromOrigPackage = fromOrig
+                                       , fromExposedReexport = reExp
+                                       }
+                           ) <- Map.assocs mod_map
+                         , fromOrig == Just True || not (null reExp)
+                         ]
+      mods' = Just (moduleSetElts mods)
+
   (_msgs, mb_index) <- getNameToInstancesIndex (map ifaceMod ifaces) mods'
   mapM (attach $ fromMaybe emptyNameEnv mb_index) ifaces
   where
-    mods' = Just (moduleSetElts mods)
-
     -- TODO: take an IfaceMap as input
     ifaceMap = Map.fromList [ (ifaceMod i, i) | i <- ifaces ]
 
