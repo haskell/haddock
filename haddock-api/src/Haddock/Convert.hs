@@ -51,7 +51,7 @@ import Haddock.Types
 import Haddock.Interface.Specialize
 import Haddock.GhcUtils                      ( orderedFVs )
 
-import Data.Maybe                            ( maybeToList )
+import Data.Maybe                            ( catMaybes, maybeToList )
 
 
 -- the main function here! yay!
@@ -71,16 +71,32 @@ tyThingToLHsDecl t = case t of
   -- later in the file (also it's used for class associated-types too.)
   ATyCon tc
     | Just cl <- tyConClass_maybe tc -- classes are just a little tedious
-    -> let extractFamilyDecl :: TyClDecl a -> Either ErrMsg (LFamilyDecl a)
-           extractFamilyDecl (FamDecl _ d) = return $ noLoc d
+    -> let extractFamilyDecl :: TyClDecl a -> Either ErrMsg (FamilyDecl a)
+           extractFamilyDecl (FamDecl _ d) = return d
            extractFamilyDecl _           =
              Left "tyThingToLHsDecl: impossible associated tycon"
 
-           atTyClDecls = [synifyTyCon Nothing at_tc | ATI at_tc _ <- classATItems cl]
-           atFamDecls  = map extractFamilyDecl (rights atTyClDecls)
-           tyClErrors = lefts atTyClDecls
-           famDeclErrors = lefts atFamDecls
-       in withErrs (tyClErrors ++ famDeclErrors) . TyClD noExt $ ClassDecl
+           extractFamDefDecl :: FamilyDecl GhcRn -> Type -> TyFamDefltEqn GhcRn
+           extractFamDefDecl fd rhs = FamEqn
+             { feqn_ext = noExt
+             , feqn_tycon = fdLName fd
+             , feqn_pats = fdTyVars fd
+             , feqn_fixity = fdFixity fd
+             , feqn_rhs = synifyType WithinType [] rhs }
+
+           extractAtItem
+             :: ClassATItem
+             -> Either ErrMsg (LFamilyDecl GhcRn, Maybe (LTyFamDefltEqn GhcRn))
+           extractAtItem (ATI at_tc def) = do
+             tyDecl <- synifyTyCon Nothing at_tc
+             famDecl <- extractFamilyDecl tyDecl
+             let defEqnTy = fmap (noLoc . extractFamDefDecl famDecl . fst) def
+             pure (noLoc famDecl, defEqnTy)
+
+           atTyClDecls = map extractAtItem (classATItems cl)
+           (atFamDecls, atDefFamDecls) = unzip (rights atTyClDecls)
+
+       in withErrs (lefts atTyClDecls) . TyClD noExt $ ClassDecl
          { tcdCtxt = synifyCtx (classSCTheta cl)
          , tcdLName = synifyName cl
          , tcdTyVars = synifyTyVars (tyConVisibleTyVars (classTyCon cl))
@@ -94,8 +110,8 @@ tyThingToLHsDecl t = case t of
                       , tcdSig <- synifyTcIdSig DeleteTopLevelQuantification clsOp ]
          , tcdMeths = emptyBag --ignore default method definitions, they don't affect signature
          -- class associated-types are a subset of TyCon:
-         , tcdATs = rights atFamDecls
-         , tcdATDefs = [] --ignore associated type defaults
+         , tcdATs = atFamDecls
+         , tcdATDefs = catMaybes atDefFamDecls
          , tcdDocs = [] --we don't have any docs at this point
          , tcdCExt = placeHolderNamesTc }
     | otherwise
