@@ -49,6 +49,7 @@ import VarSet
 
 import Haddock.Types
 import Haddock.Interface.Specialize
+import Haddock.GhcUtils                      ( orderedFVs )
 
 
 
@@ -595,10 +596,7 @@ synifyForAllType s vs ty =
 
       -- Figure out what the type variable order would be inferred in the
       -- absence of an explicit forall
-      ctxTvs = tyCoVarsOfTypesWellScoped ctx
-      restTvs = filter (\tv -> not (tv `elemVarSet` mkVarSet ctxTvs))
-                       (tyCoVarsOfTypeWellScoped tau)
-      tvs' = filter (`notElem` vs) (ctxTvs ++ restTvs)
+      tvs' = orderedFVs (mkVarSet vs) (ctx ++ [tau])
 
   in case s of
     DeleteTopLevelQuantification -> synifyType ImplicitizeForAll tvs' tau
@@ -638,10 +636,7 @@ implicitForAll vs tvs ctx synInner tau
 
   -- Figure out what the type variable order would be inferred in the
   -- absence of an explicit forall
-  ctxTvs = tyCoVarsOfTypesWellScoped ctx
-  restTvs = filter (\tv -> not (tv `elemVarSet` mkVarSet ctxTvs))
-                   (tyCoVarsOfTypeWellScoped tau)
-  tvs' = filter (`notElem` vs) (ctxTvs ++ restTvs)
+  tvs' = orderedFVs (mkVarSet vs) (ctx ++ [tau])
 
 
 
