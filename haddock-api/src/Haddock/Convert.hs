@@ -51,6 +51,7 @@ import Haddock.Types
 import Haddock.Interface.Specialize
 import Haddock.GhcUtils                      ( orderedFVs )
 
+import Data.Maybe                            ( maybeToList )
 
 
 -- the main function here! yay!
@@ -606,20 +607,21 @@ synifyForAllType s vs ty =
       | not (null tvs) -> noLoc sTy
       | otherwise -> noLoc sPhi
 
-    ImplicitizeForAll -> implicitForAll vs tvs ctx (synifyType WithinType) tau
+    ImplicitizeForAll -> implicitForAll [] vs tvs ctx (synifyType WithinType) tau
 
 
 -- | Put a forall in if there are any type variables which require
 -- explicit kind annotations or if the inferred type variable order
 -- would be different.
 implicitForAll
-  :: [TyVar]          -- ^ free variables in the type to convert
+  :: [TyCon]          -- ^ type constructors that determine their args kinds
+  -> [TyVar]          -- ^ free variables in the type to convert
   -> [TyVar]          -- ^ type variable binders in the forall
   -> ThetaType        -- ^ constraints right after the forall
   -> ([TyVar] -> Type -> LHsType GhcRn) -- ^ how to convert the inner type
   -> Type             -- ^ inner type
   -> LHsType GhcRn
-implicitForAll vs tvs ctx synInner tau
+implicitForAll tycons vs tvs ctx synInner tau
   | any (isHsKindedTyVar . unLoc) sTvs = noLoc sTy
   | tvs' /= tvs                        = noLoc sTy
   | otherwise                          = noLoc sPhi
@@ -631,7 +633,7 @@ implicitForAll vs tvs ctx synInner tau
                    , hst_xforall = noExt
                    , hst_body = noLoc sPhi }
 
-  no_kinds_needed = noKindTyVars tau
+  no_kinds_needed = noKindTyVars tycons tau
   sTvs = map (synifyTyVar' no_kinds_needed) tvs
 
   -- Figure out what the type variable order would be inferred in the
@@ -649,28 +651,35 @@ implicitForAll vs tvs ctx synInner tau
 --
 --   * @f@ has a function kind whose final return has lifted type kind
 --
-noKindTyVars :: Type -> VarSet
-noKindTyVars (TyVarTy var)
+noKindTyVars
+  :: [TyCon]  -- ^ type constructors that determine their args kinds
+  -> Type     -- ^ type to inspect
+  -> VarSet   -- ^ set of variables whose kinds can be inferred from uses in the type
+noKindTyVars _ (TyVarTy var)
   | isLiftedTypeKind (tyVarKind var) = unitVarSet var
-noKindTyVars ty
+noKindTyVars ts ty
   | (f, xs) <- splitAppTys ty
   , not (null xs)
-  = let args = map noKindTyVars xs
+  = let args = map (noKindTyVars ts) xs
         func = case f of
                  TyVarTy var | (xsKinds, outKind) <- splitFunTys (tyVarKind var)
                              , xsKinds `eqTypes` map typeKind xs
                              , isLiftedTypeKind outKind
                              -> unitVarSet var
-                 _ -> noKindTyVars f
+                 TyConApp t ks | t `elem` ts
+                               , all noFreeVarsOfType ks
+                               -> mkVarSet [ v | TyVarTy v <- xs ]
+                 _ -> noKindTyVars ts f
     in unionVarSets (func : args)
-noKindTyVars (ForAllTy _ t) = noKindTyVars t
-noKindTyVars (FunTy t1 t2) = noKindTyVars t1 `unionVarSet` noKindTyVars t2
-noKindTyVars (CastTy t _) = noKindTyVars t
-noKindTyVars _ = emptyVarSet
+noKindTyVars ts (ForAllTy _ t) = noKindTyVars ts t
+noKindTyVars ts (FunTy t1 t2) = noKindTyVars ts t1 `unionVarSet` noKindTyVars ts t2
+noKindTyVars ts (CastTy t _) = noKindTyVars ts t
+noKindTyVars _ _ = emptyVarSet
 
 synifyPatSynType :: PatSyn -> LHsType GhcRn
 synifyPatSynType ps =
   let (univ_tvs, req_theta, ex_tvs, prov_theta, arg_tys, res_ty) = patSynSig ps
+      ts = maybeToList (tyConAppTyCon_maybe res_ty)
 
       -- HACK: a HsQualTy with theta = [unitTy] will be printed as "() =>",
       -- i.e., an explicit empty context, which is what we need. This is not
@@ -680,8 +689,8 @@ synifyPatSynType ps =
                  = [unitTy]
                  | otherwise = req_theta
 
-  in implicitForAll [] univ_tvs req_theta'
-       (\vs -> implicitForAll vs ex_tvs prov_theta (synifyType WithinType))
+  in implicitForAll ts [] univ_tvs req_theta'
+       (\vs -> implicitForAll ts vs ex_tvs prov_theta (synifyType WithinType))
        (mkFunTys arg_tys res_ty)
 
 synifyTyLit :: TyLit -> HsTyLit
