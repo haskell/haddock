@@ -33,6 +33,7 @@ import           Data.Maybe
 import           Text.XHtml hiding     ( name, title, p, quote )
 
 import GHC hiding (LexicalFixity(..))
+import qualified GHC
 import GHC.Exts
 import Name
 import BooleanFormula
@@ -524,8 +525,9 @@ ppClassDecl :: Bool -> LinksInfo -> [DocInstance DocNameI] -> [(DocName, Fixity)
             -> [(DocName, DocForDecl DocName)] -> TyClDecl DocNameI
             -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppClassDecl summary links instances fixities loc d subdocs
-        decl@(ClassDecl { tcdCtxt = lctxt, tcdLName = lname, tcdTyVars = ltyvars
-                        , tcdFDs = lfds, tcdSigs = lsigs, tcdATs = ats })
+        decl@(ClassDecl { tcdCtxt = lctxt, tcdLName = lname@(L _ nm)
+                        , tcdTyVars = ltyvars, tcdFDs = lfds, tcdSigs = lsigs
+                        , tcdATs = ats, tcdATDefs = atsDefs })
             splice unicode pkg qual
   | summary = ppShortClassDecl summary links decl loc subdocs splice unicode pkg qual
   | otherwise = classheader +++ docSection Nothing pkg qual d
@@ -540,41 +542,68 @@ ppClassDecl summary links instances fixities loc d subdocs
     -- Only the fixity relevant to the class header
     fixs = ppFixities [ f | f@(n,_) <- fixities, n == unLoc lname ] qual
 
-    nm   = tcdName decl
-
     hdr = ppClassHdr summary lctxt (unLoc lname) ltyvars lfds
 
-    -- ToDo: add assocatied typ defaults
-    atBit = subAssociatedTypes [ ppAssocType summary links doc at subfixs splice unicode pkg qual
-                      | at <- ats
-                      , let n = unL . fdLName $ unL at
-                            doc = lookupAnySubdoc (unL $ fdLName $ unL at) subdocs
-                            subfixs = [ f | f@(n',_) <- fixities, n == n' ] ]
+    -- Associated types
+    atBit = subAssociatedTypes
+      [ ppAssocType summary links doc at subfixs splice unicode pkg qual
+          <+>
+        subDefaults (maybeToList defTys)
+      | at <- ats
+      , let name = unL . fdLName $ unL at
+            doc = lookupAnySubdoc name subdocs
+            subfixs = filter ((== name) . fst) fixities
+            defTys = ppDefaultAssocTy name <$> lookupDAT name
+      ]
 
-    methodBit = subMethods [ ppFunSig summary links loc mempty doc [name] (hsSigType typ)
-                                      subfixs splice unicode pkg qual
-                                  <+> subDefaults (maybeToList defSigs)
-                           | L _ (ClassOpSig _ False lnames typ) <- lsigs
-                           , name <- map unLoc lnames
-                           , let doc = lookupAnySubdoc name subdocs
-                                 subfixs = filter ((== name)  . fst) fixities
-                                 defSigs = ppDefaultFunSig name <$> lookupDM name
-                           ]
-                           -- N.B. taking just the first name is ok. Signatures with multiple names
-                           -- are expanded so that each name gets its own signature.
+    -- Default associated types
+    ppDefaultAssocTy n (vs,t,d') = ppTySyn summary links [] loc d' synDecl
+      splice unicode pkg qual
+      where
+        synDecl = SynDecl { tcdSExt = noExt
+                          , tcdLName = noLoc n
+                          , tcdTyVars = vs
+                          , tcdFixity = GHC.Prefix
+                          , tcdRhs = t }
 
-    ppDefaultFunSig name' (typ', doc') = ppFunSig summary links loc
-        (keyword "default") doc' [name'] (hsSigType typ') [] splice unicode pkg qual
+    lookupDAT name = Map.lookup (getName name) defaultAssocTys
+    defaultAssocTys = Map.fromList
+      [ (getName name, (vs, typ, doc))
+      | L _ (FamEqn { feqn_rhs = typ
+                    , feqn_tycon = L _ name
+                    , feqn_pats = vs }) <- atsDefs
+      , let doc = noDocForDecl -- TODO: get docs for associated type defaults
+      ]
+
+    -- Methods
+    methodBit = subMethods
+      [ ppFunSig summary links loc mempty doc [name] (hsSigType typ)
+                 subfixs splice unicode pkg qual
+          <+>
+        subDefaults (maybeToList defSigs)
+      | ClassOpSig _ False lnames typ <- sigs
+      , name <- map unLoc lnames
+      , let doc = lookupAnySubdoc name subdocs
+            subfixs = filter ((== name)  . fst) fixities
+            defSigs = ppDefaultFunSig name <$> lookupDM name
+      ]
+      -- N.B. taking just the first name is ok. Signatures with multiple names
+      -- are expanded so that each name gets its own signature.
+
+    -- Default methods
+    ppDefaultFunSig n (t, d') = ppFunSig summary links loc (keyword "default")
+      d' [n] (hsSigType t) [] splice unicode pkg qual
 
     lookupDM name = Map.lookup (getOccString name) defaultMethods
     defaultMethods = Map.fromList
-        [ (nameStr, (typ, doc))
-        | L _ (ClassOpSig _ True lnames typ) <- lsigs
-        , name <- map unLoc lnames
-        , let doc = lookupAnySubdoc name subdocs
-        , '$':'d':'m':nameStr <- [getOccString name]
-        ]
+      [ (nameStr, (typ, doc))
+      | ClassOpSig _ True lnames typ <- sigs
+      , name <- map unLoc lnames
+      , let doc = lookupAnySubdoc name subdocs
+      , '$':'d':'m':nameStr <- [getOccString name]
+      ]
 
+    -- Minimal complete definition
     minimalBit = case [ s | MinimalSig _ _ (L _ s) <- sigs ] of
       -- Miminal complete definition = every shown method
       And xs : _ | sort [getName n | L _ (Var (L _ n)) <- xs] ==
@@ -583,7 +612,7 @@ ppClassDecl summary links instances fixities loc d subdocs
 
       -- Minimal complete definition = the only shown method
       Var (L _ n) : _ | [getName n] ==
-                        [getName n' | L _ (ClassOpSig _ _ ns _) <- lsigs, L _ n' <- ns]
+                        [getName n' | ClassOpSig _ _ ns _ <- sigs, L _ n' <- ns]
         -> noHtml
 
       -- Minimal complete definition = nothing
@@ -598,6 +627,7 @@ ppClassDecl summary links instances fixities loc d subdocs
       where wrap | p = parens | otherwise = id
     ppMinimal p (Parens x) = ppMinimal p (unLoc x)
 
+    -- Instances
     instancesBit = ppInstances links (OriginClass nm) instances
         splice unicode pkg qual
 
