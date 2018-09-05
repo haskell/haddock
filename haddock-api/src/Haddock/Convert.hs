@@ -95,11 +95,12 @@ tyThingToLHsDecl t = case t of
 
            atTyClDecls = map extractAtItem (classATItems cl)
            (atFamDecls, atDefFamDecls) = unzip (rights atTyClDecls)
+           vs = tyConVisibleTyVars (classTyCon cl)
 
        in withErrs (lefts atTyClDecls) . TyClD noExt $ ClassDecl
          { tcdCtxt = synifyCtx (classSCTheta cl)
          , tcdLName = synifyName cl
-         , tcdTyVars = synifyTyVars (tyConVisibleTyVars (classTyCon cl))
+         , tcdTyVars = synifyTyVars vs
          , tcdFixity = Prefix
          , tcdFDs = map (\ (l,r) -> noLoc
                         (map (noLoc . getName) l, map (noLoc . getName) r) ) $
@@ -107,7 +108,7 @@ tyThingToLHsDecl t = case t of
          , tcdSigs = noLoc (MinimalSig noExt NoSourceText . noLoc . fmap noLoc $ classMinimalDef cl) :
                       [ noLoc tcdSig
                       | clsOp <- classOpItems cl
-                      , tcdSig <- synifyTcIdSig DeleteTopLevelQuantification clsOp ]
+                      , tcdSig <- synifyTcIdSig vs clsOp ]
          , tcdMeths = emptyBag --ignore default method definitions, they don't affect signature
          -- class associated-types are a subset of TyCon:
          , tcdATs = atFamDecls
@@ -387,11 +388,14 @@ synifyIdSig s vs i = TypeSig noExt [synifyName i] (synifySigWcType s vs (varType
 -- | Turn a 'ClassOpItem' into a list of signatures. The list returned is going
 -- to contain the synified 'ClassOpSig' as well (when appropriate) a default
 -- 'ClassOpSig'.
-synifyTcIdSig :: SynifyTypeState -> ClassOpItem -> [Sig GhcRn]
-synifyTcIdSig s (i, dm) =
-  [ ClassOpSig noExt False [synifyName i] (synifySigType s (varType i)) ] ++
-  [ ClassOpSig noExt True [noLoc dn] (synifySigType s dt)
+synifyTcIdSig :: [TyVar] -> ClassOpItem -> [Sig GhcRn]
+synifyTcIdSig vs (i, dm) =
+  [ ClassOpSig noExt False [synifyName i] (mainSig (varType i)) ] ++
+  [ ClassOpSig noExt True [noLoc dn] (defSig dt)
   | Just (dn, GenericDM dt) <- [dm] ]
+  where
+    mainSig t = synifySigType DeleteTopLevelQuantification vs t
+    defSig t = synifySigType ImplicitizeForAll vs t
 
 synifyCtx :: [PredType] -> LHsContext GhcRn
 synifyCtx = noLoc . map (synifyType WithinType [])
@@ -461,10 +465,10 @@ data SynifyTypeState
   --   the defining class gets to quantify all its functions for free!
 
 
-synifySigType :: SynifyTypeState -> Type -> LHsSigType GhcRn
+synifySigType :: SynifyTypeState -> [TyVar] -> Type -> LHsSigType GhcRn
 -- The empty binders is a bit suspicious;
 -- what if the type has free variables?
-synifySigType s ty = mkEmptyImplicitBndrs (synifyType s [] ty)
+synifySigType s vs ty = mkEmptyImplicitBndrs (synifyType s vs ty)
 
 synifySigWcType :: SynifyTypeState -> [TyVar] -> Type -> LHsSigWcType GhcRn
 -- Ditto (see synifySigType)

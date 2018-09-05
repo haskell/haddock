@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ViewPatterns #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Utils
@@ -165,8 +166,8 @@ restrictTo names (L loc decl) = L loc $ case decl of
   TyClD x d | isDataDecl d  ->
     TyClD x (d { tcdDataDefn = restrictDataDefn names (tcdDataDefn d) })
   TyClD x d | isClassDecl d ->
-    TyClD x (d { tcdSigs = restrictDecls names (tcdSigs d),
-               tcdATs = restrictATs names (tcdATs d) })
+    TyClD x (d { tcdSigs = restrictDecls names (tcdSigs d)
+               , tcdATs = restrictATs names (tcdATs d) })
   _ -> decl
 
 restrictDataDefn :: [Name] -> HsDataDefn GhcRn -> HsDataDefn GhcRn
@@ -204,7 +205,13 @@ restrictCons names decls = [ L p d | L p (Just d) <- map (fmap keep) decls ]
     keep _ = Nothing
 
 restrictDecls :: [Name] -> [LSig GhcRn] -> [LSig GhcRn]
-restrictDecls names = mapMaybe (filterLSigNames (`elem` names))
+restrictDecls names = mapMaybe (filterLSigNames func)
+  where func n | n `elem` names = True
+
+               -- let through default method iff method is let through
+               | '$':'d':'m':strN <- getOccString n
+               , strN `elem` map getOccString names = True
+               | otherwise = False
 
 
 restrictATs :: [Name] -> [LFamilyDecl GhcRn] -> [LFamilyDecl GhcRn]
