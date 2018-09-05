@@ -322,6 +322,9 @@ instance SetName DocName where
     setName name' (Undocumented _) = Undocumented name'
 
 
+instance HasOccName DocName where
+
+    occName = occName . getName
 
 -----------------------------------------------------------------------------
 -- * Instances
