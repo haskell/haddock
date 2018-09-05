@@ -603,7 +603,7 @@ synifyForAllType s vs ty =
   let (tvs, ctx, tau) = tcSplitSigmaTyPreserveSynonyms ty
       sPhi = HsQualTy { hst_ctxt = synifyCtx ctx
                       , hst_xqual = noExt
-                      , hst_body = synifyType WithinType tvs' tau }
+                      , hst_body = synifyType WithinType (tvs' ++ vs) tau }
 
       sTy = HsForAllTy { hst_bndrs = sTvs
                        , hst_xforall = noExt
@@ -616,7 +616,7 @@ synifyForAllType s vs ty =
       tvs' = orderedFVs (mkVarSet vs) (ctx ++ [tau])
 
   in case s of
-    DeleteTopLevelQuantification -> synifyType ImplicitizeForAll tvs' tau
+    DeleteTopLevelQuantification -> synifyType ImplicitizeForAll (tvs' ++ vs) tau
 
     -- Put a forall in if there are any type variables
     WithinType
