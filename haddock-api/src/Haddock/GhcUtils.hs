@@ -458,6 +458,19 @@ orderedFVs vs tys =
 -- check out Note [Free variables of types]. The functions in this section
 -- don't output type variables in the order they first appear in in the 'Type'.
 --
+-- For example, 'tyCoVarsOfTypeList' reports an incorrect order for the type
+-- of 'const :: a -> b -> a':
+--
+-- >>> import Name 
+-- >>> import TyCoRep
+-- >>> import TysPrim
+-- >>> import Var
+-- >>> a = TyVarTy alphaTyVar
+-- >>> b = TyVarTy betaTyVar
+-- >>> constTy = mkFunTys [a, b] a
+-- >>> map (getOccString . tyVarName) (tyCoVarsOfTypeList constTy)
+-- ["b","a"]
+--
 -- However, we want to reuse the very optimized traversal machinery there, so
 -- so we make our own `tyCoFVsOfType'`, `tyCoFVsBndr'`, and `tyCoVarsOfTypes'`.
 -- All these do differently is traverse in a different order and ignore
