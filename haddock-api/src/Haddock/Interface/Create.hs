@@ -166,15 +166,24 @@ createInterface mod_iface flags modMap instIfaceMap = do
   , ifaceTokenizedSrc      = Nothing -- TODO: Get this from the extended .hie-files.
   }
 
+-- | Given the information that comes out of a 'DsiModExport', decide which of
+-- the re-exported modules can be linked directly and which modules need to have
+-- their avails inlined. We can link directly to a module when:
+--
+--   * all of the stuff avail from that module is also available here
+--   * that module is not marked as hidden
+--
 -- TODO: Do we need a special case for the current module?
-unrestrictedModExports :: Avails -> [ModuleName]
-                      -> ErrMsgGhc ([Module], Avails)
-                      -- ^ ( modules exported without restriction
-                      --   , remaining exports not included in any
-                      --     of these modules
-                      --   )
-unrestrictedModExports avails mod_names = do
-    let all_names = availsToNameSetWithSelectors avails
+unrestrictedModExports
+  :: IfaceMap
+  -> Avails
+  -> [ModuleName]
+  -> ErrMsgGhc ([Module], Avails)
+     -- ^ ( modules exported without restriction
+     --   , remaining exports not included in any
+     --     of these modules
+     --   )
+unrestrictedModExports ifaceMap avails mod_names = do
     mods_and_exports <- fmap catMaybes $ for mod_names $ \mod_name -> do
       mdl <- liftGhcToErrMsgGhc $ findModule mod_name Nothing
       mb_modinfo <- liftGhcToErrMsgGhc $ getModuleInfo mdl
@@ -185,11 +194,20 @@ unrestrictedModExports avails mod_names = do
           pure Nothing
         Just modinfo ->
           pure (Just (mdl, mkNameSet (modInfoExportsWithSelectors modinfo)))
-    let unrestricted = filter (\(_, exps) -> exps `isSubsetOf` all_names) mods_and_exports
+    let unrestricted = filter everythingVisible mods_and_exports
         mod_exps = unionNameSets (map snd unrestricted)
         remaining = nubAvails (filterAvails (\n -> not (n `elemNameSet` mod_exps)) avails)
     pure (map fst unrestricted, remaining)
   where
+    all_names = availsToNameSetWithSelectors avails
+
+    -- Is everything in this (supposedly re-exported) module visible?
+    everythingVisible :: (Module, NameSet) -> Bool
+    everythingVisible (mdl, exps)
+      | not (exps `isSubsetOf` all_names) = False
+      | Just iface <- M.lookup mdl ifaceMap = OptHide `notElem` ifaceOptions iface
+      | otherwise = True
+
     -- TODO: Add a utility based on IntMap.isSubmapOfBy
     isSubsetOf :: NameSet -> NameSet -> Bool
     isSubsetOf a b = nameSetAll (`elemNameSet` b) a
@@ -318,7 +336,7 @@ mkExportItems
       DsiModExport mod_names avails -> do
         -- only consider exporting a module if we are sure we are really
         -- exporting the whole module and not some subset.
-        (unrestricted_mods, remaining_avails) <- unrestrictedModExports avails (NE.toList mod_names)
+        (unrestricted_mods, remaining_avails) <- unrestrictedModExports modMap avails (NE.toList mod_names)
         avail_exps <- concat <$> traverse availExport remaining_avails
         pure (map ExportModule unrestricted_mods ++ avail_exps)
 
