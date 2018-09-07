@@ -278,26 +278,25 @@ synifyTyCon coax tc
                  , tcdDExt = DataDeclRn False placeHolderNamesTc }
   dataConErrs -> Left $ unlines dataConErrs
 
--- In this module, every TyCon being considered has come from an interface
+-- | In this module, every TyCon being considered has come from an interface
 -- file. This means that when considering a data type constructor such as:
 --
---   data Foo (w :: *) (m :: * -> *) (a :: *)
+-- > data Foo (w :: *) (m :: * -> *) (a :: *)
 --
 -- Then its tyConKind will be (* -> (* -> *) -> * -> *). But beware! We are
 -- also rendering the type variables of Foo, so if we synify the tyConKind of
 -- Foo in full, we will end up displaying this in Haddock:
 --
---   data Foo (w :: *) (m :: * -> *) (a :: *)
---     :: * -> (* -> *) -> * -> *
+-- > data Foo (w :: *) (m :: * -> *) (a :: *)
+-- >   :: * -> (* -> *) -> * -> *
 --
--- Which is entirely wrong (#548). We only want to display the *return* kind,
+-- Which is entirely wrong (#548). We only want to display the /return/ kind,
 -- which this function obtains.
 synifyDataTyConReturnKind :: TyCon -> Maybe (LHsKind GhcRn)
 synifyDataTyConReturnKind tc
-  = case splitFunTys (tyConKind tc) of
-      (_, ret_kind)
-        | isLiftedTypeKind ret_kind -> Nothing -- Don't bother displaying :: *
-        | otherwise                 -> Just (synifyKindSig ret_kind)
+  | isLiftedTypeKind ret_kind = Nothing -- Don't bother displaying :: *
+  | otherwise                 = Just (synifyKindSig ret_kind)
+  where ret_kind = tyConResKind tc
 
 synifyInjectivityAnn :: Maybe Name -> [TyVar] -> Injectivity
                      -> Maybe (LInjectivityAnn GhcRn)
