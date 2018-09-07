@@ -705,8 +705,8 @@ synifyPatSynType ps =
                  = [unitTy]
                  | otherwise = req_theta
 
-  in implicitForAll ts [] univ_tvs req_theta'
-       (\vs -> implicitForAll ts vs ex_tvs prov_theta (synifyType WithinType))
+  in implicitForAll ts [] (univ_tvs ++ ex_tvs) req_theta'
+       (\vs -> implicitForAll ts vs [] prov_theta (synifyType WithinType))
        (mkFunTys arg_tys res_ty)
 
 synifyTyLit :: TyLit -> HsTyLit
