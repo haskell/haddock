@@ -1171,7 +1171,7 @@ latexMonoMunge c   s = latexMunge c s
 
 parLatexMarkup :: (a -> LaTeX) -> DocMarkup a (StringContext -> LaTeX)
 parLatexMarkup ppId = Markup {
-  markupParagraph            = \p v -> p v <> text "\\par" $$ text "",
+  markupParagraph            = \p v -> blockElem $ p v <> text "\\par",
   markupEmpty                = \_ -> empty,
   markupString               = \s v -> text (fixString v s),
   markupAppend               = \l r v -> l v <> r v,
@@ -1182,21 +1182,24 @@ parLatexMarkup ppId = Markup {
   markupEmphasis             = \p v -> emph (p v),
   markupBold                 = \p v -> bold (p v),
   markupMonospaced           = \p _ -> tt (p Mono),
-  markupUnorderedList        = \p v -> itemizedList (map ($v) p) $$ text "",
+  markupUnorderedList        = \p v -> blockElem $ itemizedList (map ($v) p),
   markupPic                  = \p _ -> markupPic p,
   markupMathInline           = \p _ -> markupMathInline p,
-  markupMathDisplay          = \p _ -> markupMathDisplay p,
-  markupOrderedList          = \p v -> enumeratedList (map ($v) p) $$ text "",
-  markupDefList              = \l v -> descriptionList (map (\(a,b) -> (a v, b v)) l),
-  markupCodeBlock            = \p _ -> quote (verb (p Verb)) $$ text "",
+  markupMathDisplay          = \p _ -> blockElem $ markupMathDisplay p,
+  markupOrderedList          = \p v -> blockElem $ enumeratedList (map ($v) p),
+  markupDefList              = \l v -> blockElem $ descriptionList (map (\(a,b) -> (a v, b v)) l),
+  markupCodeBlock            = \p _ -> blockElem $ quote (verb (p Verb)),
   markupHyperlink            = \l _ -> markupLink l,
   markupAName                = \_ _ -> empty,
-  markupProperty             = \p _ -> quote $ verb $ text p,
-  markupExample              = \e _ -> quote $ verb $ text $ unlines $ map exampleToString e,
+  markupProperty             = \p _ -> blockElem $ quote $ verb $ text p,
+  markupExample              = \e _ -> blockElem $ quote $ verb $ text $ unlines $ map exampleToString e,
   markupHeader               = \(Header l h) p -> header l (h p),
   markupTable                = \(Table h b) p -> table h b p
   }
   where
+    blockElem :: LaTeX -> LaTeX
+    blockElem = ($$ text "")
+
     header 1 d = text "\\section*" <> braces d
     header 2 d = text "\\subsection*" <> braces d
     header l d
