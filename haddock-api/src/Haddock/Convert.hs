@@ -492,7 +492,10 @@ synifyType
   -> [TyVar]          -- ^ free variables in the type to convert
   -> Type             -- ^ the type to convert
   -> LHsType GhcRn
-synifyType _ _ (TyVarTy tv) = noLoc $ HsTyVar noExt NotPromoted $ noLoc (getName tv)
+synifyType _ _ (TyVarTy tv)
+  | mkTyVarOcc "_" == occName tv = noLoc $ HsWildCardTy $ AnonWildCard n
+  | otherwise = noLoc $ HsTyVar noExt NotPromoted n
+  where n = noLoc (getName tv)
 synifyType _ vs (TyConApp tc tys)
   = maybe_sig res_ty
   where
