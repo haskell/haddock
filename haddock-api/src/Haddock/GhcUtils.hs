@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, FlexibleInstances, ViewPatterns #-}
+{-# LANGUAGE BangPatterns, StandaloneDeriving, FlexibleInstances, ViewPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -34,12 +34,15 @@ import GHC
 import Class
 import DynFlags
 import SrcLoc    ( advanceSrcLoc )
+import Var       ( VarBndr(..), TyVarBinder, tyVarKind, updateTyVarKind,
+                   isInvisibleArgFlag )
+import VarSet    ( VarSet, emptyVarSet )
+import VarEnv    ( TyVarEnv, extendVarEnv, elemVarEnv, emptyVarEnv )
+import TyCoRep   ( Type(..), isRuntimeRepVar )
+import TysWiredIn( liftedRepDataConTyCon )
 
 import           StringBuffer ( StringBuffer )
 import qualified StringBuffer             as S
-import TyCoRep   ( Type(..) )
-import Var       ( VarBndr(..), TyVarBinder, tyVarKind )
-import VarSet    ( VarSet, emptyVarSet )
 
 import           Data.ByteString ( ByteString )
 import qualified Data.ByteString          as BS
@@ -611,4 +614,46 @@ tyCoFVsOfTypes' []       fv_cand in_scope acc = emptyFV fv_cand in_scope acc
 -- appearance.
 tyCoFVsBndr' :: TyVarBinder -> FV -> FV
 tyCoFVsBndr' (Bndr tv _) fvs = FV.delFV tv fvs `unionFV` tyCoFVsOfType' (tyVarKind tv)
+
+
+-------------------------------------------------------------------------------
+-- * Defaulting RuntimeRep variables
+-------------------------------------------------------------------------------
+
+-- | Traverses the type, defaulting type variables of kind 'RuntimeRep' to
+-- 'LiftedType'. See 'defaultRuntimeRepVars' in IfaceType.hs the original such
+-- function working over `IfaceType`'s.
+defaultRuntimeRepVars :: Type -> Type
+defaultRuntimeRepVars = go emptyVarEnv
+  where
+    go :: TyVarEnv () -> Type -> Type
+    go subs (ForAllTy (Bndr var flg) ty)
+      | isRuntimeRepVar var
+      , isInvisibleArgFlag flg
+      = let subs' = extendVarEnv subs var ()
+        in go subs' ty
+      | otherwise
+      = ForAllTy (Bndr (updateTyVarKind (go subs) var) flg)
+                 (go subs ty)
+
+    go subs (TyVarTy tv)
+      | tv `elemVarEnv` subs
+      = TyConApp liftedRepDataConTyCon []
+      | otherwise
+      = TyVarTy (updateTyVarKind (go subs) tv)
+
+    go subs (TyConApp tc tc_args)
+      = TyConApp tc (map (go subs) tc_args)
+
+    go subs (FunTy arg res)
+      = FunTy (go subs arg) (go subs res)
+
+    go subs (AppTy t u)
+      = AppTy (go subs t) (go subs u)
+
+    go subs (CastTy x co)
+      = CastTy (go subs x) co
+
+    go _ ty@(LitTy {}) = ty
+    go _ ty@(CoercionTy {}) = ty
 
