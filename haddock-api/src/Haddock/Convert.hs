@@ -101,7 +101,7 @@ tyThingToLHsDecl t = case t of
          { tcdCtxt = synifyCtx (classSCTheta cl)
          , tcdLName = synifyName cl
          , tcdTyVars = synifyTyVars vs
-         , tcdFixity = Prefix
+         , tcdFixity = synifyFixity cl
          , tcdFDs = map (\ (l,r) -> noLoc
                         (map (noLoc . getName) l, map (noLoc . getName) r) ) $
                          snd $ classTvsFds cl
@@ -144,7 +144,7 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
             , hsib_body   = FamEqn { feqn_ext    = noExt
                                    , feqn_tycon  = name
                                    , feqn_pats   = annot_typats
-                                   , feqn_fixity = Prefix
+                                   , feqn_fixity = synifyFixity name
                                    , feqn_rhs    = hs_rhs } }
   where
     fam_tvs = tyConVisibleTyVars tc
@@ -181,7 +181,7 @@ synifyTyCon _coax tc
                                                                 alphaTyVars --a, b, c... which are unfortunately all kind *
                                    }
 
-           , tcdFixity = Prefix
+           , tcdFixity = synifyFixity tc
 
            , tcdDataDefn = HsDataDefn { dd_ext = noExt
                                       , dd_ND = DataType  -- arbitrary lie, they are neither
@@ -218,7 +218,7 @@ synifyTyCon _coax tc
                  , fdInfo = i
                  , fdLName = synifyName tc
                  , fdTyVars = synifyTyVars (tyConVisibleTyVars tc)
-                 , fdFixity = Prefix
+                 , fdFixity = synifyFixity tc
                  , fdResultSig =
                        synifyFamilyResultSig resultVar (tyConResKind tc)
                  , fdInjectivityAnn =
@@ -231,7 +231,7 @@ synifyTyCon coax tc
   = return $ SynDecl { tcdSExt   = emptyNameSet
                      , tcdLName  = synifyName tc
                      , tcdTyVars = synifyTyVars (tyConVisibleTyVars tc)
-                     , tcdFixity = Prefix
+                     , tcdFixity = synifyFixity tc
                      , tcdRhs = synifyType WithinType [] ty }
   | otherwise =
   -- (closed) newtype and data
@@ -274,7 +274,8 @@ synifyTyCon coax tc
                     , dd_derivs  = alg_deriv }
  in case lefts consRaw of
   [] -> return $
-        DataDecl { tcdLName = name, tcdTyVars = tyvars, tcdFixity = Prefix
+        DataDecl { tcdLName = name, tcdTyVars = tyvars
+                 , tcdFixity = synifyFixity name
                  , tcdDataDefn = defn
                  , tcdDExt = DataDeclRn False placeHolderNamesTc }
   dataConErrs -> Left $ unlines dataConErrs
@@ -331,7 +332,8 @@ synifyDataCon use_gadt_syntax dc =
   (univ_tvs, ex_tvs, _eq_spec, theta, arg_tys, res_ty) = dataConFullSig dc
 
   -- skip any EqTheta, use 'orig'inal syntax
-  ctx = synifyCtx theta
+  ctx | null theta = Nothing
+      | otherwise = Just $ synifyCtx theta
 
   linear_tys =
     zipWith (\ty bang ->
@@ -361,22 +363,28 @@ synifyDataCon use_gadt_syntax dc =
                           , con_names  = [name]
                           , con_forall = noLoc False
                           , con_qvars  = synifyTyVars (univ_tvs ++ ex_tvs)
-                          , con_mb_cxt = Just ctx
-                          , con_args   =  hat
+                          , con_mb_cxt = ctx
+                          , con_args   = hat
                           , con_res_ty = synifyType WithinType [] res_ty
-                          , con_doc    =  Nothing }
+                          , con_doc    = Nothing }
            else return $ noLoc $
               ConDeclH98 { con_ext    = noExt
                          , con_name   = name
                          , con_forall = noLoc False
                          , con_ex_tvs = map synifyTyVar ex_tvs
-                         , con_mb_cxt = Just ctx
+                         , con_mb_cxt = ctx
                          , con_args   = hat
                          , con_doc    = Nothing }
 
 synifyName :: NamedThing n => n -> Located Name
 synifyName n = L (srcLocSpan (getSrcLoc n)) (getName n)
 
+-- | Guess the fixity of a something with a name. This isn't quite right, since
+-- a user can always declare an infix name in prefix form or a prefix name in
+-- infix form. Unfortunately, that is not something we can usually reconstruct.
+synifyFixity :: NamedThing n => n -> LexicalFixity
+synifyFixity n | isSymOcc (getOccName n) = Infix
+               | otherwise = Prefix
 
 synifyIdSig
   :: SynifyTypeState  -- ^ what to do with a 'forall'
@@ -645,7 +653,10 @@ implicitForAll tycons vs tvs ctx synInner tau
   | tvs' /= tvs                        = noLoc sTy
   | otherwise                          = noLoc sPhi
   where
-  sPhi = HsQualTy { hst_ctxt = synifyCtx ctx
+  sRho = synInner (tvs' ++ vs) tau
+  sPhi | null ctx = unLoc sRho
+       | otherwise
+       = HsQualTy { hst_ctxt = synifyCtx ctx
                   , hst_xqual = noExt
                   , hst_body = synInner (tvs' ++ vs) tau }
   sTy = HsForAllTy { hst_bndrs = sTvs
