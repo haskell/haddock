@@ -73,7 +73,7 @@ ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
              [Located DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode pkg qual =
-  ppFunSig summary links loc mempty doc (map unLoc lnames) lty fixities
+  ppFunSig summary links loc noHtml doc (map unLoc lnames) lty fixities
            splice unicode pkg qual
 
 ppFunSig :: Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl DocName ->
@@ -227,7 +227,7 @@ ppFor :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
       -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppFor summary links loc doc (ForeignImport _ (L _ name) typ _) fixities
       splice unicode pkg qual
-  = ppFunSig summary links loc mempty doc [name] (hsSigType typ) fixities splice unicode pkg qual
+  = ppFunSig summary links loc noHtml doc [name] (hsSigType typ) fixities splice unicode pkg qual
 ppFor _ _ _ _ _ _ _ _ _ _ = error "ppFor"
 
 
@@ -504,7 +504,7 @@ ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, t
 
                 -- ToDo: add associated type defaults
 
-            [ ppFunSig summary links loc mempty doc names (hsSigType typ)
+            [ ppFunSig summary links loc noHtml doc names (hsSigType typ)
                        [] splice unicode pkg qual
               | L _ (ClassOpSig _ False lnames typ) <- sigs
               , let doc = lookupAnySubdoc (head names) subdocs
@@ -577,7 +577,7 @@ ppClassDecl summary links instances fixities loc d subdocs
 
     -- Methods
     methodBit = subMethods
-      [ ppFunSig summary links loc mempty doc [name] (hsSigType typ)
+      [ ppFunSig summary links loc noHtml doc [name] (hsSigType typ)
                  subfixs splice unicode pkg qual
           <+>
         subDefaults (maybeToList defSigs)
