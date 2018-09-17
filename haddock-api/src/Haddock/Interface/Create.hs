@@ -85,6 +85,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
   let renamer = docIdEnvRenamer (docs_id_env mod_iface_docs)
 
   opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
+  let prr = OptPrintRuntimeRep `elem` opts
 
   -- Process the top-level module header documentation.
   (!info, mbDoc) <- processModuleHeader pkgName renamer safety
@@ -121,7 +122,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems modMap pkgName mdl allWarnings renamer
+  exportItems <- mkExportItems prr modMap pkgName mdl allWarnings renamer
                    docMap argMap fixMap splices
                    (docs_named_chunks mod_iface_docs)
                    (docs_structure mod_iface_docs) instIfaceMap
@@ -284,6 +285,8 @@ parseOption "hide"            = return (Just OptHide)
 parseOption "prune"           = return (Just OptPrune)
 parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
+parseOption "print-runtime-reps" = return (Just OptPrintRuntimeRep)
+parseOption "print-explicit-runtime-reps" = return (Just OptPrintRuntimeRep)
 parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
 
 -- | Extract a map of fixity declarations only
@@ -295,7 +298,8 @@ mkFixMap exps occFixs =
     expsOccEnv = mkOccEnv (map (nameOccName &&& id) exps)
 
 mkExportItems
-  :: IfaceMap
+  :: PrintRuntimeReps
+  -> IfaceMap
   -> Maybe Package      -- this package
   -> Module             -- this module
   -> WarningMap
@@ -309,7 +313,7 @@ mkExportItems
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
-  modMap mbPkgName thisMod warnings renamer 
+  prr modMap mbPkgName thisMod warnings renamer
   docMap argMap fixMap splices namedChunks dsItems instIfaceMap =
     concat <$> traverse lookupExport dsItems
   where
@@ -341,10 +345,11 @@ mkExportItems
         pure (map ExportModule unrestricted_mods ++ avail_exps)
 
     availExport avail =
-      availExportItem modMap thisMod warnings
+      availExportItem prr modMap thisMod warnings
         docMap argMap fixMap splices instIfaceMap avail
 
-availExportItem :: IfaceMap
+availExportItem :: PrintRuntimeReps
+                -> IfaceMap
                 -> Module             -- this module
                 -> WarningMap
                 -> DocMap Name        -- docs (keyed by 'Name's)
@@ -354,7 +359,7 @@ availExportItem :: IfaceMap
                 -> InstIfaceMap
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
-availExportItem modMap thisMod warnings
+availExportItem prr modMap thisMod warnings
   docMap argMap fixMap splices instIfaceMap
   availInfo = declWith availInfo
   where
@@ -363,7 +368,7 @@ availExportItem modMap thisMod warnings
       dflags <- getDynFlags
       let t = availName avail -- NB: 't' might not be in the scope of 'avail'.
                               -- Example: @data C = D@, where C isn't exported.
-      mayDecl <- hiDecl t
+      mayDecl <- hiDecl prr t
       case mayDecl of
         Nothing -> return [ ExportNoDecl t [] ]
         Just decl -> do
@@ -409,7 +414,7 @@ availExportItem modMap thisMod warnings
                 , Just f <- [M.lookup n fixMap]
                 ]
 
-          extracted <- extractDecl (availName avail) decl
+          extracted <- extractDecl prr (availName avail) decl
 
           return [ ExportDecl {
                        expItemDecl      = restrictTo (fmap fst subs) extracted
@@ -424,7 +429,7 @@ availExportItem modMap thisMod warnings
 
       | otherwise =
           let extractSub (sub, sub_doc) = do
-                extracted <- extractDecl sub decl
+                extracted <- extractDecl prr sub decl
                 pure (ExportDecl {
                           expItemDecl      = extracted
                         , expItemPats      = []
@@ -470,8 +475,8 @@ availNoDocs :: AvailInfo -> [(Name, DocForDecl Name)]
 availNoDocs avail =
   zip (availSubordinates avail) (repeat noDocForDecl)
 
-hiDecl :: Name -> ErrMsgGhc (Maybe (LHsDecl GhcRn))
-hiDecl t = do
+hiDecl :: PrintRuntimeReps -> Name -> ErrMsgGhc (Maybe (LHsDecl GhcRn))
+hiDecl prr t = do
   dflags <- getDynFlags
   mayTyThing <- liftGhcToErrMsgGhc $ lookupName t
   let bugWarn = O.showSDoc dflags . warnLine
@@ -479,7 +484,7 @@ hiDecl t = do
     Nothing -> do
       liftErrMsg $ tell ["Warning: Not found in environment: " ++ pretty dflags t]
       return Nothing
-    Just x -> case tyThingToLHsDecl x of
+    Just x -> case tyThingToLHsDecl prr x of
       Left m -> liftErrMsg (tell [bugWarn m]) >> return Nothing
       Right (m, t') -> liftErrMsg (tell $ map bugWarn m)
                       >> return (Just $ noLoc t')
@@ -505,8 +510,12 @@ lookupDocs avail warnings docMap argMap =
 -- it might be an individual record selector or a class method.  In these
 -- cases we have to extract the required declaration (and somehow cobble
 -- together a type signature for it...).
-extractDecl :: Name -> LHsDecl GhcRn -> ErrMsgGhc (LHsDecl GhcRn)
-extractDecl name decl
+extractDecl
+  :: PrintRuntimeReps           -- ^ should we print 'RuntimeRep' tyvars?
+  -> Name                       -- ^ name of subdecl to extract
+  -> LHsDecl GhcRn              -- ^ parent decl
+  -> ErrMsgGhc (LHsDecl GhcRn)  -- ^ extracted subdecl
+extractDecl prr name decl
   | name `elem` getMainDeclBinder (unLoc decl) = pure decl
   | otherwise  =
     case unLoc decl of
@@ -534,10 +543,10 @@ extractDecl name decl
           (_, [L pos fam_decl]) -> pure (L pos (TyClD noExt (FamDecl noExt fam_decl)))
 
           ([], []) -> do
-            famInstDeclOpt <- hiDecl name
+            famInstDeclOpt <- hiDecl prr name
             case famInstDeclOpt of
               Nothing -> O.pprPanic "extractDecl" (O.text "Failed to find decl for" O.<+> O.ppr name)
-              Just famInstDecl -> extractDecl name famInstDecl
+              Just famInstDecl -> extractDecl prr name famInstDecl
           _ -> O.pprPanic "extractDecl" (O.text "Ambiguous decl for" O.<+> O.ppr name O.<+> O.text "in class:"
                                          O.$$ O.nest 4 (O.ppr d)
                                          O.$$ O.text "Matches:"
@@ -550,10 +559,10 @@ extractDecl name decl
       TyClD _ FamDecl {}
         | isValName name
         -> do
-          famInstOpt <- hiDecl name
+          famInstOpt <- hiDecl prr name
           case famInstOpt of
             Nothing -> O.pprPanic "extractDecl" (O.text "Failed to find decl for" O.<+> O.ppr name)
-            Just famInst -> extractDecl name famInst
+            Just famInst -> extractDecl prr name famInst
       InstD _ (DataFamInstD _ (DataFamInstDecl (HsIB { hsib_body =
                              FamEqn { feqn_tycon = L _ n
                                     , feqn_pats  = tys
@@ -570,7 +579,7 @@ extractDecl name decl
                                , name `elem` map unLoc (concatMap (getConNames . unLoc) (dd_cons dd))
                                ]
             in case matches of
-                [d0] -> extractDecl name (noLoc (InstD noExt (DataFamInstD noExt d0)))
+                [d0] -> extractDecl prr name (noLoc (InstD noExt (DataFamInstD noExt d0)))
                 _    -> error "internal: extractDecl (ClsInstD)"
         | otherwise ->
             let matches = [ d' | L _ d'@(DataFamInstDecl (HsIB { hsib_body = d }))
@@ -582,7 +591,7 @@ extractDecl name decl
                                , extFieldOcc n == name
                           ]
             in case matches of
-              [d0] -> extractDecl name (noLoc . InstD noExt $ DataFamInstD noExt d0)
+              [d0] -> extractDecl prr name (noLoc . InstD noExt $ DataFamInstD noExt d0)
               _ -> error "internal: extractDecl (ClsInstD)"
       x -> O.pprPanic "extractDecl" (O.ppr x)
 

@@ -12,9 +12,12 @@
 -- Conversion between TyThing and HsDecl. This functionality may be moved into
 -- GHC at some point.
 -----------------------------------------------------------------------------
-module Haddock.Convert where
--- Some other functions turned out to be useful for converting
--- instance heads, which aren't TyThings, so just export everything.
+module Haddock.Convert (
+  tyThingToLHsDecl,
+  synifyInstHead,
+  synifyFamInst,
+  PrintRuntimeReps,
+) where
 
 import Bag ( emptyBag )
 import BasicTypes ( TupleSort(..), SourceText(..), LexicalFixity(..)
@@ -49,14 +52,22 @@ import VarSet
 
 import Haddock.Types
 import Haddock.Interface.Specialize
-import Haddock.GhcUtils                      ( orderedFVs )
+import Haddock.GhcUtils                      ( orderedFVs, defaultRuntimeRepVars )
 
 import Data.Maybe                            ( catMaybes, maybeToList )
 
 
+-- | Whether or not to default 'RuntimeRep' variables to 'LiftedRep'. Check
+-- out Note [Defaulting RuntimeRep variables] in IfaceType.hs for the
+-- motivation.
+type PrintRuntimeReps = Bool
+
 -- the main function here! yay!
-tyThingToLHsDecl :: TyThing -> Either ErrMsg ([ErrMsg], (HsDecl GhcRn))
-tyThingToLHsDecl t = case t of
+tyThingToLHsDecl
+  :: PrintRuntimeReps
+  -> TyThing
+  -> Either ErrMsg ([ErrMsg], (HsDecl GhcRn))
+tyThingToLHsDecl prr t = case t of
   -- ids (functions and zero-argument a.k.a. CAFs) get a type signature.
   -- Including built-in functions like seq.
   -- foreign-imported functions could be represented with ForD
@@ -65,7 +76,7 @@ tyThingToLHsDecl t = case t of
   -- in a future code version we could turn idVarDetails = foreign-call
   -- into a ForD instead of a SigD if we wanted.  Haddock doesn't
   -- need to care.
-  AnId i -> allOK $ SigD noExt (synifyIdSig ImplicitizeForAll [] i)
+  AnId i -> allOK $ SigD noExt (synifyIdSig prr ImplicitizeForAll [] i)
 
   -- type-constructors (e.g. Maybe) are complicated, put the definition
   -- later in the file (also it's used for class associated-types too.)
@@ -387,11 +398,15 @@ synifyFixity n | isSymOcc (getOccName n) = Infix
                | otherwise = Prefix
 
 synifyIdSig
-  :: SynifyTypeState  -- ^ what to do with a 'forall'
+  :: PrintRuntimeReps -- ^ are we printing tyvars of kind 'RuntimeRep'?
+  -> SynifyTypeState  -- ^ what to do with a 'forall'
   -> [TyVar]          -- ^ free variables in the type to convert
   -> Id               -- ^ the 'Id' from which to get the type signature
   -> Sig GhcRn
-synifyIdSig s vs i = TypeSig noExt [synifyName i] (synifySigWcType s vs (varType i))
+synifyIdSig prr s vs i = TypeSig noExt [synifyName i] (synifySigWcType s vs t)
+  where
+    t | prr = varType i
+      | otherwise = defaultRuntimeRepVars (varType i)
 
 -- | Turn a 'ClassOpItem' into a list of signatures. The list returned is going
 -- to contain the synified 'ClassOpSig' as well (when appropriate) a default
@@ -756,7 +771,7 @@ synifyInstHead (vs, preds, cls, types) = specializeInstHead $ InstHead
     ts' = map (synifyType WithinType vs) ts
     annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
     is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars cls_tycon)
-    synifyClsIdSig = synifyIdSig DeleteTopLevelQuantification vs
+    synifyClsIdSig = synifyIdSig True DeleteTopLevelQuantification vs
 
 -- Convert a family instance, this could be a type family or data family
 synifyFamInst :: FamInst -> Bool -> Either ErrMsg (InstHead GhcRn)
