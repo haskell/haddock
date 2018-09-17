@@ -1,0 +1,176 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><title
+    >PrintRuntimeReps</title
+    ><link href="#" rel="stylesheet" type="text/css" title="Ocean"
+     /><link rel="stylesheet" type="text/css" href="#"
+     /><script src="haddock-bundle.min.js" async="async" type="text/javascript"
+    ></script
+    ><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"
+    ></script
+    ></head
+  ><body
+  ><div id="package-header"
+    ><ul class="links" id="page-menu"
+      ><li
+	><a href="#"
+	  >Contents</a
+	  ></li
+	><li
+	><a href="#"
+	  >Index</a
+	  ></li
+	></ul
+      ><p class="caption empty"
+      ></p
+      ></div
+    ><div id="content"
+    ><div id="module-header"
+      ><table class="info"
+	><tr
+	  ><th
+	    >Safe Haskell</th
+	    ><td
+	    >Safe</td
+	    ></tr
+	  ></table
+	><p class="caption"
+	>PrintRuntimeReps</p
+	></div
+      ><div id="synopsis"
+      ><details id="syn"
+	><summary
+	  >Synopsis</summary
+	  ><ul class="details-toggle" data-details-id="syn"
+	  ><li class="src short"
+	    ><a href="#"
+	      >($)</a
+	      > :: <span class="keyword"
+	      >forall</span
+	      > (r :: <a href="#" title="GHC.Exts"
+	      >RuntimeRep</a
+	      >) a (b :: <a href="#" title="GHC.Exts"
+	      >TYPE</a
+	      > r). (a -&gt; b) -&gt; a -&gt; b</li
+	    ><li class="src short"
+	    ><a href="#"
+	      >error</a
+	      > :: <span class="keyword"
+	      >forall</span
+	      > (r :: <a href="#" title="GHC.Exts"
+	      >RuntimeRep</a
+	      >) (a :: <a href="#" title="GHC.Exts"
+	      >TYPE</a
+	      > r). <a href="#" title="GHC.Stack"
+	      >HasCallStack</a
+	      > =&gt; [<a href="#" title="Data.Char"
+	      >Char</a
+	      >] -&gt; a</li
+	    ></ul
+	  ></details
+	></div
+      ><div id="interface"
+      ><h1
+	>Documentation</h1
+	><div class="top"
+	><p class="src"
+	  ><a id="v:-36-" class="def"
+	    >($)</a
+	    > :: <span class="keyword"
+	    >forall</span
+	    > (r :: <a href="#" title="GHC.Exts"
+	    >RuntimeRep</a
+	    >) a (b :: <a href="#" title="GHC.Exts"
+	    >TYPE</a
+	    > r). (a -&gt; b) -&gt; a -&gt; b <span class="fixity"
+	    >infixr 0</span
+	    ><span class="rightedge"
+	    ></span
+	    > <a href="#" class="selflink"
+	    >#</a
+	    ></p
+	  ><div class="doc"
+	  ><p
+	    >Application operator.  This operator is redundant, since ordinary
+ application <code
+	      >(f x)</code
+	      > means the same as <code
+	      >(f <code
+		><a href="#" title="PrintRuntimeReps"
+		  >$</a
+		  ></code
+		> x)</code
+	      >. However, <code
+	      ><a href="#" title="PrintRuntimeReps"
+		>$</a
+		></code
+	      > has
+ low, right-associative binding precedence, so it sometimes allows
+ parentheses to be omitted; for example:</p
+	    ><pre
+	    >f $ g $ h x  =  f (g (h x))</pre
+	    ><p
+	    >It is also useful in higher-order situations, such as <code
+	      ><code
+		><a href="#" title="GHC.List"
+		  >map</a
+		  ></code
+		> (<code
+		><a href="#" title="PrintRuntimeReps"
+		  >$</a
+		  ></code
+		> 0) xs</code
+	      >,
+ or <code
+	      ><code
+		><a href="#" title="Data.List"
+		  >zipWith</a
+		  ></code
+		> (<code
+		><a href="#" title="PrintRuntimeReps"
+		  >$</a
+		  ></code
+		>) fs xs</code
+	      >.</p
+	    ><p
+	    >Note that <code
+	      >($)</code
+	      > is levity-polymorphic in its result type, so that
+     foo $ True    where  foo :: Bool -&gt; Int#
+ is well-typed</p
+	    ></div
+	  ></div
+	><div class="top"
+	><p class="src"
+	  ><a id="v:error" class="def"
+	    >error</a
+	    > :: <span class="keyword"
+	    >forall</span
+	    > (r :: <a href="#" title="GHC.Exts"
+	    >RuntimeRep</a
+	    >) (a :: <a href="#" title="GHC.Exts"
+	    >TYPE</a
+	    > r). <a href="#" title="GHC.Stack"
+	    >HasCallStack</a
+	    > =&gt; [<a href="#" title="Data.Char"
+	    >Char</a
+	    >] -&gt; a <a href="#" class="selflink"
+	    >#</a
+	    ></p
+	  ><div class="doc"
+	  ><p
+	    ><code
+	      ><a href="#" title="PrintRuntimeReps"
+		>error</a
+		></code
+	      > stops execution and displays an error message.</p
+	    ></div
+	  ></div
+	></div
+      ></div
+    ><div id="footer"
+    ></div
+    ></body
+  ></html
+>
