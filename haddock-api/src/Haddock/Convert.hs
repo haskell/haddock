@@ -99,7 +99,7 @@ tyThingToLHsDecl prr t = case t of
              :: ClassATItem
              -> Either ErrMsg (LFamilyDecl GhcRn, Maybe (LTyFamDefltEqn GhcRn))
            extractAtItem (ATI at_tc def) = do
-             tyDecl <- synifyTyCon Nothing at_tc
+             tyDecl <- synifyTyCon prr Nothing at_tc
              famDecl <- extractFamilyDecl tyDecl
              let defEqnTy = fmap (noLoc . extractFamDefDecl famDecl . fst) def
              pure (noLoc famDecl, defEqnTy)
@@ -127,7 +127,7 @@ tyThingToLHsDecl prr t = case t of
          , tcdDocs = [] --we don't have any docs at this point
          , tcdCExt = placeHolderNamesTc }
     | otherwise
-    -> synifyTyCon Nothing tc >>= allOK . TyClD noExt
+    -> synifyTyCon prr Nothing tc >>= allOK . TyClD noExt
 
   -- type-constructors (e.g. Maybe) are complicated, put the definition
   -- later in the file (also it's used for class associated-types too.)
@@ -170,25 +170,25 @@ synifyAxiom ax@(CoAxiom { co_ax_tc = tc })
 
   | Just ax' <- isClosedSynFamilyTyConWithAxiom_maybe tc
   , getUnique ax' == getUnique ax   -- without the getUniques, type error
-  = synifyTyCon (Just ax) tc >>= return . TyClD noExt
+  = synifyTyCon True (Just ax) tc >>= return . TyClD noExt
 
   | otherwise
   = Left "synifyAxiom: closed/open family confusion"
 
--- | Turn type constructors into type class declarations
-synifyTyCon :: Maybe (CoAxiom br) -> TyCon -> Either ErrMsg (TyClDecl GhcRn)
-synifyTyCon _coax tc
+-- | Turn type constructors into data declarations, type families, or type synonyms
+synifyTyCon
+  :: PrintRuntimeReps
+  -> Maybe (CoAxiom br)  -- ^ RHS of type synonym
+  -> TyCon               -- ^ type constructor to convert
+  -> Either ErrMsg (TyClDecl GhcRn)
+synifyTyCon prr _coax tc
   | isFunTyCon tc || isPrimTyCon tc
   = return $
     DataDecl { tcdLName = synifyName tc
-             , tcdTyVars =       -- tyConTyVars doesn't work on fun/prim, but we can make them up:
-                         let mk_hs_tv realKind fakeTyVar
-                                = noLoc $ KindedTyVar noExt (noLoc (getName fakeTyVar))
-                                                      (synifyKindSig realKind)
-                         in HsQTvs { hsq_ext =
+             , tcdTyVars = HsQTvs { hsq_ext =
                                        HsQTvsRn { hsq_implicit = []   -- No kind polymorphism
                                                 , hsq_dependent = emptyNameSet }
-                                   , hsq_explicit = zipWith mk_hs_tv (fst (splitFunTys (tyConKind tc)))
+                                   , hsq_explicit = zipWith mk_hs_tv (fst (splitFunTys conKind))
                                                                 alphaTyVars --a, b, c... which are unfortunately all kind *
                                    }
 
@@ -199,13 +199,20 @@ synifyTyCon _coax tc
                                                     -- algebraic data nor newtype:
                                       , dd_ctxt = noLoc []
                                       , dd_cType = Nothing
-                                      , dd_kindSig = Just (synifyKindSig (tyConKind tc))
+                                      , dd_kindSig = synifyDataTyConReturnKind tc
                                                -- we have their kind accurately:
                                       , dd_cons = []  -- No constructors
                                       , dd_derivs = noLoc [] }
            , tcdDExt = DataDeclRn False placeHolderNamesTc }
+  where
+    -- tyConTyVars doesn't work on fun/prim, but we can make them up:
+    mk_hs_tv realKind fakeTyVar
+      | isLiftedTypeKind realKind = noLoc $ UserTyVar noExt (noLoc (getName fakeTyVar))
+      | otherwise = noLoc $ KindedTyVar noExt (noLoc (getName fakeTyVar)) (synifyKindSig realKind)
 
-synifyTyCon _coax tc
+    conKind = defaultType prr (tyConKind tc)
+
+synifyTyCon _prr _coax tc
   | Just flav <- famTyConFlav_maybe tc
   = case flav of
       -- Type families
@@ -237,7 +244,7 @@ synifyTyCon _coax tc
                                        (tyConInjectivityInfo tc)
                  }
 
-synifyTyCon coax tc
+synifyTyCon _prr coax tc
   | Just ty <- synTyConRhs_maybe tc
   = return $ SynDecl { tcdSExt   = emptyNameSet
                      , tcdLName  = synifyName tc
@@ -405,8 +412,7 @@ synifyIdSig
   -> Sig GhcRn
 synifyIdSig prr s vs i = TypeSig noExt [synifyName i] (synifySigWcType s vs t)
   where
-    t | prr = varType i
-      | otherwise = defaultRuntimeRepVars (varType i)
+    t = defaultType prr (varType i)
 
 -- | Turn a 'ClassOpItem' into a list of signatures. The list returned is going
 -- to contain the synified 'ClassOpSig' as well (when appropriate) a default
@@ -500,6 +506,11 @@ synifySigWcType s vs ty = mkEmptyWildCardBndrs (mkEmptyImplicitBndrs (synifyType
 synifyPatSynSigType :: PatSyn -> LHsSigType GhcRn
 -- Ditto (see synifySigType)
 synifyPatSynSigType ps = mkEmptyImplicitBndrs (synifyPatSynType ps)
+
+-- | Depending on the first argument, try to default all type variables of kind
+-- 'RuntimeRep' to 'LiftedType'.
+defaultType :: PrintRuntimeReps -> Type -> Type
+defaultType prr = if prr then id else defaultRuntimeRepVars
 
 -- | Convert a core type into an 'HsType'.
 synifyType
@@ -761,7 +772,7 @@ synifyInstHead (vs, preds, cls, types) = specializeInstHead $ InstHead
         , clsiTyVars = synifyTyVars (tyConVisibleTyVars cls_tycon)
         , clsiSigs = map synifyClsIdSig $ classMethods cls
         , clsiAssocTys = do
-            (Right (FamDecl _ fam)) <- map (synifyTyCon Nothing) $ classATs cls
+            (Right (FamDecl _ fam)) <- map (synifyTyCon False Nothing) $ classATs cls
             pure $ mkPseudoFamilyDecl fam
         }
     }
@@ -787,7 +798,7 @@ synifyFamInst fi opaque = do
     ityp SynFamilyInst =
         return . TypeInst . Just . unLoc $ synifyType WithinType [] fam_rhs
     ityp (DataFamilyInst c) =
-        DataInst <$> synifyTyCon (Just $ famInstAxiom fi) c
+        DataInst <$> synifyTyCon False (Just $ famInstAxiom fi) c
     fam_tc     = famInstTyCon fi
     fam_flavor = fi_flavor fi
     fam_lhs    = fi_tys fi
