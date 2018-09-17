@@ -285,7 +285,6 @@ parseOption "hide"            = return (Just OptHide)
 parseOption "prune"           = return (Just OptPrune)
 parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
-parseOption "print-runtime-reps" = return (Just OptPrintRuntimeRep)
 parseOption "print-explicit-runtime-reps" = return (Just OptPrintRuntimeRep)
 parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
 
