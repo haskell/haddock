@@ -79,7 +79,17 @@ createInterface mod_iface flags modMap instIfaceMap = do
       (pkgNameFS, _) = modulePackageInfo dflags flags mdl
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
       warnings       = mi_warns mod_iface
-      !exportedNames = concatMap availNamesWithSelectors (mi_exports mod_iface)
+
+      -- See Note [Exporting built-in items]
+      special_exports
+        | mdl == gHC_TYPES  = listAvail <> eqAvail
+        | mdl == gHC_PRIM   = funAvail
+        | mdl == pRELUDE    = listAvail <> funAvail
+        | mdl == dATA_TUPLE = tupsAvail
+        | otherwise         = []
+      !exportedNames = concatMap availNamesWithSelectors
+                                 (special_exports <> mi_exports mod_iface)
+
       fixMap         = mkFixMap exportedNames (mi_fixities mod_iface)
 
   mod_iface_docs <- case mi_docs mod_iface of
@@ -125,28 +135,9 @@ createInterface mod_iface flags modMap instIfaceMap = do
       -- together with the other locations from the extended .hie files.
       splices = []
 
-  -- Some items do not show up in modules' 'DocStructure' simply because Haskell
-  -- lacks the concrete syntax to represent such an export. We'd still like
-  -- these to show up in docs, so we manually patch on some extra exports for a
-  -- small number of modules:
-  --
-  --   * "GHC.Prim" should export @(->)@
-  --   * "GHC.Types" should export @[]([], (:))@ and @(~)@
-  --   * "Prelude" should export @(->)@ and @[]([], (:))@
-  --   * "Data.Tuple" should export tuples up to arity 15
-  --
-  let listAvail = [ AvailTC listTyConName
-                            [listTyConName, nilDataConName, consDataConName]
-                            [] ]
-      funAvail  = [ AvailTC funTyConName [funTyConName] [] ]
-      eqAvail   = [ AvailTC eqTyConName [eqTyConName] [] ]
-      tupsAvail = [ AvailTC tyName [tyName, dataName] []
-                  | i<-[0..15]
-                  , let tyName = tupleTyConName BoxedTuple i
-                  , let dataName = getName $ tupleDataCon Boxed i
-                  ]
-      builtinTys = DsiSectionHeading 1 (mkHsDoc' (mkHsDocString "Builtin syntax") [])
-  let bonus_ds mods
+  -- See Note [Exporting built-in items]
+  let builtinTys = DsiSectionHeading 1 (mkHsDoc' (mkHsDocString "Builtin syntax") [])
+      bonus_ds mods
         | mdl == gHC_TYPES  = [ DsiExports (listAvail <> eqAvail) ] <> mods
         | mdl == gHC_PRIM   = [ builtinTys, DsiExports funAvail ] <> mods
         | mdl == pRELUDE    = let (hs, rest) = splitAt 2 mods
@@ -200,6 +191,30 @@ createInterface mod_iface flags modMap instIfaceMap = do
   , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = Nothing -- TODO: Get this from the extended .hie-files.
   }
+  where
+    -- Note [Exporting built-in items]
+    --
+    -- Some items do not show up in their modules exports simply because Haskell
+    -- lacks the concrete syntax to represent such an export. We'd still like
+    -- these to show up in docs, so we manually patch on some extra exports for a
+    -- small number of modules:
+    --
+    --   * "GHC.Prim" should export @(->)@
+    --   * "GHC.Types" should export @[]([], (:))@ and @(~)@
+    --   * "Prelude" should export @(->)@ and @[]([], (:))@
+    --   * "Data.Tuple" should export tuples up to arity 15
+    --
+    listAvail = [ AvailTC listTyConName
+                          [listTyConName, nilDataConName, consDataConName]
+                          [] ]
+    funAvail  = [ AvailTC funTyConName [funTyConName] [] ]
+    eqAvail   = [ AvailTC eqTyConName [eqTyConName] [] ]
+    tupsAvail = [ AvailTC tyName [tyName, datName] []
+                | i<-[0..15]
+                , let tyName = tupleTyConName BoxedTuple i
+                , let datName = getName $ tupleDataCon Boxed i
+                ]
+
 
 -- | Given the information that comes out of a 'DsiModExport', decide which of
 -- the re-exported modules can be linked directly and which modules need to have
