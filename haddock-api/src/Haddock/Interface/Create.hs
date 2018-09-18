@@ -49,9 +49,15 @@ import TcIface
 import TcRnMonad
 import FastString ( unpackFS )
 import HsDecls ( getConArgs )
-import BasicTypes ( WarningTxt(..), WarningSort(..), warningTxtContents )
+import BasicTypes ( WarningTxt(..), WarningSort(..), warningTxtContents
+                  , TupleSort(..), Boxity(..) )
 import qualified Outputable as O
 import DynFlags ( getDynFlags )
+
+import TysPrim    ( funTyConName )
+import TysWiredIn ( listTyConName, nilDataConName, consDataConName, eqTyConName
+                  , tupleDataCon, tupleTyConName)
+import PrelNames  ( dATA_TUPLE, pRELUDE, gHC_PRIM, gHC_TYPES )
 
 -- | Use a 'ModIface' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological
@@ -119,12 +125,41 @@ createInterface mod_iface flags modMap instIfaceMap = do
       -- together with the other locations from the extended .hie files.
       splices = []
 
+  -- Some items do not show up in modules' 'DocStructure' simply because Haskell
+  -- lacks the concrete syntax to represent such an export. We'd still like
+  -- these to show up in docs, so we manually patch on some extra exports for a
+  -- small number of modules:
+  --
+  --   * "GHC.Prim" should export @(->)@
+  --   * "GHC.Types" should export @[]([], (:))@ and @(~)@
+  --   * "Prelude" should export @(->)@ and @[]([], (:))@
+  --   * "Data.Tuple" should export tuples up to arity 15
+  --
+  let listAvail = [ AvailTC listTyConName
+                            [listTyConName, nilDataConName, consDataConName]
+                            [] ]
+      funAvail  = [ AvailTC funTyConName [funTyConName] [] ]
+      eqAvail   = [ AvailTC eqTyConName [eqTyConName] [] ]
+      tupsAvail = [ AvailTC tyName [tyName, dataName] []
+                  | i<-[0..15]
+                  , let tyName = tupleTyConName BoxedTuple i
+                  , let dataName = getName $ tupleDataCon Boxed i
+                  ]
+      builtinTys = DsiSectionHeading 1 (mkHsDoc' (mkHsDocString "Builtin syntax") [])
+  let bonus_ds mods
+        | mdl == gHC_TYPES  = [ DsiExports (listAvail <> eqAvail) ] <> mods
+        | mdl == gHC_PRIM   = [ builtinTys, DsiExports funAvail ] <> mods
+        | mdl == pRELUDE    = let (hs, rest) = splitAt 2 mods
+                              in hs <> [ DsiExports (listAvail <> funAvail) ] <> rest
+        | mdl == dATA_TUPLE = mods <> [ DsiExports tupsAvail ]
+        | otherwise = mods
+
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
   exportItems <- mkExportItems modMap pkgName mdl allWarnings renamer
                    docMap argMap fixMap splices
                    (docs_named_chunks mod_iface_docs)
-                   (docs_structure mod_iface_docs) instIfaceMap
+                   (bonus_ds $ docs_structure mod_iface_docs) instIfaceMap
 
   let !visibleNames = mkVisibleNames instanceMap exportItems opts
 
