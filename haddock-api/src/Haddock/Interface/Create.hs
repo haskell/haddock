@@ -86,6 +86,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
         | mdl == gHC_PRIM   = funAvail
         | mdl == pRELUDE    = listAvail <> funAvail
         | mdl == dATA_TUPLE = tupsAvail
+        | mdl == dATA_LIST  = listAvail
         | otherwise         = []
       !exportedNames = concatMap availNamesWithSelectors
                                  (special_exports <> mi_exports mod_iface)
@@ -143,6 +144,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
         | mdl == pRELUDE    = let (hs, rest) = splitAt 2 mods
                               in hs <> [ DsiExports (listAvail <> funAvail) ] <> rest
         | mdl == dATA_TUPLE = mods <> [ DsiExports tupsAvail ]
+        | mdl == dATA_LIST  = [ DsiExports listAvail ] <> mods
         | otherwise = mods
 
   -- The MAIN functionality: compute the export items which will
