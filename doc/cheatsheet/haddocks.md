@@ -115,7 +115,7 @@ definitions with "[thing]"
 {-# OPTIONS_HADDOCK show-extensions #-}
   Show all enabled LANGUAGE extensions
 {-# OPTIONS_HADDOCK print-explicit-runtime-reps #-}
-  Don't default 'RuntimeRep' type variables
+  Show all `RuntimeRep` type variables
 ```
 
 # Grid tables

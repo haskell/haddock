@@ -16,7 +16,7 @@ module Haddock.Convert (
   tyThingToLHsDecl,
   synifyInstHead,
   synifyFamInst,
-  PrintRuntimeReps,
+  PrintRuntimeReps(..),
 ) where
 
 import Bag ( emptyBag )
@@ -60,7 +60,7 @@ import Data.Maybe                            ( catMaybes, maybeToList )
 -- | Whether or not to default 'RuntimeRep' variables to 'LiftedRep'. Check
 -- out Note [Defaulting RuntimeRep variables] in IfaceType.hs for the
 -- motivation.
-type PrintRuntimeReps = Bool
+data PrintRuntimeReps = ShowRuntimeRep | HideRuntimeRep deriving Show
 
 -- the main function here! yay!
 tyThingToLHsDecl
@@ -170,7 +170,7 @@ synifyAxiom ax@(CoAxiom { co_ax_tc = tc })
 
   | Just ax' <- isClosedSynFamilyTyConWithAxiom_maybe tc
   , getUnique ax' == getUnique ax   -- without the getUniques, type error
-  = synifyTyCon True (Just ax) tc >>= return . TyClD noExt
+  = synifyTyCon ShowRuntimeRep (Just ax) tc >>= return . TyClD noExt
 
   | otherwise
   = Left "synifyAxiom: closed/open family confusion"
@@ -510,7 +510,8 @@ synifyPatSynSigType ps = mkEmptyImplicitBndrs (synifyPatSynType ps)
 -- | Depending on the first argument, try to default all type variables of kind
 -- 'RuntimeRep' to 'LiftedType'.
 defaultType :: PrintRuntimeReps -> Type -> Type
-defaultType prr = if prr then id else defaultRuntimeRepVars
+defaultType ShowRuntimeRep = id
+defaultType HideRuntimeRep = defaultRuntimeRepVars
 
 -- | Convert a core type into an 'HsType'.
 synifyType
@@ -772,7 +773,8 @@ synifyInstHead (vs, preds, cls, types) = specializeInstHead $ InstHead
         , clsiTyVars = synifyTyVars (tyConVisibleTyVars cls_tycon)
         , clsiSigs = map synifyClsIdSig $ classMethods cls
         , clsiAssocTys = do
-            (Right (FamDecl _ fam)) <- map (synifyTyCon False Nothing) $ classATs cls
+            (Right (FamDecl _ fam)) <- map (synifyTyCon HideRuntimeRep Nothing)
+                                           (classATs cls)
             pure $ mkPseudoFamilyDecl fam
         }
     }
@@ -782,7 +784,7 @@ synifyInstHead (vs, preds, cls, types) = specializeInstHead $ InstHead
     ts' = map (synifyType WithinType vs) ts
     annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
     is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars cls_tycon)
-    synifyClsIdSig = synifyIdSig True DeleteTopLevelQuantification vs
+    synifyClsIdSig = synifyIdSig ShowRuntimeRep DeleteTopLevelQuantification vs
 
 -- Convert a family instance, this could be a type family or data family
 synifyFamInst :: FamInst -> Bool -> Either ErrMsg (InstHead GhcRn)
@@ -798,7 +800,7 @@ synifyFamInst fi opaque = do
     ityp SynFamilyInst =
         return . TypeInst . Just . unLoc $ synifyType WithinType [] fam_rhs
     ityp (DataFamilyInst c) =
-        DataInst <$> synifyTyCon False (Just $ famInstAxiom fi) c
+        DataInst <$> synifyTyCon HideRuntimeRep (Just $ famInstAxiom fi) c
     fam_tc     = famInstTyCon fi
     fam_flavor = fi_flavor fi
     fam_lhs    = fi_tys fi

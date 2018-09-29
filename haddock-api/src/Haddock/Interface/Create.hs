@@ -85,7 +85,8 @@ createInterface mod_iface flags modMap instIfaceMap = do
   let renamer = docIdEnvRenamer (docs_id_env mod_iface_docs)
 
   opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
-  let prr = OptPrintRuntimeRep `elem` opts
+  let prr | OptPrintRuntimeRep `elem` opts = ShowRuntimeRep
+          | otherwise = HideRuntimeRep
 
   -- Process the top-level module header documentation.
   (!info, mbDoc) <- processModuleHeader pkgName renamer safety
