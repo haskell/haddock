@@ -523,6 +523,8 @@ data DocOption
   | OptNotHome         -- ^ Not the best place to get docs for things
                        -- exported by this module.
   | OptShowExtensions  -- ^ Render enabled extensions for this module.
+  | OptPrintRuntimeRep -- ^ Render runtime reps for this module (see
+                       -- the GHC @-fprint-explicit-runtime-reps@ flag)
   deriving (Eq, Show)
 
 

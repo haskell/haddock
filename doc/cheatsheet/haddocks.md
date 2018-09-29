@@ -114,6 +114,8 @@ definitions with "[thing]"
   "home" of identifiers it exports
 {-# OPTIONS_HADDOCK show-extensions #-}
   Show all enabled LANGUAGE extensions
+{-# OPTIONS_HADDOCK print-explicit-runtime-reps #-}
+  Show all `RuntimeRep` type variables
 ```
 
 # Grid tables

@@ -750,6 +750,12 @@ The following attributes are currently understood by Haddock:
     be rendered, including those implied by their more powerful
     versions.
 
+``print-explicit-runtime-reps``
+    Print type variables that have kind ``RuntimeRep``. By default, these
+    are defaulted to ``LiftedRep`` so that end users don't have to see the
+    underlying levity polymorphism. This flag is analogous to GHC's
+    ``-fprint-explicit-runtime-reps`` flag.
+
 .. _markup:
 
 Markup
