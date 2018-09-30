@@ -170,6 +170,7 @@ loadConfig :: CheckConfig c -> DirConfig -> [Flag] -> [String] -> IO (Config c)
 loadConfig ccfg dcfg flags files = do
     cfgEnv <- (:) ("haddock_datadir", dcfgResDir dcfg) <$> getEnvironment
 
+    -- Find Haddock executable
     systemHaddockPath <- List.lookup "HADDOCK_PATH" <$> getEnvironment
     haddockOnPath <- findExecutable "haddock"
 
@@ -181,14 +182,27 @@ loadConfig ccfg dcfg flags files = do
     cfgHaddockPath <- case haddock_path of
         Just path -> pure path
         Nothing   -> do
-          hPutStrLn stderr "Haddock executable not found"
+          hPutStrLn stderr "Haddock executable not found; consider using the `--haddock-path` flag."
           exitFailure
 
-    ghcPath <- case flagsGhcPath flags of
-                 Just fp -> return fp
-                 Nothing -> init <$> rawSystemStdout normal
-                                                     cfgHaddockPath
-                                                     ["--print-ghc-path"]
+    -- Find GHC executable
+    systemGhcPath <- List.lookup "GHC_PATH" <$> getEnvironment
+    ghcHaddock <- init <$> rawSystemStdout normal cfgHaddockPath ["--print-ghc-path"]
+
+    let ghc_path = msum [ flagsGhcPath flags
+                        , systemGhcPath
+                        , mfilter (/= "not available") (Just ghcHaddock)
+                        ]
+    ghcPath <- case ghc_path of
+        Just path -> pure path
+        Nothing   -> do
+          hPutStrLn stderr "GHC executable not found; consider using the `--ghc-path` flag."
+          exitFailure
+
+    -- If we've got a handle on GHC's path, we can get its libdir and save
+    -- Haddock the trouble of looking it up (esp. since it has no way of
+    -- looking it up when the 'in-ghc-tree' Cabal flag is set).
+    ghcLib  <- init <$> rawSystemStdout normal ghcPath ["--print-libdir"]
 
     printVersions cfgEnv cfgHaddockPath
 
@@ -200,6 +214,7 @@ loadConfig ccfg dcfg flags files = do
         , pure ["--odir=" ++ dcfgOutDir dcfg]
         , pure ["--optghc=-w"]
         , pure ["--optghc=-hide-all-packages"]
+        , pure ["-B" ++ ghcLib]
         , pure $ flagsHaddockOptions flags
         , baseDependencies ghcPath
         ]

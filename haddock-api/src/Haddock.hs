@@ -65,9 +65,8 @@ import System.FilePath
 #else
 import qualified GHC.Paths as GhcPaths
 import Paths_haddock_api (getDataDir)
-import System.Directory (doesDirectoryExist)
 #endif
-import System.Directory (getTemporaryDirectory)
+import System.Directory (doesDirectoryExist, getTemporaryDirectory)
 import System.FilePath ((</>))
 
 import Text.ParserCombinators.ReadP (readP_to_S)
@@ -535,26 +534,31 @@ getHaddockLibDir flags =
   case [str | Flag_Lib str <- flags] of
     [] -> do
 #ifdef IN_GHC_TREE
-      getInTreeDir
+      exec_dir <- getExecDir
+      let res_dirs = [ d </> ".." </> "lib" | Just d <- [exec_dir] ] ++
 #else
+      data_dir <- getDataDir      -- Provided by Cabal
+      let res_dirs = [ data_dir ] ++
+#endif
       -- if data directory does not exist we are probably
       -- invoking from either ./haddock-api or ./
-      let res_dirs = [ getDataDir -- provided by Cabal
-                     , pure "resources"
-                     , pure "haddock-api/resources"
+                     [ "resources"
+                     , "haddock-api/resources"
                      ]
 
-          check get_path = do
-            p <- get_path
-            exists <- doesDirectoryExist p
-            pure $ if exists then Just p else Nothing
+      res_dir <- check res_dirs
+      case res_dir of
+        Just p -> return p
+        _      -> die "Haddock's resource directory does not exist!\n"
 
-      dirs <- mapM check res_dirs
-      case [p | Just p <- dirs] of
-        (p : _) -> return p
-        _       -> die "Haddock's resource directory does not exist!\n"
-#endif
     fs -> return (last fs)
+  where
+    -- Pick the first path that corresponds to a directory that exists
+    check :: [FilePath] -> IO (Maybe FilePath)
+    check [] = pure Nothing
+    check (path : other_paths) = do
+      exists <- doesDirectoryExist path
+      if exists then pure (Just path) else check other_paths
 
 
 getGhcDirs :: [Flag] -> IO (String, String)
@@ -562,7 +566,8 @@ getGhcDirs flags = do
   case [ dir | Flag_GhcLibDir dir <- flags ] of
     [] -> do
 #ifdef IN_GHC_TREE
-      libDir <- getInTreeDir
+      libDirOpt <- getExecDir
+      let libDir = maybe (error "No GhcDir found") (</> ".." </> "lib") libDirOpt
       return (ghcPath, libDir)
 #else
       return (ghcPath, GhcPaths.libdir)
@@ -672,12 +677,6 @@ rightOrThrowE (Right x) = pure x
 
 
 #ifdef IN_GHC_TREE
-
-getInTreeDir :: IO String
-getInTreeDir = getExecDir >>= \case
-  Nothing -> error "No GhcDir found"
-  Just d -> return (d </> ".." </> "lib")
-
 
 getExecDir :: IO (Maybe String)
 #if defined(mingw32_HOST_OS)
