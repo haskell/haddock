@@ -204,7 +204,9 @@ createInterface mod_iface flags modMap instIfaceMap = do
     --   * "GHC.Prim" should export @(->)@
     --   * "GHC.Types" should export @[]([], (:))@ and @(~)@
     --   * "Prelude" should export @(->)@ and @[]([], (:))@
-    --   * "Data.Tuple" should export tuples up to arity 15
+    --   * "Data.Tuple" should export tuples up to arity 15 (that is the number
+    --     that Haskell98 guarantees exist and that it also the point at which
+    --     GHC stops providing instances)
     --
     listAvail = [ AvailTC listTyConName
                           [listTyConName, nilDataConName, consDataConName]
