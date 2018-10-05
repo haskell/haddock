@@ -13,8 +13,6 @@
 module Haddock.Interface.Rename (renameInterface) where
 
 
-import Data.Traversable (mapM)
-
 import Haddock.GhcUtils
 import Haddock.Types
 
@@ -22,11 +20,12 @@ import Bag (emptyBag)
 import GHC hiding (NoLink)
 import Name
 import Outputable ( panic )
-import RdrName (RdrName(Exact))
-import TysWiredIn (eqTyCon_RDR)
+import RdrName    ( RdrName(Exact) )
+import TysPrim    ( eqPrimTyCon )
+import TysWiredIn ( eqTyCon_RDR )
 
 import Control.Applicative
-import Control.Monad hiding (mapM)
+import Control.Monad
 import Data.List
 import qualified Data.Map as Map hiding ( Map )
 import Prelude hiding (mapM)
@@ -72,7 +71,8 @@ renameInterface dflags renamingEnv warnings iface =
                 | n <- missingNames
                 , not (isSystemName n)
                 , not (isBuiltInSyntax n)
-                , Exact n /= eqTyCon_RDR
+                , Exact n /= eqTyCon_RDR   -- (~)
+                , n /= getName eqPrimTyCon -- (~#)
                 ]
 
   in do

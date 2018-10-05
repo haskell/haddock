@@ -21,12 +21,14 @@ import Control.Arrow
 import Haddock.Types( DocNameI )
 
 import Exception
+import FastString ( fsLit )
 import FV
 import Outputable
 import Name
 import NameSet
 import Lexeme
 import Module
+import PrelNames ( mkBaseModule )
 import HscTypes
 import GHC
 import Class
@@ -167,6 +169,9 @@ nubByName f ns = go emptyNameSet ns
                             in x : go s' xs
       where
         y = f x
+
+dATA_LIST :: Module
+dATA_LIST = mkBaseModule (fsLit "Data.List")
 
 -- ---------------------------------------------------------------------
 
