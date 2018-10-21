@@ -33,7 +33,7 @@ import HscTypes
 import GHC
 import Class
 import DynFlags
-import Var       ( TyVarBndr(..), TyVarBinder, tyVarKind, updateTyVarKind,
+import Var       ( VarBndr(..), TyVarBinder, tyVarKind, updateTyVarKind,
                    isInvisibleArgFlag )
 import VarSet    ( VarSet, emptyVarSet )
 import VarEnv    ( TyVarEnv, extendVarEnv, elemVarEnv, emptyVarEnv )
@@ -505,7 +505,7 @@ tyCoFVsOfTypes' []       fv_cand in_scope acc = emptyFV fv_cand in_scope acc
 -- | Just like 'tyCoFVsBndr', but traverses type variables in reverse order of
 -- appearance.
 tyCoFVsBndr' :: TyVarBinder -> FV -> FV
-tyCoFVsBndr' (TvBndr tv _) fvs = FV.delFV tv fvs `unionFV` tyCoFVsOfType' (tyVarKind tv)
+tyCoFVsBndr' (Bndr tv _) fvs = FV.delFV tv fvs `unionFV` tyCoFVsOfType' (tyVarKind tv)
 
 
 -------------------------------------------------------------------------------
@@ -519,13 +519,13 @@ defaultRuntimeRepVars :: Type -> Type
 defaultRuntimeRepVars = go emptyVarEnv
   where
     go :: TyVarEnv () -> Type -> Type
-    go subs (ForAllTy (TvBndr var flg) ty)
+    go subs (ForAllTy (Bndr var flg) ty)
       | isRuntimeRepVar var
       , isInvisibleArgFlag flg
       = let subs' = extendVarEnv subs var ()
         in go subs' ty
       | otherwise
-      = ForAllTy (TvBndr (updateTyVarKind (go subs) var) flg)
+      = ForAllTy (Bndr (updateTyVarKind (go subs) var) flg)
                  (go subs ty)
 
     go subs (TyVarTy tv)

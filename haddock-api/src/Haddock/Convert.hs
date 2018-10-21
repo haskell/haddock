@@ -850,8 +850,8 @@ tcSplitSigmaTyPreserveSynonyms ty =
 tcSplitForAllTysPreserveSynonyms :: Type -> ([TyVar], Type)
 tcSplitForAllTysPreserveSynonyms ty = split ty ty []
   where
-    split _       (ForAllTy (TvBndr tv _) ty') tvs = split ty' ty' (tv:tvs)
-    split orig_ty _                            tvs = (reverse tvs, orig_ty)
+    split _       (ForAllTy (Bndr tv _) ty') tvs = split ty' ty' (tv:tvs)
+    split orig_ty _                          tvs = (reverse tvs, orig_ty)
 
 -- | See Note [Invariant: Never expand type synonyms]
 tcSplitPhiTyPreserveSynonyms :: Type -> (ThetaType, Type)

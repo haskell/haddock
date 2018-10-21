@@ -48,6 +48,7 @@ import Control.Exception
 import Data.Maybe
 import Data.IORef
 import Data.Map (Map)
+import Data.Version (makeVersion)
 import qualified Data.Map as Map
 import System.IO
 import System.Exit
@@ -75,6 +76,7 @@ import Packages
 import Panic (handleGhcException)
 import Module
 import FastString
+import qualified DynamicLoading
 
 --------------------------------------------------------------------------------
 -- * Exception handling
@@ -372,9 +374,13 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
   -- might want to fix that if/when these two get some work on them
   when (Flag_Hoogle `elem` flags) $ do
     case pkgNameVer of
-      (Just (PackageName pkgNameFS), Just pkgVer) ->
-          let pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
-                         | otherwise = unpackFS pkgNameFS
+      (Just (PackageName pkgNameFS), mpkgVer) ->
+          let
+            pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
+                       | otherwise = unpackFS pkgNameFS
+
+            pkgVer =
+              fromMaybe (makeVersion []) mpkgVer
           in ppHoogle dflags' pkgNameStr pkgVer title (fmap _doc prologue)
                visibleIfaces odir
       _ -> putStrLn . unlines $
@@ -458,7 +464,10 @@ withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
   -- that may need to be re-linked: Haddock doesn't do any
   -- dynamic or static linking at all!
   _ <- setSessionDynFlags dynflags''
-  ghcActs dynflags''
+  hscenv <- GHC.getSession
+  dynflags''' <- liftIO (DynamicLoading.initializePlugins hscenv dynflags'')
+  _ <- setSessionDynFlags dynflags'''
+  ghcActs dynflags'''
   where
 
     -- ignore sublists of flags that start with "+RTS" and end in "-RTS"
