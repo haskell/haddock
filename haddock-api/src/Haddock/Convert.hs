@@ -188,8 +188,9 @@ synifyTyCon prr _coax tc
              , tcdTyVars = HsQTvs { hsq_ext =
                                        HsQTvsRn { hsq_implicit = []   -- No kind polymorphism
                                                 , hsq_dependent = emptyNameSet }
-                                   , hsq_explicit = zipWith mk_hs_tv (fst (splitFunTys conKind))
-                                                                alphaTyVars --a, b, c... which are unfortunately all kind *
+                                   , hsq_explicit = zipWith mk_hs_tv
+                                                            tyVarKinds
+                                                            alphaTyVars --a, b, c... which are unfortunately all kind *
                                    }
 
            , tcdFixity = synifyFixity tc
@@ -211,6 +212,7 @@ synifyTyCon prr _coax tc
       | otherwise = noLoc $ KindedTyVar noExt (noLoc (getName fakeTyVar)) (synifyKindSig realKind)
 
     conKind = defaultType prr (tyConKind tc)
+    tyVarKinds = fst . splitFunTys . snd . splitPiTysInvisible $ conKind
 
 synifyTyCon _prr _coax tc
   | Just flav <- famTyConFlav_maybe tc
