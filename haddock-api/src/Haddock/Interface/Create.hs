@@ -414,7 +414,7 @@ availExportItem :: PrintRuntimeReps
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
 availExportItem prr modMap thisMod warnings
-  docMap argMap fixMap splices instIfaceMap
+  docMap argMap fixMap _splices instIfaceMap
   availInfo = declWith availInfo
   where
     declWith :: AvailInfo -> ErrMsgGhc [ ExportItem GhcRn ]
