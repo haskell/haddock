@@ -99,25 +99,23 @@ createInterface mod_iface flags modMap instIfaceMap = do
       liftErrMsg $ tell [O.showPpr dflags mdl ++ " has no docs in its .hi-file"]
       pure emptyDocs
 
-  let renamer = docIdEnvRenamer (docs_id_env mod_iface_docs)
-
   opts <- liftErrMsg $ mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
   let prr | OptPrintRuntimeRep `elem` opts = ShowRuntimeRep
           | otherwise = HideRuntimeRep
 
   -- Process the top-level module header documentation.
-  (!info, mbDoc) <- processModuleHeader pkgName renamer safety
+  (!info, mbDoc) <- processModuleHeader pkgName safety
                                         (docs_language mod_iface_docs)
                                         (docs_extensions mod_iface_docs)
-                                        (hsDocString <$> docs_mod_hdr mod_iface_docs)
+                                        (docs_mod_hdr mod_iface_docs)
 
-  modWarn <- moduleWarning renamer (hsDocString <$> warnings)
+  modWarn <- moduleWarning warnings
 
-  let process = processDocStringParas pkgName renamer . hsDocString
+  let process = processDocStringParas pkgName
   docMap <- traverse process (docs_decls mod_iface_docs)
   argMap <- traverse (traverse process) (docs_args mod_iface_docs)
 
-  warningMap <- mkWarningMap (hsDocString <$> warnings) renamer exportedNames
+  warningMap <- mkWarningMap warnings exportedNames
 
   -- Are these all the (fam_)instances that we need?
   (instances, fam_instances) <- liftGhcToErrMsgGhc $ withSession $ \hsc_env -> liftIO $
@@ -139,7 +137,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
       splices = []
 
   -- See Note [Exporting built-in items]
-  let builtinTys = DsiSectionHeading 1 (mkHsDoc' (mkHsDocString "Builtin syntax") [])
+  let builtinTys = DsiSectionHeading 1 (HsDoc (mkHsDocString "Builtin syntax") [])
       bonus_ds mods
         | mdl == gHC_TYPES  = [ DsiExports (listAvail <> eqAvail) ] <> mods
         | mdl == gHC_PRIM   = [ builtinTys, DsiExports funAvail ] <> mods
@@ -151,7 +149,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems prr modMap pkgName mdl allWarnings renamer
+  exportItems <- mkExportItems prr modMap pkgName mdl allWarnings
                    docMap argMap fixMap splices
                    (docs_named_chunks mod_iface_docs)
                    (bonus_ds $ docs_structure mod_iface_docs) instIfaceMap
@@ -275,8 +273,8 @@ unrestrictedModExports ifaceMap avails mod_names = do
 
 -- TODO: Either find a different way of looking up the OccNames or change the Warnings or
 -- WarningMap type.
-mkWarningMap :: Warnings HsDocString -> Renamer -> [Name] -> ErrMsgGhc WarningMap
-mkWarningMap warnings renamer exps = case warnings of
+mkWarningMap :: Warnings (HsDoc Name) -> [Name] -> ErrMsgGhc WarningMap
+mkWarningMap warnings exps = case warnings of
   NoWarnings  -> pure M.empty
   WarnAll _   -> pure M.empty
   WarnSome ws ->
@@ -290,20 +288,21 @@ mkWarningMap warnings renamer exps = case warnings of
               , elt <- lookupGlobalRdrEnv gre occ
               , let n = gre_name elt, n `elem` exps ]
     -}
-    in M.fromList <$> traverse (traverse (parseWarning renamer)) ws'
+    in M.fromList <$> traverse (traverse parseWarning) ws'
 
-moduleWarning :: Renamer -> Warnings HsDocString -> ErrMsgGhc (Maybe (Doc Name))
-moduleWarning renamer = \case
+moduleWarning :: Warnings (HsDoc Name) -> ErrMsgGhc (Maybe (Doc Name))
+moduleWarning = \case
   NoWarnings -> pure Nothing
   WarnSome _ -> pure Nothing
-  WarnAll w  -> Just <$> parseWarning renamer w
+  WarnAll w  -> Just <$> parseWarning w
 
-parseWarning :: Renamer -> WarningTxt HsDocString -> ErrMsgGhc (Doc Name)
-parseWarning renamer w =
-  format heading (foldl' appendHDSAsParagraphs (mkHsDocString "") msgs)
+parseWarning :: WarningTxt (HsDoc Name) -> ErrMsgGhc (Doc Name)
+parseWarning w =
+  -- TODO: Find something more efficient than (foldl' appendHsDoc)
+  format heading (foldl' appendHsDoc emptyHsDoc msgs)
   where
     format x msg = DocWarning . DocParagraph . DocAppend (DocString x)
-                   <$> processDocString renamer msg
+                   <$> processDocString msg
     heading = case sort_ of
       WsWarning -> "Warning: "
       WsDeprecated -> "Deprecated: "
@@ -357,35 +356,34 @@ mkExportItems
   -> Maybe Package      -- this package
   -> Module             -- this module
   -> WarningMap
-  -> Renamer
   -> DocMap Name        -- docs (keyed by 'Name's)
   -> ArgMap Name        -- docs for arguments (keyed by 'Name's) 
   -> FixMap
   -> [SrcSpan]          -- splice locations
-  -> Map String HsDoc'  -- named chunks
+  -> Map String (HsDoc Name) -- named chunks
   -> DocStructure
   -> InstIfaceMap
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
-  prr modMap mbPkgName thisMod warnings renamer
+  prr modMap mbPkgName thisMod warnings
   docMap argMap fixMap splices namedChunks dsItems instIfaceMap =
     concat <$> traverse lookupExport dsItems
   where
     lookupExport :: DocStructureItem -> ErrMsgGhc [ExportItem GhcRn]
     lookupExport = \case
-      DsiSectionHeading lev hsDoc' -> do
-        doc <- processDocString renamer (hsDocString hsDoc')
+      DsiSectionHeading lev hsDoc -> do
+        doc <- processDocString hsDoc
         pure [ExportGroup lev "" doc]
-      DsiDocChunk hsDoc' -> do
-        doc <- processDocStringParas mbPkgName renamer (hsDocString hsDoc')
+      DsiDocChunk hsDoc -> do
+        doc <- processDocStringParas mbPkgName hsDoc
         pure [ExportDoc doc]
       DsiNamedChunkRef ref -> do
         case M.lookup ref namedChunks of
           Nothing -> do
             liftErrMsg $ tell ["Cannot find documentation for: $" ++ ref]
             pure []
-          Just hsDoc' -> do
-            doc <- processDocStringParas mbPkgName renamer (hsDocString hsDoc')
+          Just hsDoc -> do
+            doc <- processDocStringParas mbPkgName hsDoc
             pure [ExportDoc doc]
       DsiExports avails ->
         -- TODO: We probably don't need nubAvails here.

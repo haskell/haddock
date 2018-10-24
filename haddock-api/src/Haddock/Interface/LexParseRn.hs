@@ -15,9 +15,7 @@
 module Haddock.Interface.LexParseRn
   ( processDocString
   , processDocStringParas
-  , processDocStrings
   , processModuleHeader
-  , docIdEnvRenamer
   ) where
 
 import Avail
@@ -39,36 +37,28 @@ import Outputable ( showPpr, showSDoc )
 import RdrName
 import EnumSet
 
-processDocStrings :: Maybe Package -> Renamer -> [HsDocString]
-                  -> ErrMsgGhc (Maybe (MDoc Name))
-processDocStrings pkg renamer strs = do
-  mdoc <- metaDocConcat <$> traverse (processDocStringParas pkg renamer) strs
-  case mdoc of
-    -- We check that we don't have any version info to render instead
-    -- of just checking if there is no comment: there may not be a
-    -- comment but we still want to pass through any meta data.
-    MetaDoc { _meta = Meta Nothing Nothing, _doc = DocEmpty } -> pure Nothing
-    x -> pure (Just x)
+processDocStringParas :: Maybe Package -> (HsDoc Name) -> ErrMsgGhc (MDoc Name)
+processDocStringParas pkg hsDoc = do
+  let mdoc = LibParser.parseParas pkg (unpackHDS (hsDocString hsDoc))
+  overDocF (rename (hsDocRenamer hsDoc)) mdoc
 
-processDocStringParas :: Maybe Package -> Renamer -> HsDocString -> ErrMsgGhc (MDoc Name)
-processDocStringParas pkg renamer hds =
-  overDocF (rename renamer) $ LibParser.parseParas pkg (unpackHDS hds)
+processDocString :: HsDoc Name -> ErrMsgGhc (Doc Name)
+processDocString hsDoc = do
+    let doc = LibParser.parseString (unpackHDS (hsDocString hsDoc))
+    rename (hsDocRenamer hsDoc) doc
 
-processDocString :: Renamer -> HsDocString -> ErrMsgGhc (Doc Name)
-processDocString renamer hds =
-  rename renamer $ LibParser.parseString (unpackHDS hds)
-
-processModuleHeader :: Maybe Package -> Renamer -> SafeHaskellMode
+processModuleHeader :: Maybe Package -> SafeHaskellMode
                     -> Maybe Language -> EnumSet LangExt.Extension
-                    -> Maybe HsDocString
+                    -> Maybe (HsDoc Name)
                     -> ErrMsgGhc (HaddockModInfo Name, Maybe (MDoc Name))
-processModuleHeader pkgName renamer safety mayLang extSet mayStr = do
+processModuleHeader pkgName safety mayLang extSet mayStr = do
   (hmi, doc) <-
     case mayStr of
       Nothing -> return failure
-      Just hds -> do
-        let str = unpackHDS hds
+      Just hsDoc -> do
+        let str = unpackHDS (hsDocString hsDoc)
             (hmi, doc) = parseModuleHeader pkgName str
+            renamer = hsDocRenamer hsDoc
         !descr <- case hmi_description hmi of
                     Just hmi_descr -> Just <$> rename renamer hmi_descr
                     Nothing        -> pure Nothing
@@ -200,5 +190,7 @@ ambiguous (o, x, e) names = do
     isLocalName (nameSrcLoc -> RealSrcLoc {}) = True
     isLocalName _ = False
 
-docIdEnvRenamer :: DocIdEnv -> Renamer
-docIdEnvRenamer doc_id_env s = Map.lookup s (Map.mapKeysMonotonic unpackHDS doc_id_env)
+hsDocRenamer :: HsDoc Name -> Renamer
+hsDocRenamer hsDoc s =
+    let env = Map.mapKeysMonotonic unpackHDS (hsDocIdEnv hsDoc)
+    in Map.lookup s env
