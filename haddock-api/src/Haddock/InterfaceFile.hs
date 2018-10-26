@@ -356,11 +356,11 @@ serialiseName bh name _ = do
 
 instance Binary InterfaceFile where
   put_ bh (InterfaceFile env ifaces) = do
-    put_ bh (NonDetKeyMap env)
+    put_ bh env
     put_ bh ifaces
 
   get bh = do
-    env    <- unNonDetKeyMap <$> get bh
+    env    <- get bh
     ifaces <- get bh
     return (InterfaceFile env ifaces)
 
@@ -371,11 +371,11 @@ instance Binary InstalledInterface where
     put_ bh modu
     put_ bh is_sig
     put_ bh info
-    lazyPut bh (NonDetKeyMap docMap, NonDetKeyMap argMap)
+    lazyPut bh (docMap, argMap)
     put_ bh exps
     put_ bh visExps
     put_ bh opts
-    put_ bh (NonDetKeyMap fixMap)
+    put_ bh fixMap
 
   get bh = do
     modu    <- get bh
@@ -387,8 +387,7 @@ instance Binary InstalledInterface where
     opts    <- get bh
     fixMap  <- get bh
     return (InstalledInterface modu is_sig info
-            (unNonDetKeyMap docMap) (unNonDetKeyMap argMap)
-            exps visExps opts (unNonDetKeyMap fixMap))
+            docMap argMap exps visExps opts fixMap)
 
 
 instance Binary DocOption where
