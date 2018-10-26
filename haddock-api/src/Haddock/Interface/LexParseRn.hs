@@ -191,6 +191,6 @@ ambiguous (o, x, e) names = do
     isLocalName _ = False
 
 hsDocRenamer :: HsDoc Name -> Renamer
-hsDocRenamer hsDoc s =
-    let env = Map.mapKeysMonotonic unpackHDS (hsDocIdEnv hsDoc)
-    in Map.lookup s env
+hsDocRenamer hsDoc = \s -> Map.lookup s env
+  where
+    env = Map.mapKeysMonotonic unpackHDS (hsDocIdEnv hsDoc)
