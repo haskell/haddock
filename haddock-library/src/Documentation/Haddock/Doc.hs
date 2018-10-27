@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Documentation.Haddock.Doc (docParagraph, docAppend,
-                                  docConcat, metaDocConcat,
+                                  docConcat,
                                   metaDocAppend, emptyMetaDoc,
                                   metaAppend, metaConcat) where
 
@@ -14,10 +14,6 @@ docConcat = foldr docAppend DocEmpty
 -- | Concat using 'metaAppend'.
 metaConcat :: [Meta] -> Meta
 metaConcat = foldr metaAppend emptyMeta
-
--- | Like 'docConcat' but also joins the 'Meta' info.
-metaDocConcat :: [MetaDoc mod id] -> MetaDoc mod id
-metaDocConcat = foldr metaDocAppend emptyMetaDoc
 
 -- | We do something perhaps unexpected here and join the meta info
 -- in ‘reverse’: this results in the metadata from the ‘latest’

@@ -24,7 +24,6 @@ import Control.Monad
 import Data.List
 import Data.Ord
 import qualified Data.Map as Map
-import Documentation.Haddock.Doc (metaDocConcat)
 import qualified Documentation.Haddock.Parser as LibParser
 import DynFlags (getDynFlags, Language)
 import qualified GHC.LanguageExtensions as LangExt
