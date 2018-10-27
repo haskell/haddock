@@ -448,7 +448,7 @@ ppTypeOrFunSig :: HsType DocNameI
                   , LaTeX             --   first-line (argument docs only)
                   , LaTeX             --   type prefix (argument docs only)
                   )
-               -> Bool                --   unicode
+               -> Bool                -- ^ unicode
                -> LaTeX
 ppTypeOrFunSig typ (doc, argDocs) (pref1, pref2, sep0) unicode
   | Map.null argDocs = declWithDoc pref1 (documentationToLaTeX doc)
