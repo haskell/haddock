@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-} -- Note [Pass sensitive types]
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -----------------------------------------------------------------------------
@@ -742,3 +743,21 @@ type instance XHsWC      DocNameI _ = NoExt
 type instance XHsQTvs        DocNameI = NoExt
 type instance XConDeclField  DocNameI = NoExt
 
+
+type instance XXPat DocNameI = (SrcSpan , Pat DocNameI)
+
+type instance SrcSpanLess (LPat DocNameI) = Pat DocNameI
+instance HasSrcSpan (LPat DocNameI) where
+  -- NB: The following chooses the behaviour of the outer location
+  --     wrapper replacing the inner ones.
+  composeSrcSpan (sp , p) =  if sp == noSrcSpan
+                             then p
+                             else XPat (sp , stripSrcSpanPat p)
+
+  -- NB: The following only returns the top-level location, if any.
+  decomposeSrcSpan (XPat (sp , p)) = (sp , stripSrcSpanPat p)
+  decomposeSrcSpan p               = (noSrcSpan , p)
+
+stripSrcSpanPat :: LPat DocNameI -> Pat DocNameI
+stripSrcSpanPat (XPat (_ , p)) = stripSrcSpanPat p
+stripSrcSpanPat p              = p
