@@ -64,6 +64,7 @@ import Name (nameIsFromExternalPackage, nameOccName)
 import OccName (isTcOcc)
 import RdrName (unQualOK, gre_name, globalRdrEnvElts)
 import ErrUtils (withTiming)
+import DynamicLoading (initializePlugins)
 
 #if defined(mingw32_HOST_OS)
 import System.IO
@@ -177,8 +178,20 @@ createIfaces verbosity flags instIfaceMap mods = do
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe (Interface, ModuleSet))
 processModule verbosity modsum flags modMap instIfaceMap = do
   out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modsum) ++ "..."
-  tm <- {-# SCC "parse/typecheck/load" #-} loadModule =<< typecheckModule =<< parseModule modsum
+  -- tm <- {-# SCC "parse/typecheck/load" #-} loadModule =<< typecheckModule =<< parseModule modsum
 
+  parsed <- parseModule modsum
+
+  let dynflags = ms_hspp_opts . pm_mod_summary $ parsed
+
+  hscenv <- GHC.getSession
+  dynflags1 <- liftIO (initializePlugins hscenv dynflags)
+
+  let mod_summary = (GHC.pm_mod_summary parsed) { GHC.ms_hspp_opts = dynflags1 }
+      parsed1 = parsed { GHC.pm_mod_summary = mod_summary }
+
+  checked <- typecheckModule parsed1
+  tm <- loadModule checked
   if not $ isBootSummary modsum then do
     out verbosity verbose "Creating interface..."
     (interface, msgs) <- {-# SCC createIterface #-}
