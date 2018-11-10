@@ -25,7 +25,7 @@ import Data.List
 import Data.Ord
 import qualified Data.Map as Map
 import qualified Documentation.Haddock.Parser as LibParser
-import DynFlags (getDynFlags, Language)
+import DynFlags (getDynFlags, languageExtensions, Language)
 import qualified GHC.LanguageExtensions as LangExt
 import GHC
 import Haddock.Interface.ParseModuleHeader
@@ -65,10 +65,17 @@ processModuleHeader pkgName safety mayLang extSet mayStr = do
         doc'  <- overDocF (rename renamer) doc
         return (hmi', Just doc')
 
+
+  let flags :: [LangExt.Extension]
+      -- We remove the flags implied by the language setting and we display the
+      -- language instead.
+      -- NB: 'hmi_extensions' cannot reflect that some extensions included in
+      -- 'mayLang' may have been disabled.
+      flags = EnumSet.toList extSet \\ languageExtensions mayLang
   dflags <- getDynFlags
   return (hmi { hmi_safety = Just $ showPpr dflags safety
               , hmi_language = mayLang
-              , hmi_extensions = EnumSet.toList extSet
+              , hmi_extensions = flags
               } , doc)
   where
     failure = (emptyHaddockModInfo, Nothing)
