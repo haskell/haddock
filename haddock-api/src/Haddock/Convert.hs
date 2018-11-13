@@ -52,7 +52,7 @@ import Haddock.Interface.Specialize
 
 
 -- the main function here! yay!
-tyThingToLHsDecl :: TyThing -> Either ErrMsg ([ErrMsg], (HsDecl GhcRn))
+tyThingToLHsDecl :: TyThing -> Either [ErrMsg] ([ErrMsg], (HsDecl GhcRn))
 tyThingToLHsDecl t = case t of
   -- ids (functions and zero-argument a.k.a. CAFs) get a type signature.
   -- Including built-in functions like seq.
@@ -71,11 +71,11 @@ tyThingToLHsDecl t = case t of
     -> let extractFamilyDecl :: TyClDecl a -> Either ErrMsg (LFamilyDecl a)
            extractFamilyDecl (FamDecl _ d) = return $ noLoc d
            extractFamilyDecl _           =
-             Left "tyThingToLHsDecl: impossible associated tycon"
+             Left $ namedThingErrMsg tc "tyThingToLHsDecl: impossible associated tycon"
 
            atTyClDecls = [synifyTyCon Nothing at_tc | ATI at_tc _ <- classATItems cl]
            atFamDecls  = map extractFamilyDecl (rights atTyClDecls)
-           tyClErrors = lefts atTyClDecls
+           tyClErrors = concat $ lefts atTyClDecls
            famDeclErrors = lefts atFamDecls
        in withErrs (tyClErrors ++ famDeclErrors) . TyClD noExt $ ClassDecl
          { tcdCtxt = synifyCtx (classSCTheta cl)
@@ -130,7 +130,7 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
   where
     fam_tvs = tyConVisibleTyVars tc
 
-synifyAxiom :: CoAxiom br -> Either ErrMsg (HsDecl GhcRn)
+synifyAxiom :: CoAxiom br -> Either [ErrMsg] (HsDecl GhcRn)
 synifyAxiom ax@(CoAxiom { co_ax_tc = tc })
   | isOpenTypeFamilyTyCon tc
   , Just branch <- coAxiomSingleBranch_maybe ax
@@ -143,10 +143,10 @@ synifyAxiom ax@(CoAxiom { co_ax_tc = tc })
   = synifyTyCon (Just ax) tc >>= return . TyClD noExt
 
   | otherwise
-  = Left "synifyAxiom: closed/open family confusion"
+  = Left $ [namedThingErrMsg ax "synifyAxiom: closed/open family confusion"]
 
 -- | Turn type constructors into type class declarations
-synifyTyCon :: Maybe (CoAxiom br) -> TyCon -> Either ErrMsg (TyClDecl GhcRn)
+synifyTyCon :: Maybe (CoAxiom br) -> TyCon -> Either [ErrMsg] (TyClDecl GhcRn)
 synifyTyCon _coax tc
   | isFunTyCon tc || isPrimTyCon tc
   = return $
@@ -258,7 +258,7 @@ synifyTyCon coax tc
         DataDecl { tcdLName = name, tcdTyVars = tyvars, tcdFixity = Prefix
                  , tcdDataDefn = defn
                  , tcdDExt = DataDeclRn False placeHolderNamesTc }
-  dataConErrs -> Left $ unlines dataConErrs
+  dataConErrs -> Left dataConErrs
 
 -- In this module, every TyCon being considered has come from an interface
 -- file. This means that when considering a data type constructor such as:
@@ -327,12 +327,12 @@ synifyDataCon use_gadt_syntax dc =
     ConDeclField noExt [noLoc $ FieldOcc (flSelector fl) (noLoc $ mkVarUnqual $ flLabel fl)] synTy
                  Nothing
   hs_arg_tys = case (use_named_field_syntax, use_infix_syntax) of
-          (True,True) -> Left "synifyDataCon: contradiction!"
+          (True,True) -> Left $ namedThingErrMsg dc "synifyDataCon: contradiction!"
           (True,False) -> return $ RecCon (noLoc field_tys)
           (False,False) -> return $ PrefixCon linear_tys
           (False,True) -> case linear_tys of
                            [a,b] -> return $ InfixCon a b
-                           _ -> Left "synifyDataCon: infix with non-2 args?"
+                           _ -> Left $ namedThingErrMsg dc "synifyDataCon: infix with non-2 args?"
  -- finally we get synifyDataCon's result!
  in hs_arg_tys >>=
       \hat ->
@@ -610,7 +610,7 @@ synifyInstHead (_, preds, cls, types) = specializeInstHead $ InstHead
     synifyClsIdSig = synifyIdSig DeleteTopLevelQuantification
 
 -- Convert a family instance, this could be a type family or data family
-synifyFamInst :: FamInst -> Bool -> Either ErrMsg (InstHead GhcRn)
+synifyFamInst :: FamInst -> Bool -> Either [ErrMsg] (InstHead GhcRn)
 synifyFamInst fi opaque = do
     ityp' <- ityp fam_flavor
     return InstHead

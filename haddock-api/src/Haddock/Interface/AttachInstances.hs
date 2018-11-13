@@ -126,10 +126,11 @@ attachToExportItem index expInfo getInstDoc getFixity export =
                         ]
               -- fam_insts but with failing type fams filtered out
             cleanFamInsts = [ (fi, n, L l r, m) | (Right fi, n, L l (Right r), m) <- fam_insts ]
-            famInstErrs = [ errm | (Left errm, _, _, _) <- fam_insts ]
+            famInstErrs = concat [ errm | (Left errm, _, _, _) <- fam_insts ]
         in do
           dfs <- getDynFlags
-          let mkBug = (text "haddock-bug:" <+>) . text
+          let mkBug (L loc msg) =
+                mkLocMessage SevInfo loc $ text "haddock-bug:" <+> text msg
           liftIO $ putMsg dfs (sep $ map mkBug famInstErrs)
           return $ cls_insts ++ cleanFamInsts
       return $ e { expItemInstances = insts }

@@ -63,7 +63,10 @@ import TcRnTypes (tcg_rdr_env)
 import Name (nameIsFromExternalPackage, nameOccName)
 import OccName (isTcOcc)
 import RdrName (unQualOK, gre_name, globalRdrEnvElts)
-import ErrUtils (withTiming)
+import ErrUtils (withTiming, makeIntoWarning, mkWarnMsg, WarnMsg)
+import GhcMonad (logWarnings)
+import Bag (unitBag, unionManyBags)
+import qualified Outputable as O
 
 #if defined(mingw32_HOST_OS)
 import System.IO
@@ -114,7 +117,8 @@ processModules verbosity modules flags extIfaces = do
   dflags <- getDynFlags
   let (interfaces'', msgs) =
          runWriter $ mapM (renameInterface dflags links warnings) interfaces'
-  liftIO $ mapM_ putStrLn msgs
+  logHaddockWarnings dflags msgs
+  -- liftIO $ mapM_ putStrLn msgs
 
   return (interfaces'', homeLinks)
 
@@ -173,6 +177,15 @@ createIfaces verbosity flags instIfaceMap mods = do
                              , ifaceMap
                              , ms ) -- Boot modules don't generate ifaces.
 
+logHaddockWarnings :: DynFlags -> [ErrMsg] -> Ghc ()
+logHaddockWarnings dflags msgs =
+  logWarnings . unionManyBags $
+  fmap (unitBag . haddockWarningToGhcWarning dflags) msgs
+
+haddockWarningToGhcWarning :: DynFlags -> ErrMsg -> WarnMsg
+haddockWarningToGhcWarning dflags (L loc doc) =
+  makeIntoWarning (Reason Opt_WarnMalformedHaddock) $
+  mkWarnMsg dflags loc alwaysQualify $ O.text doc
 
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe (Interface, ModuleSet))
 processModule verbosity modsum flags modMap instIfaceMap = do
@@ -199,8 +212,9 @@ processModule verbosity modsum flags modMap instIfaceMap = do
                             , isTcOcc (nameOccName name)   -- Types and classes only
                             , unQualOK gre ]               -- In scope unqualified
 
-    liftIO $ mapM_ putStrLn (nub msgs)
+    -- liftIO $ mapM_ putStrLn (nub msgs)
     dflags <- getDynFlags
+    logHaddockWarnings dflags msgs
     let (haddockable, haddocked) = ifaceHaddockCoverage interface
         percentage = round (fromIntegral haddocked * 100 / fromIntegral haddockable :: Double) :: Int
         modString = moduleString (ifaceMod interface)

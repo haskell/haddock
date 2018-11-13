@@ -68,20 +68,23 @@ renameInterface dflags renamingEnv warnings iface =
       -- Note that since the renamed AST represents equality constraints as
       -- @HasOpTy t1 eqTyCon_RDR t2@ (and _not_ as @HsEqTy t1 t2@), we need to
       -- manually filter out 'eqTyCon_RDR' (aka @~@).
-      strings = [ pretty dflags n
-                | n <- missingNames
-                , not (isSystemName n)
-                , not (isBuiltInSyntax n)
-                , Exact n /= eqTyCon_RDR
-                ]
+      msgs = [ (n, pretty dflags n)
+             | n <- missingNames
+             , not (isSystemName n)
+             , not (isBuiltInSyntax n)
+             , Exact n /= eqTyCon_RDR
+             ]
+
+      warnMsg (name, msg) =
+        L (nameSrcSpan name) $
+        "Warning: " ++ moduleString (ifaceMod iface) ++
+        ": could not find link destinations for: " ++ msg
 
   in do
     -- report things that we couldn't link to. Only do this for non-hidden
     -- modules.
-    unless (OptHide `elem` ifaceOptions iface || null strings || not warnings) $
-      tell ["Warning: " ++ moduleString (ifaceMod iface) ++
-            ": could not find link destinations for:\n"++
-            unwords ("   " : strings) ]
+    unless (OptHide `elem` ifaceOptions iface || null msgs || not warnings) $
+      tell $ fmap warnMsg msgs
 
     return $ iface { ifaceRnDoc         = finalModuleDoc,
                      ifaceRnDocMap      = rnDocMap,

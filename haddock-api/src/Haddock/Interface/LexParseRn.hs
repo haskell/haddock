@@ -164,8 +164,9 @@ outOfScope dflags x =
     Exact name -> warnAndMonospace name  -- Shouldn't happen since x is out of scope
   where
     warnAndMonospace a = do
-      tell ["Warning: '" ++ showPpr dflags a ++ "' is out of scope.\n" ++
-            "    If you qualify the identifier, haddock can try to link it anyway."]
+      tell $ fmap (rdrNameErrMsg x)
+        ["Warning: '" ++ showPpr dflags a ++ "' is out of scope.\n" ++
+         "    If you qualify the identifier, haddock can try to link it anyway."]
       pure (monospaced a)
     monospaced a = DocMonospaced (DocString (showPpr dflags a))
 
@@ -191,7 +192,7 @@ ambiguous dflags x gres = do
   -- of the same name, but not the only constructor.
   -- For example, for @data D = C | D@, someone may want to reference the @D@
   -- constructor.
-  when (length noChildren > 1) $ tell [msg]
+  when (length noChildren > 1) $ tell $ [rdrNameErrMsg x msg]
   pure (DocIdentifier dflt)
   where
     isLocalName (nameSrcLoc -> RealSrcLoc {}) = True

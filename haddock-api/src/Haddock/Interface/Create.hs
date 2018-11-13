@@ -87,6 +87,7 @@ createInterface tm flags modMap instIfaceMap = do
       !exportedNames = modInfoExportsWithSelectors mi
       (pkgNameFS, _) = modulePackageInfo dflags flags (Just mdl)
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
+      moduleLocation = getLoc . pm_parsed_source . tm_parsed_module $ tm
 
       (TcGblEnv { tcg_rdr_env = gre
                 , tcg_warns   = warnings
@@ -99,18 +100,18 @@ createInterface tm flags modMap instIfaceMap = do
   -- Cabal can be trusted to pass the right flags, so this warning should be
   -- mostly encountered when running Haddock outside of Cabal.
   when (isNothing pkgName) $
-    liftErrMsg $ tell [ "Warning: Package name is not available." ]
+    liftErrMsg $ tell [L moduleLocation "Warning: Package name is not available." ]
 
   -- The renamed source should always be available to us, but it's best
   -- to be on the safe side.
   (group_, imports, mayExports, mayDocHeader) <-
     case renamedSource tm of
       Nothing -> do
-        liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
+        liftErrMsg $ tell [L moduleLocation "Warning: Renamed source is not available." ]
         return (emptyRnGroup, [], Nothing, Nothing)
       Just x -> return x
 
-  opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
+  opts <- liftErrMsg $ mkDocOpts moduleLocation (haddockOptions dflags) flags mdl
 
   -- Process the top-level module header documentation.
   (!info, mbDoc) <- liftErrMsg $ processModuleHeader dflags pkgName gre safety mayDocHeader
@@ -318,11 +319,11 @@ parseWarning dflags gre w = case w of
 -------------------------------------------------------------------------------
 
 
-mkDocOpts :: Maybe String -> [Flag] -> Module -> ErrMsgM [DocOption]
-mkDocOpts mbOpts flags mdl = do
+mkDocOpts :: SrcSpan -> Maybe String -> [Flag] -> Module -> ErrMsgM [DocOption]
+mkDocOpts loc mbOpts flags mdl = do
   opts <- case mbOpts of
     Just opts -> case words $ replace ',' ' ' opts of
-      [] -> tell ["No option supplied to DOC_OPTION/doc_option"] >> return []
+      [] -> tell [L loc "No option supplied to DOC_OPTION/doc_option"] >> return []
       xs -> liftM catMaybes (mapM parseOption xs)
     Nothing -> return []
   pure (foldl go opts flags)
@@ -343,7 +344,7 @@ parseOption "prune"           = return (Just OptPrune)
 parseOption "ignore-exports"  = return (Just OptIgnoreExports)
 parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
-parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
+parseOption other = tell [dislocatedErrMsg $ "Unrecognised option: " ++ other] >> return Nothing
 
 
 --------------------------------------------------------------------------------
@@ -727,7 +728,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
               -- parents is also exported. See note [1].
               | t `notElem` declNames,
                 Just p <- find isExported (parents t $ unL decl) ->
-                do liftErrMsg $ tell [
+                do liftErrMsg $ tell [ dislocatedErrMsg $
                      "Warning: " ++ moduleString thisMod ++ ": " ++
                      pretty dflags (nameOccName t) ++ " is exported separately but " ++
                      "will be documented under " ++ pretty dflags (nameOccName p) ++
@@ -767,7 +768,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
               case M.lookup (nameModule t) instIfaceMap of
                 Nothing -> do
                    liftErrMsg $ tell
-                      ["Warning: Couldn't find .haddock for export " ++ pretty dflags t]
+                      [dislocatedErrMsg $ "Warning: Couldn't find .haddock for export " ++ pretty dflags t]
                    let subs_ = availNoDocs avail
                    availExportDecl avail decl (noDocForDecl, subs_)
                 Just iface ->
@@ -897,11 +898,11 @@ hiDecl dflags t = do
   mayTyThing <- liftGhcToErrMsgGhc $ lookupName t
   case mayTyThing of
     Nothing -> do
-      liftErrMsg $ tell ["Warning: Not found in environment: " ++ pretty dflags t]
+      liftErrMsg $ tell [L (nameSrcSpan t) $ "Warning: Not found in environment: " ++ pretty dflags t]
       return Nothing
     Just x -> case tyThingToLHsDecl x of
-      Left m -> liftErrMsg (tell [bugWarn m]) >> return Nothing
-      Right (m, t') -> liftErrMsg (tell $ map bugWarn m)
+      Left m -> liftErrMsg (tell $ map (fmap bugWarn) m) >> return Nothing
+      Right (m, t') -> liftErrMsg (tell $ map (fmap bugWarn) m)
                       >> return (Just $ noLoc t')
     where
       warnLine x = O.text "haddock-bug:" O.<+> O.text x O.<>
@@ -964,7 +965,8 @@ moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
           Just iface -> return [ ExportModule (instMod iface) ]
           Nothing -> do
             liftErrMsg $
-              tell ["Warning: " ++ pretty dflags thisMod ++ ": Could not find " ++
+              tell [dislocatedErrMsg $
+                    "Warning: " ++ pretty dflags thisMod ++ ": Could not find " ++
                     "documentation for exported module: " ++ pretty dflags expMod]
             return []
   where
@@ -1200,7 +1202,7 @@ mkMaybeTokenizedSrc dflags flags tm
             tokens <- liftGhcToErrMsgGhc (liftIO (mkTokenizedSrc dflags summary src))
             return $ Just tokens
         Nothing -> do
-            liftErrMsg . tell . pure $ concat
+            liftErrMsg . tell . pure . L moduleLocation $ concat
                 [ "Warning: Cannot hyperlink module \""
                 , moduleNameString . ms_mod_name $ summary
                 , "\" because renamed source is not available"
@@ -1208,6 +1210,7 @@ mkMaybeTokenizedSrc dflags flags tm
             return Nothing
     | otherwise = return Nothing
   where
+    moduleLocation = getLoc . pm_parsed_source . tm_parsed_module $ tm
     summary = pm_mod_summary . tm_parsed_module $ tm
 
 mkTokenizedSrc :: DynFlags -> ModSummary -> RenamedSource -> IO [RichToken]
@@ -1225,7 +1228,7 @@ findNamedDoc :: String -> [HsDecl GhcRn] -> ErrMsgM (Maybe HsDocString)
 findNamedDoc name = search
   where
     search [] = do
-      tell ["Cannot find documentation for: $" ++ name]
+      tell [dislocatedErrMsg $ "Cannot find documentation for: $" ++ name]
       return Nothing
     search (DocD _ (DocCommentNamed name' doc) : rest)
       | name == name' = return (Just doc)

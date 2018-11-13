@@ -40,6 +40,7 @@ import GHC hiding (NoLink)
 import DynFlags (Language)
 import qualified GHC.LanguageExtensions as LangExt
 import OccName
+import RdrName (RdrName(..))
 import Outputable
 import Control.Applicative (Applicative(..))
 import Control.Monad (ap)
@@ -593,7 +594,21 @@ data SinceQual
 -- A monad which collects error messages, locally defined to avoid a dep on mtl
 
 
-type ErrMsg = String
+type ErrMsg = Located String
+
+-- | Create an error message referring to the given instance of 'NamedThing'.
+namedThingErrMsg :: NamedThing t => t -> String -> ErrMsg
+namedThingErrMsg thing = L (nameSrcSpan $ getName thing)
+
+dislocatedErrMsg :: String -> ErrMsg
+dislocatedErrMsg = noLoc
+
+rdrNameErrMsg :: RdrName -> String -> ErrMsg
+rdrNameErrMsg (Exact nm) = L (nameSrcSpan nm)
+rdrNameErrMsg (Qual _ _) = noLoc
+rdrNameErrMsg (Orig _ _) = noLoc
+rdrNameErrMsg (Unqual _) = noLoc
+
 newtype ErrMsgM a = Writer { runWriter :: (a, [ErrMsg]) }
 
 
@@ -741,4 +756,3 @@ type instance XHsWC      DocNameI _ = NoExt
 
 type instance XHsQTvs        DocNameI = NoExt
 type instance XConDeclField  DocNameI = NoExt
-
