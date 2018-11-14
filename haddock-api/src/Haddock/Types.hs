@@ -145,6 +145,9 @@ data Interface = Interface
     -- | Tokenized source code of module (avaliable if Haddock is invoked with
     -- source generation flag).
   , ifaceTokenizedSrc :: !(Maybe [RichToken])
+
+    -- | the 'SrcSpan' for the module, so we can report it to the user
+  , ifaceSrcSpan :: !SrcSpan
   }
 
 type WarningMap = Map Name (Doc Name)

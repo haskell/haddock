@@ -199,6 +199,7 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceHaddockCoverage   = coverage
   , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = tokenizedSrc
+  , ifaceSrcSpan           = moduleLocation
   }
 
 
@@ -686,13 +687,13 @@ mkExportItems
       -- subset. We also look through module aliases here.
       | Just mods <- M.lookup mod_name unrestricted_imp_mods
       , not (null mods)
-      = concat <$> traverse (moduleExport thisMod dflags modMap instIfaceMap) mods
+      = concat <$> traverse (moduleExport loc thisMod dflags modMap instIfaceMap) mods
 
     lookupExport (_, avails) =
       concat <$> traverse availExport (nubAvails avails)
 
     availExport avail =
-      availExportItem is_sig modMap thisMod semMod warnings exportedNames
+      availExportItem loc is_sig modMap thisMod semMod warnings exportedNames
         maps fixMap splices instIfaceMap dflags avail
 
 availExportItem :: SrcSpan            -- module location, for error messages
@@ -709,7 +710,7 @@ availExportItem :: SrcSpan            -- module location, for error messages
                 -> DynFlags
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
-availExportItem loc is_sig modMap thisMod semMod warnings exportedNames
+availExportItem modLoc is_sig modMap thisMod semMod warnings exportedNames
   (docMap, argMap, declMap, _) fixMap splices instIfaceMap
   dflags availInfo = declWith availInfo
   where
@@ -730,7 +731,7 @@ availExportItem loc is_sig modMap thisMod semMod warnings exportedNames
               -- parents is also exported. See note [1].
               | t `notElem` declNames,
                 Just p <- find isExported (parents t $ unL decl) ->
-                do liftErrMsg $ tell [ L loc $
+                do liftErrMsg $ tell [ L modLoc $
                      moduleString thisMod ++ ": " ++
                      pretty dflags (nameOccName t) ++ " is exported separately but " ++
                      "will be documented under " ++ pretty dflags (nameOccName p) ++
@@ -770,7 +771,7 @@ availExportItem loc is_sig modMap thisMod semMod warnings exportedNames
               case M.lookup (nameModule t) instIfaceMap of
                 Nothing -> do
                    liftErrMsg $ tell
-                      [L loc $ "Couldn't find .haddock for export " ++ pretty dflags t]
+                      [L modLoc $ "Couldn't find .haddock for export " ++ pretty dflags t]
                    let subs_ = availNoDocs avail
                    availExportDecl avail decl (noDocForDecl, subs_)
                 Just iface ->

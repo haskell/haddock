@@ -81,7 +81,7 @@ logHaddockWarnings dflags msgs =
 
 haddockWarningToGhcWarning :: DynFlags -> ErrMsg -> WarnMsg
 haddockWarningToGhcWarning dflags (L loc doc) =
-  makeIntoWarning (Reason Opt_NoReason) $
+  makeIntoWarning NoReason $
   mkWarnMsg dflags loc alwaysQualify $ O.text doc
 
 -- | Create 'Interface's and a link environment by typechecking the list of
