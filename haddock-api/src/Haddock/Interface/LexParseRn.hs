@@ -164,8 +164,8 @@ outOfScope dflags x =
     Exact name -> warnAndMonospace name  -- Shouldn't happen since x is out of scope
   where
     warnAndMonospace a = do
-      tell $ fmap (rdrNameErrMsg x)
-        ["Warning: '" ++ showPpr dflags a ++ "' is out of scope.\n" ++
+      tell $ fmap dislocatedErrMsg
+        ["'" ++ showPpr dflags a ++ "' is out of scope.\n" ++
          "    If you qualify the identifier, haddock can try to link it anyway."]
       pure (monospaced a)
     monospaced a = DocMonospaced (DocString (showPpr dflags a))
@@ -182,7 +182,7 @@ ambiguous :: DynFlags
 ambiguous dflags x gres = do
   let noChildren = map availName (gresToAvailInfo gres)
       dflt = maximumBy (comparing (isLocalName &&& isTyConName)) noChildren
-      msg = "Warning: " ++ x_str ++ " is ambiguous. It is defined\n" ++
+      msg = x_str ++ " is ambiguous. It is defined\n" ++
             concatMap (\n -> "    * " ++ defnLoc n ++ "\n") (map gre_name gres) ++
             "    You may be able to disambiguate the identifier by qualifying it or\n" ++
             "    by hiding some imports.\n" ++

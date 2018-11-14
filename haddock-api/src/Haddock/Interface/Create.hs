@@ -100,14 +100,14 @@ createInterface tm flags modMap instIfaceMap = do
   -- Cabal can be trusted to pass the right flags, so this warning should be
   -- mostly encountered when running Haddock outside of Cabal.
   when (isNothing pkgName) $
-    liftErrMsg $ tell [L moduleLocation "Warning: Package name is not available." ]
+    liftErrMsg $ tell [L moduleLocation "Package name is not available." ]
 
   -- The renamed source should always be available to us, but it's best
   -- to be on the safe side.
   (group_, imports, mayExports, mayDocHeader) <-
     case renamedSource tm of
       Nothing -> do
-        liftErrMsg $ tell [L moduleLocation "Warning: Renamed source is not available." ]
+        liftErrMsg $ tell [L moduleLocation "Renamed source is not available." ]
         return (emptyRnGroup, [], Nothing, Nothing)
       Just x -> return x
 
@@ -147,7 +147,7 @@ createInterface tm flags modMap instIfaceMap = do
 
   -- The MAIN functionality: compute the export items which will
   -- each be the actual documentation of this module.
-  exportItems <- mkExportItems is_sig modMap pkgName mdl sem_mdl allWarnings gre
+  exportItems <- mkExportItems moduleLocation is_sig modMap pkgName mdl sem_mdl allWarnings gre
                    exportedNames decls maps fixMap unrestrictedImportedMods
                    splices exports all_exports instIfaceMap dflags
 
@@ -323,8 +323,8 @@ mkDocOpts :: SrcSpan -> Maybe String -> [Flag] -> Module -> ErrMsgM [DocOption]
 mkDocOpts loc mbOpts flags mdl = do
   opts <- case mbOpts of
     Just opts -> case words $ replace ',' ' ' opts of
-      [] -> tell [L loc "No option supplied to DOC_OPTION/doc_option"] >> return []
-      xs -> liftM catMaybes (mapM parseOption xs)
+      [] -> tell [L loc "No option supplied to OPTIONS_HADDOCK/haddock-opts"] >> return []
+      xs -> liftM catMaybes (mapM (parseOption loc) xs)
     Nothing -> return []
   pure (foldl go opts flags)
   where
@@ -338,13 +338,13 @@ mkDocOpts loc mbOpts flags mdl = do
             | m == Flag_ShowExtensions mdlStr = OptIgnoreExports : os
             | otherwise                       = os
 
-parseOption :: String -> ErrMsgM (Maybe DocOption)
-parseOption "hide"            = return (Just OptHide)
-parseOption "prune"           = return (Just OptPrune)
-parseOption "ignore-exports"  = return (Just OptIgnoreExports)
-parseOption "not-home"        = return (Just OptNotHome)
-parseOption "show-extensions" = return (Just OptShowExtensions)
-parseOption other = tell [dislocatedErrMsg $ "Unrecognised option: " ++ other] >> return Nothing
+parseOption :: SrcSpan -> String -> ErrMsgM (Maybe DocOption)
+parseOption _ "hide"            = return (Just OptHide)
+parseOption _ "prune"           = return (Just OptPrune)
+parseOption _ "ignore-exports"  = return (Just OptIgnoreExports)
+parseOption _ "not-home"        = return (Just OptNotHome)
+parseOption _ "show-extensions" = return (Just OptShowExtensions)
+parseOption loc other           = tell [L loc $ "Unrecognised option: " ++ other] >> return Nothing
 
 
 --------------------------------------------------------------------------------
@@ -635,7 +635,8 @@ collectDocs = go Nothing []
 -- We create the export items even if the module is hidden, since they
 -- might be useful when creating the export items for other modules.
 mkExportItems
-  :: Bool               -- is it a signature
+  :: SrcSpan            -- module location, needed for error messages
+  -> Bool               -- is it a signature
   -> IfaceMap
   -> Maybe Package      -- this package
   -> Module             -- this module
@@ -654,12 +655,12 @@ mkExportItems
   -> DynFlags
   -> ErrMsgGhc [ExportItem GhcRn]
 mkExportItems
-  is_sig modMap pkgName thisMod semMod warnings gre exportedNames decls
+  loc is_sig modMap pkgName thisMod semMod warnings gre exportedNames decls
   maps fixMap unrestricted_imp_mods splices exportList allExports
   instIfaceMap dflags =
   case exportList of
     Nothing      ->
-      fullModuleContents is_sig modMap pkgName thisMod semMod warnings gre
+      fullModuleContents loc is_sig modMap pkgName thisMod semMod warnings gre
         exportedNames decls maps fixMap splices instIfaceMap dflags
         allExports
     Just exports -> liftM concat $ mapM lookupExport exports
@@ -673,7 +674,7 @@ mkExportItems
       return [ExportDoc doc]
 
     lookupExport (IEDocNamed _ str, _)      = liftErrMsg $
-      findNamedDoc str [ unL d | d <- decls ] >>= \case
+      findNamedDoc loc str [ unL d | d <- decls ] >>= \case
         Nothing -> return  []
         Just docStr -> do
           doc <- processDocStringParas dflags pkgName gre docStr
@@ -694,7 +695,8 @@ mkExportItems
       availExportItem is_sig modMap thisMod semMod warnings exportedNames
         maps fixMap splices instIfaceMap dflags avail
 
-availExportItem :: Bool               -- is it a signature
+availExportItem :: SrcSpan            -- module location, for error messages
+                -> Bool               -- is it a signature
                 -> IfaceMap
                 -> Module             -- this module
                 -> Module             -- semantic module
@@ -707,7 +709,7 @@ availExportItem :: Bool               -- is it a signature
                 -> DynFlags
                 -> AvailInfo
                 -> ErrMsgGhc [ExportItem GhcRn]
-availExportItem is_sig modMap thisMod semMod warnings exportedNames
+availExportItem loc is_sig modMap thisMod semMod warnings exportedNames
   (docMap, argMap, declMap, _) fixMap splices instIfaceMap
   dflags availInfo = declWith availInfo
   where
@@ -728,8 +730,8 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
               -- parents is also exported. See note [1].
               | t `notElem` declNames,
                 Just p <- find isExported (parents t $ unL decl) ->
-                do liftErrMsg $ tell [ dislocatedErrMsg $
-                     "Warning: " ++ moduleString thisMod ++ ": " ++
+                do liftErrMsg $ tell [ L loc $
+                     moduleString thisMod ++ ": " ++
                      pretty dflags (nameOccName t) ++ " is exported separately but " ++
                      "will be documented under " ++ pretty dflags (nameOccName p) ++
                      ". Consider exporting it together with its parent(s)" ++
@@ -768,7 +770,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
               case M.lookup (nameModule t) instIfaceMap of
                 Nothing -> do
                    liftErrMsg $ tell
-                      [dislocatedErrMsg $ "Warning: Couldn't find .haddock for export " ++ pretty dflags t]
+                      [L loc $ "Couldn't find .haddock for export " ++ pretty dflags t]
                    let subs_ = availNoDocs avail
                    availExportDecl avail decl (noDocForDecl, subs_)
                 Just iface ->
@@ -898,7 +900,7 @@ hiDecl dflags t = do
   mayTyThing <- liftGhcToErrMsgGhc $ lookupName t
   case mayTyThing of
     Nothing -> do
-      liftErrMsg $ tell [L (nameSrcSpan t) $ "Warning: Not found in environment: " ++ pretty dflags t]
+      liftErrMsg $ tell [L (nameSrcSpan t) $ "Not found in environment: " ++ pretty dflags t]
       return Nothing
     Just x -> case tyThingToLHsDecl x of
       Left m -> liftErrMsg (tell $ map (fmap bugWarn) m) >> return Nothing
@@ -945,13 +947,14 @@ lookupDocs avail warnings docMap argMap =
 
 -- | Export the given module as `ExportModule`. We are not concerned with the
 -- single export items of the given module.
-moduleExport :: Module           -- ^ Module A (identity, NOT semantic)
+moduleExport :: SrcSpan          -- ^ Module location information
+             -> Module           -- ^ Module A (identity, NOT semantic)
              -> DynFlags         -- ^ The flags used when typechecking A
              -> IfaceMap         -- ^ Already created interfaces
              -> InstIfaceMap     -- ^ Interfaces in other packages
              -> ModuleName       -- ^ The exported module
              -> ErrMsgGhc [ExportItem GhcRn] -- ^ Resulting export items
-moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
+moduleExport loc thisMod dflags ifaceMap instIfaceMap expMod =
     -- NB: we constructed the identity module when looking up in
     -- the IfaceMap.
     case M.lookup m ifaceMap of
@@ -965,9 +968,9 @@ moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
           Just iface -> return [ ExportModule (instMod iface) ]
           Nothing -> do
             liftErrMsg $
-              tell [dislocatedErrMsg $
-                    "Warning: " ++ pretty dflags thisMod ++ ": Could not find " ++
-                    "documentation for exported module: " ++ pretty dflags expMod]
+              tell [L loc $
+                    "Could not find documentation for exported module: "
+                    ++ pretty dflags expMod]
             return []
   where
     m = mkModule unitId expMod -- Identity module!
@@ -994,7 +997,8 @@ moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
 -- every locally defined declaration is exported; thus, we just
 -- zip through the renamed declarations.
 
-fullModuleContents :: Bool               -- is it a signature
+fullModuleContents :: SrcSpan            -- module location, for error messages
+                   -> Bool               -- is it a signature
                    -> IfaceMap
                    -> Maybe Package      -- this package
                    -> Module             -- this module
@@ -1010,7 +1014,7 @@ fullModuleContents :: Bool               -- is it a signature
                    -> DynFlags
                    -> Avails
                    -> ErrMsgGhc [ExportItem GhcRn]
-fullModuleContents is_sig modMap pkgName thisMod semMod warnings gre exportedNames
+fullModuleContents loc is_sig modMap pkgName thisMod semMod warnings gre exportedNames
   decls maps@(_, _, declMap, _) fixMap splices instIfaceMap dflags avails = do
   let availEnv = availsToNameEnv (nubAvails avails)
   (concat . concat) `fmap` (for decls $ \decl -> do
@@ -1029,7 +1033,7 @@ fullModuleContents is_sig modMap pkgName thisMod semMod warnings gre exportedNam
         for (getMainDeclBinder (unLoc decl)) $ \nm -> do
           case lookupNameEnv availEnv nm of
             Just avail ->
-              availExportItem is_sig modMap thisMod
+              availExportItem loc is_sig modMap thisMod
                 semMod warnings exportedNames maps fixMap
                 splices instIfaceMap dflags avail
             Nothing -> pure [])
@@ -1203,7 +1207,7 @@ mkMaybeTokenizedSrc dflags flags tm
             return $ Just tokens
         Nothing -> do
             liftErrMsg . tell . pure . L moduleLocation $ concat
-                [ "Warning: Cannot hyperlink module \""
+                [ "Cannot hyperlink module \""
                 , moduleNameString . ms_mod_name $ summary
                 , "\" because renamed source is not available"
                 ]
@@ -1224,11 +1228,11 @@ mkTokenizedSrc dflags ms src = do
     filepath = msHsFilePath ms
 
 -- | Find a stand-alone documentation comment by its name.
-findNamedDoc :: String -> [HsDecl GhcRn] -> ErrMsgM (Maybe HsDocString)
-findNamedDoc name = search
+findNamedDoc :: SrcSpan -> String -> [HsDecl GhcRn] -> ErrMsgM (Maybe HsDocString)
+findNamedDoc loc name = search
   where
     search [] = do
-      tell [dislocatedErrMsg $ "Cannot find documentation for: $" ++ name]
+      tell [L loc $ "Cannot find documentation for: $" ++ name]
       return Nothing
     search (DocD _ (DocCommentNamed name' doc) : rest)
       | name == name' = return (Just doc)

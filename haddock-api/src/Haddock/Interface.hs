@@ -74,6 +74,16 @@ import GHC.IO.Encoding.CodePage (mkLocaleEncoding)
 import GHC.IO.Encoding.Failure (CodingFailureMode(TransliterateCodingFailure))
 #endif
 
+logHaddockWarnings :: DynFlags -> [ErrMsg] -> Ghc ()
+logHaddockWarnings dflags msgs =
+  logWarnings . unionManyBags $
+  fmap (unitBag . haddockWarningToGhcWarning dflags) msgs
+
+haddockWarningToGhcWarning :: DynFlags -> ErrMsg -> WarnMsg
+haddockWarningToGhcWarning dflags (L loc doc) =
+  makeIntoWarning (Reason Opt_NoReason) $
+  mkWarnMsg dflags loc alwaysQualify $ O.text doc
+
 -- | Create 'Interface's and a link environment by typechecking the list of
 -- modules using the GHC API and processing the resulting syntax trees.
 processModules
@@ -118,7 +128,6 @@ processModules verbosity modules flags extIfaces = do
   let (interfaces'', msgs) =
          runWriter $ mapM (renameInterface dflags links warnings) interfaces'
   logHaddockWarnings dflags msgs
-  -- liftIO $ mapM_ putStrLn msgs
 
   return (interfaces'', homeLinks)
 
@@ -177,16 +186,6 @@ createIfaces verbosity flags instIfaceMap mods = do
                              , ifaceMap
                              , ms ) -- Boot modules don't generate ifaces.
 
-logHaddockWarnings :: DynFlags -> [ErrMsg] -> Ghc ()
-logHaddockWarnings dflags msgs =
-  logWarnings . unionManyBags $
-  fmap (unitBag . haddockWarningToGhcWarning dflags) msgs
-
-haddockWarningToGhcWarning :: DynFlags -> ErrMsg -> WarnMsg
-haddockWarningToGhcWarning dflags (L loc doc) =
-  makeIntoWarning (Reason Opt_WarnMalformedHaddock) $
-  mkWarnMsg dflags loc alwaysQualify $ O.text doc
-
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe (Interface, ModuleSet))
 processModule verbosity modsum flags modMap instIfaceMap = do
   out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modsum) ++ "..."
@@ -212,7 +211,6 @@ processModule verbosity modsum flags modMap instIfaceMap = do
                             , isTcOcc (nameOccName name)   -- Types and classes only
                             , unQualOK gre ]               -- In scope unqualified
 
-    -- liftIO $ mapM_ putStrLn (nub msgs)
     dflags <- getDynFlags
     logHaddockWarnings dflags msgs
     let (haddockable, haddocked) = ifaceHaddockCoverage interface
