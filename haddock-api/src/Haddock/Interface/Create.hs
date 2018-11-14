@@ -114,7 +114,7 @@ createInterface tm flags modMap instIfaceMap = do
   opts <- liftErrMsg $ mkDocOpts moduleLocation (haddockOptions dflags) flags mdl
 
   -- Process the top-level module header documentation.
-  (!info, mbDoc) <- liftErrMsg $ processModuleHeader dflags pkgName gre safety mayDocHeader
+  (!info, mbDoc) <- liftErrMsg $ processModuleHeader moduleLocation dflags pkgName gre safety mayDocHeader
 
   let declsWithDocs = topDecls group_
 
@@ -138,10 +138,10 @@ createInterface tm flags modMap instIfaceMap = do
       -- Locations of all TH splices
       splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
 
-  warningMap <- liftErrMsg (mkWarningMap dflags warnings gre exportedNames)
+  warningMap <- liftErrMsg (mkWarningMap moduleLocation dflags warnings gre exportedNames)
 
   maps@(!docMap, !argMap, !declMap, _) <-
-    liftErrMsg (mkMaps dflags pkgName gre localInsts declsWithDocs)
+    liftErrMsg (mkMaps moduleLocation dflags pkgName gre localInsts declsWithDocs)
 
   let allWarnings = M.unions (warningMap : map ifaceWarningMap (M.elems modMap))
 
@@ -169,7 +169,7 @@ createInterface tm flags modMap instIfaceMap = do
   let !aliases =
         mkAliasMap dflags $ tm_renamed_source tm
 
-  modWarn <- liftErrMsg (moduleWarning dflags gre warnings)
+  modWarn <- liftErrMsg (moduleWarning moduleLocation dflags gre warnings)
 
   tokenizedSrc <- mkMaybeTokenizedSrc dflags flags tm
 
@@ -288,8 +288,8 @@ lookupModuleDyn dflags Nothing mdlName =
 -- Warnings
 -------------------------------------------------------------------------------
 
-mkWarningMap :: DynFlags -> Warnings -> GlobalRdrEnv -> [Name] -> ErrMsgM WarningMap
-mkWarningMap dflags warnings gre exps = case warnings of
+mkWarningMap :: SrcSpan -> DynFlags -> Warnings -> GlobalRdrEnv -> [Name] -> ErrMsgM WarningMap
+mkWarningMap modLoc dflags warnings gre exps = case warnings of
   NoWarnings  -> pure M.empty
   WarnAll _   -> pure M.empty
   WarnSome ws ->
@@ -297,20 +297,20 @@ mkWarningMap dflags warnings gre exps = case warnings of
               | (occ, w) <- ws
               , elt <- lookupGlobalRdrEnv gre occ
               , let n = gre_name elt, n `elem` exps ]
-    in M.fromList <$> traverse (bitraverse pure (parseWarning dflags gre)) ws'
+    in M.fromList <$> traverse (bitraverse pure (parseWarning modLoc dflags gre)) ws'
 
-moduleWarning :: DynFlags -> GlobalRdrEnv -> Warnings -> ErrMsgM (Maybe (Doc Name))
-moduleWarning _ _ NoWarnings = pure Nothing
-moduleWarning _ _ (WarnSome _) = pure Nothing
-moduleWarning dflags gre (WarnAll w) = Just <$> parseWarning dflags gre w
+moduleWarning :: SrcSpan -> DynFlags -> GlobalRdrEnv -> Warnings -> ErrMsgM (Maybe (Doc Name))
+moduleWarning _ _ _ NoWarnings = pure Nothing
+moduleWarning _ _ _ (WarnSome _) = pure Nothing
+moduleWarning modLoc dflags gre (WarnAll w) = Just <$> parseWarning modLoc dflags gre w
 
-parseWarning :: DynFlags -> GlobalRdrEnv -> WarningTxt -> ErrMsgM (Doc Name)
-parseWarning dflags gre w = case w of
+parseWarning :: SrcSpan -> DynFlags -> GlobalRdrEnv -> WarningTxt -> ErrMsgM (Doc Name)
+parseWarning modLoc dflags gre w = case w of
   DeprecatedTxt _ msg -> format "Deprecated: " (foldMap (fastStringToByteString . sl_fs . unLoc) msg)
   WarningTxt    _ msg -> format "Warning: "    (foldMap (fastStringToByteString . sl_fs . unLoc) msg)
   where
     format x bs = DocWarning . DocParagraph . DocAppend (DocString x)
-                  <$> processDocString dflags gre (mkHsDocStringUtf8ByteString bs)
+                  <$> processDocString modLoc dflags gre (mkHsDocStringUtf8ByteString bs)
 
 
 -------------------------------------------------------------------------------
@@ -358,13 +358,14 @@ type Maps = (DocMap Name, ArgMap Name, DeclMap, InstMap)
 -- | Create 'Maps' by looping through the declarations. For each declaration,
 -- find its names, its subordinates, and its doc strings. Process doc strings
 -- into 'Doc's.
-mkMaps :: DynFlags
+mkMaps :: SrcSpan
+       -> DynFlags
        -> Maybe Package  -- this package
        -> GlobalRdrEnv
        -> [Name]
        -> [(LHsDecl GhcRn, [HsDocString])]
        -> ErrMsgM Maps
-mkMaps dflags pkgName gre instances decls = do
+mkMaps modLoc dflags pkgName gre instances decls = do
   (a, b, c) <- unzip3 <$> traverse mappings decls
   pure ( f' (map (nubByName fst) a)
        , f  (filterMapping (not . M.null) b)
@@ -391,8 +392,8 @@ mkMaps dflags pkgName gre instances decls = do
           declDoc :: [HsDocString] -> Map Int HsDocString
                   -> ErrMsgM (Maybe (MDoc Name), Map Int (MDoc Name))
           declDoc strs m = do
-            doc' <- processDocStrings dflags pkgName gre strs
-            m'   <- traverse (processDocStringParas dflags pkgName gre) m
+            doc' <- processDocStrings modLoc dflags pkgName gre strs
+            m'   <- traverse (processDocStringParas modLoc dflags pkgName gre) m
             pure (doc', m')
 
       (doc, args) <- declDoc docStrs (declTypeDocs decl)
@@ -667,18 +668,18 @@ mkExportItems
     Just exports -> liftM concat $ mapM lookupExport exports
   where
     lookupExport (IEGroup _ lev docStr, _)  = liftErrMsg $ do
-      doc <- processDocString dflags gre docStr
+      doc <- processDocString loc dflags gre docStr
       return [ExportGroup lev "" doc]
 
     lookupExport (IEDoc _ docStr, _)        = liftErrMsg $ do
-      doc <- processDocStringParas dflags pkgName gre docStr
+      doc <- processDocStringParas loc dflags pkgName gre docStr
       return [ExportDoc doc]
 
     lookupExport (IEDocNamed _ str, _)      = liftErrMsg $
       findNamedDoc loc str [ unL d | d <- decls ] >>= \case
         Nothing -> return  []
         Just docStr -> do
-          doc <- processDocStringParas dflags pkgName gre docStr
+          doc <- processDocStringParas loc dflags pkgName gre docStr
           return [ExportDoc doc]
 
     lookupExport (IEModuleContents _ (L _ mod_name), _)
@@ -1021,10 +1022,10 @@ fullModuleContents loc is_sig modMap pkgName thisMod semMod warnings gre exporte
   (concat . concat) `fmap` (for decls $ \decl -> do
     case decl of
       (L _ (DocD _ (DocGroup lev docStr))) -> do
-        doc <- liftErrMsg (processDocString dflags gre docStr)
+        doc <- liftErrMsg (processDocString loc dflags gre docStr)
         return [[ExportGroup lev "" doc]]
       (L _ (DocD _ (DocCommentNamed _ docStr))) -> do
-        doc <- liftErrMsg (processDocStringParas dflags pkgName gre docStr)
+        doc <- liftErrMsg (processDocStringParas loc dflags pkgName gre docStr)
         return [[ExportDoc doc]]
       (L _ (ValD _ valDecl))
         | name:_ <- collectHsBindBinders valDecl
