@@ -61,13 +61,13 @@ ppHyperlinkedModuleSource srcdir pretty srcs iface =
             let mast = if M.size asts == 1
                        then snd <$> M.lookupMin asts
                        else M.lookup (mkFastString file) asts
-                file = hsFile hiefile
-                asts = getAsts $ hieAST hiefile
+                file = hie_hs_file hiefile
+                asts = getAsts $ hie_asts hiefile
                 df = ifaceDynFlags iface
-                tokens = parse df file (Utf8.decodeUtf8 $ hsSrc hiefile)
+                tokens = parse df file (Utf8.decodeUtf8 $ hie_hs_src hiefile)
             case mast of
               Just ast -> do
-                  let types = hieTypes hiefile
+                  let types = hie_types hiefile
                       flatAst = fmap (\i -> recoverFullType i types) ast
                   writeUtf8File path . html . render' df flatAst $ tokens
               Nothing -> if M.size asts == 0
