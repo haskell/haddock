@@ -242,8 +242,9 @@ withGhc flags action = do
   let handleSrcErrors action' = flip handleSourceError action' $ \err -> do
         printException err
         liftIO exitFailure
+      needHieFiles = Flag_HyperlinkedSource `elem` flags
 
-  withGhc' libDir (ghcFlags flags) (\_ -> handleSrcErrors action)
+  withGhc' libDir needHieFiles (ghcFlags flags) (\_ -> handleSrcErrors action)
 
 
 readPackagesAndProcessModules :: [Flag] -> [String]
@@ -465,14 +466,10 @@ readInterfaceFiles name_cache_accessor pairs bypass_version_check = do
 
 -- | Start a GHC session with the -haddock flag set. Also turn off
 -- compilation and linking. Then run the given 'Ghc' action.
-withGhc' :: String -> [String] -> (DynFlags -> Ghc a) -> IO a
-withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
-  dynflags  <- getSessionDynFlags
-  dynflags' <- parseGhcFlags (foldl' gopt_set dynflags [Opt_WriteHie, Opt_Haddock]) {
-    hscTarget = HscNothing,
-    ghcMode   = CompManager,
-    ghcLink   = NoLink
-    }
+withGhc' :: String -> Bool -> [String] -> (DynFlags -> Ghc a) -> IO a
+withGhc' libDir needHieFiles flags ghcActs = runGhc (Just libDir) $ do
+  dynflags' <- parseGhcFlags =<< getSessionDynFlags
+
   -- We disable pattern match warnings because than can be very
   -- expensive to check
   let dynflags'' = unsetPatternMatchWarnings $
@@ -503,11 +500,19 @@ withGhc' libDir flags ghcActs = runGhc (Just libDir) $ do
     parseGhcFlags dynflags = do
       -- TODO: handle warnings?
 
-      let flags' = filterRtsFlags flags
-      (dynflags', rest, _) <- parseDynamicFlags dynflags (map noLoc flags')
+      let extra_opts | needHieFiles = [Opt_WriteHie, Opt_Haddock]
+                     | otherwise = [Opt_Haddock]
+          dynflags' = (foldl' gopt_set dynflags extra_opts)
+                        { hscTarget = HscNothing
+                        , ghcMode   = CompManager
+                        , ghcLink   = NoLink
+                        }
+          flags' = filterRtsFlags flags
+
+      (dynflags'', rest, _) <- parseDynamicFlags dynflags' (map noLoc flags')
       if not (null rest)
         then throwE ("Couldn't parse GHC options: " ++ unwords flags')
-        else return dynflags'
+        else return dynflags''
 
 unsetPatternMatchWarnings :: DynFlags -> DynFlags
 unsetPatternMatchWarnings dflags =
