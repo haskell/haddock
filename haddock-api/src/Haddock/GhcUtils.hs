@@ -413,11 +413,12 @@ minimalDef n = do
 -------------------------------------------------------------------------------
 
 
-setObjectDir, setHiDir, setStubDir, setOutputDir :: String -> DynFlags -> DynFlags
+setObjectDir, setHiDir, setHieDir, setStubDir, setOutputDir :: String -> DynFlags -> DynFlags
 setObjectDir  f d = d{ objectDir  = Just f}
 setHiDir      f d = d{ hiDir      = Just f}
+setHieDir     f d = d{ hieDir     = Just f}
 setStubDir    f d = d{ stubDir    = Just f
                      , includePaths = addGlobalInclude (includePaths d) [f] }
   -- -stubdir D adds an implicit -I D, so that gcc can find the _stub.h file
   -- \#included from the .hc file when compiling with -fvia-C.
-setOutputDir  f = setObjectDir f . setHiDir f . setStubDir f
+setOutputDir  f = setObjectDir f . setHiDir f . setHieDir f . setStubDir f

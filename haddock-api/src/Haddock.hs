@@ -39,6 +39,7 @@ import Haddock.Version
 import Haddock.InterfaceFile
 import Haddock.Options
 import Haddock.Utils
+import Haddock.GhcUtils (modifySessionDynFlags, setOutputDir)
 
 import Control.Monad hiding (forM_)
 import Data.Foldable (forM_, foldl')
@@ -66,6 +67,8 @@ import qualified GHC.Paths as GhcPaths
 import Paths_haddock_api (getDataDir)
 import System.Directory (doesDirectoryExist)
 #endif
+import System.Directory (getTemporaryDirectory)
+import System.FilePath ((</>))
 
 import Text.ParserCombinators.ReadP (readP_to_S)
 import GHC hiding (verbosity)
@@ -164,6 +167,15 @@ haddockWithGhc ghc args = handleTopExceptions $ do
   -- bypass the interface version check
   let noChecks = Flag_BypassInterfaceVersonCheck `elem` flags
 
+  -- Create a temporary directory and redirect GHC output there (unless user
+  -- requested otherwise).
+  --
+  -- Output dir needs to be set before calling 'depanal' since 'depanal' uses it
+  -- to compute output file names that are stored in the 'DynFlags' of the
+  -- resulting 'ModSummary's.
+  let withDir | Flag_NoTmpCompDir `elem` flags = id
+              | otherwise = withTempOutputDir
+
   unless (Flag_NoWarnings `elem` flags) $ do
     hypSrcWarnings flags
     forM_ (warnings args) $ \warning -> do
@@ -171,7 +183,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
     when noChecks $
       hPutStrLn stderr noCheckWarning
 
-  ghc flags' $ do
+  ghc flags' $ withDir $ do
     dflags <- getDynFlags
 
     forM_ (optShowInterfaceFile flags) $ \path -> liftIO $ do
@@ -201,6 +213,15 @@ haddockWithGhc ghc args = handleTopExceptions $ do
 
       -- Render even though there are no input files (usually contents/index).
       liftIO $ renderStep dflags flags sinceQual qual packages []
+
+-- | Run the GHC action using a temporary output directory
+withTempOutputDir :: Ghc a -> Ghc a
+withTempOutputDir action = do
+  tmp <- liftIO getTemporaryDirectory
+  x   <- liftIO getProcessID
+  let dir = tmp </> ".haddock-" ++ show x
+  modifySessionDynFlags (setOutputDir dir)
+  withTempDir dir action
 
 -- | Create warnings about potential misuse of -optghc
 warnings :: [String] -> [String]
