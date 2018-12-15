@@ -20,26 +20,21 @@
 module Haddock.Interface.Create (createInterface) where
 
 import Documentation.Haddock.Doc (metaDocAppend)
-import Documentation.Haddock.Utf8 as Utf8
 import Haddock.Types
 import Haddock.Options
 import Haddock.GhcUtils
 import Haddock.Utils
 import Haddock.Convert
 import Haddock.Interface.LexParseRn
-import Haddock.Backends.Hyperlinker.Types
-import Haddock.Backends.Hyperlinker.Parser as Hyperlinker
 
 import Data.Bifunctor
 import Data.Bitraversable
-import qualified Data.ByteString as BS
 import qualified Data.Map as M
 import Data.Map (Map)
 import Data.List
 import Data.Maybe
 import Data.Ord
 import Control.Applicative
-import Control.Exception (evaluate)
 import Control.Monad
 import Data.Traversable
 
@@ -48,7 +43,7 @@ import qualified Avail
 import qualified Module
 import qualified SrcLoc
 import ConLike (ConLike(..))
-import GHC hiding (Token)
+import GHC
 import HscTypes
 import Name
 import NameSet
@@ -60,10 +55,6 @@ import TcRnTypes
 import FastString ( unpackFS, fastStringToByteString)
 import BasicTypes ( StringLiteral(..), SourceText(..), PromotionFlag(..) )
 import qualified Outputable as O
-
-import Data.IORef
-import HieTypes
-import HieBin
 
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.

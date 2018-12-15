@@ -63,19 +63,20 @@ ppHyperlinkedModuleSource srcdir pretty srcs iface =
                        else M.lookup (mkFastString file) asts
                 file = hie_hs_file hiefile
                 asts = getAsts $ hie_asts hiefile
-                df = ifaceDynFlags iface
                 tokens = parse df file (Utf8.decodeUtf8 $ hie_hs_src hiefile)
             case mast of
-              Just ast -> do
+              Just ast ->
                   let types = hie_types hiefile
                       flatAst = fmap (\i -> recoverFullType i types) ast
-                  writeUtf8File path . html . render' df flatAst $ tokens
-              Nothing -> if M.size asts == 0
-                then return ()
-                else error $ "couldn't find ast for " ++ file ++ show (M.keys asts)
+                  in writeUtf8File path . html . render' flatAst $ tokens
+              Nothing
+                | M.size asts == 0 -> return ()
+                | otherwise -> error $ unwords [ "couldn't find ast for"
+                                               , file, show (M.keys asts) ]
         _ -> return ()
   where
-    render' df = render (Just srcCssFile) (Just highlightScript) df srcs
+    df = ifaceDynFlags iface
+    render' = render (Just srcCssFile) (Just highlightScript) df srcs
     html = if pretty then renderHtml else showHtml
     path = srcdir </> hypSrcModuleFile (ifaceMod iface)
 

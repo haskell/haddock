@@ -30,23 +30,19 @@ module Haddock.Types (
 import Control.Exception
 import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
+import Control.Monad (ap)
 import Control.Monad.IO.Class (MonadIO(..))
-import Data.Typeable
+import Data.Typeable (Typeable)
 import Data.Map (Map)
 import Data.Data (Data)
-import qualified Data.Map as Map
 import Documentation.Haddock.Types
 import BasicTypes (Fixity(..), PromotionFlag(..))
 
-import GHC hiding (NoLink, Token)
+import GHC
 import DynFlags (Language)
 import qualified GHC.LanguageExtensions as LangExt
 import OccName
 import Outputable
-import Control.Monad (ap)
-
-import Haddock.Backends.Hyperlinker.Types
-import HieTypes
 
 -----------------------------------------------------------------------------
 -- * Convenient synonyms
@@ -153,7 +149,7 @@ type WarningMap = Map Name (Doc Name)
 
 
 -- | A subset of the fields of 'Interface' that we store in the interface
--- files.
+-- files (these files usually have a @.haddock@ suffix).
 data InstalledInterface = InstalledInterface
   {
     -- | The module represented by this interface.
@@ -277,7 +273,7 @@ type DocForDecl name = (Documentation name, FnArgsDoc name)
 
 
 noDocForDecl :: DocForDecl name
-noDocForDecl = (Documentation Nothing Nothing, Map.empty)
+noDocForDecl = (Documentation Nothing Nothing, mempty)
 
 
 -----------------------------------------------------------------------------

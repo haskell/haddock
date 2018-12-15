@@ -7,32 +7,35 @@ module Haddock.Backends.Hyperlinker.Renderer (render) where
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
 
-import qualified GHC
-import qualified Name as GHC
-import qualified Unique as GHC
-import HieTypes hiding (Span)
-import HieUtils
-import DynFlags (DynFlags)
+import DynFlags ( DynFlags )
+import FastString (fsLit)
+import HieTypes
+import HieUtils ( renderHieType )
+import Module   ( ModuleName, moduleName, moduleNameString )
+import Name     ( getOccString, isInternalName, Name, nameModule, nameUnique )
+import SrcLoc
+import Unique   ( getKey )
 
 import System.FilePath.Posix ((</>))
 
-import Data.List
-import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Control.Monad (guard)
 
 import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
 
-import FastString
-import SrcLoc
 
 type StyleClass = String
 
-
-render :: Maybe FilePath -> Maybe FilePath -> DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token]
-       -> Html
+-- | Produce the HTML corresponding to a hyperlinked Haskell source
+render
+  :: Maybe FilePath    -- ^ path to the CSS file
+  -> Maybe FilePath    -- ^ path to the JS file
+  -> DynFlags          -- ^ used to render types
+  -> SrcMap            -- ^ Paths to sources
+  -> HieAST HieTypeFix -- ^ ASTs from @.hie@ files
+  -> [Token]           -- ^ tokens to render
+  -> Html
 render mcss mjs df srcs ast tokens = header mcss mjs <> body df srcs ast tokens
 
 body :: DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token] -> Html
@@ -41,10 +44,8 @@ body df srcs ast tokens = Html.body . Html.pre $ hypsrc
     hypsrc = renderWithAst df srcs ast tokens
 
 header :: Maybe FilePath -> Maybe FilePath -> Html
-header mcss mjs
-    | isNothing mcss && isNothing mjs = Html.noHtml
-header mcss mjs =
-    Html.header $ css mcss <> js mjs
+header Nothing Nothing = Html.noHtml
+header mcss mjs = Html.header $ css mcss <> js mjs
   where
     css Nothing = Html.noHtml
     css (Just cssFile) = Html.thelink Html.noHtml !
@@ -85,7 +86,7 @@ renderWithAst df srcs ast toks = anchored $ case toks of
 
 renderToken :: Token -> Html
 renderToken Token{..}
-  | tkType == TkSpace = renderSpace (GHC.srcSpanStartLine tkSpan) tkValue
+  | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue
   | otherwise = tokenSpan ! [ multiclass style ]
       where
         style = tokenStyle tkType
@@ -94,7 +95,7 @@ renderToken Token{..}
 -- | Given information about the source position of definitions, render a token
 richToken :: DynFlags -> SrcMap -> NodeInfo HieTypeFix -> Token -> Html
 richToken df srcs details Token{..}
-    | tkType == TkSpace = renderSpace (GHC.srcSpanStartLine tkSpan) tkValue
+    | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue
     | otherwise = annotate df details $ linked content
   where
     content = tokenSpan ! [ multiclass style ]
@@ -127,8 +128,8 @@ annotate df ni content =
           = concatMap (\(n,t) -> printName n ++ " :: " ++ renderHieType df t ++ "\n") typedIdents
       | otherwise = ""
 
-    printName (Right n) = unpackFS $ GHC.occNameFS $ GHC.getOccName n
-    printName (Left n) = GHC.moduleNameString n
+    printName :: Either ModuleName Name -> String
+    printName = either moduleNameString getOccString
 
 
 richTokenStyle :: ContextInfo -> [StyleClass]
@@ -159,13 +160,13 @@ tokenStyle TkPragma = ["hs-pragma"]
 tokenStyle TkUnknown = []
 
 multiclass :: [StyleClass] -> HtmlAttr
-multiclass = Html.theclass . intercalate " "
+multiclass = Html.theclass . unwords
 
 externalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
 externalAnchor (Right name) contexts content
-    |  not (GHC.isInternalName name)
-    && any isBinding contexts =
-        Html.thespan content ! [ Html.identifier $ externalAnchorIdent name ]
+  | not (isInternalName name)
+  , any isBinding contexts
+  = Html.thespan content ! [ Html.identifier $ externalAnchorIdent name ]
 externalAnchor _ _ content = content
 
 isBinding :: ContextInfo -> Bool
@@ -179,29 +180,28 @@ isBinding _ = False
 
 internalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
 internalAnchor (Right name) contexts content
-  | GHC.isInternalName name && any isBinding contexts =
-      Html.thespan content ! [ Html.identifier $ internalAnchorIdent name ]
+  | isInternalName name
+  , any isBinding contexts
+  = Html.thespan content ! [ Html.identifier $ internalAnchorIdent name ]
 internalAnchor _ _ content = content
 
-externalAnchorIdent :: GHC.Name -> String
+externalAnchorIdent :: Name -> String
 externalAnchorIdent = hypSrcNameUrl
 
-internalAnchorIdent :: GHC.Name -> String
-internalAnchorIdent = ("local-" ++) . show . GHC.getKey . GHC.nameUnique
+internalAnchorIdent :: Name -> String
+internalAnchorIdent = ("local-" ++) . show . getKey . nameUnique
 
 hyperlink :: SrcMap -> Identifier -> Html -> Html
 hyperlink srcs ident = case ident of
-    Right name ->
-        if GHC.isInternalName name
-        then internalHyperlink name
-        else externalNameHyperlink srcs name
+    Right name | isInternalName name -> internalHyperlink name
+               | otherwise -> externalNameHyperlink srcs name
     Left name -> externalModHyperlink srcs name
 
-internalHyperlink :: GHC.Name -> Html -> Html
+internalHyperlink :: Name -> Html -> Html
 internalHyperlink name content =
     Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
 
-externalNameHyperlink :: SrcMap -> GHC.Name -> Html -> Html
+externalNameHyperlink :: SrcMap -> Name -> Html -> Html
 externalNameHyperlink srcs name content = case Map.lookup mdl srcs of
     Just SrcLocal -> Html.anchor content !
         [ Html.href $ hypSrcModuleNameUrl mdl name ]
@@ -209,11 +209,11 @@ externalNameHyperlink srcs name content = case Map.lookup mdl srcs of
         [ Html.href $ path </> hypSrcModuleNameUrl mdl name ]
     Nothing -> content
   where
-    mdl = GHC.nameModule name
+    mdl = nameModule name
 
-externalModHyperlink :: SrcMap -> GHC.ModuleName -> Html -> Html
+externalModHyperlink :: SrcMap -> ModuleName -> Html -> Html
 externalModHyperlink srcs name content =
-    let srcs' = Map.mapKeys GHC.moduleName srcs in
+    let srcs' = Map.mapKeys moduleName srcs in
     case Map.lookup name srcs' of
       Just SrcLocal -> Html.anchor content !
         [ Html.href $ hypSrcModuleUrl' name ]

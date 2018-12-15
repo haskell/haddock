@@ -8,7 +8,7 @@ import qualified Text.Read as R
 
 import GHC                 ( DynFlags, addSourceToTokens )
 import SrcLoc
-import FastString          ( mkFastString )
+import FastString          ( fsLit, mkFastString )
 import StringBuffer        ( stringToStringBuffer )
 import Lexer               ( Token(..) )
 import qualified Lexer as L
@@ -161,7 +161,7 @@ spanToNewline n (c:str) =
 ghcToks :: [(Located L.Token, String)] -> [T.Token]
 ghcToks = reverse . (\(_,ts,_) -> ts) . foldl' go (start, [], False)
   where
-    start = mkRealSrcLoc (mkFastString "lexing") 1 1
+    start = mkRealSrcLoc (fsLit "lexing") 1 1
 
     go :: (RealSrcLoc, [T.Token], Bool)
        -- ^ current position, tokens accumulated, currently in pragma (or not)

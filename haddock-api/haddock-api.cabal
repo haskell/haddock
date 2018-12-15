@@ -129,7 +129,6 @@ test-suite spec
     Haddock
     Haddock.Backends.Hoogle
     Haddock.Backends.Hyperlinker
-    Haddock.Backends.Hyperlinker.Ast
     Haddock.Backends.Hyperlinker.Renderer
     Haddock.Backends.Hyperlinker.Utils
     Haddock.Backends.LaTeX
