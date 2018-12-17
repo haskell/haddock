@@ -1,5 +1,5 @@
+{-# LANGUAGE PatternSynonyms #-}
 module Haddock.Backends.Hyperlinker.Types where
-
 
 import qualified GHC
 
@@ -11,6 +11,10 @@ data Token = Token
     , tkSpan :: {-# UNPACK #-} !Span
     }
     deriving (Show)
+
+pattern BacktickTok   sp = Token TkSpecial "`" sp
+pattern OpenParenTok  sp = Token TkSpecial "(" sp
+pattern CloseParenTok sp = Token TkSpecial ")" sp
 
 type Position = GHC.RealSrcLoc
 type Span = GHC.RealSrcSpan

@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Haddock.Backends.Hyperlinker.Renderer (render) where
 
@@ -69,9 +70,37 @@ splitTokens ast toks' = (initial++before,during,after)
     inAst t = nodeSp `containsSpan` tkSpan t
     nodeSp = nodeSpan ast
 
+-- | Turn a list of tokens into hyperlinked sources, threading in relevant link
+-- information from the 'HieAST'.
 renderWithAst :: DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token] -> Html
 renderWithAst df srcs ast toks = anchored $ case toks of
     [tok] | nodeSpan ast == tkSpan tok -> richToken df srcs (nodeInfo ast) tok
+
+    -- NB: the GHC lexer lexes backquoted identifiers and parenthesized operators
+    -- as multiple tokens.
+    --
+    --  * @a `elem` b@ turns into @[a, `, elem, `, b]@ (excluding space tokens)
+    --  * @(+) 1 2@    turns into @[(, +, ), 1, 2]@    (excluding space tokens)
+    --
+    -- However, the HIE ast considers @`elem`@ and @(+)@ to be single nodes. In
+    -- order to make sure these get hyperlinked properly, we intercept these
+    -- special sequences of tokens and turn merge then into just one identifier
+    -- or operator token.
+    [BacktickTok s1,  tok @ Token{ tkType = TkIdentifier }, BacktickTok s2]
+          | realSrcSpanStart s1 == realSrcSpanStart (nodeSpan ast)
+          , realSrcSpanEnd s2   == realSrcSpanEnd (nodeSpan ast)
+          -> richToken df srcs (nodeInfo ast)
+                       (Token{ tkValue = "`" ++ tkValue tok ++ "`"
+                             , tkType = TkOperator
+                             , tkSpan = nodeSpan ast })
+    [OpenParenTok s1, tok @ Token{ tkType = TkOperator }, CloseParenTok s2]
+          | realSrcSpanStart s1 == realSrcSpanStart (nodeSpan ast)
+          , realSrcSpanEnd s2   == realSrcSpanEnd (nodeSpan ast)
+          -> richToken df srcs (nodeInfo ast)
+                       (Token{ tkValue = "(" ++ tkValue tok ++ ")"
+                             , tkType = TkOperator
+                             , tkSpan = nodeSpan ast })
+
     xs -> go (nodeChildren ast) xs
   where
     go _ [] = mempty
