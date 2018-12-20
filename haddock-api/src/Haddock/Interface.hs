@@ -178,20 +178,14 @@ createIfaces verbosity flags instIfaceMap mods = do
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe (Interface, ModuleSet))
 processModule verbosity modsum flags modMap instIfaceMap = do
   out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modsum) ++ "..."
-  -- tm <- {-# SCC "parse/typecheck/load" #-} loadModule =<< typecheckModule =<< parseModule modsum
 
-  parsed <- parseModule modsum
+  -- Since GHC 8.6, plugins are initialized on a per module basis
+  hsc_env' <- getSession
+  dynflags' <- liftIO (initializePlugins hsc_env' (GHC.ms_hspp_opts modsum))
+  let modsum' = modsum { ms_hspp_opts = dynflags' }
 
-  let dynflags = ms_hspp_opts . pm_mod_summary $ parsed
+  tm <- {-# SCC "parse/typecheck/load" #-} loadModule =<< typecheckModule =<< parseModule modsum'
 
-  hscenv <- GHC.getSession
-  dynflags1 <- liftIO (initializePlugins hscenv dynflags)
-
-  let mod_summary = (GHC.pm_mod_summary parsed) { GHC.ms_hspp_opts = dynflags1 }
-      parsed1 = parsed { GHC.pm_mod_summary = mod_summary }
-
-  checked <- typecheckModule parsed1
-  tm <- loadModule checked
   if not $ isBootSummary modsum then do
     out verbosity verbose "Creating interface..."
     (interface, msgs) <- {-# SCC createIterface #-}
