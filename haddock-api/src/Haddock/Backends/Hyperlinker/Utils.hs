@@ -6,6 +6,7 @@ module Haddock.Backends.Hyperlinker.Utils
     , hypSrcModuleNameUrl, hypSrcModuleLineUrl
     , hypSrcModuleUrlFormat
     , hypSrcModuleNameUrlFormat, hypSrcModuleLineUrlFormat
+    , spliceURL
     ) where
 
 
@@ -13,6 +14,7 @@ import Haddock.Backends.Xhtml.Utils
 
 import GHC
 import FastString
+import Name (nameModule_maybe)
 import System.FilePath.Posix ((</>))
 
 
@@ -34,7 +36,7 @@ hypSrcModuleUrl' = hypSrcModuleFile'
 
 hypSrcNameUrl :: Name -> String
 hypSrcNameUrl name = spliceURL
-    Nothing Nothing (Just name) Nothing nameFormat
+    Nothing (nameModule_maybe name) (Just name) Nothing nameFormat
 
 hypSrcLineUrl :: Int -> String
 hypSrcLineUrl line = spliceURL

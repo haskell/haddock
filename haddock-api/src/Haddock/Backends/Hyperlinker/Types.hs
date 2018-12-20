@@ -12,6 +12,7 @@ data Token = Token
     }
     deriving (Show)
 
+pattern BacktickTok, OpenParenTok, CloseParenTok :: Span -> Token
 pattern BacktickTok   sp = Token TkSpecial "`" sp
 pattern OpenParenTok  sp = Token TkSpecial "(" sp
 pattern CloseParenTok sp = Token TkSpecial ")" sp

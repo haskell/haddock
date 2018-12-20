@@ -235,7 +235,7 @@ externalNameHyperlink srcs name content = case Map.lookup mdl srcs of
     Just SrcLocal -> Html.anchor content !
         [ Html.href $ hypSrcModuleNameUrl mdl name ]
     Just (SrcExternal path) -> Html.anchor content !
-        [ Html.href $ path </> hypSrcModuleNameUrl mdl name ]
+        [ Html.href $ spliceURL Nothing (Just mdl) (Just name) Nothing (".." </> path) ]
     Nothing -> content
   where
     mdl = nameModule name

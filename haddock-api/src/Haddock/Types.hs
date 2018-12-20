@@ -149,7 +149,7 @@ type WarningMap = Map Name (Doc Name)
 
 
 -- | A subset of the fields of 'Interface' that we store in the interface
--- files (these files usually have a @.haddock@ suffix).
+-- files.
 data InstalledInterface = InstalledInterface
   {
     -- | The module represented by this interface.
