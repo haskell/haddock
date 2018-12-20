@@ -677,7 +677,7 @@ mkExportItems
           doc <- processDocStringParas dflags pkgName gre docStr
           return [ExportDoc doc]
 
-    lookupExport (IEModuleContents _ (L _ mod_name), _)
+    lookupExport (IEModuleContents _ _ (L _ mod_name), _)
       -- only consider exporting a module if we are sure we
       -- are really exporting the whole module and not some
       -- subset. We also look through module aliases here.
