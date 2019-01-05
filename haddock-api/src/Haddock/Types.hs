@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE UndecidableInstances #-} -- Note [Pass sensitive types]
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -----------------------------------------------------------------------------
@@ -35,14 +37,13 @@ import Data.Data (Data)
 import qualified Data.Map as Map
 import Documentation.Haddock.Parser
 import Documentation.Haddock.Types
-import BasicTypes (Fixity(..))
+import BasicTypes (Fixity(..), PromotionFlag(..))
 
 import GHC hiding (NoLink)
 import DynFlags (Language, HasDynFlags(..))
 import qualified GHC.LanguageExtensions as LangExt
 import OccName
 import Outputable
-import Control.Applicative (Applicative(..))
 import Control.Monad (ap)
 import Control.Monad.IO.Class
 
@@ -462,7 +463,7 @@ instance NFData ModuleName where rnf x = seq x ()
 instance NFData id => NFData (Header id) where
   rnf (Header a b) = a `deepseq` b `deepseq` ()
 
-instance NFData Hyperlink where
+instance NFData id => NFData (Hyperlink id) where
   rnf (Hyperlink a b) = a `deepseq` b `deepseq` ()
 
 instance NFData Picture where
@@ -672,6 +673,7 @@ type instance XQualTy          DocNameI = NoExt
 type instance XTyVar           DocNameI = NoExt
 type instance XStarTy          DocNameI = NoExt
 type instance XAppTy           DocNameI = NoExt
+type instance XAppKindTy       DocNameI = NoExt
 type instance XFunTy           DocNameI = NoExt
 type instance XListTy          DocNameI = NoExt
 type instance XTupleTy         DocNameI = NoExt
@@ -687,7 +689,7 @@ type instance XRecTy           DocNameI = NoExt
 type instance XExplicitListTy  DocNameI = NoExt
 type instance XExplicitTupleTy DocNameI = NoExt
 type instance XTyLit           DocNameI = NoExt
-type instance XWildCardTy      DocNameI = HsWildCardInfo
+type instance XWildCardTy      DocNameI = NoExt
 type instance XXType           DocNameI = NewHsTypeX
 
 type instance XUserTyVar    DocNameI = NoExt
@@ -740,3 +742,19 @@ type instance XHsWC      DocNameI _ = NoExt
 type instance XHsQTvs        DocNameI = NoExt
 type instance XConDeclField  DocNameI = NoExt
 
+type instance XXPat DocNameI = Located (Pat DocNameI)
+
+type instance SrcSpanLess (LPat DocNameI) = Pat DocNameI
+instance HasSrcSpan (LPat DocNameI) where
+  -- NB: The following chooses the behaviour of the outer location
+  --     wrapper replacing the inner ones.
+  composeSrcSpan (L sp p) =  if sp == noSrcSpan
+                             then p
+                             else XPat (L sp (stripSrcSpanPat p))
+   -- NB: The following only returns the top-level location, if any.
+  decomposeSrcSpan (XPat (L sp p)) = L sp (stripSrcSpanPat p)
+  decomposeSrcSpan p               = L noSrcSpan  p
+
+stripSrcSpanPat :: LPat DocNameI -> Pat DocNameI
+stripSrcSpanPat (XPat (L _ p)) = stripSrcSpanPat p
+stripSrcSpanPat p              = p

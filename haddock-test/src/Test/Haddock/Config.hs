@@ -241,7 +241,7 @@ baseDependencies ghcPath = do
     unsetEnv "GHC_PACKAGE_PATH"
 
     (comp, _, cfg) <- configure normal (Just ghcPath) Nothing
-        defaultProgramConfiguration
+        defaultProgramDb
 #if MIN_VERSION_Cabal(1,23,0)
     pkgIndex <- getInstalledPackages normal comp [GlobalPackageDB] cfg
 #else
@@ -301,7 +301,7 @@ defaultDiffTool :: IO (Maybe FilePath)
 defaultDiffTool =
     liftM listToMaybe . filterM isAvailable $ ["colordiff", "diff"]
   where
-    isAvailable = liftM isJust . findProgramLocation silent
+    isAvailable = liftM isJust . findExecutable
 
 
 defaultStdOut :: FilePath

@@ -62,15 +62,15 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupHyperlink            = \(Hyperlink url mLabel)
                                -> if insertAnchors
                                   then anchor ! [href url]
-                                       << fromMaybe url mLabel
-                                  else toHtml $ fromMaybe url mLabel,
+                                       << fromMaybe (toHtml url) mLabel
+                                  else fromMaybe (toHtml url) mLabel,
   markupAName                = \aname
                                -> if insertAnchors
                                   then namedAnchor aname << ""
                                   else noHtml,
   markupPic                  = \(Picture uri t) -> image ! ([src uri] ++ fromMaybe [] (return . title <$> t)),
-  markupMathInline           = \mathjax -> toHtml ("\\(" ++ mathjax ++ "\\)"),
-  markupMathDisplay          = \mathjax -> toHtml ("\\[" ++ mathjax ++ "\\]"),
+  markupMathInline           = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\(" ++ mathjax ++ "\\)"),
+  markupMathDisplay          = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\[" ++ mathjax ++ "\\]"),
   markupProperty             = pre . toHtml,
   markupExample              = examplesToHtml,
   markupHeader               = \(Header l t) -> makeHeader l t,

@@ -59,7 +59,6 @@ import GHC hiding (verbosity)
 import GhcMake
 import HscTypes
 import FastString (unpackFS)
-import MonadUtils (liftIO)
 import TcRnMonad
 import ErrUtils (withTiming)
 import Outputable

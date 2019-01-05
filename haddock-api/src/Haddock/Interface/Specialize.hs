@@ -15,6 +15,8 @@ import Haddock.Types
 import GHC
 import Name
 import FastString
+import TysPrim ( funTyConName )
+import TysWiredIn ( listTyConName )
 
 import Control.Monad
 import Control.Monad.Trans.State
@@ -47,14 +49,13 @@ specialize specs = go spec_map0
     -- one by one, we should avoid infinite loops.
     spec_map0 = foldr (\(n,t) acc -> Map.insert n (go acc t) acc) mempty specs
 
+{-# SPECIALIZE specialize :: [(Name, HsType GhcRn)] -> HsType GhcRn -> HsType GhcRn #-}
 
 -- | Instantiate given binders with corresponding types.
 --
 -- Again, it is just a convenience function around 'specialize'. Note that
 -- length of type list should be the same as the number of binders.
-specializeTyVarBndrs :: Data a
-                     => LHsQTyVars GhcRn -> [HsType GhcRn]
-                     -> a -> a
+specializeTyVarBndrs :: LHsQTyVars GhcRn -> [HsType GhcRn] -> HsType GhcRn -> HsType GhcRn
 specializeTyVarBndrs bndrs typs =
     specialize $ zip bndrs' typs
   where
@@ -64,11 +65,12 @@ specializeTyVarBndrs bndrs typs =
     bname (XTyVarBndr _) = error "haddock:specializeTyVarBndrs"
 
 
+
 specializePseudoFamilyDecl :: LHsQTyVars GhcRn -> [HsType GhcRn]
                            -> PseudoFamilyDecl GhcRn
                            -> PseudoFamilyDecl GhcRn
 specializePseudoFamilyDecl bndrs typs decl =
-  decl {pfdTyVars = map (specializeTyVarBndrs bndrs typs) (pfdTyVars decl)}
+  decl {pfdTyVars = map (fmap (specializeTyVarBndrs bndrs typs)) (pfdTyVars decl)}
 
 specializeSig :: LHsQTyVars GhcRn -> [HsType GhcRn]
               -> Sig GhcRn
@@ -110,10 +112,7 @@ sugar = sugarOperators . sugarTuples . sugarLists
 
 sugarLists :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
 sugarLists (HsAppTy _ (L _ (HsTyVar _ _ (L _ name))) ltyp)
-    | isBuiltInSyntax name' && strName == "[]" = HsListTy NoExt ltyp
-  where
-    name' = getName name
-    strName = occNameString . nameOccName $ name'
+    | getName name == listTyConName = HsListTy NoExt ltyp
 sugarLists typ = typ
 
 
@@ -127,7 +126,7 @@ sugarTuples typ =
         | isBuiltInSyntax name' && suitable = HsTupleTy NoExt HsBoxedTuple apps
       where
         name' = getName name
-        strName = occNameString . nameOccName $ name'
+        strName = getOccString name
         suitable = case parseTupleArity strName of
             Just arity -> arity == length apps
             Nothing -> False
@@ -137,7 +136,7 @@ sugarTuples typ =
 sugarOperators :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
 sugarOperators (HsAppTy _ (L _ (HsAppTy _ (L _ (HsTyVar _ _ (L l name))) la)) lb)
     | isSymOcc $ getOccName name' = mkHsOpTy la (L l name) lb
-    | isBuiltInSyntax name' && getOccString name == "(->)" = HsFunTy NoExt la lb
+    | funTyConName == name' = HsFunTy NoExt la lb
   where
     name' = getName name
 sugarOperators typ = typ
@@ -182,7 +181,7 @@ parseTupleArity _ = Nothing
 type NameRep = FastString
 
 getNameRep :: NamedThing name => name -> NameRep
-getNameRep = occNameFS . getOccName
+getNameRep = getOccFS
 
 nameRepString :: NameRep -> String
 nameRepString = unpackFS
@@ -256,6 +255,7 @@ renameType (HsQualTy x lctxt lt) =
 renameType (HsTyVar x ip name) = HsTyVar x ip <$> located renameName name
 renameType t@(HsStarTy _ _) = pure t
 renameType (HsAppTy x lf la) = HsAppTy x <$> renameLType lf <*> renameLType la
+renameType (HsAppKindTy x lt lk) = HsAppKindTy x <$> renameLType lt <*> renameLKind lk
 renameType (HsFunTy x la lr) = HsFunTy x <$> renameLType la <*> renameLType lr
 renameType (HsListTy x lt) = HsListTy x <$> renameLType lt
 renameType (HsTupleTy x srt lt) = HsTupleTy x srt <$> mapM renameLType lt
@@ -281,6 +281,8 @@ renameType (HsWildCardTy wc) = pure (HsWildCardTy wc)
 renameLType :: LHsType GhcRn -> Rename (IdP GhcRn) (LHsType GhcRn)
 renameLType = located renameType
 
+renameLKind :: LHsKind GhcRn -> Rename (IdP GhcRn) (LHsKind GhcRn)
+renameLKind = renameLType
 
 renameLTypes :: [LHsType GhcRn] -> Rename (IdP GhcRn) [LHsType GhcRn]
 renameLTypes = mapM renameLType

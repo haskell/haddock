@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns, StandaloneDeriving, FlexibleInstances, ViewPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_HADDOCK hide #-}
 -----------------------------------------------------------------------------
@@ -26,7 +27,6 @@ import FV
 import Outputable
 import Name
 import NameSet
-import Lexeme
 import Module
 import PrelNames ( mkBaseModule )
 import HscTypes
@@ -40,8 +40,6 @@ import VarEnv    ( TyVarEnv, extendVarEnv, elemVarEnv, emptyVarEnv )
 import TyCoRep   ( Type(..), isRuntimeRepVar )
 import TysWiredIn( liftedRepDataConTyCon )
 
-import HsTypes (HsType(..))
-
 
 moduleString :: Module -> String
 moduleString = moduleNameString . moduleName
@@ -49,15 +47,8 @@ moduleString = moduleNameString . moduleName
 isNameSym :: Name -> Bool
 isNameSym = isSymOcc . nameOccName
 
-
-isVarSym :: OccName -> Bool
-isVarSym = isLexVarSym . occNameFS
-
-isConSym :: OccName -> Bool
-isConSym = isLexConSym . occNameFS
-
-
-getMainDeclBinder :: HsDecl name -> [IdP name]
+getMainDeclBinder :: (SrcSpanLess (LPat p) ~ Pat p , HasSrcSpan (LPat p)) =>
+                     HsDecl p -> [IdP p]
 getMainDeclBinder (TyClD _ d) = [tcdName d]
 getMainDeclBinder (ValD _ d) =
   case collectHsBindBinders d of
@@ -149,12 +140,6 @@ isClassD _ = False
 isValD :: HsDecl a -> Bool
 isValD (ValD _ _) = True
 isValD _ = False
-
-
-declATs :: HsDecl a -> [IdP a]
-declATs (TyClD _ d) | isClassDecl d = map (unL . fdLName . unL) $ tcdATs d
-declATs _ = []
-
 
 pretty :: Outputable a => DynFlags -> a -> String
 pretty = showPpr
@@ -291,6 +276,8 @@ reparenTypePrec = go
     = paren p PREC_FUN $ HsFunTy x (goL PREC_FUN ty1) (goL PREC_TOP ty2)
   go p (HsAppTy x fun_ty arg_ty)
     = paren p PREC_CON $ HsAppTy x (goL PREC_FUN fun_ty) (goL PREC_CON arg_ty)
+  go p (HsAppKindTy x fun_ty arg_ki)
+    = paren p PREC_CON $ HsAppKindTy x (goL PREC_FUN fun_ty) (goL PREC_CON arg_ki)
   go p (HsOpTy x ty1 op ty2)
     = paren p PREC_FUN $ HsOpTy x (goL PREC_OP ty1) op (goL PREC_OP ty2)
   go p (HsParTy _ t) = unLoc $ goL p t -- pretend the paren doesn't exist - it will be added back if needed
@@ -548,4 +535,3 @@ defaultRuntimeRepVars = go emptyVarEnv
 
     go _ ty@(LitTy {}) = ty
     go _ ty@(CoercionTy {}) = ty
-

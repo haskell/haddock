@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
 ----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Interface.Rename
@@ -25,11 +26,11 @@ import TysPrim    ( eqPrimTyCon )
 import TysWiredIn ( eqTyCon_RDR )
 
 import Control.Applicative
+import Control.Arrow ( first )
 import Control.Monad
 import Data.List
 import qualified Data.Map as Map hiding ( Map )
 import Prelude hiding (mapM)
-
 
 renameInterface :: DynFlags -> LinkEnv -> Bool -> Interface -> ErrMsgM Interface
 renameInterface dflags renamingEnv warnings iface =
@@ -92,56 +93,53 @@ renameInterface dflags renamingEnv warnings iface =
 
 --------------------------------------------------------------------------------
 -- Monad for renaming
---
--- The monad does two things for us: it passes around the environment for
--- renaming, and it returns a list of names which couldn't be found in
--- the environment.
 --------------------------------------------------------------------------------
 
 
+-- | The monad does two things for us: it passes around the environment for
+-- renaming, and it returns a list of names which couldn't be found in
+-- the environment.
 newtype RnM a =
-  RnM { unRn :: (Name -> (Bool, DocName))  -- name lookup function
-             -> (a,[Name])
+  RnM { unRn :: (Name -> (Bool, DocName))
+                -- Name lookup function. The 'Bool' indicates that if the name
+                -- was \"found\" in the environment.
+
+             -> (a, [Name] -> [Name])
+                -- Value returned, as well as a difference list of the names not
+                -- found
       }
 
 instance Monad RnM where
-  (>>=) = thenRn
-  return = pure
+  m >>= k = RnM $ \lkp -> let (a, out1) = unRn m lkp
+                              (b, out2) = unRn (k a) lkp
+                          in (b, out1 . out2)
 
 instance Functor RnM where
-  fmap f x = do a <- x; return (f a)
+  fmap f (RnM lkp) = RnM (first f . lkp)
 
 instance Applicative RnM where
-  pure = returnRn
-  (<*>) = ap
+  pure a = RnM (const (a, id))
+  mf <*> mx = RnM $ \lkp -> let (f, out1) = unRn mf lkp
+                                (x, out2) = unRn mx lkp
+                            in (f x, out1 . out2)
 
-returnRn :: a -> RnM a
-returnRn a   = RnM (const (a,[]))
-thenRn :: RnM a -> (a -> RnM b) -> RnM b
-m `thenRn` k = RnM (\lkp -> case unRn m lkp of
-  (a,out1) -> case unRn (k a) lkp of
-    (b,out2) -> (b,out1++out2))
-
-getLookupRn :: RnM (Name -> (Bool, DocName))
-getLookupRn = RnM (\lkp -> (lkp,[]))
-
-outRn :: Name -> RnM ()
-outRn name = RnM (const ((),[name]))
-
+-- | Look up a 'Name' in the renaming environment.
 lookupRn :: Name -> RnM DocName
-lookupRn name = do
-  lkp <- getLookupRn
+lookupRn name = RnM $ \lkp ->
   case lkp name of
-    (False,maps_to) -> do outRn name; return maps_to
-    (True, maps_to) -> return maps_to
+    (False,maps_to) -> (maps_to, (name :))
+    (True, maps_to) -> (maps_to, id)
 
-
-runRnFM :: LinkEnv -> RnM a -> (a,[Name])
-runRnFM env rn = unRn rn lkp
+-- | Run the renamer action using lookup in a 'LinkEnv' as the lookup function.
+-- Returns the renamed value along with a list of `Name`'s that could not be
+-- renamed because they weren't in the environment.
+runRnFM :: LinkEnv -> RnM a -> (a, [Name])
+runRnFM env rn = let (x, dlist) = unRn rn lkp in (x, dlist [])
   where
-    lkp n = case Map.lookup n env of
-      Nothing  -> (False, Undocumented n)
-      Just mdl -> (True,  Documented n mdl)
+    lkp n | isTyVarName n = (True, Undocumented n)
+          | otherwise = case Map.lookup n env of
+                          Nothing  -> (False, Undocumented n)
+                          Just mdl -> (True,  Documented n mdl)
 
 
 --------------------------------------------------------------------------------
@@ -182,6 +180,13 @@ renameFnArgsDoc = mapM renameDoc
 
 renameLType :: LHsType GhcRn -> RnM (LHsType DocNameI)
 renameLType = mapM renameType
+
+renameLTypeArg :: LHsTypeArg GhcRn -> RnM (LHsTypeArg DocNameI)
+renameLTypeArg (HsValArg ty) = do { ty' <- renameLType ty
+                                     ; return $ HsValArg ty' }
+renameLTypeArg (HsTypeArg ki) = do { ki' <- renameLKind ki
+                                 ; return $ HsTypeArg ki' }
+renameLTypeArg (HsArgPar sp) = return $ HsArgPar sp
 
 renameLSigType :: LHsSigType GhcRn -> RnM (LHsSigType DocNameI)
 renameLSigType = renameImplicit renameLType
@@ -238,6 +243,11 @@ renameType t = case t of
     b' <- renameLType b
     return (HsAppTy NoExt a' b')
 
+  HsAppKindTy _ a b -> do
+    a' <- renameLType a
+    b' <- renameLKind b
+    return (HsAppKindTy NoExt a' b')
+
   HsFunTy _ a b -> do
     a' <- renameLType a
     b' <- renameLType b
@@ -274,7 +284,7 @@ renameType t = case t of
   HsExplicitListTy i a b  -> HsExplicitListTy i a <$> mapM renameLType b
   HsExplicitTupleTy a b   -> HsExplicitTupleTy a <$> mapM renameLType b
   HsSpliceTy _ s          -> renameHsSpliceTy s
-  HsWildCardTy a          -> HsWildCardTy <$> renameWildCardInfo a
+  HsWildCardTy a          -> pure (HsWildCardTy a)
 
 -- | Rename splices, but _only_ those that turn out to be for types.
 -- I think this is actually safe for our possible inputs:
@@ -308,9 +318,6 @@ renameLContext :: Located [LHsType GhcRn] -> RnM (Located [LHsType DocNameI])
 renameLContext (L loc context) = do
   context' <- mapM renameLType context
   return (L loc context')
-
-renameWildCardInfo :: HsWildCardInfo -> RnM HsWildCardInfo
-renameWildCardInfo (AnonWildCard  (L l name)) = return (AnonWildCard (L l name))
 
 renameInstHead :: InstHead GhcRn -> RnM (InstHead DocNameI)
 renameInstHead InstHead {..} = do
@@ -598,13 +605,16 @@ renameTyFamInstEqn eqn
     rename_ty_fam_eqn
       :: FamEqn GhcRn (HsTyPats GhcRn) (LHsType GhcRn)
       -> RnM (FamEqn DocNameI (HsTyPats DocNameI) (LHsType DocNameI))
-    rename_ty_fam_eqn (FamEqn { feqn_tycon = tc, feqn_pats = pats
-                              , feqn_fixity = fixity, feqn_rhs = rhs })
+    rename_ty_fam_eqn (FamEqn { feqn_tycon = tc, feqn_bndrs = bndrs
+                              , feqn_pats = pats, feqn_fixity = fixity
+                              , feqn_rhs = rhs })
       = do { tc' <- renameL tc
-           ; pats' <- mapM renameLType pats
+           ; bndrs' <- traverse (mapM renameLTyVarBndr) bndrs
+           ; pats' <- mapM renameLTypeArg pats
            ; rhs' <- renameLType rhs
            ; return (FamEqn { feqn_ext    = noExt
                             , feqn_tycon  = tc'
+                            , feqn_bndrs  = bndrs'
                             , feqn_pats   = pats'
                             , feqn_fixity = fixity
                             , feqn_rhs    = rhs' }) }
@@ -618,6 +628,7 @@ renameLTyFamDefltEqn (L loc (FamEqn { feqn_tycon = tc, feqn_pats = tvs
        ; rhs' <- renameLType rhs
        ; return (L loc (FamEqn { feqn_ext    = noExt
                                , feqn_tycon  = tc'
+                               , feqn_bndrs  = Nothing  -- this is always Nothing
                                , feqn_pats   = tvs'
                                , feqn_fixity = fixity
                                , feqn_rhs    = rhs' })) }
@@ -631,13 +642,16 @@ renameDataFamInstD (DataFamInstDecl { dfid_eqn = eqn })
     rename_data_fam_eqn
       :: FamEqn GhcRn (HsTyPats GhcRn) (HsDataDefn GhcRn)
       -> RnM (FamEqn DocNameI (HsTyPats DocNameI) (HsDataDefn DocNameI))
-    rename_data_fam_eqn (FamEqn { feqn_tycon = tc, feqn_pats = pats
-                                , feqn_fixity = fixity, feqn_rhs = defn })
+    rename_data_fam_eqn (FamEqn { feqn_tycon = tc, feqn_bndrs = bndrs
+                                , feqn_pats = pats, feqn_fixity = fixity
+                                , feqn_rhs = defn })
       = do { tc' <- renameL tc
-           ; pats' <- mapM renameLType pats
+           ; bndrs' <- traverse (mapM renameLTyVarBndr) bndrs
+           ; pats' <- mapM renameLTypeArg pats
            ; defn' <- renameDataDefn defn
            ; return (FamEqn { feqn_ext    = noExt
                             , feqn_tycon  = tc'
+                            , feqn_bndrs  = bndrs'
                             , feqn_pats   = pats'
                             , feqn_fixity = fixity
                             , feqn_rhs    = defn' }) }

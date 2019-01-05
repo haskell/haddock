@@ -21,7 +21,7 @@ module Haddock.Convert (
 
 import Bag ( emptyBag )
 import BasicTypes ( TupleSort(..), SourceText(..), LexicalFixity(..)
-                  , DefMethSpec(..) )
+                  , DefMethSpec(..), PromotionFlag(..) )
 import Class
 import CoAxiom
 import ConLike
@@ -91,6 +91,8 @@ tyThingToLHsDecl prr t = case t of
            extractFamDefDecl fd rhs = FamEqn
              { feqn_ext = noExt
              , feqn_tycon = fdLName fd
+             , feqn_bndrs  = Nothing
+                 -- this must change eventually
              , feqn_pats = fdTyVars fd
              , feqn_fixity = fdFixity fd
              , feqn_rhs = synifyType WithinType [] rhs }
@@ -154,7 +156,8 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
     in HsIB { hsib_ext = map tyVarName tkvs
             , hsib_body   = FamEqn { feqn_ext    = noExt
                                    , feqn_tycon  = name
-                                   , feqn_pats   = annot_typats
+                                   , feqn_pats   = map HsValArg annot_typats
+                                   , feqn_bndrs  = Nothing
                                    , feqn_fixity = synifyFixity name
                                    , feqn_rhs    = hs_rhs } }
   where
@@ -522,7 +525,7 @@ synifyType
   -> Type             -- ^ the type to convert
   -> LHsType GhcRn
 synifyType _ _ (TyVarTy tv)
-  | mkTyVarOcc "_" == occName tv = noLoc $ HsWildCardTy $ AnonWildCard n
+  | mkTyVarOcc "_" == occName tv = error "synifyType: FIXME" -- noLoc $ HsWildCardTy $ AnonWildCard n
   | otherwise = noLoc $ HsTyVar noExt NotPromoted n
   where n = noLoc (getName tv)
 synifyType _ vs (TyConApp tc tys)
@@ -553,13 +556,13 @@ synifyType _ vs (TyConApp tc tys)
       | getName tc == listTyConName, [ty] <- vis_tys =
          noLoc $ HsListTy noExt (synifyType WithinType vs ty)
       | tc == promotedNilDataCon, [] <- vis_tys
-      = noLoc $ HsExplicitListTy noExt Promoted []
+      = noLoc $ HsExplicitListTy noExt IsPromoted []
       | tc == promotedConsDataCon
       , [ty1, ty2] <- vis_tys
       = let hTy = synifyType WithinType vs ty1
         in case synifyType WithinType vs ty2 of
-             tTy | L _ (HsExplicitListTy _ Promoted tTy') <- stripKindSig tTy
-                 -> noLoc $ HsExplicitListTy noExt Promoted (hTy : tTy')
+             tTy | L _ (HsExplicitListTy _ IsPromoted tTy') <- stripKindSig tTy
+                 -> noLoc $ HsExplicitListTy noExt IsPromoted (hTy : tTy')
                  | otherwise
                  -> noLoc $ HsOpTy noExt hTy (noLoc $ getName tc) tTy
       -- ditto for implicit parameter tycons
@@ -584,9 +587,10 @@ synifyType _ vs (TyConApp tc tys)
                    tys_rest
       -- Most TyCons:
       | otherwise
-      = mk_app_tys (HsTyVar noExt NotPromoted $ noLoc (getName tc))
+      = mk_app_tys (HsTyVar noExt prom $ noLoc (getName tc))
                    vis_tys
       where
+        prom = if isPromotedDataCon tc then IsPromoted else NotPromoted
         mk_app_tys ty_app ty_args =
           foldl (\t1 t2 -> noLoc $ HsAppTy noExt t1 t2)
                 (noLoc ty_app)

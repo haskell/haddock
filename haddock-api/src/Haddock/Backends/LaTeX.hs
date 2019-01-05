@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.LaTeX
@@ -22,6 +24,7 @@ import Haddock.GhcUtils
 import Pretty hiding (Doc, quote)
 import qualified Pretty
 
+import BasicTypes           ( PromotionFlag(..) )
 import GHC
 import OccName
 import Name                 ( getOccString, nameOccName, tidyNameOcc )
@@ -243,8 +246,8 @@ ppDocGroup lev doc = sec lev <> braces doc
 
 -- | Given a declaration, extract out the names being declared
 declNames :: LHsDecl DocNameI
-          -> ( LaTeX           -- ^ to print before each name in an export list
-             , [DocName]       -- ^ names being declared
+          -> ( LaTeX           --   to print before each name in an export list
+             , [DocName]       --   names being declared
              )
 declNames (L _ decl) = case decl of
   TyClD _ d  -> (empty, [tcdName d])
@@ -342,7 +345,7 @@ ppFamDecl doc instances decl unicode =
     ppFamDeclEqn (HsIB { hsib_body = FamEqn { feqn_tycon = L _ n
                                             , feqn_rhs = rhs
                                             , feqn_pats = ts } })
-      = hsep [ ppAppNameTypes n (map unLoc ts) unicode
+      = hsep [ ppAppNameTypeArgs n ts unicode
              , equals
              , ppType unicode (unLoc rhs)
              ]
@@ -442,9 +445,9 @@ ppLPatSig doc docnames ty unicode
 -- arguments as needed.
 ppTypeOrFunSig :: HsType DocNameI
                -> DocForDecl DocName  -- ^ documentation
-               -> ( LaTeX             -- ^ first-line (no-argument docs only)
-                  , LaTeX             -- ^ first-line (argument docs only)
-                  , LaTeX             -- ^ type prefix (argument docs only)
+               -> ( LaTeX             --   first-line (no-argument docs only)
+                  , LaTeX             --   first-line (argument docs only)
+                  , LaTeX             --   type prefix (argument docs only)
                   )
                -> Bool                -- ^ unicode
                -> LaTeX
@@ -912,6 +915,11 @@ ppAppDocNameTyVarBndrs unicode n vs =
 ppAppNameTypes :: DocName -> [HsType DocNameI] -> Bool -> LaTeX
 ppAppNameTypes n ts unicode = ppTypeApp n ts ppDocName (ppParendType unicode)
 
+ppAppNameTypeArgs :: DocName -> [LHsTypeArg DocNameI] -> Bool -> LaTeX
+ppAppNameTypeArgs n args@(HsValArg _:HsValArg _:_) unicode
+  = ppTypeApp n args ppDocName (ppLHsTypeArg unicode)
+ppAppNameTypeArgs n args unicode
+  = ppDocName n <+> hsep (map (ppLHsTypeArg unicode) args)
 
 -- | Print an application of a DocName and a list of Names
 ppAppDocNameNames :: Bool -> DocName -> [Name] -> LaTeX
@@ -929,7 +937,6 @@ ppTypeApp n (t1:t2:rest) ppDN ppT
     opApp = ppT t1 <+> ppDN n <+> ppT t2
 
 ppTypeApp n ts ppDN ppT = ppDN n <+> hsep (map ppT ts)
-
 
 -------------------------------------------------------------------------------
 -- * Contexts
@@ -1001,6 +1008,12 @@ ppParendType unicode ty = ppr_mono_ty (reparenTypePrec PREC_TOP ty) unicode
 ppFunLhType  unicode ty = ppr_mono_ty (reparenTypePrec PREC_FUN ty) unicode
 ppCtxType    unicode ty = ppr_mono_ty (reparenTypePrec PREC_CTX ty) unicode
 
+ppLHsTypeArg :: Bool -> LHsTypeArg DocNameI -> LaTeX
+ppLHsTypeArg unicode (HsValArg ty) = ppLParendType unicode ty
+ppLHsTypeArg unicode (HsTypeArg ki) = atSign unicode <>
+                                     ppLParendType unicode ki
+ppLHsTypeArg _ (HsArgPar _) = text ""                                     
+
 ppHsTyVarBndr :: Bool -> HsTyVarBndr DocNameI -> LaTeX
 ppHsTyVarBndr _ (UserTyVar _ (L _ name)) = ppDocName name
 ppHsTyVarBndr unicode (KindedTyVar _ (L _ name) kind) =
@@ -1034,7 +1047,7 @@ ppr_mono_ty (HsFunTy _ ty1 ty2)   u
 
 ppr_mono_ty (HsBangTy _ b ty)     u = ppBang b <> ppLParendType u ty
 ppr_mono_ty (HsTyVar _ NotPromoted (L _ name)) _ = ppDocName name
-ppr_mono_ty (HsTyVar _ Promoted    (L _ name)) _ = char '\'' <> ppDocName name
+ppr_mono_ty (HsTyVar _ IsPromoted  (L _ name)) _ = char '\'' <> ppDocName name
 ppr_mono_ty (HsTupleTy _ con tys) u = tupleParens con (map (ppLType u) tys)
 ppr_mono_ty (HsSumTy _ tys) u       = sumParens (map (ppLType u) tys)
 ppr_mono_ty (HsKindSig _ ty kind) u = parens (ppr_mono_lty ty u <+> dcolon u <+> ppLKind u kind)
@@ -1043,18 +1056,21 @@ ppr_mono_ty (HsIParamTy _ (L _ n) ty) u = ppIPName n <+> dcolon u <+> ppr_mono_l
 ppr_mono_ty (HsSpliceTy {})     _ = error "ppr_mono_ty HsSpliceTy"
 ppr_mono_ty (HsRecTy {})        _ = text "{..}"
 ppr_mono_ty (XHsType (NHsCoreTy {}))  _ = error "ppr_mono_ty HsCoreTy"
-ppr_mono_ty (HsExplicitListTy _ Promoted tys) u = Pretty.quote $ brackets $ hsep $ punctuate comma $ map (ppLType u) tys
+ppr_mono_ty (HsExplicitListTy _ IsPromoted tys) u = Pretty.quote $ brackets $ hsep $ punctuate comma $ map (ppLType u) tys
 ppr_mono_ty (HsExplicitListTy _ NotPromoted tys) u = brackets $ hsep $ punctuate comma $ map (ppLType u) tys
 ppr_mono_ty (HsExplicitTupleTy _ tys) u = Pretty.quote $ parenList $ map (ppLType u) tys
 
 ppr_mono_ty (HsAppTy _ fun_ty arg_ty) unicode
   = hsep [ppr_mono_lty fun_ty unicode, ppr_mono_lty arg_ty unicode]
 
+ppr_mono_ty (HsAppKindTy _ fun_ty arg_ki) unicode
+  = hsep [ppr_mono_lty fun_ty unicode, atSign unicode <> ppr_mono_lty arg_ki unicode]
+
 ppr_mono_ty (HsOpTy _ ty1 op ty2) unicode
   = ppr_mono_lty ty1 unicode <+> ppr_op <+> ppr_mono_lty ty2 unicode
   where
-    ppr_op = if not (isSymOcc occName) then char '`' <> ppLDocName op <> char '`' else ppLDocName op
-    occName = nameOccName . getName . unLoc $ op
+    ppr_op | isSymOcc (getOccName op) = ppLDocName op
+           | otherwise = char '`' <> ppLDocName op <> char '`'
 
 ppr_mono_ty (HsParTy _ ty) unicode
   = parens (ppr_mono_lty ty unicode)
@@ -1063,7 +1079,7 @@ ppr_mono_ty (HsParTy _ ty) unicode
 ppr_mono_ty (HsDocTy _ ty _) unicode
   = ppr_mono_lty ty unicode
 
-ppr_mono_ty (HsWildCardTy (AnonWildCard _)) _ = text "\\_"
+ppr_mono_ty (HsWildCardTy _) _ = text "\\_"
 
 ppr_mono_ty (HsTyLit _ t) u = ppr_tylit t u
 ppr_mono_ty (HsStarTy _ isUni) unicode = starSymbol (isUni || unicode)
@@ -1083,16 +1099,13 @@ ppr_tylit (HsStrTy _ s) _ = text (show s)
 
 ppBinder :: OccName -> LaTeX
 ppBinder n
-  | isInfixName n = parens $ ppOccName n
-  | otherwise     = ppOccName n
+  | isSymOcc n = parens $ ppOccName n
+  | otherwise  = ppOccName n
 
 ppBinderInfix :: OccName -> LaTeX
 ppBinderInfix n
-  | isInfixName n = ppOccName n
-  | otherwise     = cat [ char '`', ppOccName n, char '`' ]
-
-isInfixName :: OccName -> Bool
-isInfixName n = isVarSym n || isConSym n
+  | isSymOcc n = ppOccName n
+  | otherwise  = cat [ char '`', ppOccName n, char '`' ]
 
 ppSymName :: Name -> LaTeX
 ppSymName name
@@ -1189,7 +1202,7 @@ parLatexMarkup ppId = Markup {
   markupOrderedList          = \p v -> blockElem $ enumeratedList (map ($v) p),
   markupDefList              = \l v -> blockElem $ descriptionList (map (\(a,b) -> (a v, b v)) l),
   markupCodeBlock            = \p _ -> blockElem $ quote (verb (p Verb)),
-  markupHyperlink            = \l _ -> markupLink l,
+  markupHyperlink            = \(Hyperlink u l) p -> markupLink u (fmap ($p) l),
   markupAName                = \_ _ -> empty,
   markupProperty             = \p _ -> blockElem $ quote $ verb $ text p,
   markupExample              = \e _ -> blockElem $ quote $ verb $ text $ unlines $ map exampleToString e,
@@ -1212,8 +1225,8 @@ parLatexMarkup ppId = Markup {
     fixString Verb  s = s
     fixString Mono  s = latexMonoFilter s
 
-    markupLink (Hyperlink url mLabel) = case mLabel of
-      Just label -> text "\\href" <> braces (text url) <> braces (text label)
+    markupLink url mLabel = case mLabel of
+      Just label -> text "\\href" <> braces (text url) <> braces label
       Nothing    -> text "\\url"  <> braces (text url)
 
     -- Is there a better way of doing this? Just a space is an aribtrary choice.
@@ -1325,12 +1338,13 @@ quote :: LaTeX -> LaTeX
 quote doc = text "\\begin{quote}" $$ doc $$ text "\\end{quote}"
 
 
-dcolon, arrow, darrow, forallSymbol, starSymbol :: Bool -> LaTeX
+dcolon, arrow, darrow, forallSymbol, starSymbol, atSign :: Bool -> LaTeX
 dcolon unicode = text (if unicode then "∷" else "::")
 arrow  unicode = text (if unicode then "→" else "->")
 darrow unicode = text (if unicode then "⇒" else "=>")
 forallSymbol unicode = text (if unicode then "∀" else "forall")
 starSymbol unicode = text (if unicode then "★" else "*")
+atSign unicode = text (if unicode then "@" else "@")
 
 dot :: LaTeX
 dot = char '.'

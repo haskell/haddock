@@ -48,12 +48,10 @@ import Packages ( PackageName(..) )
 import TcIface
 import TcRnMonad
 import FastString ( unpackFS )
-import HsDecls ( getConArgs )
-import BasicTypes ( WarningTxt(..), WarningSort(..), warningTxtContents
-                  , TupleSort(..), Boxity(..) )
+import BasicTypes ( WarningSort(..), warningTxtContents
+                  , TupleSort(..), Boxity(..), PromotionFlag(..) )
 import qualified Outputable as O
 import DynFlags ( getDynFlags )
-
 import TysPrim    ( funTyConName )
 import TysWiredIn ( listTyConName, nilDataConName, consDataConName, eqTyConName
                   , tupleDataCon, tupleTyConName)
@@ -76,7 +74,7 @@ createInterface mod_iface flags modMap instIfaceMap = do
       safety         = getSafeMode (mi_trust mod_iface)
 
       -- Not sure whether the relevant info is in these dflags
-      (pkgNameFS, _) = modulePackageInfo dflags flags mdl
+      (pkgNameFS, _) = modulePackageInfo dflags flags (Just mdl)
       pkgName        = fmap (unpackFS . (\(PackageName n) -> n)) pkgNameFS
       warnings       = mi_warns mod_iface
 
@@ -606,8 +604,8 @@ extractDecl prr name decl
       TyClD _ d@DataDecl {} -> pure $
         let (n, tyvar_tys) = (tcdName d, lHsQTyVarsToTypes (tyClDeclTyVars d))
         in if isDataConName name
-           then SigD noExt <$> extractPatternSyn name n tyvar_tys (dd_cons (tcdDataDefn d))
-           else SigD noExt <$> extractRecSel name n tyvar_tys (dd_cons (tcdDataDefn d))
+           then SigD noExt <$> extractPatternSyn name n (map HsValArg tyvar_tys) (dd_cons (tcdDataDefn d))
+           else SigD noExt <$> extractRecSel name n (map HsValArg tyvar_tys) (dd_cons (tcdDataDefn d))
       TyClD _ FamDecl {}
         | isValName name
         -> do
@@ -645,10 +643,11 @@ extractDecl prr name decl
             in case matches of
               [d0] -> extractDecl prr name (noLoc . InstD noExt $ DataFamInstD noExt d0)
               _ -> error "internal: extractDecl (ClsInstD)"
-      x -> O.pprPanic "extractDecl" (O.ppr x)
+      _ -> O.pprPanic "extractDecl" $
+        O.text "Unhandled decl for" O.<+> O.ppr name O.<> O.text ":"
+        O.$$ O.nest 4 (O.ppr decl)
 
-
-extractPatternSyn :: Name -> Name -> [LHsType GhcRn] -> [LConDecl GhcRn] -> LSig GhcRn
+extractPatternSyn :: Name -> Name -> [LHsTypeArg GhcRn] -> [LConDecl GhcRn] -> LSig GhcRn
 extractPatternSyn nm t tvs cons =
   case filter matches cons of
     [] -> error "extractPatternSyn: constructor pattern not found"
@@ -676,9 +675,13 @@ extractPatternSyn nm t tvs cons =
 
   data_ty con
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLoc (HsAppTy noExt x y)) (noLoc (HsTyVar noExt NotPromoted (noLoc t))) tvs
+    | otherwise = foldl' (\x y -> noLoc (mkAppTyArg x y)) (noLoc (HsTyVar noExt NotPromoted (noLoc t))) tvs
+                    where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
+                          mkAppTyArg f (HsValArg ty) = HsAppTy noExt f ty
+                          mkAppTyArg f (HsTypeArg ki) = HsAppKindTy noExt f ki
+                          mkAppTyArg f (HsArgPar _) = HsParTy noExt f
 
-extractRecSel :: Name -> Name -> [LHsType GhcRn] -> [LConDecl GhcRn]
+extractRecSel :: Name -> Name -> [LHsTypeArg GhcRn] -> [LConDecl GhcRn]
               -> LSig GhcRn
 extractRecSel _ _ _ [] = error "extractRecSel: selector not found"
 
@@ -694,7 +697,11 @@ extractRecSel nm t tvs (L _ con : rest) =
   data_ty
     -- ResTyGADT _ ty <- con_res con = ty
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLoc (HsAppTy noExt x y)) (noLoc (HsTyVar noExt NotPromoted (noLoc t))) tvs
+    | otherwise = foldl' (\x y -> noLoc (mkAppTyArg x y)) (noLoc (HsTyVar noExt NotPromoted (noLoc t))) tvs
+                   where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
+                         mkAppTyArg f (HsValArg ty) = HsAppTy noExt f ty
+                         mkAppTyArg f (HsTypeArg ki) = HsAppKindTy noExt f ki
+                         mkAppTyArg f (HsArgPar _) = HsParTy noExt f 
 
 -- | Keep export items with docs.
 pruneExportItems :: [ExportItem GhcRn] -> [ExportItem GhcRn]
