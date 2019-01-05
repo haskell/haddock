@@ -100,14 +100,7 @@ createInterface tm flags modMap instIfaceMap = do
   when (isNothing pkgName) $
     liftErrMsg $ tell [ "Warning: Package name is not available." ]
 
-  -- The renamed source should always be available to us, but it's best
-  -- to be on the safe side.
-  (group_, imports, mayExports, mayDocHeader) <-
-    case renamedSource tm of
-      Nothing -> do
-        liftErrMsg $ tell [ "Warning: Renamed source is not available." ]
-        return (emptyRnGroup, [], Nothing, Nothing)
-      Just x -> return x
+  let (group_, imports, mayExports, mayDocHeader) = renamedSource tm
 
   opts <- liftErrMsg $ mkDocOpts (haddockOptions dflags) flags mdl
 
@@ -204,35 +197,32 @@ createInterface tm flags modMap instIfaceMap = do
 -- create a mapping from the module identity of M, to an alias N
 -- (if there are multiple aliases, we pick the last one.)  This
 -- will go in 'ifaceModuleAliases'.
-mkAliasMap :: DynFlags -> Maybe RenamedSource -> M.Map Module ModuleName
-mkAliasMap dflags mRenamedSource =
-  case mRenamedSource of
-    Nothing -> M.empty
-    Just (_,impDecls,_,_) ->
-      M.fromList $
-      mapMaybe (\(SrcLoc.L _ impDecl) -> do
-        SrcLoc.L _ alias <- ideclAs impDecl
-        return $
-          (lookupModuleDyn dflags
-             -- TODO: This is supremely dodgy, because in general the
-             -- UnitId isn't going to look anything like the package
-             -- qualifier (even with old versions of GHC, the
-             -- IPID would be p-0.1, but a package qualifier never
-             -- has a version number it.  (Is it possible that in
-             -- Haddock-land, the UnitIds never have version numbers?
-             -- I, ezyang, have not quite understand Haddock's package
-             -- identifier model.)
-             --
-             -- Additionally, this is simulating some logic GHC already
-             -- has for deciding how to qualify names when it outputs
-             -- them to the user.  We should reuse that information;
-             -- or at least reuse the renamed imports, which know what
-             -- they import!
-             (fmap Module.fsToUnitId $
-              fmap sl_fs $ ideclPkgQual impDecl)
-             (case ideclName impDecl of SrcLoc.L _ name -> name),
-           alias))
-        impDecls
+mkAliasMap :: DynFlags -> RenamedSource -> M.Map Module ModuleName
+mkAliasMap dflags (_,impDecls,_,_) =
+  M.fromList $
+  mapMaybe (\(SrcLoc.L _ impDecl) -> do
+    SrcLoc.L _ alias <- ideclAs impDecl
+    return $
+      (lookupModuleDyn dflags
+         -- TODO: This is supremely dodgy, because in general the
+         -- UnitId isn't going to look anything like the package
+         -- qualifier (even with old versions of GHC, the
+         -- IPID would be p-0.1, but a package qualifier never
+         -- has a version number it.  (Is it possible that in
+         -- Haddock-land, the UnitIds never have version numbers?
+         -- I, ezyang, have not quite understand Haddock's package
+         -- identifier model.)
+         --
+         -- Additionally, this is simulating some logic GHC already
+         -- has for deciding how to qualify names when it outputs
+         -- them to the user.  We should reuse that information;
+         -- or at least reuse the renamed imports, which know what
+         -- they import!
+         (fmap Module.fsToUnitId $
+          fmap sl_fs $ ideclPkgQual impDecl)
+         (case ideclName impDecl of SrcLoc.L _ name -> name),
+       alias))
+    impDecls
 
 -- We want to know which modules are imported without any qualification. This
 -- way we can display module reexports more compactly. This mapping also looks
@@ -1203,17 +1193,10 @@ seqList (x : xs) = x `seq` seqList xs
 mkMaybeTokenizedSrc :: DynFlags -> [Flag] -> TypecheckedModule
                     -> ErrMsgGhc (Maybe [RichToken])
 mkMaybeTokenizedSrc dflags flags tm
-    | Flag_HyperlinkedSource `elem` flags = case renamedSource tm of
-        Just src -> do
-            tokens <- liftGhcToErrMsgGhc (liftIO (mkTokenizedSrc dflags summary src))
-            return $ Just tokens
-        Nothing -> do
-            liftErrMsg . tell . pure $ concat
-                [ "Warning: Cannot hyperlink module \""
-                , moduleNameString . ms_mod_name $ summary
-                , "\" because renamed source is not available"
-                ]
-            return Nothing
+    | Flag_HyperlinkedSource `elem` flags = do
+        let src = renamedSource tm
+        tokens <- liftGhcToErrMsgGhc (liftIO (mkTokenizedSrc dflags summary src))
+        return $ Just tokens
     | otherwise = return Nothing
   where
     summary = pm_mod_summary . tm_parsed_module $ tm
