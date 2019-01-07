@@ -200,10 +200,11 @@ subEquations pkg qual = divSubDecls "equations" "Equations" . subTable pkg qual
 subInstances :: Maybe Package -> Qualification
              -> String -- ^ Class name, used for anchor generation
              -> LinksInfo -> Bool
+             -> DetailsState -- ^ Collapse instance lists
              -> [(SubDecl, Maybe Module, Located DocName)] -> Html
-subInstances pkg qual nm lnks splice = maybe noHtml wrap . instTable
+subInstances pkg qual nm lnks splice dtls = maybe noHtml wrap . instTable
   where
-    wrap contents = subSection (hdr +++ collapseDetails id_ DetailsOpen (summary +++ contents))
+    wrap contents = subSection (hdr +++ collapseDetails id_ dtls (summary +++ contents))
     instTable = subTableSrc pkg qual lnks splice
     subSection = thediv ! [theclass "subs instances"]
     hdr = h4 ! collapseControl id_ "instances" << "Instances"

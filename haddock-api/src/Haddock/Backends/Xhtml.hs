@@ -71,6 +71,7 @@ ppHtml :: DynFlags
        -> Maybe String                 -- ^ The contents URL (--use-contents)
        -> Maybe String                 -- ^ The index URL (--use-index)
        -> Bool                         -- ^ Whether to use unicode in output (--use-unicode)
+       -> DetailsState                 -- ^ Whether to collapse instance lists (--hide-instances)
        -> Maybe String                 -- ^ Package name
        -> QualOption                   -- ^ How to qualify names
        -> Bool                         -- ^ Output pretty html (newlines and indenting)
@@ -79,7 +80,7 @@ ppHtml :: DynFlags
 
 ppHtml dflags doctitle maybe_package ifaces reexported_ifaces odir prologue
         themes maybe_mathjax_url maybe_source_url maybe_wiki_url
-        maybe_contents_url maybe_index_url unicode
+        maybe_contents_url maybe_index_url unicode dtls
         pkg qual debug withQuickjump = do
   let
     visible_ifaces = filter visible ifaces
@@ -98,12 +99,12 @@ ppHtml dflags doctitle maybe_package ifaces reexported_ifaces odir prologue
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
     when withQuickjump $
-      ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
+      ppJsonIndex odir maybe_source_url maybe_wiki_url unicode dtls pkg qual
         visible_ifaces
 
   mapM_ (ppHtmlModule odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url
-           maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
+           maybe_contents_url maybe_index_url unicode dtls pkg qual debug) visible_ifaces
 
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> Bool -> IO ()
@@ -363,11 +364,12 @@ ppJsonIndex :: FilePath
            -> SourceURLs                   -- ^ The source URL (--source)
            -> WikiURLs                     -- ^ The wiki URL (--wiki)
            -> Bool
+           -> DetailsState                 -- ^ Collapse instance lists
            -> Maybe Package
            -> QualOption
            -> [Interface]
            -> IO ()
-ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = do
+ppJsonIndex odir maybe_source_url maybe_wiki_url unicode dtls pkg qual_opt ifaces = do
   createDirectoryIfMissing True odir
   IO.withBinaryFile (joinPath [odir, indexJsonFile]) IO.WriteMode $ \h -> do
     Builder.hPutBuilder h (encodeToBuilder modules)
@@ -385,7 +387,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
 
     goExport :: Module -> Qualification -> ExportItem DocNameI -> [Value]
     goExport mdl qual item
-      | Just item_html <- processExport True links_info unicode pkg qual item
+      | Just item_html <- processExport True links_info unicode dtls pkg qual item
       = [ Object
             [ "display_html" .= String (showHtmlFragment item_html)
             , "name"         .= String (intercalate " " (map nameString names))
@@ -543,11 +545,12 @@ ppHtmlIndex odir doctitle _maybe_package themes
 ppHtmlModule
         :: FilePath -> String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs
-        -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
+        -> Maybe String -> Maybe String -> Bool -> DetailsState
+        -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
 ppHtmlModule odir doctitle themes
   maybe_mathjax_url maybe_source_url maybe_wiki_url
-  maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
+  maybe_contents_url maybe_index_url unicode dtls pkg qual debug iface = do
   let
       mdl = ifaceMod iface
       aliases = ifaceModuleAliases iface
@@ -569,7 +572,7 @@ ppHtmlModule odir doctitle themes
           maybe_source_url maybe_wiki_url
           maybe_contents_url maybe_index_url << [
             divModuleHeader << (moduleInfo iface +++ (sectionName << mdl_str_linked)),
-            ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
+            ifaceToHtml maybe_source_url maybe_wiki_url iface unicode dtls pkg real_qual
           ]
 
   createDirectoryIfMissing True odir
@@ -579,8 +582,9 @@ signatureDocURL :: String
 signatureDocURL = "https://wiki.haskell.org/Module_signature"
 
 
-ifaceToHtml :: SourceURLs -> WikiURLs -> Interface -> Bool -> Maybe Package -> Qualification -> Html
-ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
+ifaceToHtml :: SourceURLs -> WikiURLs -> Interface -> Bool -> DetailsState
+            -> Maybe Package -> Qualification -> Html
+ifaceToHtml maybe_source_url maybe_wiki_url iface unicode dtls pkg qual
   = ppModuleContents pkg qual exports (not . null $ ifaceRnOrphanInstances iface) +++
     description +++
     synopsis +++
@@ -609,7 +613,7 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
             collapseDetails "syn" DetailsClosed (
               thesummary << "Synopsis" +++
               shortDeclList (
-                  mapMaybe (processExport True linksInfo unicode pkg qual) exports
+                  mapMaybe (processExport True linksInfo unicode dtls pkg qual) exports
               ) ! collapseToggle "syn" ""
             )
 
@@ -623,7 +627,7 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
 
     bdy =
       foldr (+++) noHtml $
-        mapMaybe (processExport False linksInfo unicode pkg qual) exports
+        mapMaybe (processExport False linksInfo unicode dtls pkg qual) exports
 
     orphans =
       ppOrphanInstances linksInfo (ifaceRnOrphanInstances iface) False unicode pkg qual
@@ -676,22 +680,24 @@ numberSectionHeadings = go 1
           = other : go n es
 
 
-processExport :: Bool -> LinksInfo -> Bool -> Maybe Package -> Qualification
+processExport :: Bool -> LinksInfo -> Bool
+              -> DetailsState -- ^ Collapse instance lists
+              -> Maybe Package -> Qualification
               -> ExportItem DocNameI -> Maybe Html
-processExport _ _ _ _ _ ExportDecl { expItemDecl = L _ (InstD {}) } = Nothing -- Hide empty instances
-processExport summary _ _ pkg qual (ExportGroup lev id0 doc)
+processExport _ _ _ _ _ _ ExportDecl { expItemDecl = L _ (InstD {}) } = Nothing -- Hide empty instances
+processExport summary _ _ _ pkg qual (ExportGroup lev id0 doc)
   = nothingIf summary $ groupHeading lev id0 << docToHtml (Just id0) pkg qual (mkMeta doc)
-processExport summary links unicode pkg qual (ExportDecl decl pats doc subdocs insts fixities splice)
-  = processDecl summary $ ppDecl summary links decl pats doc insts fixities subdocs splice unicode pkg qual
-processExport summary _ _ _ qual (ExportNoDecl y [])
+processExport summary links unicode dtls pkg qual (ExportDecl decl pats doc subdocs insts fixities splice)
+  = processDecl summary $ ppDecl summary links decl pats doc insts fixities subdocs splice unicode dtls pkg qual
+processExport summary _ _ _ _ qual (ExportNoDecl y [])
   = processDeclOneLiner summary $ ppDocName qual Prefix True y
-processExport summary _ _ _ qual (ExportNoDecl y subs)
+processExport summary _ _ _ _ qual (ExportNoDecl y subs)
   = processDeclOneLiner summary $
       ppDocName qual Prefix True y
       +++ parenList (map (ppDocName qual Prefix True) subs)
-processExport summary _ _ pkg qual (ExportDoc doc)
+processExport summary _ _ _ pkg qual (ExportDoc doc)
   = nothingIf summary $ docSection_ Nothing pkg qual doc
-processExport summary _ _ _ _ (ExportModule mdl)
+processExport summary _ _ _ _ _ (ExportModule mdl)
   = processDeclOneLiner summary $ toHtml "module" <+> ppModule mdl
 
 

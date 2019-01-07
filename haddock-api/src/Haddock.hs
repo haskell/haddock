@@ -28,6 +28,7 @@ module Haddock (
 import Haddock.Backends.Xhtml
 import Haddock.Backends.Xhtml.Meta
 import Haddock.Backends.Xhtml.Themes (getThemes)
+import Haddock.Backends.Xhtml.Utils
 import Haddock.Backends.LaTeX
 import Haddock.Backends.Hoogle
 import Haddock.Backends.Hyperlinker
@@ -249,6 +250,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
   let
     title                = fromMaybe "" (optTitle flags)
     unicode              = Flag_UseUnicode `elem` flags
+    hide_instances       = Flag_HideInstances `elem` flags
     pretty               = Flag_PrettyHtml `elem` flags
     opt_wiki_urls        = wikiUrls          flags
     opt_contents_url     = optContentsUrl    flags
@@ -260,6 +262,9 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
     dflags'
       | unicode          = gopt_set dflags Opt_PrintUnicodeSyntax
       | otherwise        = dflags
+    dtls
+      | hide_instances   = DetailsClosed
+      | otherwise        = DetailsOpen
 
     visibleIfaces    = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
 
@@ -359,7 +364,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
            ppHtml dflags' title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
                   themes opt_mathjax sourceUrls' opt_wiki_urls
-                  opt_contents_url opt_index_url unicode sincePkg qual
+                  opt_contents_url opt_index_url unicode dtls sincePkg qual
                   pretty withQuickjump
       return ()
     copyHtmlBits odir libDir themes withQuickjump

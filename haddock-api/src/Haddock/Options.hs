@@ -100,6 +100,7 @@ data Flag
   | Flag_PrintGhcLibDir
   | Flag_NoWarnings
   | Flag_UseUnicode
+  | Flag_HideInstances
   | Flag_NoTmpCompDir
   | Flag_Qualification String
   | Flag_PrettyHtml
@@ -134,6 +135,7 @@ options backwardsCompat =
     Option []  ["latex-style"]  (ReqArg Flag_LaTeXStyle "FILE") "provide your own LaTeX style in FILE",
     Option []  ["mathjax"]  (ReqArg Flag_Mathjax "URL") "URL FOR mathjax",
     Option ['U'] ["use-unicode"] (NoArg Flag_UseUnicode) "use Unicode in HTML output",
+    Option []  ["hide-instances"] (NoArg Flag_HideInstances) "hide instances in HTML output",
     Option []  ["hoogle"]     (NoArg Flag_Hoogle)
       "output for Hoogle; you may want --package-name and --package-version too",
     Option [] ["quickjump"] (NoArg Flag_QuickJumpIndex)
