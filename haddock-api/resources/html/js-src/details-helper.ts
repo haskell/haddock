@@ -53,7 +53,9 @@ function gatherDetailsElements() {
   }
 }
 
-function toggleDetails(id: string) {
+function toggleDetails(toggle: Element) {
+  const id = toggle.getAttribute('data-details-id');
+  if (!id) { throw new Error("element with class 'details-toggle' has no 'data-details-id' attribute!"); }
   const {element} = lookupDetailsRegistry(id);
   element.open = !element.open;
 }
@@ -80,9 +82,7 @@ function restoreToggled() {
 function onToggleClick(ev: MouseEvent) {
   ev.preventDefault();
   const toggle = ev.currentTarget as HTMLElement;
-  const id = toggle.getAttribute('data-details-id');
-  if (!id) { throw new Error("element with class 'details-toggle' has no 'data-details-id' attribute!"); }
-  toggleDetails(id);
+  toggleDetails(toggle);
 }
 
 function initCollapseToggles() {
@@ -99,8 +99,33 @@ function initCollapseToggles() {
   });
 }
 
+var allInstancesToggled = false;
+
+function toggleAllInstances() {
+  const ilists = document.getElementsByClassName('subs instances');
+  [].forEach.call(ilists, function (ilist : Element) {
+    const toggleType = allInstancesToggled ? 'collapser' : 'expander';
+    const toggle = ilist.getElementsByClassName('instances ' + toggleType)[0];
+    toggleDetails(toggle);
+  });
+  allInstancesToggled = !allInstancesToggled;
+}
+
+function addToggleAllButton() {
+  // Heuristic to decide whether we're on a module page.
+  if (document.getElementById('module-header') === null) { return; }
+  const pageMenu = document.querySelector('#page-menu') as HTMLUListElement;
+  const button = document.createElement('li')
+  const link = button.appendChild(document.createElement('a'));
+  link.setAttribute('href', '#');
+  link.addEventListener('click', toggleAllInstances);
+  link.appendChild(document.createTextNode('Toggle all instances'));
+  pageMenu.insertBefore(button, pageMenu.firstChild);
+}
+
 export function init() {
   gatherDetailsElements();
   restoreToggled();
   initCollapseToggles();
+  addToggleAllButton();
 }
