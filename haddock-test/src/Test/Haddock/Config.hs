@@ -186,11 +186,9 @@ loadConfig ccfg dcfg flags files = do
           exitFailure
 
     -- Find GHC executable
-    systemGhcPath <- List.lookup "GHC_PATH" <$> getEnvironment
     ghcHaddock <- init <$> rawSystemStdout normal cfgHaddockPath ["--print-ghc-path"]
 
     let ghc_path = msum [ flagsGhcPath flags
-                        , systemGhcPath
                         , mfilter (/= "not available") (Just ghcHaddock)
                         ]
     ghcPath <- case ghc_path of

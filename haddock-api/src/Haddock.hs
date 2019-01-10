@@ -534,14 +534,25 @@ getHaddockLibDir flags =
   case [str | Flag_Lib str <- flags] of
     [] -> do
 #ifdef IN_GHC_TREE
-      exec_dir <- getExecDir
-      let res_dirs = [ d </> ".." </> "lib" | Just d <- [exec_dir] ] ++
+
+      -- When in the GHC tree, we should be able to locate the "lib" folder
+      -- based on the location of the current executable.
+      base_dir <- getBaseDir      -- Provided by GHC
+      let res_dirs = [ d | Just d <- [base_dir] ] ++
+
 #else
+
+      -- When Haddock was installed by @cabal@, the resources (which are listed
+      -- under @data-files@ in the Cabal file) will have been copied to a
+      -- special directory.
       data_dir <- getDataDir      -- Provided by Cabal
       let res_dirs = [ data_dir ] ++
+
 #endif
-      -- if data directory does not exist we are probably
-      -- invoking from either ./haddock-api or ./
+
+      -- When Haddock is built locally (eg. regular @cabal new-build@), the data
+      -- directory does not exist and we are probably invoking from either
+      -- @./haddock-api@ or @./@
                      [ "resources"
                      , "haddock-api/resources"
                      ]
@@ -563,22 +574,21 @@ getHaddockLibDir flags =
 
 getGhcDirs :: [Flag] -> IO (String, String)
 getGhcDirs flags = do
-  case [ dir | Flag_GhcLibDir dir <- flags ] of
-    [] -> do
+
 #ifdef IN_GHC_TREE
-      libDirOpt <- getExecDir
-      let libDir = maybe (error "No GhcDir found") (</> ".." </> "lib") libDirOpt
-      return (ghcPath, libDir)
-#else
-      return (ghcPath, GhcPaths.libdir)
+  base_dir <- getBaseDir
+  let ghc_path = "not available"
 #endif
-    xs -> return (ghcPath, last xs)
-  where
-#ifdef IN_GHC_TREE
-    ghcPath = "not available"
+  let base_dir = Just GhcPaths.libdir
+      ghc_path = GhcPaths.ghc
 #else
-    ghcPath = GhcPaths.ghc
-#endif
+
+  -- If the user explicitly specifies a lib dir, use that
+  let ghc_dir = case [ dir | Flag_GhcLibDir dir <- flags ] of
+                  [] -> fromMaybe (error "No GhcDir found") base_dir
+                  xs -> last xs
+
+  (ghc_path, ghc_dir)
 
 
 shortcutFlags :: [Flag] -> IO ()
@@ -675,32 +685,3 @@ rightOrThrowE :: Either String b -> IO b
 rightOrThrowE (Left msg) = throwE msg
 rightOrThrowE (Right x) = pure x
 
-
-#ifdef IN_GHC_TREE
-
-getExecDir :: IO (Maybe String)
-#if defined(mingw32_HOST_OS)
-getExecDir = try_size 2048 -- plenty, PATH_MAX is 512 under Win32.
-  where
-    try_size size = allocaArray (fromIntegral size) $ \buf -> do
-        ret <- c_GetModuleFileName nullPtr buf size
-        case ret of
-          0 -> return Nothing
-          _ | ret < size -> fmap (Just . dropFileName) $ peekCWString buf
-            | otherwise  -> try_size (size * 2)
-
-# if defined(i386_HOST_ARCH)
-#  define WINDOWS_CCONV stdcall
-# elif defined(x86_64_HOST_ARCH)
-#  define WINDOWS_CCONV ccall
-# else
-#  error Unknown mingw32 arch
-# endif
-
-foreign import WINDOWS_CCONV unsafe "windows.h GetModuleFileNameW"
-  c_GetModuleFileName :: Ptr () -> CWString -> Word32 -> IO Word32
-#else
-getExecDir = return Nothing
-#endif
-
-#endif
