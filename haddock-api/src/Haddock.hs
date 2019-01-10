@@ -54,20 +54,19 @@ import qualified Data.Map as Map
 import System.IO
 import System.Exit
 
-#if defined(mingw32_HOST_OS)
-import Foreign
-import Foreign.C
-import Data.Int
-#endif
-
 #ifdef IN_GHC_TREE
 import System.FilePath
 #else
 import qualified GHC.Paths as GhcPaths
 import Paths_haddock_api (getDataDir)
 #endif
+<<<<<<< HEAD
 import System.Directory (doesDirectoryExist, getTemporaryDirectory)
 import System.FilePath ((</>))
+=======
+import System.Directory (doesDirectoryExist)
+import System.Environment (getExecutablePath)
+>>>>>>> More wip
 
 import Text.ParserCombinators.ReadP (readP_to_S)
 import GHC hiding (verbosity)
@@ -529,7 +528,7 @@ unsetPatternMatchWarnings dflags =
 -------------------------------------------------------------------------------
 
 
-getHaddockLibDir :: [Flag] -> IO String
+getHaddockLibDir :: [Flag] -> IO FilePath
 getHaddockLibDir flags =
   case [str | Flag_Lib str <- flags] of
     [] -> do
@@ -578,17 +577,26 @@ getGhcDirs flags = do
 #ifdef IN_GHC_TREE
   base_dir <- getBaseDir
   let ghc_path = "not available"
-#endif
+#else
   let base_dir = Just GhcPaths.libdir
       ghc_path = GhcPaths.ghc
-#else
+#endif
 
   -- If the user explicitly specifies a lib dir, use that
   let ghc_dir = case [ dir | Flag_GhcLibDir dir <- flags ] of
                   [] -> fromMaybe (error "No GhcDir found") base_dir
                   xs -> last xs
 
-  (ghc_path, ghc_dir)
+  pure (ghc_path, ghc_dir)
+
+
+-- See 'getBaseDir' in "SysTools.BaseDir"
+getBaseDir :: IO (Maybe FilePath)
+getBaseDir = do
+  exec_path <- getExecutablePath
+  let base_dir = takeDirectory (takeDirectory exec_path) </> "lib"
+  exists <- doesDirectoryExist base_dir
+  pure (if exists then Just base_dir else Nothing)
 
 
 shortcutFlags :: [Flag] -> IO ()
