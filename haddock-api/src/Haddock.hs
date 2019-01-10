@@ -56,17 +56,14 @@ import System.Exit
 
 #ifdef IN_GHC_TREE
 import System.FilePath
+import System.Environment (getExecutablePath)
 #else
 import qualified GHC.Paths as GhcPaths
 import Paths_haddock_api (getDataDir)
 #endif
-<<<<<<< HEAD
 import System.Directory (doesDirectoryExist, getTemporaryDirectory)
 import System.FilePath ((</>))
-=======
-import System.Directory (doesDirectoryExist)
 import System.Environment (getExecutablePath)
->>>>>>> More wip
 
 import Text.ParserCombinators.ReadP (readP_to_S)
 import GHC hiding (verbosity)
@@ -234,7 +231,7 @@ noCheckWarning = "Warning: `--bypass-interface-version-check' can cause " ++
 
 withGhc :: [Flag] -> Ghc a -> IO a
 withGhc flags action = do
-  libDir <- fmap snd (getGhcDirs flags)
+  libDir <- fmap (fromMaybe (error "No GhcDir found") . snd) (getGhcDirs flags)
 
   -- Catches all GHC source errors, then prints and re-throws them.
   let handleSrcErrors action' = flip handleSourceError action' $ \err -> do
@@ -570,27 +567,29 @@ getHaddockLibDir flags =
       exists <- doesDirectoryExist path
       if exists then pure (Just path) else check other_paths
 
-
-getGhcDirs :: [Flag] -> IO (String, String)
+-- | Find the @lib@ directory for GHC and the path to @ghc@
+getGhcDirs :: [Flag] -> IO (Maybe FilePath, Maybe FilePath)
 getGhcDirs flags = do
 
 #ifdef IN_GHC_TREE
   base_dir <- getBaseDir
-  let ghc_path = "not available"
+  let ghc_path = Nothing
 #else
   let base_dir = Just GhcPaths.libdir
-      ghc_path = GhcPaths.ghc
+      ghc_path = Just GhcPaths.ghc
 #endif
 
   -- If the user explicitly specifies a lib dir, use that
   let ghc_dir = case [ dir | Flag_GhcLibDir dir <- flags ] of
-                  [] -> fromMaybe (error "No GhcDir found") base_dir
-                  xs -> last xs
+                  [] -> base_dir
+                  xs -> Just (last xs)
 
   pure (ghc_path, ghc_dir)
 
 
--- See 'getBaseDir' in "SysTools.BaseDir"
+#ifdef IN_GHC_TREE
+
+-- | See 'getBaseDir' in "SysTools.BaseDir"
 getBaseDir :: IO (Maybe FilePath)
 getBaseDir = do
   exec_path <- getExecutablePath
@@ -598,6 +597,7 @@ getBaseDir = do
   exists <- doesDirectoryExist base_dir
   pure (if exists then Just base_dir else Nothing)
 
+#endif
 
 shortcutFlags :: [Flag] -> IO ()
 shortcutFlags flags = do
@@ -611,12 +611,12 @@ shortcutFlags flags = do
   when (Flag_GhcVersion       `elem` flags) (bye (cProjectVersion ++ "\n"))
 
   when (Flag_PrintGhcPath `elem` flags) $ do
-    dir <- fmap fst (getGhcDirs flags)
-    bye $ dir ++ "\n"
+    path <- fmap fst (getGhcDirs flags)
+    bye $ fromMaybe "not available" path ++ "\n"
 
   when (Flag_PrintGhcLibDir `elem` flags) $ do
     dir <- fmap snd (getGhcDirs flags)
-    bye $ dir ++ "\n"
+    bye $ fromMaybe "not available" dir ++ "\n"
 
   when (Flag_UseUnicode `elem` flags && Flag_Html `notElem` flags) $
     throwE "Unicode can only be enabled for HTML output."

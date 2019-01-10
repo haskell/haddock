@@ -185,22 +185,22 @@ loadConfig ccfg dcfg flags files = do
           hPutStrLn stderr "Haddock executable not found; consider using the `--haddock-path` flag."
           exitFailure
 
-    -- Find GHC executable
-    ghcHaddock <- init <$> rawSystemStdout normal cfgHaddockPath ["--print-ghc-path"]
+    -- Perhaps Haddock knows where you can find GHC?
+    queriedGhcPath <- do
+      p <- init <$> rawSystemStdout normal cfgHaddockPath ["--print-ghc-path"]
+      exists <- doesFileExist p
+      pure $ if exists then Just p else Nothing
+
 
     let ghc_path = msum [ flagsGhcPath flags
-                        , mfilter (/= "not available") (Just ghcHaddock)
+                        , queriedGhcPath
                         ]
+
     ghcPath <- case ghc_path of
         Just path -> pure path
         Nothing   -> do
           hPutStrLn stderr "GHC executable not found; consider using the `--ghc-path` flag."
           exitFailure
-
-    -- If we've got a handle on GHC's path, we can get its libdir and save
-    -- Haddock the trouble of looking it up (esp. since it has no way of
-    -- looking it up when the 'in-ghc-tree' Cabal flag is set).
-    ghcLib  <- init <$> rawSystemStdout normal ghcPath ["--print-libdir"]
 
     printVersions cfgEnv cfgHaddockPath
 
@@ -212,7 +212,6 @@ loadConfig ccfg dcfg flags files = do
         , pure ["--odir=" ++ dcfgOutDir dcfg]
         , pure ["--optghc=-w"]
         , pure ["--optghc=-hide-all-packages"]
-        , pure ["-B" ++ ghcLib]
         , pure $ flagsHaddockOptions flags
         , baseDependencies ghcPath
         ]
