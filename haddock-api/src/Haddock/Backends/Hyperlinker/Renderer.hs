@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Haddock.Backends.Hyperlinker.Renderer (render) where
 
@@ -16,6 +17,7 @@ import Module   ( ModuleName, moduleName, moduleNameString )
 import Name     ( getOccString, isInternalName, Name, nameModule, nameUnique )
 import SrcLoc
 import Unique   ( getKey )
+import Encoding ( utf8DecodeByteString )
 
 import System.FilePath.Posix ((</>))
 
@@ -90,14 +92,14 @@ renderWithAst df srcs ast toks = anchored $ case toks of
           | realSrcSpanStart s1 == realSrcSpanStart (nodeSpan ast)
           , realSrcSpanEnd s2   == realSrcSpanEnd (nodeSpan ast)
           -> richToken df srcs (nodeInfo ast)
-                       (Token{ tkValue = "`" ++ tkValue tok ++ "`"
+                       (Token{ tkValue = "`" <> tkValue tok <> "`"
                              , tkType = TkOperator
                              , tkSpan = nodeSpan ast })
     [OpenParenTok s1, tok @ Token{ tkType = TkOperator }, CloseParenTok s2]
           | realSrcSpanStart s1 == realSrcSpanStart (nodeSpan ast)
           , realSrcSpanEnd s2   == realSrcSpanEnd (nodeSpan ast)
           -> richToken df srcs (nodeInfo ast)
-                       (Token{ tkValue = "(" ++ tkValue tok ++ ")"
+                       (Token{ tkValue = "(" <> tkValue tok <> ")"
                              , tkType = TkOperator
                              , tkSpan = nodeSpan ast })
 
@@ -115,20 +117,22 @@ renderWithAst df srcs ast toks = anchored $ case toks of
 
 renderToken :: Token -> Html
 renderToken Token{..}
-  | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue
-  | otherwise = tokenSpan ! [ multiclass style ]
-      where
-        style = tokenStyle tkType
-        tokenSpan = Html.thespan (Html.toHtml tkValue)
+    | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
+    | otherwise = tokenSpan ! [ multiclass style ]
+  where
+    tkValue' = filterCRLF $ utf8DecodeByteString tkValue
+    style = tokenStyle tkType
+    tokenSpan = Html.thespan (Html.toHtml tkValue')
 
 -- | Given information about the source position of definitions, render a token
 richToken :: DynFlags -> SrcMap -> NodeInfo HieTypeFix -> Token -> Html
 richToken df srcs details Token{..}
-    | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue
+    | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
     | otherwise = annotate df details $ linked content
   where
+    tkValue' = filterCRLF $ utf8DecodeByteString tkValue
     content = tokenSpan ! [ multiclass style ]
-    tokenSpan = Html.thespan (Html.toHtml tkValue)
+    tokenSpan = Html.thespan (Html.toHtml tkValue')
     style = tokenStyle tkType ++ concatMap richTokenStyle contexts
 
     contexts = concatMap (Set.elems . identInfo) . Map.elems . nodeIdentifiers $ details
@@ -140,6 +144,12 @@ richToken df srcs details Token{..}
     linked = case identDet of
       Just (n,_) -> hyperlink srcs n
       Nothing -> id
+
+-- | Remove CRLFs from source
+filterCRLF :: String -> String
+filterCRLF ('\r':'\n':cs) = '\n' : filterCRLF cs
+filterCRLF (c:cs) = c : filterCRLF cs
+filterCRLF [] = []
 
 annotate :: DynFlags -> NodeInfo HieTypeFix -> Html -> Html
 annotate df ni content =
@@ -254,7 +264,7 @@ externalModHyperlink srcs name content =
 renderSpace :: Int -> String -> Html
 renderSpace _ [] = Html.noHtml
 renderSpace line ('\n':rest) = mconcat
-    [ Html.thespan . Html.toHtml $ "\n"
+    [ Html.thespan (Html.toHtml '\n')
     , lineAnchor (line + 1)
     , renderSpace (line + 1) rest
     ]

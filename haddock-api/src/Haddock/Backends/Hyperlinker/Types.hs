@@ -1,13 +1,15 @@
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms, OverloadedStrings #-}
 module Haddock.Backends.Hyperlinker.Types where
 
 import qualified GHC
+
+import Data.ByteString  ( ByteString )
 
 import Data.Map (Map)
 
 data Token = Token
     { tkType :: TokenType
-    , tkValue :: String
+    , tkValue :: ByteString -- ^ UTF-8 encoded
     , tkSpan :: {-# UNPACK #-} !Span
     }
     deriving (Show)

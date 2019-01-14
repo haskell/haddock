@@ -11,7 +11,6 @@ import Haddock.Backends.Hyperlinker.Renderer
 import Haddock.Backends.Hyperlinker.Parser
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
-import Documentation.Haddock.Utf8 as Utf8
 
 import Text.XHtml hiding ((</>))
 
@@ -57,17 +56,18 @@ ppHyperlinkedModuleSource srcdir pretty srcs iface =
     case ifaceHieFile iface of
         (Just hfp) -> do
             u <- mkSplitUniqSupply 'a'
-            (hiefile,_) <- readHieFile (initNameCache u []) hfp
+            HieFile { hie_hs_file = file
+                     , hie_asts = HieASTs asts
+                     , hie_types = types
+                     , hie_hs_src = rawSrc
+                     } <- fmap fst (readHieFile (initNameCache u []) hfp)
             let mast = if M.size asts == 1
                        then snd <$> M.lookupMin asts
                        else M.lookup (mkFastString file) asts
-                file = hie_hs_file hiefile
-                asts = getAsts $ hie_asts hiefile
-                tokens = parse df file (Utf8.decodeUtf8 $ hie_hs_src hiefile)
+                tokens = parse df file rawSrc
             case mast of
               Just ast ->
-                  let types = hie_types hiefile
-                      flatAst = fmap (\i -> recoverFullType i types) ast
+                  let flatAst = fmap (\i -> recoverFullType i types) ast
                   in writeUtf8File path . html . render' flatAst $ tokens
               Nothing
                 | M.size asts == 0 -> return ()
