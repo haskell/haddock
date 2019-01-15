@@ -63,7 +63,6 @@ import Paths_haddock_api (getDataDir)
 #endif
 import System.Directory (doesDirectoryExist, getTemporaryDirectory)
 import System.FilePath ((</>))
-import System.Environment (getExecutablePath)
 
 import Text.ParserCombinators.ReadP (readP_to_S)
 import GHC hiding (verbosity)
@@ -592,10 +591,18 @@ getGhcDirs flags = do
 -- | See 'getBaseDir' in "SysTools.BaseDir"
 getBaseDir :: IO (Maybe FilePath)
 getBaseDir = do
-  exec_path <- getExecutablePath
-  let base_dir = takeDirectory (takeDirectory exec_path) </> "lib"
-  exists <- doesDirectoryExist base_dir
-  pure (if exists then Just base_dir else Nothing)
+
+  -- Getting executable path can fail. Turn that into 'Nothing'
+  exec_path_opt <- catch (Just <$> getExecutablePath)
+                         (\(_ :: SomeException) -> pure Nothing)
+
+  -- Check that the path we are about to return actually exists
+  case exec_path_opt of
+    Nothing -> pure Nothing
+    Just exec_path -> do
+      let base_dir = takeDirectory (takeDirectory exec_path) </> "lib"
+      exists <- doesDirectoryExist base_dir
+      pure (if exists then Just base_dir else Nothing)
 
 #endif
 
