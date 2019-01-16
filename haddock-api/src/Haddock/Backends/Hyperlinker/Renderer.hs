@@ -9,11 +9,8 @@ module Haddock.Backends.Hyperlinker.Renderer (render) where
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
 
-import DynFlags ( DynFlags )
-import FastString (fsLit)
 import HieTypes
-import HieUtils ( renderHieType )
-import Module   ( ModuleName, moduleName, moduleNameString )
+import Module   ( ModuleName, moduleNameString )
 import Name     ( getOccString, isInternalName, Name, nameModule, nameUnique )
 import SrcLoc
 import Unique   ( getKey )
@@ -34,17 +31,16 @@ type StyleClass = String
 render
   :: Maybe FilePath    -- ^ path to the CSS file
   -> Maybe FilePath    -- ^ path to the JS file
-  -> DynFlags          -- ^ used to render types
-  -> SrcMap            -- ^ Paths to sources
-  -> HieAST HieTypeFix -- ^ ASTs from @.hie@ files
-  -> [Token]           -- ^ tokens to render
+  -> SrcMaps            -- ^ Paths to sources
+  -> HieAST PrintedType  -- ^ ASTs from @.hie@ files
+  -> [Token]       -- ^ tokens to render
   -> Html
-render mcss mjs df srcs ast tokens = header mcss mjs <> body df srcs ast tokens
+render mcss mjs srcs ast tokens = header mcss mjs <> body srcs ast tokens
 
-body :: DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token] -> Html
-body df srcs ast tokens = Html.body . Html.pre $ hypsrc
+body :: SrcMaps -> HieAST PrintedType -> [Token] -> Html
+body srcs ast tokens = Html.body . Html.pre $ hypsrc
   where
-    hypsrc = renderWithAst df srcs ast tokens
+    hypsrc = renderWithAst srcs ast tokens
 
 header :: Maybe FilePath -> Maybe FilePath -> Html
 header Nothing Nothing = Html.noHtml
@@ -62,10 +58,10 @@ header mcss mjs = Html.header $ css mcss <> js mjs
         , Html.src scriptFile
         ]
 
-splitTokens :: HieAST HieTypeFix -> [Token] -> ([Token],[Token],[Token])
-splitTokens ast toks' = (initial++before,during,after)
+
+splitTokens :: HieAST PrintedType -> [Token] -> ([Token],[Token],[Token])
+splitTokens ast toks = (before,during,after)
   where
-    (initial,toks) = span ((== fsLit "lexing") . srcSpanFile . tkSpan) toks'
     (before,rest) = span leftOf toks
     (during,after) = span inAst rest
     leftOf t = realSrcSpanEnd (tkSpan t) <= realSrcSpanStart nodeSp
@@ -74,9 +70,10 @@ splitTokens ast toks' = (initial++before,during,after)
 
 -- | Turn a list of tokens into hyperlinked sources, threading in relevant link
 -- information from the 'HieAST'.
-renderWithAst :: DynFlags -> SrcMap -> HieAST HieTypeFix -> [Token] -> Html
-renderWithAst df srcs ast toks = anchored $ case toks of
-    [tok] | nodeSpan ast == tkSpan tok -> richToken df srcs (nodeInfo ast) tok
+renderWithAst :: SrcMaps -> HieAST PrintedType -> [Token] -> Html
+renderWithAst srcs Node{..} toks = anchored $ case toks of
+
+    [tok] | nodeSpan == tkSpan tok -> richToken srcs nodeInfo tok
 
     -- NB: the GHC lexer lexes backquoted identifiers and parenthesized operators
     -- as multiple tokens.
@@ -86,32 +83,32 @@ renderWithAst df srcs ast toks = anchored $ case toks of
     --
     -- However, the HIE ast considers @`elem`@ and @(+)@ to be single nodes. In
     -- order to make sure these get hyperlinked properly, we intercept these
-    -- special sequences of tokens and turn merge then into just one identifier
-    -- or operator token.
-    [BacktickTok s1,  tok @ Token{ tkType = TkIdentifier }, BacktickTok s2]
-          | realSrcSpanStart s1 == realSrcSpanStart (nodeSpan ast)
-          , realSrcSpanEnd s2   == realSrcSpanEnd (nodeSpan ast)
-          -> richToken df srcs (nodeInfo ast)
+    -- special sequences of tokens and merge them into just one identifier or
+    -- operator token.
+    [BacktickTok s1, tok @ Token{ tkType = TkIdentifier }, BacktickTok s2]
+          | realSrcSpanStart s1 == realSrcSpanStart nodeSpan
+          , realSrcSpanEnd s2   == realSrcSpanEnd nodeSpan
+          -> richToken srcs nodeInfo
                        (Token{ tkValue = "`" <> tkValue tok <> "`"
                              , tkType = TkOperator
-                             , tkSpan = nodeSpan ast })
+                             , tkSpan = nodeSpan })
     [OpenParenTok s1, tok @ Token{ tkType = TkOperator }, CloseParenTok s2]
-          | realSrcSpanStart s1 == realSrcSpanStart (nodeSpan ast)
-          , realSrcSpanEnd s2   == realSrcSpanEnd (nodeSpan ast)
-          -> richToken df srcs (nodeInfo ast)
+          | realSrcSpanStart s1 == realSrcSpanStart nodeSpan
+          , realSrcSpanEnd s2   == realSrcSpanEnd nodeSpan
+          -> richToken srcs nodeInfo
                        (Token{ tkValue = "(" <> tkValue tok <> ")"
                              , tkType = TkOperator
-                             , tkSpan = nodeSpan ast })
+                             , tkSpan = nodeSpan })
 
-    xs -> go (nodeChildren ast) xs
+    _ -> go nodeChildren toks
   where
     go _ [] = mempty
     go [] xs = foldMap renderToken xs
     go (cur:rest) xs =
-        foldMap renderToken before <> renderWithAst df srcs cur during <> go rest after
+        foldMap renderToken before <> renderWithAst srcs cur during <> go rest after
       where
         (before,during,after) = splitTokens cur xs
-    anchored c = Map.foldrWithKey anchorOne c (nodeIdentifiers $ nodeInfo ast)
+    anchored c = Map.foldrWithKey anchorOne c (nodeIdentifiers nodeInfo)
     anchorOne n dets c = externalAnchor n d $ internalAnchor n d c
       where d = identInfo dets
 
@@ -124,11 +121,12 @@ renderToken Token{..}
     style = tokenStyle tkType
     tokenSpan = Html.thespan (Html.toHtml tkValue')
 
+
 -- | Given information about the source position of definitions, render a token
-richToken :: DynFlags -> SrcMap -> NodeInfo HieTypeFix -> Token -> Html
-richToken df srcs details Token{..}
+richToken :: SrcMaps -> NodeInfo PrintedType -> Token -> Html
+richToken srcs details Token{..}
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
-    | otherwise = annotate df details $ linked content
+    | otherwise = annotate details $ linked content
   where
     tkValue' = filterCRLF $ utf8DecodeByteString tkValue
     content = tokenSpan ! [ multiclass style ]
@@ -151,8 +149,8 @@ filterCRLF ('\r':'\n':cs) = '\n' : filterCRLF cs
 filterCRLF (c:cs) = c : filterCRLF cs
 filterCRLF [] = []
 
-annotate :: DynFlags -> NodeInfo HieTypeFix -> Html -> Html
-annotate df ni content =
+annotate :: NodeInfo PrintedType -> Html -> Html
+annotate  ni content =
     Html.thespan (annot <> content) ! [ Html.theclass "annot" ]
   where
     annot
@@ -160,11 +158,11 @@ annotate df ni content =
           Html.thespan (Html.toHtml annotation) ! [ Html.theclass "annottext" ]
       | otherwise = mempty
     annotation = typ ++ identTyps
-    typ = unlines $ map (renderHieType df) $ nodeType ni
+    typ = unlines (nodeType ni)
     typedIdents = [ (n,t) | (n, identType -> Just t) <- Map.toList $ nodeIdentifiers ni ]
     identTyps
-      | length typedIdents > 1 || null typ
-          = concatMap (\(n,t) -> printName n ++ " :: " ++ renderHieType df t ++ "\n") typedIdents
+      | length typedIdents > 1 || null (nodeType ni)
+          = concatMap (\(n,t) -> printName n ++ " :: " ++ t ++ "\n") typedIdents
       | otherwise = ""
 
     printName :: Either ModuleName Name -> String
@@ -230,35 +228,33 @@ externalAnchorIdent = hypSrcNameUrl
 internalAnchorIdent :: Name -> String
 internalAnchorIdent = ("local-" ++) . show . getKey . nameUnique
 
-hyperlink :: SrcMap -> Identifier -> Html -> Html
-hyperlink srcs ident = case ident of
+-- | Generate the HTML hyperlink for an identifier
+hyperlink :: SrcMaps -> Identifier -> Html -> Html
+hyperlink (srcs, srcs') ident = case ident of
     Right name | isInternalName name -> internalHyperlink name
-               | otherwise -> externalNameHyperlink srcs name
-    Left name -> externalModHyperlink srcs name
+               | otherwise -> externalNameHyperlink name
+    Left name -> externalModHyperlink name
 
-internalHyperlink :: Name -> Html -> Html
-internalHyperlink name content =
-    Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
-
-externalNameHyperlink :: SrcMap -> Name -> Html -> Html
-externalNameHyperlink srcs name content = case Map.lookup mdl srcs of
-    Just SrcLocal -> Html.anchor content !
-        [ Html.href $ hypSrcModuleNameUrl mdl name ]
-    Just (SrcExternal path) -> Html.anchor content !
-        [ Html.href $ spliceURL Nothing (Just mdl) (Just name) Nothing (".." </> path) ]
-    Nothing -> content
   where
-    mdl = nameModule name
+    internalHyperlink name content =
+        Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
 
-externalModHyperlink :: SrcMap -> ModuleName -> Html -> Html
-externalModHyperlink srcs name content =
-    let srcs' = Map.mapKeys moduleName srcs in
-    case Map.lookup name srcs' of
-      Just SrcLocal -> Html.anchor content !
-        [ Html.href $ hypSrcModuleUrl' name ]
-      Just (SrcExternal path) -> Html.anchor content !
-        [ Html.href $ path </> hypSrcModuleUrl' name ]
-      Nothing -> content
+    externalNameHyperlink name content = case Map.lookup mdl srcs of
+        Just SrcLocal -> Html.anchor content !
+            [ Html.href $ hypSrcModuleNameUrl mdl name ]
+        Just (SrcExternal path) -> Html.anchor content !
+            [ Html.href $ spliceURL Nothing (Just mdl) (Just name) Nothing (".." </> path) ]
+        Nothing -> content
+      where
+        mdl = nameModule name
+
+    externalModHyperlink name content =
+        case Map.lookup name srcs' of
+          Just SrcLocal -> Html.anchor content !
+            [ Html.href $ hypSrcModuleUrl' name ]
+          Just (SrcExternal path) -> Html.anchor content !
+            [ Html.href $ path </> hypSrcModuleUrl' name ]
+          Nothing -> content
 
 
 renderSpace :: Int -> String -> Html

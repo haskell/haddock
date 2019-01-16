@@ -47,5 +47,5 @@ data SrcPath
     | SrcLocal
 
 -- | Mapping from modules to cross-package source paths.
-type SrcMap = Map GHC.Module SrcPath
+type SrcMaps = (Map GHC.Module SrcPath, Map GHC.ModuleName SrcPath)
 
