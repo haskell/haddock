@@ -248,12 +248,12 @@ hyperlink (srcs, srcs') ident = case ident of
       where
         mdl = nameModule name
 
-    externalModHyperlink name content =
-        case Map.lookup name srcs' of
+    externalModHyperlink moduleName content =
+        case Map.lookup moduleName srcs' of
           Just SrcLocal -> Html.anchor content !
-            [ Html.href $ hypSrcModuleUrl' name ]
+            [ Html.href $ hypSrcModuleUrl' moduleName ]
           Just (SrcExternal path) -> Html.anchor content !
-            [ Html.href $ path </> hypSrcModuleUrl' name ]
+            [ Html.href $ spliceURL' Nothing (Just moduleName) Nothing Nothing (".." </> path) ]
           Nothing -> content
 
 

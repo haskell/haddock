@@ -7,7 +7,7 @@ module Haddock.Backends.Hyperlinker.Utils
     , hypSrcModuleNameUrl, hypSrcModuleLineUrl
     , hypSrcModuleUrlFormat
     , hypSrcModuleNameUrlFormat, hypSrcModuleLineUrlFormat
-    , spliceURL
+    , spliceURL, spliceURL'
 
     -- * HIE file processing
     , PrintedType
@@ -24,7 +24,7 @@ import Name         ( getOccFS, nameModule_maybe )
 import Outputable   ( showSDoc )
 import Var          ( VarBndr(..) )
 
-import System.FilePath.Posix ((</>))
+import System.FilePath.Posix ((</>), (<.>))
 
 import qualified Data.Array as A
 
@@ -33,7 +33,7 @@ hypSrcDir :: FilePath
 hypSrcDir = "src"
 
 hypSrcModuleFile :: Module -> FilePath
-hypSrcModuleFile = hypSrcModuleFile' . moduleName
+hypSrcModuleFile m = moduleNameString (moduleName m) <.> "html"
 
 hypSrcModuleFile' :: ModuleName -> FilePath
 hypSrcModuleFile' mdl = spliceURL'
@@ -47,7 +47,7 @@ hypSrcModuleUrl' = hypSrcModuleFile'
 
 hypSrcNameUrl :: Name -> String
 hypSrcNameUrl name = spliceURL
-    Nothing (nameModule_maybe name) (Just name) Nothing nameFormat
+    Nothing Nothing (Just name) Nothing nameFormat
 
 hypSrcLineUrl :: Int -> String
 hypSrcLineUrl line = spliceURL
