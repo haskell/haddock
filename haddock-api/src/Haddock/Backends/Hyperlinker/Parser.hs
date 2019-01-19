@@ -7,11 +7,11 @@ import Data.List           ( isPrefixOf, isSuffixOf )
 
 import qualified Data.ByteString as BS
 
-import DynFlags            ( DynFlags, gopt_set, gopt_unset, GeneralFlag(..) )
+import DynFlags            ( DynFlags, warningFlags, extensionFlags, thisPackage, safeImportsOn )
 import ErrUtils            ( emptyMessages )
 import FastString          ( mkFastString )
 import Lexer               ( P(..), ParseResult(..), PState(..), Token(..)
-                           , mkPState, lexer )
+                           , mkPStatePure, lexer, mkParserFlags' )
 import Outputable          ( showSDoc, panic )
 import SrcLoc
 import StringBuffer        ( StringBuffer, atEnd )
@@ -35,10 +35,16 @@ parse dflags fpath bs = case unP (go False []) initState of
                                    ": " ++ showSDoc dflags errMsg
   where
 
+    initState = mkPStatePure pflags buf start
     buf = stringBufferFromByteString bs
-    dflags' = gopt_set (gopt_unset dflags Opt_Haddock) Opt_KeepRawTokenStream
-    initState = (Lexer.mkPState dflags' buf start) { use_pos_prags = False }
     start = mkRealSrcLoc (mkFastString fpath) 1 1
+    pflags = mkParserFlags' (warningFlags dflags)
+                            (extensionFlags dflags)
+                            (thisPackage dflags)
+                            (safeImportsOn dflags)
+                            False -- lex Haddocks as comment tokens
+                            True  -- produce comment tokens
+                            True  -- produce position pragmas tokens
 
     go :: Bool        -- ^ are we currently in a pragma?
        -> [T.Token]   -- ^ tokens accumulated so far (in reverse)
