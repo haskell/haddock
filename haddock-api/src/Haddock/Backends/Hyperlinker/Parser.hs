@@ -6,8 +6,12 @@ import Control.Applicative ( Alternative(..) )
 import Data.List           ( isPrefixOf, isSuffixOf )
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 
-import DynFlags            ( DynFlags, warningFlags, extensionFlags, thisPackage, safeImportsOn )
+import GHC.LanguageExtensions.Type
+
+import DynFlags
+import qualified EnumSet as E
 import ErrUtils            ( emptyMessages )
 import FastString          ( mkFastString )
 import Lexer               ( P(..), ParseResult(..), PState(..), Token(..)
@@ -21,15 +25,15 @@ import Haddock.GhcUtils
 
 -- | Turn source code string into a stream of more descriptive tokens.
 --
--- Result should retain original file layout (including comments, whitespace,
--- etc.), i.e. the following "law" should hold:
---
--- prop> BS.concat . map tkValue . parse dflags fpath = id
---
--- (In reality, this only holds for input not containing '\r', '\t', '\f', '\v',
--- characters, since GHC transforms those into ' ' and '\n')
-parse :: DynFlags -> FilePath -> BS.ByteString -> [T.Token]
-parse dflags fpath bs = case unP (go False []) initState of
+-- Result should retain original file layout (including comments,
+-- whitespace, and CPP).
+parse
+  :: CompilerInfo  -- ^ Underlying CC compiler (whatever expanded CPP)
+  -> DynFlags      -- ^ Flags for this module
+  -> FilePath      -- ^ Path to the source of this module
+  -> BS.ByteString -- ^ Raw UTF-8 encoded source of this module
+  -> [T.Token]
+parse comp dflags fpath bs = case unP (go False []) initState of
     POk _ toks -> reverse toks
     PFailed _ ss errMsg -> panic $ "Hyperlinker parse error at " ++ show ss ++
                                    ": " ++ showSDoc dflags errMsg
@@ -38,6 +42,7 @@ parse dflags fpath bs = case unP (go False []) initState of
     initState = mkPStatePure pflags buf start
     buf = stringBufferFromByteString bs
     start = mkRealSrcLoc (mkFastString fpath) 1 1
+    needPragHack' = needPragHack comp dflags
     pflags = mkParserFlags' (warningFlags dflags)
                             (extensionFlags dflags)
                             (thisPackage dflags)
@@ -78,7 +83,7 @@ parse dflags fpath bs = case unP (go False []) initState of
       (bEnd, _) <- getInput
       case sp of
         UnhelpfulSpan _ -> pure ([], False) -- pretend the token never existed
-        RealSrcSpan rsp -> pure $
+        RealSrcSpan rsp -> do
           let typ = if inPrag then TkPragma else classify tok
               RealSrcLoc lStart = srcSpanStart sp -- safe since @sp@ is real
               (spaceBStr, bStart) = spanPosition lInit lStart bInit
@@ -91,7 +96,15 @@ parse dflags fpath bs = case unP (go False []) initState of
                                  , tkSpan = mkRealSrcSpan lInit lStart }
               inPrag' = inPragma inPrag tok
 
-          in (plainTok : [ spaceTok | not (BS.null spaceBStr) ], inPrag')
+          -- See 'needPragHack'
+          case tok of
+            ITclose_prag{}
+              | needPragHack'
+              , '\n' `BSC.elem` spaceBStr
+              -> getInput >>= \(b,p) -> setInput (b,advanceSrcLoc p '\n')
+            _ -> pure ()
+
+          pure (plainTok : [ spaceTok | not (BS.null spaceBStr) ], inPrag')
 
     -- | Parse whatever remains of the line as an unknown token (can't fail)
     unknownLine :: P ([T.Token], Bool)
@@ -104,6 +117,38 @@ parse dflags fpath bs = case unP (go False []) initState of
       setInput (b', l')
       pure ([unkTok], False)
 
+
+-- | This is really, really, /really/ gross. Problem: consider a Haskell
+-- file that looks like:
+--
+-- @
+-- {-# LANGUAGE CPP #-}
+-- module SomeMod where
+--
+-- #define SIX 6
+--
+-- {-# INLINE foo
+--   #-}
+-- foo = 1
+-- @
+--
+-- Clang's CPP replaces the @#define SIX 6@ line with an empty line (as it
+-- should), but get confused about @#-}@. I'm guessing it /starts/ by
+-- parsing that as a pre-processor directive and, when it fails to, it just
+-- leaves the line alone. HOWEVER, it still adds an extra newline. =.=
+--
+-- This function makes sure that the Hyperlinker backend also adds that
+-- extra newline (or else our spans won't line up with GHC's anymore).
+needPragHack :: CompilerInfo -> DynFlags -> Bool
+needPragHack comp dflags = isCcClang && E.member Cpp (extensionFlags dflags)
+  where
+    isCcClang = case comp of
+      GCC -> False
+      Clang -> True
+      AppleClang -> True
+      AppleClang51 -> True
+      UnknownCC -> False
+
 -- | Get the input
 getInput :: P (StringBuffer, RealSrcLoc)
 getInput = P $ \p @ PState { buffer = buf, loc = srcLoc } -> POk p (buf, srcLoc)
@@ -111,6 +156,7 @@ getInput = P $ \p @ PState { buffer = buf, loc = srcLoc } -> POk p (buf, srcLoc)
 -- | Set the input
 setInput :: (StringBuffer, RealSrcLoc) -> P ()
 setInput (buf, srcLoc) = P $ \p -> POk (p { buffer = buf, loc = srcLoc }) ()
+
 
 -- | Orphan instance that adds backtracking to 'P'
 instance Alternative P where
