@@ -1003,9 +1003,9 @@ ppFunLhType  unicode ty = ppr_mono_ty (reparenTypePrec PREC_FUN ty) unicode
 
 ppLHsTypeArg :: Bool -> LHsTypeArg DocNameI -> LaTeX
 ppLHsTypeArg unicode (HsValArg ty) = ppLParendType unicode ty
-ppLHsTypeArg unicode (HsTypeArg ki) = atSign unicode <>
-                                     ppLParendType unicode ki
-ppLHsTypeArg _ (HsArgPar _) = text ""                                     
+ppLHsTypeArg unicode (HsTypeArg _ ki) = atSign unicode <>
+                                       ppLParendType unicode ki
+ppLHsTypeArg _ (HsArgPar _) = text ""
 
 ppHsTyVarBndr :: Bool -> HsTyVarBndr DocNameI -> LaTeX
 ppHsTyVarBndr _ (UserTyVar _ (L _ name)) = ppDocName name
