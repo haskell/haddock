@@ -1,4 +1,4 @@
-import {getCookie} from "./cookies";
+import {globalConfig, loadGlobalConfig, DefaultState} from "./preferences"
 
 interface HTMLDetailsElement extends HTMLElement {
   open: boolean
@@ -12,7 +12,7 @@ interface DetailsInfo {
 
 // Global state
 const detailsRegistry: { [id: string]: DetailsInfo } = {};
-const toggled: { [id: string]: true } = {}; /* stores which <details> are not in their default state */
+const collapsed: { [id: string]: boolean } = {}; /* stores which <details> are not in their default state */
 
 function lookupDetailsRegistry(id: string): DetailsInfo {
   const info = detailsRegistry[id];
@@ -31,12 +31,20 @@ function onDetailsToggle(ev: Event) {
       toggle.classList.remove(isOpen ? 'expander' : 'collapser');
     }
   }
-  if (element.open == info.openByDefault) {
-    delete toggled[id];
+  const openByDefault =
+    globalConfig.defaultInstanceState == DefaultState.None
+    ? info.openByDefault
+    : globalConfig.defaultInstanceState == DefaultState.Open;
+
+  if (element.open == openByDefault) {
+    delete collapsed[id];
   } else {
-    toggled[id] = true;
+    collapsed[id] = element.open;
   }
-  rememberToggled();
+
+  if (globalConfig.rememberToggles) {
+    rememberCollapsed();
+  }
 }
 
 function gatherDetailsElements() {
@@ -60,21 +68,33 @@ function toggleDetails(toggle: Element) {
   element.open = !element.open;
 }
 
-function rememberToggled() {
-  const sections: string[] = Object.keys(toggled);
-  // cookie specific to this page; don't use setCookie which sets path=/
-  document.cookie = "toggled=" + encodeURIComponent(sections.join('+'));
+function rememberCollapsed() {
+  localStorage.setItem('local:'+document.location.pathname, JSON.stringify(collapsed));
 }
 
 function restoreToggled() {
-  const cookie = getCookie("toggled");
-  if (!cookie) { return; }
-  const ids = cookie.split('+');
-  for (const id of ids) {
-    const info = detailsRegistry[id];
-    toggled[id] = true;
-    if (info) {
-      info.element.open = !info.element.open;
+  loadGlobalConfig();
+  switch (globalConfig.defaultInstanceState) {
+    case DefaultState.Closed: collapseAllInstances(); break;
+    case DefaultState.Open: expandAllInstances(); break;
+    default: break;
+  }
+  if (!globalConfig.rememberToggles) { return; }
+  const local = localStorage.getItem('local:'+document.location.pathname);
+  if (!local) { return; }
+  try {
+    const collapsed_ = JSON.parse(local);
+    for (const id of Object.keys(collapsed_)) {
+      const info = detailsRegistry[id];
+      collapsed[id] = collapsed_[id];
+      if (info) {
+        info.element.open = collapsed[id];
+      }
+    }
+  } catch(e) {
+    switch (e.constructor) {
+      case SyntaxError: localStorage.removeItem('local:'+document.location.pathname); return;
+      default: throw e;
     }
   }
 }

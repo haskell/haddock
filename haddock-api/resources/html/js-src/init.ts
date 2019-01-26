@@ -1,4 +1,5 @@
 import * as styleMenu from "./style-menu";
+import * as preferences from "./preferences";
 import * as detailsHelper from "./details-helper";
 import * as quickJump from "./quick-jump";
 
@@ -17,6 +18,7 @@ function onDomReady(callback: () => void) {
 onDomReady(() => {
   document.body.classList.add('js-enabled');
   styleMenu.init();
+  preferences.init();
   detailsHelper.init();
   quickJump.init();
 });
