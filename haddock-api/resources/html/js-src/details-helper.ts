@@ -99,17 +99,36 @@ function initCollapseToggles() {
   });
 }
 
-var allInstancesToggled = false;
+var allInstancesCollapsed = false;
 
-function toggleAllInstances() {
+// Collapse or expand all instances.
+function _collapseAllInstances(collapse: boolean) {
   const ilists = document.getElementsByClassName('subs instances');
   [].forEach.call(ilists, function (ilist : Element) {
-    const toggleType = allInstancesToggled ? 'collapser' : 'expander';
+    const toggleType = collapse ? 'collapser' : 'expander';
     const toggle = ilist.getElementsByClassName('instances ' + toggleType)[0];
-    toggleDetails(toggle);
+    if (toggle) {
+      toggleDetails(toggle);
+    }
   });
-  allInstancesToggled = !allInstancesToggled;
+  allInstancesCollapsed = collapse;
+  toggleAllTextNode.nodeValue =
+    collapse ? 'Expand all instances' : 'Collapse all instances';
 }
+
+function collapseAllInstances() {
+  _collapseAllInstances(true);
+}
+
+function expandAllInstances() {
+  _collapseAllInstances(false);
+}
+
+function toggleAllInstances() {
+  _collapseAllInstances(!allInstancesCollapsed);
+}
+
+const toggleAllTextNode = document.createTextNode('Collapse all instances');
 
 function addToggleAllButton() {
   // Heuristic to decide whether we're on a module page.
@@ -119,13 +138,13 @@ function addToggleAllButton() {
   const link = button.appendChild(document.createElement('a'));
   link.setAttribute('href', '#');
   link.addEventListener('click', toggleAllInstances);
-  link.appendChild(document.createTextNode('Toggle all instances'));
+  link.appendChild(toggleAllTextNode);
   pageMenu.insertBefore(button, pageMenu.firstChild);
 }
 
 export function init() {
   gatherDetailsElements();
-  restoreToggled();
   initCollapseToggles();
+  restoreToggled();
   addToggleAllButton();
 }
