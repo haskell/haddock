@@ -511,7 +511,7 @@ spanPosition !start !end !buf = go start buf
 --
 -- /O(n)/ (but /O(1)/ space)
 tryCppLine :: RealSrcLoc -> StringBuffer -> Maybe (ByteString, RealSrcLoc, StringBuffer)
-tryCppLine !loc !buf =  spanSpace (S.prevChar buf '\n' == '\n') loc buf
+tryCppLine !loc !buf = spanSpace (S.prevChar buf '\n' == '\n') loc buf
   where
 
   -- Keep consuming space characters until we hit either a @#@ or something

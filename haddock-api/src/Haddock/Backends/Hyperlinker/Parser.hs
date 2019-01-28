@@ -10,6 +10,7 @@ import qualified Data.ByteString.Char8 as BSC
 
 import GHC.LanguageExtensions.Type
 
+import BasicTypes          ( SourceText(..), IntegralLit(..) )
 import DynFlags
 import qualified EnumSet as E
 import ErrUtils            ( emptyMessages )
@@ -49,7 +50,7 @@ parse comp dflags fpath bs = case unP (go False []) initState of
                             (safeImportsOn dflags)
                             False -- lex Haddocks as comment tokens
                             True  -- produce comment tokens
-                            True  -- produce position pragmas tokens
+                            False -- produce position pragmas tokens
 
     go :: Bool        -- ^ are we currently in a pragma?
        -> [T.Token]   -- ^ tokens accumulated so far (in reverse)
@@ -87,22 +88,48 @@ parse comp dflags fpath bs = case unP (go False []) initState of
           let typ = if inPrag then TkPragma else classify tok
               RealSrcLoc lStart = srcSpanStart sp -- safe since @sp@ is real
               (spaceBStr, bStart) = spanPosition lInit lStart bInit
-              tokBStr = splitStringBuffer bStart bEnd
+              inPragDef = inPragma inPrag tok
+
+          (bEnd', inPrag') <- case tok of
+
+            -- Update internal line + file position if this is a LINE pragma
+            ITline_prag _ -> tryOrElse (bEnd, inPragDef) $ do
+              L _ (ITinteger (IL { il_value = line })) <- Lexer.lexer False return
+              L _ (ITstring _ file)                    <- Lexer.lexer False return
+              L (RealSrcSpan spF) ITclose_prag         <- Lexer.lexer False return
+
+              let newLoc = mkRealSrcLoc file (fromIntegral line - 1) (srcSpanEndCol spF)
+              (bEnd'', _) <- getInput
+              setInput (bEnd'', newLoc)
+
+              pure (bEnd'', False)
+
+            -- Update internal column position if this is a COLUMN pragma
+            ITcolumn_prag _ -> tryOrElse (bEnd, inPragDef) $ do
+              L _ (ITinteger (IL { il_value = col }))  <- Lexer.lexer False return
+              L (RealSrcSpan spF) ITclose_prag         <- Lexer.lexer False return
+
+              let newLoc = mkRealSrcLoc (srcSpanFile spF) (srcSpanEndLine spF) (fromIntegral col)
+              (bEnd'', _) <- getInput
+              setInput (bEnd'', newLoc)
+
+              pure (bEnd'', False)
+
+            -- See 'needPragHack'
+            ITclose_prag{}
+              | needPragHack'
+              , '\n' `BSC.elem` spaceBStr
+              -> getInput >>= \(b,p) -> setInput (b,advanceSrcLoc p '\n') >> pure (bEnd, False)
+
+            _ -> pure (bEnd, inPragDef)
+
+          let tokBStr = splitStringBuffer bStart bEnd'
               plainTok = T.Token { tkType = typ
                                  , tkValue = tokBStr
                                  , tkSpan = rsp }
               spaceTok = T.Token { tkType = TkSpace
                                  , tkValue = spaceBStr
                                  , tkSpan = mkRealSrcSpan lInit lStart }
-              inPrag' = inPragma inPrag tok
-
-          -- See 'needPragHack'
-          case tok of
-            ITclose_prag{}
-              | needPragHack'
-              , '\n' `BSC.elem` spaceBStr
-              -> getInput >>= \(b,p) -> setInput (b,advanceSrcLoc p '\n')
-            _ -> pure ()
 
           pure (plainTok : [ spaceTok | not (BS.null spaceBStr) ], inPrag')
 
@@ -163,6 +190,10 @@ instance Alternative P where
   empty = P $ \_ -> PFailed (const emptyMessages) noSrcSpan "Alterative.empty"
   P x <|> P y = P $ \s -> case x s of { p@POk{} -> p
                                       ; _ -> y s }
+
+-- | Try a parser. If it fails, backtrack and return the pure value.
+tryOrElse :: a -> P a -> P a
+tryOrElse x p = p <|> pure x
 
 -- | Classify given tokens as appropriate Haskell token type.
 classify :: Lexer.Token -> TokenType
