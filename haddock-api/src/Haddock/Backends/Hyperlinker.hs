@@ -15,7 +15,6 @@ import Haddock.Backends.Hyperlinker.Utils
 import Haddock.Backends.Xhtml.Utils ( renderToString )
 
 import Data.Maybe
-import Data.IORef     ( readIORef )
 import System.Directory
 import System.FilePath
 

@@ -10,7 +10,7 @@ import qualified Data.ByteString.Char8 as BSC
 
 import GHC.LanguageExtensions.Type
 
-import BasicTypes          ( SourceText(..), IntegralLit(..) )
+import BasicTypes          ( IntegralLit(..) )
 import DynFlags
 import qualified EnumSet as E
 import ErrUtils            ( emptyMessages )
@@ -64,6 +64,16 @@ parse comp dflags fpath bs = case unP (go False []) initState of
         else
           pure toks
 
+    -- | Like 'Lexer.lexer', but slower, with a better API, and filtering out empty tokens
+    wrappedLexer :: P (RealLocated Lexer.Token)
+    wrappedLexer = Lexer.lexer False andThen
+      where andThen (L (RealSrcSpan s) t)
+              | srcSpanStartLine s /= srcSpanEndLine s ||
+                srcSpanStartCol s /= srcSpanEndCol s
+              = pure (L s t)
+            andThen (L (RealSrcSpan s) ITeof) = pure (L s ITeof)
+            andThen _ = wrappedLexer
+
     -- | Try to parse a CPP line (can fail)
     parseCppLine :: P ([T.Token], Bool)
     parseCppLine = do
@@ -94,9 +104,9 @@ parse comp dflags fpath bs = case unP (go False []) initState of
 
             -- Update internal line + file position if this is a LINE pragma
             ITline_prag _ -> tryOrElse (bEnd, inPragDef) $ do
-              L _ (ITinteger (IL { il_value = line })) <- Lexer.lexer False return
-              L _ (ITstring _ file)                    <- Lexer.lexer False return
-              L (RealSrcSpan spF) ITclose_prag         <- Lexer.lexer False return
+              L _ (ITinteger (IL { il_value = line })) <- wrappedLexer
+              L _ (ITstring _ file)                    <- wrappedLexer
+              L spF ITclose_prag                       <- wrappedLexer
 
               let newLoc = mkRealSrcLoc file (fromIntegral line - 1) (srcSpanEndCol spF)
               (bEnd'', _) <- getInput
@@ -106,8 +116,8 @@ parse comp dflags fpath bs = case unP (go False []) initState of
 
             -- Update internal column position if this is a COLUMN pragma
             ITcolumn_prag _ -> tryOrElse (bEnd, inPragDef) $ do
-              L _ (ITinteger (IL { il_value = col }))  <- Lexer.lexer False return
-              L (RealSrcSpan spF) ITclose_prag         <- Lexer.lexer False return
+              L _ (ITinteger (IL { il_value = col }))  <- wrappedLexer
+              L spF ITclose_prag                       <- wrappedLexer
 
               let newLoc = mkRealSrcLoc (srcSpanFile spF) (srcSpanEndLine spF) (fromIntegral col)
               (bEnd'', _) <- getInput

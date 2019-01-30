@@ -9,6 +9,8 @@ module Haddock.Backends.Hyperlinker.Renderer (render) where
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
 
+import qualified Data.ByteString as BS
+
 import HieTypes
 import Module   ( ModuleName, moduleNameString )
 import Name     ( getOccString, isInternalName, Name, nameModule, nameUnique )
@@ -114,6 +116,7 @@ renderWithAst srcs Node{..} toks = anchored $ case toks of
 
 renderToken :: Token -> Html
 renderToken Token{..}
+    | BS.null tkValue = mempty
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
     | otherwise = tokenSpan ! [ multiclass style ]
   where
