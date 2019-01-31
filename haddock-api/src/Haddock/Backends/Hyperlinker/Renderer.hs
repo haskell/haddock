@@ -2,6 +2,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Haddock.Backends.Hyperlinker.Renderer (render) where
 
@@ -264,8 +265,8 @@ hyperlink (srcs, srcs') ident = case ident of
 
 
 renderSpace :: Int -> String -> Html
-renderSpace _ [] = Html.noHtml
-renderSpace line ('\n':rest) = mconcat
+renderSpace !_ "" = Html.noHtml
+renderSpace !line ('\n':rest) = mconcat
     [ Html.thespan (Html.toHtml '\n')
     , lineAnchor (line + 1)
     , renderSpace (line + 1) rest

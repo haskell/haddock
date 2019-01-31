@@ -14,13 +14,13 @@ module Haddock.Backends.Hyperlinker.Utils
     , recoverFullIfaceTypes
     ) where
 
+import Haddock.Utils
 import Haddock.Backends.Xhtml.Utils
 
-import FastString   ( nilFS )
 import GHC
 import HieTypes     ( HieAST(..), HieType(..), HieArgs(..), TypeIndex, HieTypeFlat )
 import IfaceType
-import Name         ( getOccFS, nameModule_maybe )
+import Name         ( getOccFS, getOccString )
 import Outputable   ( showSDoc )
 import Var          ( VarBndr(..) )
 
@@ -29,9 +29,11 @@ import System.FilePath.Posix ((</>), (<.>))
 import qualified Data.Array as A
 
 
+{-# INLINE hypSrcDir #-}
 hypSrcDir :: FilePath
 hypSrcDir = "src"
 
+{-# INLINE hypSrcModuleFile #-}
 hypSrcModuleFile :: Module -> FilePath
 hypSrcModuleFile m = moduleNameString (moduleName m) <.> "html"
 
@@ -45,20 +47,19 @@ hypSrcModuleUrl = hypSrcModuleFile
 hypSrcModuleUrl' :: ModuleName -> String
 hypSrcModuleUrl' = hypSrcModuleFile'
 
+{-# INLINE hypSrcNameUrl #-}
 hypSrcNameUrl :: Name -> String
-hypSrcNameUrl name = spliceURL
-    Nothing Nothing (Just name) Nothing nameFormat
+hypSrcNameUrl = escapeStr . getOccString
 
+{-# INLINE hypSrcLineUrl #-}
 hypSrcLineUrl :: Int -> String
-hypSrcLineUrl line = spliceURL
-    Nothing Nothing Nothing (Just spn) lineFormat
-  where
-    loc = mkSrcLoc nilFS line 1
-    spn = mkSrcSpan loc loc
+hypSrcLineUrl line = "line-" ++ show line
 
+{-# INLINE hypSrcModuleNameUrl #-}
 hypSrcModuleNameUrl :: Module -> Name -> String
 hypSrcModuleNameUrl mdl name = hypSrcModuleUrl mdl ++ "#" ++ hypSrcNameUrl name
 
+{-# INLINE hypSrcModuleLineUrl #-}
 hypSrcModuleLineUrl :: Module -> Int -> String
 hypSrcModuleLineUrl mdl line = hypSrcModuleUrl mdl ++ "#" ++ hypSrcLineUrl line
 
