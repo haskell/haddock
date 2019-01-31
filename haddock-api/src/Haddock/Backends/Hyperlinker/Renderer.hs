@@ -134,7 +134,7 @@ richToken srcs details Token{..}
     tkValue' = filterCRLF $ utf8DecodeByteString tkValue
     content = tokenSpan ! [ multiclass style ]
     tokenSpan = Html.thespan (Html.toHtml tkValue')
-    style = tokenStyle tkType ++ concatMap richTokenStyle contexts
+    style = tokenStyle tkType ++ concatMap (richTokenStyle (null (nodeType details))) contexts
 
     contexts = concatMap (Set.elems . identInfo) . Map.elems . nodeIdentifiers $ details
 
@@ -171,18 +171,21 @@ annotate  ni content =
     printName :: Either ModuleName Name -> String
     printName = either moduleNameString getOccString
 
-
-richTokenStyle :: ContextInfo -> [StyleClass]
-richTokenStyle Use = ["hs-var"]
-richTokenStyle IEThing{} = ["hs-var"]
-richTokenStyle TyDecl = ["hs-var"]
-richTokenStyle ValBind{} = ["hs-var"]
-richTokenStyle PatternBind{} = ["hs-var"]
-richTokenStyle ClassTyDecl{} = ["hs-var"]
-richTokenStyle RecField{} = ["hs-var"]
-richTokenStyle Decl{} = ["hs-type"]
-richTokenStyle TyVarBind{} = ["hs-type"]
-richTokenStyle _ = []
+richTokenStyle
+  :: Bool         -- ^ are we lacking a type annotation?
+  -> ContextInfo  -- ^ in what context did this token show up?
+  -> [StyleClass]
+richTokenStyle True  Use           = ["hs-type"]
+richTokenStyle False Use           = ["hs-var"]
+richTokenStyle  _    RecField{}    = ["hs-var"]
+richTokenStyle  _    PatternBind{} = ["hs-var"]
+richTokenStyle  _    MatchBind{}   = ["hs-var"]
+richTokenStyle  _    TyVarBind{}   = ["hs-type"]
+richTokenStyle  _    ValBind{}     = ["hs-var"]
+richTokenStyle  _    TyDecl        = ["hs-type"]
+richTokenStyle  _    ClassTyDecl{} = ["hs-type"]
+richTokenStyle  _    Decl{}        = ["hs-var"]
+richTokenStyle  _    IEThing{}     = []  -- could be either a value or type
 
 tokenStyle :: TokenType -> [StyleClass]
 tokenStyle TkIdentifier = ["hs-identifier"]
