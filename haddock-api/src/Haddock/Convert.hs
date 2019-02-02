@@ -239,7 +239,7 @@ synifyTyCon coax tc
   -- That seems like an acceptable compromise (they'll just be documented
   -- in prefix position), since, otherwise, the logic (at best) gets much more
   -- complicated. (would use dataConIsInfix.)
-  use_gadt_syntax = any (not . isVanillaDataCon) (tyConDataCons tc)
+  use_gadt_syntax = isGadtSyntaxTyCon tc
   consRaw = map (synifyDataCon use_gadt_syntax) (tyConDataCons tc)
   cons = rights consRaw
   -- "deriving" doesn't affect the signature, no need to specify any.
@@ -307,7 +307,8 @@ synifyDataCon use_gadt_syntax dc =
   use_named_field_syntax = not (null field_tys)
   name = synifyName dc
   -- con_qvars means a different thing depending on gadt-syntax
-  (univ_tvs, ex_tvs, _eq_spec, theta, arg_tys, res_ty) = dataConFullSig dc
+  (_univ_tvs, ex_tvs, _eq_spec, theta, arg_tys, res_ty) = dataConFullSig dc
+  user_tvs = dataConUserTyVars dc -- Used for GADT data constructors
 
   -- skip any EqTheta, use 'orig'inal syntax
   ctx = synifyCtx theta
@@ -338,8 +339,8 @@ synifyDataCon use_gadt_syntax dc =
            then return $ noLoc $
               ConDeclGADT { con_g_ext  = noExt
                           , con_names  = [name]
-                          , con_forall = noLoc True
-                          , con_qvars  = synifyTyVars (univ_tvs ++ ex_tvs)
+                          , con_forall = noLoc $ not (null user_tvs)
+                          , con_qvars  = synifyTyVars user_tvs
                           , con_mb_cxt = Just ctx
                           , con_args   =  hat
                           , con_res_ty = synifyType WithinType res_ty
