@@ -94,7 +94,6 @@ test-suite fixtures
   main-is:          Fixtures.hs
   ghc-options:      -Wall
   hs-source-dirs:   fixtures
-  buildable:        False
   build-depends:
       -- intra-package dependency
     , haddock-library
