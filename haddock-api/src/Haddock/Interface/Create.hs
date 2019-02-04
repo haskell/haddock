@@ -61,11 +61,12 @@ import PrelNames  ( dATA_TUPLE, pRELUDE, gHC_PRIM, gHC_TYPES )
 -- To do this, we need access to already processed modules in the topological
 -- sort. That's what's in the 'IfaceMap'.
 createInterface :: ModIface
+                -> ModLocation
                 -> [Flag]       -- Boolean flags
                 -> IfaceMap     -- Locally processed modules
                 -> InstIfaceMap -- External, already installed interfaces
                 -> ErrMsgGhc Interface
-createInterface mod_iface flags modMap instIfaceMap = do
+createInterface mod_iface mod_loc flags modMap instIfaceMap = do
   dflags <- getDynFlags
 
   let mdl            = mi_module mod_iface
@@ -189,7 +190,8 @@ createInterface mod_iface flags modMap instIfaceMap = do
   , ifaceRnOrphanInstances = []
   , ifaceHaddockCoverage   = coverage
   , ifaceWarningMap        = warningMap
-  , ifaceTokenizedSrc      = Nothing -- TODO: Get this from the extended .hie-files.
+  , ifaceHieFile           = Just $ ml_hie_file mod_loc 
+  , ifaceDynFlags          = dflags
   }
   where
     -- Note [Exporting built-in items]

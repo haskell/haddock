@@ -21,7 +21,7 @@ module Haddock.Convert (
 
 import Bag ( emptyBag )
 import BasicTypes ( TupleSort(..), SourceText(..), LexicalFixity(..)
-                  , DefMethSpec(..), PromotionFlag(..) )
+                  , PromotionFlag(..), DefMethSpec(..) )
 import Class
 import CoAxiom
 import ConLike
@@ -92,7 +92,7 @@ tyThingToLHsDecl prr t = case t of
              { feqn_ext = noExt
              , feqn_tycon = fdLName fd
              , feqn_bndrs  = Nothing
-                 -- this must change eventually
+                 -- TODO: this must change eventually
              , feqn_pats = fdTyVars fd
              , feqn_fixity = fdFixity fd
              , feqn_rhs = synifyType WithinType [] rhs }
@@ -156,8 +156,9 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
     in HsIB { hsib_ext = map tyVarName tkvs
             , hsib_body   = FamEqn { feqn_ext    = noExt
                                    , feqn_tycon  = name
-                                   , feqn_pats   = map HsValArg annot_typats
                                    , feqn_bndrs  = Nothing
+                                       -- TODO: this must change eventually
+                                   , feqn_pats   = map HsValArg annot_typats
                                    , feqn_fixity = synifyFixity name
                                    , feqn_rhs    = hs_rhs } }
   where
