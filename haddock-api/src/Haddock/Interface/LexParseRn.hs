@@ -22,6 +22,7 @@ module Haddock.Interface.LexParseRn
 import Avail
 import Control.Arrow
 import Control.Monad
+import Data.Functor (($>))
 import Data.List
 import Data.Ord
 import Documentation.Haddock.Doc (metaDocConcat)
@@ -98,7 +99,7 @@ rename dflags gre = rn
       DocIdentifier x -> do
         -- Generate the choices for the possible kind of thing this
         -- is.
-        let choices = dataTcOccs x
+        let choices = dataTcOccs (unwrap x)
 
         -- Lookup any GlobalRdrElts that match the choices.
         case concatMap (\c -> lookupGRE_RdrName c gre) choices of
@@ -106,7 +107,7 @@ rename dflags gre = rn
           [] ->
             case choices of
               -- This shouldn't happen as 'dataTcOccs' always returns at least its input.
-              [] -> pure (DocMonospaced (DocString (showPpr dflags x)))
+              [] -> pure (DocMonospaced (DocString (foldString (showPpr dflags) x)))
 
               -- There was nothing in the environment so we need to
               -- pick some default from what's available to us. We
@@ -116,11 +117,11 @@ rename dflags gre = rn
               -- type constructor names (such as in #253). So now we
               -- only get type constructor links if they are actually
               -- in scope.
-              a:_ -> outOfScope dflags a
+              a:_ -> outOfScope dflags (x $> a)
 
           -- There is only one name in the environment that matches so
           -- use it.
-          [a] -> pure (DocIdentifier (gre_name a))
+          [a] -> pure (DocIdentifier (x $> gre_name a))
 
           -- There are multiple names available.
           gres -> ambiguous dflags x gres
@@ -155,19 +156,20 @@ rename dflags gre = rn
 -- users shouldn't rely on this doing the right thing. See tickets
 -- #253 and #375 on the confusion this causes depending on which
 -- default we pick in 'rename'.
-outOfScope :: DynFlags -> RdrName -> ErrMsgM (Doc a)
+outOfScope :: DynFlags -> Wrap RdrName -> ErrMsgM (Doc a)
 outOfScope dflags x =
-  case x of
-    Unqual occ -> warnAndMonospace occ
-    Qual mdl occ -> pure (DocIdentifierUnchecked (mdl, occ))
-    Orig _ occ -> warnAndMonospace occ
-    Exact name -> warnAndMonospace name  -- Shouldn't happen since x is out of scope
+  case unwrap x of
+    Unqual occ -> warnAndMonospace (x $> occ)
+    Qual mdl occ -> pure (DocIdentifierUnchecked (x $> (mdl, occ)))
+    Orig _ occ -> warnAndMonospace (x $> occ)
+    Exact name -> warnAndMonospace (x $> name)  -- Shouldn't happen since x is out of scope
   where
     warnAndMonospace a = do
-      tell ["Warning: '" ++ showPpr dflags a ++ "' is out of scope.\n" ++
+      let a' = foldString (showPpr dflags) a
+      tell ["Warning: '" ++ a' ++ "' is out of scope.\n" ++
             "    If you qualify the identifier, haddock can try to link it anyway."]
-      pure (monospaced a)
-    monospaced a = DocMonospaced (DocString (showPpr dflags a))
+      pure (monospaced a')
+    monospaced = DocMonospaced . DocString
 
 -- | Handle ambiguous identifiers.
 --
@@ -175,7 +177,7 @@ outOfScope dflags x =
 --
 -- Emits a warning if the 'GlobalRdrElts's don't belong to the same type or class.
 ambiguous :: DynFlags
-          -> RdrName
+          -> Wrap RdrName
           -> [GlobalRdrElt] -- ^ More than one @gre@s sharing the same `RdrName` above.
           -> ErrMsgM (Doc Name)
 ambiguous dflags x gres = do
@@ -192,9 +194,9 @@ ambiguous dflags x gres = do
   -- For example, for @data D = C | D@, someone may want to reference the @D@
   -- constructor.
   when (length noChildren > 1) $ tell [msg]
-  pure (DocIdentifier dflt)
+  pure (DocIdentifier (x $> dflt))
   where
     isLocalName (nameSrcLoc -> RealSrcLoc {}) = True
     isLocalName _ = False
-    x_str = '\'' : showPpr dflags x ++ "'"
+    x_str = "'" ++ foldString (showPpr dflags) x ++ "'"
     defnLoc = showSDoc dflags . pprNameDefnLoc

@@ -13,7 +13,8 @@
 module Haddock.Backends.Xhtml.Names (
   ppName, ppDocName, ppLDocName, ppRdrName, ppUncheckedLink,
   ppBinder, ppBinderInfix, ppBinder',
-  ppModule, ppModuleRef, ppIPName, linkId, Notation(..)
+  ppModule, ppModuleRef, ppIPName, linkId, Notation(..),
+  ppWrappedDocName, ppWrappedName,
 ) where
 
 
@@ -25,6 +26,7 @@ import Haddock.Utils
 import Text.XHtml hiding ( name, p, quote )
 import qualified Data.Map as M
 import qualified Data.List as List
+import Data.String
 
 import GHC hiding (LexicalFixity(..))
 import Name
@@ -49,13 +51,17 @@ ppIPName :: HsIPName -> Html
 ppIPName = toHtml . ('?':) . unpackFS . hsIPNameFS
 
 
-ppUncheckedLink :: Qualification -> (ModuleName, OccName) -> Html
-ppUncheckedLink _ (mdl, occ) = linkIdOcc' mdl (Just occ) << ppOccName occ -- TODO: apply ppQualifyName
+ppUncheckedLink :: Qualification -> Wrap (ModuleName, OccName) -> Html
+ppUncheckedLink _ x = linkIdOcc' mdl (Just occ) << foldString (\_ -> ppOccName occ) x -- TODO: apply ppQualifyName
+  where (mdl, occ) = unwrap x
 
+instance IsString Html where
+  fromString = toHtml
 
 -- The Bool indicates if it is to be rendered in infix notation
 ppLDocName :: Qualification -> Notation -> Located DocName -> Html
 ppLDocName qual notation (L _ d) = ppDocName qual notation True d
+
 
 ppDocName :: Qualification -> Notation -> Bool -> DocName -> Html
 ppDocName qual notation insertAnchors docName =
@@ -67,6 +73,19 @@ ppDocName qual notation insertAnchors docName =
       | isExternalName name || isWiredInName name ->
           ppQualifyName qual notation name (nameModule name)
       | otherwise -> ppName notation name
+
+
+ppWrappedDocName :: Qualification -> Notation -> Bool -> Wrap DocName -> Html
+ppWrappedDocName qual notation insertAnchors docName = case docName of
+  Parenthesized n -> ppDocName qual Prefix insertAnchors n
+  Backticked n -> ppDocName qual Infix insertAnchors n
+  Unadorned n -> ppDocName qual notation insertAnchors n
+
+ppWrappedName :: Notation -> Wrap Name -> Html
+ppWrappedName notation docName = case docName of
+  Parenthesized n -> ppName Prefix n
+  Backticked n -> ppName Infix n
+  Unadorned n -> ppName notation n
 
 -- | Render a name depending on the selected qualification mode
 ppQualifyName :: Qualification -> Notation -> Name -> Module -> Html

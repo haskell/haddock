@@ -701,3 +701,28 @@ instance Binary DocName where
         name <- get bh
         return (Undocumented name)
       _ -> error "get DocName: Bad h"
+
+instance Binary n => Binary (Wrap n) where
+  put_ bh (Parenthesized n) = do
+    putByte bh 0
+    put_ bh n
+  put_ bh (Backticked n) = do
+    putByte bh 1
+    put_ bh n
+  put_ bh (Unadorned n) = do
+    putByte bh 2
+    put_ bh n
+
+  get bh = do
+    h <- getByte bh
+    case h of
+      0 -> do
+        name <- get bh
+        return (Parenthesized name)
+      1 -> do
+        name <- get bh
+        return (Backticked name)
+      2 -> do
+        name <- get bh
+        return (Unadorned name)
+      _ -> error "get DocName: Bad h"

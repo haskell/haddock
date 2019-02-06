@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -39,6 +40,8 @@ import Data.Char
 import Control.Monad
 import Data.Maybe
 import Data.List
+import qualified Data.Semigroup as S
+import Data.String
 import Prelude hiding ((<>))
 
 import Haddock.Doc (combineDocumentation)
@@ -1115,13 +1118,12 @@ ppIPName = text . ('?':) . unpackFS . hsIPNameFS
 ppOccName :: OccName -> LaTeX
 ppOccName = text . occNameString
 
+ppVerbDocName :: Wrap DocName -> LaTeX
+ppVerbDocName = foldString (ppVerbOccName . nameOccName . getName)
 
-ppVerbDocName :: DocName -> LaTeX
-ppVerbDocName = ppVerbOccName . nameOccName . getName
 
-
-ppVerbRdrName :: RdrName -> LaTeX
-ppVerbRdrName = ppVerbOccName . rdrNameOcc
+ppVerbRdrName :: Wrap RdrName -> LaTeX
+ppVerbRdrName = foldString (ppVerbOccName . rdrNameOcc)
 
 
 ppDocName :: DocName -> LaTeX
@@ -1182,7 +1184,7 @@ parLatexMarkup ppId = Markup {
   markupString               = \s v -> text (fixString v s),
   markupAppend               = \l r v -> l v <> r v,
   markupIdentifier           = markupId ppId,
-  markupIdentifierUnchecked  = markupId (ppVerbOccName . snd),
+  markupIdentifierUnchecked  = markupId (foldString (ppVerbOccName . snd)),
   markupModule               = \m _ -> let (mdl,_ref) = break (=='#') m in tt (text mdl),
   markupWarning              = \p v -> emph (p v),
   markupEmphasis             = \p v -> emph (p v),
@@ -1239,11 +1241,11 @@ parLatexMarkup ppId = Markup {
       where theid = ppId_ id
 
 
-latexMarkup :: DocMarkup DocName (StringContext -> LaTeX)
+latexMarkup :: DocMarkup (Wrap DocName) (StringContext -> LaTeX)
 latexMarkup = parLatexMarkup ppVerbDocName
 
 
-rdrLatexMarkup :: DocMarkup RdrName (StringContext -> LaTeX)
+rdrLatexMarkup :: DocMarkup (Wrap RdrName) (StringContext -> LaTeX)
 rdrLatexMarkup = parLatexMarkup ppVerbRdrName
 
 
@@ -1363,3 +1365,8 @@ keyword = text
 infixr 4 <->  -- combining table cells
 (<->) :: LaTeX -> LaTeX -> LaTeX
 a <-> b = a <+> char '&' <+> b
+
+instance IsString LaTeX where
+  fromString = text
+instance S.Semigroup LaTeX where
+  x <> y = x <> y

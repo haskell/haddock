@@ -34,6 +34,7 @@ import Control.Monad (ap)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Typeable (Typeable)
 import Data.Map (Map)
+import Data.String (IsString(..))
 import Data.Data (Data)
 import Documentation.Haddock.Types
 import BasicTypes (Fixity(..), PromotionFlag(..))
@@ -42,7 +43,7 @@ import GHC
 import DynFlags (Language)
 import qualified GHC.LanguageExtensions as LangExt
 import OccName
-import Outputable
+import Outputable hiding ((<>))
 
 -----------------------------------------------------------------------------
 -- * Convenient synonyms
@@ -329,6 +330,44 @@ instance SetName DocName where
     setName name' (Undocumented _) = Undocumented name'
 
 
+data Wrap n = Parenthesized n
+            | Backticked n
+            | Unadorned n
+            deriving (Show, Functor, Foldable, Traversable)
+
+instance NamedThing n => NamedThing (Wrap n) where
+  getName (Parenthesized name) = getName name
+  getName (Backticked name) = getName name
+  getName (Unadorned name) = getName name
+
+-- | Useful for debugging
+instance Outputable n => Outputable (Wrap n) where
+  ppr = ppr . unwrap
+
+instance OutputableBndr n => OutputableBndr (Wrap n) where
+  pprBndr b = pprBndr b . unwrap
+  pprPrefixOcc = pprPrefixOcc . unwrap
+  pprInfixOcc = pprInfixOcc . unwrap
+
+instance SetName n => SetName (Wrap n) where
+  setName name (Parenthesized n) = Parenthesized (setName name n)
+  setName name (Backticked n)    = Backticked (setName name n)
+  setName name (Unadorned n)     = Unadorned (setName name n)
+
+instance Show RdrName where
+  show = showSDocUnsafe . ppr
+
+unwrap :: Wrap n -> n
+unwrap (Parenthesized n) = n
+unwrap (Backticked n) = n
+unwrap (Unadorned n) = n
+
+foldString :: (IsString s, Semigroup s) => (n -> s) -> Wrap n -> s
+foldString f (Parenthesized n) = fromString "(" <> f n <> fromString ")"
+foldString f (Backticked n) = fromString "`" <> f n <> fromString "`"
+foldString f (Unadorned n) = f n
+
+
 
 -----------------------------------------------------------------------------
 -- * Instances
@@ -423,10 +462,10 @@ instance NamedThing name => NamedThing (InstOrigin name) where
 
 type LDoc id = Located (Doc id)
 
-type Doc id = DocH (ModuleName, OccName) id
-type MDoc id = MetaDoc (ModuleName, OccName) id
+type Doc id = DocH (Wrap (ModuleName, OccName)) (Wrap id)
+type MDoc id = MetaDoc (Wrap (ModuleName, OccName)) (Wrap id)
 
-type DocMarkup id a = DocMarkupH (ModuleName, OccName) id a
+type DocMarkup id a = DocMarkupH (Wrap (ModuleName, OccName)) id a
 
 instance (NFData a, NFData mod)
          => NFData (DocH mod a) where
