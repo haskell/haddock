@@ -28,7 +28,6 @@ import ConLike
 import Data.Either (lefts, rights)
 import DataCon
 import FamInstEnv
-import FV
 import HsSyn
 import Name
 import NameSet ( emptyNameSet )
@@ -45,8 +44,7 @@ import TysWiredIn ( eqTyConName, listTyConName, liftedTypeKindTyConName
 import PrelNames ( hasKey, eqTyConKey, ipClassKey, tYPETyConKey
                  , liftedRepDataConKey )
 import Unique ( getUnique )
-import Util ( chkAppend, compareLength, dropList, filterByList, filterOut
-            , splitAtList )
+import Util ( chkAppend,dropList, filterByList, filterOut, splitAtList )
 import Var
 import VarSet
 
@@ -353,7 +351,8 @@ synifyDataCon use_gadt_syntax dc =
   use_named_field_syntax = not (null field_tys)
   name = synifyName dc
   -- con_qvars means a different thing depending on gadt-syntax
-  (univ_tvs, ex_tvs, _eq_spec, theta, arg_tys, res_ty) = dataConFullSig dc
+  (_univ_tvs, ex_tvs, _eq_spec, theta, arg_tys, res_ty) = dataConFullSig dc
+  user_tvs = dataConUserTyVars dc -- Used for GADT data constructors
 
   -- skip any EqTheta, use 'orig'inal syntax
   ctx | null theta = Nothing
@@ -385,8 +384,8 @@ synifyDataCon use_gadt_syntax dc =
            then return $ noLoc $
               ConDeclGADT { con_g_ext  = noExt
                           , con_names  = [name]
-                          , con_forall = noLoc False
-                          , con_qvars  = synifyTyVars (univ_tvs ++ ex_tvs)
+                          , con_forall = noLoc $ not $ null user_tvs
+                          , con_qvars  = synifyTyVars user_tvs
                           , con_mb_cxt = ctx
                           , con_args   = hat
                           , con_res_ty = synifyType WithinType [] res_ty
@@ -538,7 +537,7 @@ synifyType _ vs (TyConApp tc tys)
       = noLoc (HsTyVar noExt NotPromoted (noLoc liftedTypeKindTyConName))
       -- Use non-prefix tuple syntax where possible, because it looks nicer.
       | Just sort <- tyConTuple_maybe tc
-      , tyConArity tc == length tys
+      , tyConArity tc == tys_len
       = noLoc $ HsTupleTy noExt
                           (case sort of
                               BoxedTuple      -> HsBoxedTuple
@@ -595,31 +594,16 @@ synifyType _ vs (TyConApp tc tys)
                 (map (synifyType WithinType vs) $
                  filterOut isCoercionTy ty_args)
 
-    vis_tys  = filterOutInvisibleTypes tc tys
-    binders  = tyConBinders tc
-    res_kind = tyConResKind tc
+    tys_len = length tys
+    vis_tys = filterOutInvisibleTypes tc tys
 
     maybe_sig :: LHsType GhcRn -> LHsType GhcRn
     maybe_sig ty'
-      | needs_kind_sig
+      | tyConAppNeedsKindSig False tc tys_len
       = let full_kind  = typeKind (mkTyConApp tc tys)
             full_kind' = synifyType WithinType vs full_kind
         in noLoc $ HsKindSig noExt ty' full_kind'
       | otherwise = ty'
-
-    needs_kind_sig :: Bool
-    needs_kind_sig
-      | GT <- compareLength tys binders
-      = False
-      | otherwise
-      = let (dropped_binders, remaining_binders)
-                  = splitAtList  tys binders
-            result_kind  = mkTyConKind remaining_binders res_kind
-            result_vars  = tyCoVarsOfType result_kind
-            dropped_vars = fvVarSet $
-                           mapUnionFV injectiveVarsOfBinder dropped_binders
-
-        in not (subVarSet result_vars dropped_vars)
 
 synifyType s vs (AppTy t1 (CoercionTy {})) = synifyType s vs t1
 synifyType _ vs (AppTy t1 t2) = let
