@@ -2,15 +2,15 @@ import preact = require("preact");
 
 const { h, Component } = preact;
 
-export enum DefaultState { None, Closed, Open }
+enum DefaultState { None, Closed, Open }
 
-export interface GlobalConfig {
+interface GlobalConfig {
   defaultInstanceState: DefaultState
   rememberToggles: boolean
 }
 
 // Hackage domain-wide config
-export const globalConfig: GlobalConfig = {
+const globalConfig: GlobalConfig = {
   defaultInstanceState: DefaultState.None,
   rememberToggles: true,
 };
@@ -29,7 +29,7 @@ function addPreferencesButton(action: () => void) {
   const pageMenu = document.querySelector('#page-menu') as HTMLUListElement;
   const dummy = document.createElement('li');
   pageMenu.insertBefore(dummy, pageMenu.firstChild);
-  preact.render(<PreferencesButton onClick={action} title="Preferences" />, pageMenu, dummy);
+  preact.render(<PreferencesButton onClick={action} title="⋮Instances" />, pageMenu, dummy);
 }
 
 type PreferencesProps = {
@@ -43,7 +43,7 @@ type PreferencesState = {
 
 class Preferences extends Component<PreferencesProps, PreferencesState> {
   componentWillMount() {
-    document.addEventListener('mousedown', this.hide.bind(this));
+    document.addEventListener('onclick', this.toggleVisibility.bind(this));
   }
 
   hide() {
@@ -85,7 +85,7 @@ function rememberGlobalConfig() {
 
 var globalConfigLoaded: boolean = false;
 
-export function loadGlobalConfig() {
+function loadGlobalConfig() {
   if (globalConfigLoaded) { return; }
   globalConfigLoaded = true;
   const global = localStorage.getItem('global');
@@ -115,52 +115,77 @@ function setRememberToggles(e: Event) {
   rememberGlobalConfig();
 }
 
+// Click event consumer for "default expand" instance menu check box.
+function defaultExpandOnClick(e: Event) {
+  const us = document.getElementById('default-expand-instances') as HTMLInputElement;
+  const them = document.getElementById('default-collapse-instances') as HTMLInputElement;
+  if (us !== null && them !== null) {
+    if (us.checked) {
+      them.checked = false;
+      setDefaultInstanceState(DefaultState.Open)(e);
+    } else {
+      setDefaultInstanceState(DefaultState.None)(e);
+    }
+  }
+}
+
+// Click event consumer for "default collapse" instance menu check box.
+function defaultCollapseOnClick(e: Event) {
+  const us = document.getElementById('default-collapse-instances') as HTMLInputElement;
+  const them = document.getElementById('default-expand-instances') as HTMLInputElement;
+  if (us !== null && them !== null) {
+    if (us.checked) {
+      them.checked = false;
+      setDefaultInstanceState(DefaultState.Closed)(e);
+    } else {
+      setDefaultInstanceState(DefaultState.None)(e);
+    }
+  }
+}
+
+// Instances menu.
 function PreferencesMenu() {
   loadGlobalConfig();
   return <div>
-      <h1>Preferences</h1>
       <div>
-        <span>Default state for instance lists:</span>
-        <input type="radio"
-               name="default-instance-state"
-               id="default-default-instances"
-               checked={globalConfig.defaultInstanceState===DefaultState.None}
-               onClick={setDefaultInstanceState(DefaultState.None)}></input>
-        <label for="default-default-instances">Default</label>
-        <input type="radio"
+        <button type="button"
+                onClick={expandAllInstances}>
+        Expand All Instances
+        </button>
+      </div>
+      <div>
+        <button type="button"
+                onClick={collapseAllInstances}>
+        Collapse All Instances
+        </button>
+      </div>
+      <div>
+        <input type="checkbox"
                id="default-collapse-instances"
                name="default-instance-state"
                checked={globalConfig.defaultInstanceState===DefaultState.Closed}
-               onClick={setDefaultInstanceState(DefaultState.Closed)}></input>
-        <label for="default-collapse-instances">Collapse</label>
-        <input type="radio"
+               onClick={defaultCollapseOnClick}></input>
+
+        <span>Collapse All Instances By Default</span>
+      </div>
+      <div>
+        <input type="checkbox"
                id="default-expand-instances"
                name="default-instance-state"
                checked={globalConfig.defaultInstanceState===DefaultState.Open}
-               onClick={setDefaultInstanceState(DefaultState.Open)}></input>
-        <label for="default-expand-instances">Expand</label>
+               onClick={defaultExpandOnClick}></input>
+        <span>Expand All Instances By Default</span>
       </div>
       <div>
-        <label for="remember-toggles">Remember toggled instances</label>
         <input type="checkbox"
                id="remember-toggles"
                name="remember-toggles"
                checked={globalConfig.rememberToggles}
                onClick={setRememberToggles}></input>
+        <label for="remember-toggles">Remember Manually Collapsed/Expanded Instances</label>
       </div>
     </div>;
 }
-
-export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
-  preact.render(
-    <Preferences baseUrl={docBaseUrl || "."} showHideTrigger={showHide || addPreferencesButton} />,
-    document.body
-  );
-}
-
-// export to global object
-(window as any).quickNav = { init: init };
-
 
 interface HTMLDetailsElement extends HTMLElement {
   open: boolean
@@ -294,8 +319,6 @@ function _collapseAllInstances(collapse: boolean) {
     }
   });
   allInstancesCollapsed = collapse;
-  toggleAllTextNode.nodeValue =
-    collapse ? 'Expand all instances' : 'Collapse all instances';
 }
 
 function collapseAllInstances() {
@@ -310,23 +333,12 @@ function toggleAllInstances() {
   _collapseAllInstances(!allInstancesCollapsed);
 }
 
-const toggleAllTextNode = document.createTextNode('Collapse all instances');
-
-function addToggleAllButton() {
-  // Heuristic to decide whether we're on a module page.
-  if (document.getElementById('module-header') === null) { return; }
-  const pageMenu = document.querySelector('#page-menu') as HTMLUListElement;
-  const button = document.createElement('li')
-  const link = button.appendChild(document.createElement('a'));
-  link.setAttribute('href', '#');
-  link.addEventListener('click', toggleAllInstances);
-  link.appendChild(toggleAllTextNode);
-  pageMenu.insertBefore(button, pageMenu.firstChild);
-}
-
-export function init() {
+export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
   gatherDetailsElements();
   initCollapseToggles();
   restoreToggled();
-  addToggleAllButton();
+  preact.render(
+    <Preferences baseUrl={docBaseUrl || "."} showHideTrigger={showHide || addPreferencesButton} />,
+    document.body
+  );
 }
