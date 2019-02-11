@@ -71,8 +71,8 @@ class Preferences extends Component<PreferencesProps, PreferencesState> {
   render(props: PreferencesProps, state: PreferencesState) {
     const stopPropagation = (e: Event) => { e.stopPropagation(); };
 
-    return <div id="search" class={state.isVisible ? '' : 'hidden'}>
-        <div id="search-results" onMouseDown={stopPropagation}>
+    return <div id="preferences" class={state.isVisible ? '' : 'hidden'}>
+        <div id="preferences-menu" class="dropdown-menu" onMouseDown={stopPropagation}>
           <PreferencesMenu />
         </div>
       </div>;

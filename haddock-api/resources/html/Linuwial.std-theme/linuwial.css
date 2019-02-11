@@ -896,3 +896,29 @@ div#style-menu-holder {
 }
 
 /* @end */
+
+/* @group Dropdown menus */
+
+.dropdown-menu * {
+  color: #5E5184;
+}
+
+.dropdown-menu button {
+  border: 1px #5E5184 solid;
+  border-radius: 3px;
+  background: #5E5184;
+  padding: 3px;
+  color: #f4f4f4;
+}
+
+.dropdown-menu button:hover {
+  color: #5E5184;
+  background: #f4f4f4;
+}
+
+.dropdown-menu button:active {
+  color: #f4f4f4;
+  background: #5E5184;
+}
+
+/* @end */

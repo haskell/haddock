@@ -1,3 +1,11 @@
+/* @group Fundamentals */
+
+.hidden {
+  display: none;
+}
+
+/* @end */
+
 /* @group Search box layout */
 
 #search {
@@ -9,10 +17,6 @@
   z-index: 1000;
   pointer-events: none;
   overflow-y: auto;
-}
-
-#search.hidden {
-  display: none;
 }
 
 #search-form, #search-results {
@@ -159,6 +163,27 @@
   border: 1px solid #74a3d6;
   padding: 0 0.2em;
   margin: 0 0.1em;
+}
+
+/* @end */
+
+/* @group Dropdown menus */
+
+/* Based on #search styling above. */
+
+.dropdown-menu {
+  position: fixed;
+  /* Not robust to window size changes. */
+  top: 3.2em;
+  right: 0;
+  /* To display on top of synopsis menu on right side. */
+  z-index: 1000;
+  border: 0.05em solid #b2d5fb;
+  background: #e8f3ff;
+}
+
+.dropdown-menu * {
+  margin: 0.1em;
 }
 
 /* @end */
