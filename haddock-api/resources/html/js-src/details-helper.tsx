@@ -2,7 +2,7 @@ import preact = require("preact");
 
 const { h, Component } = preact;
 
-enum DefaultState { None, Closed, Open }
+enum DefaultState { Closed, Open }
 
 interface GlobalConfig {
   defaultInstanceState: DefaultState
@@ -11,7 +11,7 @@ interface GlobalConfig {
 
 // Hackage domain-wide config
 const globalConfig: GlobalConfig = {
-  defaultInstanceState: DefaultState.None,
+  defaultInstanceState: DefaultState.Open,
   rememberToggles: true,
 };
 
@@ -115,30 +115,14 @@ function setRememberToggles(e: Event) {
   rememberGlobalConfig();
 }
 
-// Click event consumer for "default expand" instance menu check box.
-function defaultExpandOnClick(e: Event) {
-  const us = document.getElementById('default-expand-instances') as HTMLInputElement;
-  const them = document.getElementById('default-collapse-instances') as HTMLInputElement;
-  if (us !== null && them !== null) {
-    if (us.checked) {
-      them.checked = false;
-      setDefaultInstanceState(DefaultState.Open)(e);
-    } else {
-      setDefaultInstanceState(DefaultState.None)(e);
-    }
-  }
-}
-
 // Click event consumer for "default collapse" instance menu check box.
 function defaultCollapseOnClick(e: Event) {
   const us = document.getElementById('default-collapse-instances') as HTMLInputElement;
-  const them = document.getElementById('default-expand-instances') as HTMLInputElement;
-  if (us !== null && them !== null) {
+  if (us !== null) {
     if (us.checked) {
-      them.checked = false;
       setDefaultInstanceState(DefaultState.Closed)(e);
     } else {
-      setDefaultInstanceState(DefaultState.None)(e);
+      setDefaultInstanceState(DefaultState.Open)(e);
     }
   }
 }
@@ -167,14 +151,6 @@ function PreferencesMenu() {
                onClick={defaultCollapseOnClick}></input>
 
         <span>Collapse All Instances By Default</span>
-      </div>
-      <div>
-        <input type="checkbox"
-               id="default-expand-instances"
-               name="default-instance-state"
-               checked={globalConfig.defaultInstanceState===DefaultState.Open}
-               onClick={defaultExpandOnClick}></input>
-        <span>Expand All Instances By Default</span>
       </div>
       <div>
         <input type="checkbox"
@@ -219,9 +195,7 @@ function onDetailsToggle(ev: Event) {
     }
   }
   const openByDefault =
-    globalConfig.defaultInstanceState == DefaultState.None
-    ? info.openByDefault
-    : globalConfig.defaultInstanceState == DefaultState.Open;
+    globalConfig.defaultInstanceState == DefaultState.Open;
 
   if (element.open == openByDefault) {
     delete collapsed[id];
@@ -327,10 +301,6 @@ function collapseAllInstances() {
 
 function expandAllInstances() {
   _collapseAllInstances(false);
-}
-
-function toggleAllInstances() {
-  _collapseAllInstances(!allInstancesCollapsed);
 }
 
 export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
