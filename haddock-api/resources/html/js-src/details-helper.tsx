@@ -30,6 +30,12 @@
 //   expands all instance lists on the current page to be in the
 //   global default state.
 //
+// * changing boolean option for remembering which specific instance
+//   lists are not in the default state erases any existing record of
+//   which instances are not in the default state across all pages,
+//   and updates the record for the current page when the option is
+//   set to true. No collapsing or expanding is done.
+//
 // * toggling the collapse/expand state of a specific instance list
 //   causes the state of that specific instance list to be recorded in
 //   the persisted configuration iff the new state of that specific
@@ -134,7 +140,11 @@ class Preferences extends Component<PreferencesProps, PreferencesState> {
 }
 
 function storeGlobalConfig() {
-  localStorage.setItem('global', JSON.stringify(globalConfig));
+  const json = JSON.stringify(globalConfig);
+  try {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Storage/setItem#Exceptions.
+    localStorage.setItem('global', json);
+  } catch (e) {}
 }
 
 var globalConfigLoaded: boolean = false;
@@ -149,9 +159,11 @@ function loadGlobalConfig() {
     globalConfig.defaultInstanceState = globalConfig_.defaultInstanceState;
     globalConfig.rememberToggles = globalConfig_.rememberToggles;
   } catch(e) {
-    switch (e.constructor) {
-      case SyntaxError: localStorage.removeItem('global'); break;
-      default: throw e;
+    // Gracefully handle errors related to changed config format.
+    if (e instanceof SyntaxError || e instanceof TypeError) {
+      localStorage.removeItem('global');
+    } else {
+      throw e;
     }
   }
 }
@@ -161,6 +173,7 @@ function setDefaultInstanceState(s: DefaultState) {
     globalConfig.defaultInstanceState = s;
     putInstanceListsInDefaultState();
     storeGlobalConfig();
+    clearLocalStorage();
     storeLocalConfig();
   }
 }
@@ -169,6 +182,7 @@ function setRememberToggles(e: Event) {
   const checked: boolean = (e as any).target.checked;
   globalConfig.rememberToggles = checked;
   storeGlobalConfig();
+  clearLocalStorage();
   storeLocalConfig();
 }
 
@@ -297,11 +311,39 @@ function toggleDetails(toggle: Element) {
   element.open = !element.open;
 }
 
+// Prefix for local keys used with local storage. Idea is that other
+// modules could also use local storage with a different prefix and we
+// wouldn't step on each other's toes.
+//
+// NOTE: we're using the browser's "local storage" API via the
+// 'localStorage' object to store both "local" (to the current Haddock
+// page) and "global" (across all Haddock pages) configuration. Be
+// aware of these two different uses of the term "local".
+const localStoragePrefix: string = "local-details-config:";
+
+// Local storage key for the current page.
+function localStorageKey(): string {
+  return localStoragePrefix + document.location.pathname;
+}
+
+// Clear all local storage related to instance list configs.
+function clearLocalStorage() {
+  const keysToDelete: string[] = [];
+  for (var i = 0; i < localStorage.length; ++i) {
+    const key = localStorage.key(i);
+    if (key !== null && key.startsWith(localStoragePrefix)) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach(key => {
+    localStorage.removeItem(key);
+  });
+}
+
 // Compute and save the set of instance list ids that aren't in the
 // default state.
 function storeLocalConfig() {
-  // TODO: only compute if "rememberToggles" is set. Otherwise, just
-  // erase any existing setting.
+  if (!globalConfig.rememberToggles) return;
   const instanceListToggles: HTMLElement[] =
     // Restrict to 'details-toggle' elements for "instances"
     // *plural*. These are the toggles that control instance lists and
@@ -316,8 +358,12 @@ function storeLocalConfig() {
       nonDefaultInstanceListIds.push(id);
     }
   });
-  localStorage.setItem('local:'+document.location.pathname,
-                       JSON.stringify(nonDefaultInstanceListIds));
+
+  const json = JSON.stringify(nonDefaultInstanceListIds);
+  try {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Storage/setItem#Exceptions.
+    localStorage.setItem(localStorageKey(), json);
+  } catch (e) {}
 }
 
 function putInstanceListsInDefaultState() {
@@ -334,7 +380,7 @@ function restoreToggled() {
   loadGlobalConfig();
   putInstanceListsInDefaultState();
   if (!globalConfig.rememberToggles) { return; }
-  const local = localStorage.getItem('local:'+document.location.pathname);
+  const local = localStorage.getItem(localStorageKey());
   if (!local) { return; }
   try {
     const nonDefaultInstanceListIds: string[] = JSON.parse(local);
@@ -343,9 +389,11 @@ function restoreToggled() {
       info.element.open = ! getDefaultOpenSetting();
     });
   } catch(e) {
-    switch (e.constructor) {
-      case SyntaxError: localStorage.removeItem('local:'+document.location.pathname); return;
-      default: throw e;
+    // Gracefully handle errors related to changed config format.
+    if (e instanceof SyntaxError || e instanceof TypeError) {
+      localStorage.removeItem(localStorageKey());
+    } else {
+      throw e;
     }
   }
 }
