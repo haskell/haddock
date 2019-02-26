@@ -281,11 +281,18 @@ function gatherDetailsElements() {
   }
 }
 
+// Return the id of the <details> element that the given 'toggle'
+// element toggles.
+function getDataDetailsId(toggle: Element): string {
+  const id = toggle.getAttribute('data-details-id');
+  if (!id) { throw new Error("element with class " + toggle + " has no 'data-details-id' attribute!"); }
+  return id;
+}
+
 // Toggle the "open" state of a <details> element when that element's
 // toggle element is clicked.
 function toggleDetails(toggle: Element) {
-  const id = toggle.getAttribute('data-details-id');
-  if (!id) { throw new Error("element with class 'details-toggle' has no 'data-details-id' attribute!"); }
+  const id = getDataDetailsId(toggle);
   const {element} = lookupDetailsRegistry(id);
   element.open = !element.open;
 }
@@ -303,8 +310,7 @@ function storeLocalConfig() {
       'instances details-toggle details-toggle-control'));
   const nonDefaultInstanceListIds: string[] = [];
   instanceListToggles.forEach(toggle => {
-    const id = toggle.getAttribute('data-details-id');
-    if (!id) { throw new Error("element with class 'details-toggle' has no 'data-details-id' attribute!"); }
+    const id = getDataDetailsId(toggle);
     const details = document.getElementById(id) as HTMLDetailsElement;
     if (details.open != getDefaultOpenSetting()) {
       nonDefaultInstanceListIds.push(id);
@@ -362,8 +368,7 @@ function onToggleClick(ev: MouseEvent) {
 function initCollapseToggles() {
   const toggles: HTMLElement[] = Array.prototype.slice.call(document.getElementsByClassName('details-toggle'));
   toggles.forEach(toggle => {
-    const id = toggle.getAttribute('data-details-id');
-    if (!id) { throw new Error("element with class 'details-toggle' has no 'data-details-id' attribute!"); }
+    const id = getDataDetailsId(toggle);
     const info = lookupDetailsRegistry(id);
     info.toggles.push(toggle);
     toggle.addEventListener('click', onToggleClick);
