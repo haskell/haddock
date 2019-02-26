@@ -1,3 +1,57 @@
+// This file implements the UI and logic for collapsing and expanding
+// instance lists ("details").
+//
+// A configuration ('GlobalConfig') controlled by the UI is persisted
+// in local storage in the user's browser. The configuration includes:
+//
+// * a global default state ('defaultInstanceState') for all instance
+//   lists. The possible values for the global default are "collapsed"
+//   and "expanded".
+//
+// * a global boolean option ('rememberToggles') to remember which
+//   specific instance lists are not in the default state (e.g. which
+//   instance lists are expanded when the default is "collapsed").
+//
+// * a local / per-page record of which specific instance lists are
+//   not in the default state, when the global option
+//   ('rememberToggles') to remember this info is enabled.
+//
+// The UI consists of an Instances menu with buttons for expanding and
+// collapsing all instance lists in the current module, a checkbox for
+// setting the global default state, and a checkbox to enable
+// remembering which instance lists are not in the global default
+// state. Also, each instance list on each module page has buttons for
+// collapsing and expanding.
+//
+// The logic of the UI is as follows:
+//
+// * setting the global default state erases any record of which
+//   specific instances are in the non-default state, and collapses or
+//   expands all instance lists on the current page to be in the
+//   global default state.
+//
+// * toggling the collapse/expand state of a specific instance list
+//   causes the state of that specific instance list to be recorded in
+//   the persisted configuration iff the new state of that specific
+//   instance list is different from the global default state, and the
+//   option to remember instance list states is enabled. There are two
+//   ways to toggle the collapse/expand state of a specific instance,
+//   by clicking its collapse/expand button, and by clicking the
+//   "collapse all" or "expand all" button in the Instances menu.
+//
+// This file also implements an association between elements (with
+// class "details-toggle" and "details-toggle-control") that can be
+// clicked to expand/collapse <details> elements, and the details
+// elements themselves. Note that this covers both <details> elements
+// that list instances -- what the above explained UI and logic is
+// concerned with -- and details about individual instances themselves
+// -- which the above is not concerend with. The association includes
+// adding event listeners that change CSS classes back and forth
+// between "expander" and "collapser"; these classes determine whether
+// an element is adorned with a right arrow ("expander") or a down
+// arrow ("collapser"). I don't understand why we don't directly use
+// the the HTML <summary> element type to allow the <details> elements
+// to be directly clickable.
 import preact = require("preact");
 
 const { h, Component } = preact;
@@ -79,7 +133,7 @@ class Preferences extends Component<PreferencesProps, PreferencesState> {
   }
 }
 
-function rememberGlobalConfig() {
+function storeGlobalConfig() {
   localStorage.setItem('global', JSON.stringify(globalConfig));
 }
 
@@ -105,14 +159,17 @@ function loadGlobalConfig() {
 function setDefaultInstanceState(s: DefaultState) {
   return (e: Event) => {
     globalConfig.defaultInstanceState = s;
-    rememberGlobalConfig();
+    putInstanceListsInDefaultState();
+    storeGlobalConfig();
+    storeLocalConfig();
   }
 }
 
 function setRememberToggles(e: Event) {
   const checked: boolean = (e as any).target.checked;
   globalConfig.rememberToggles = checked;
-  rememberGlobalConfig();
+  storeGlobalConfig();
+  storeLocalConfig();
 }
 
 // Click event consumer for "default collapse" instance menu check box.
@@ -169,13 +226,14 @@ interface HTMLDetailsElement extends HTMLElement {
 
 interface DetailsInfo {
   element: HTMLDetailsElement
-  openByDefault: boolean
+  // Here 'toggles' is the list of all elements of class
+  // 'details-toggle-control' that control toggling 'element'. I
+  // believe this list is always length zero or one.
   toggles: HTMLElement[]
 }
 
-// Global state
+// Mapping from <details> elements to their info.
 const detailsRegistry: { [id: string]: DetailsInfo } = {};
-const collapsed: { [id: string]: boolean } = {}; /* stores which <details> are not in their default state */
 
 function lookupDetailsRegistry(id: string): DetailsInfo {
   const info = detailsRegistry[id];
@@ -183,28 +241,30 @@ function lookupDetailsRegistry(id: string): DetailsInfo {
   return info;
 }
 
-function onDetailsToggle(ev: Event) {
+// Return true iff instance lists are open by default.
+function getDefaultOpenSetting(): boolean {
+  return globalConfig.defaultInstanceState == DefaultState.Open;
+}
+
+// Event handler for "toggle" events, which are triggered when a
+// <details> element's "open" property changes.  We don't deal with
+// any config stuff here, because we only change configs in response
+// to mouse clicks. In contrast, for example, this event is triggred
+// automatically once for every <details> element when the user clicks
+// the "collapse all elements" button.
+function onToggleEvent(ev: Event) {
   const element = ev.target as HTMLDetailsElement;
   const id = element.id;
   const info = lookupDetailsRegistry(id);
   const isOpen = info.element.open;
+  // Update the CSS of the toggle element users can click on to toggle
+  // 'element'. The "collapser" and "expander" classes control what
+  // kind of arrow appears next to the 'toggle' element.
   for (const toggle of info.toggles) {
     if (toggle.classList.contains('details-toggle-control')) {
       toggle.classList.add(isOpen ? 'collapser' : 'expander');
       toggle.classList.remove(isOpen ? 'expander' : 'collapser');
     }
-  }
-  const openByDefault =
-    globalConfig.defaultInstanceState == DefaultState.Open;
-
-  if (element.open == openByDefault) {
-    delete collapsed[id];
-  } else {
-    collapsed[id] = element.open;
-  }
-
-  if (globalConfig.rememberToggles) {
-    rememberCollapsed();
   }
 }
 
@@ -214,14 +274,15 @@ function gatherDetailsElements() {
     if (typeof el.id == "string" && el.id.length > 0) {
       detailsRegistry[el.id] = {
         element: el,
-        openByDefault: !!el.open,
-        toggles: [] // added later
+        toggles: [] // Populated later by 'initCollapseToggles'.
       };
-      el.addEventListener('toggle', onDetailsToggle);
+      el.addEventListener('toggle', onToggleEvent);
     }
   }
 }
 
+// Toggle the "open" state of a <details> element when that element's
+// toggle element is clicked.
 function toggleDetails(toggle: Element) {
   const id = toggle.getAttribute('data-details-id');
   if (!id) { throw new Error("element with class 'details-toggle' has no 'data-details-id' attribute!"); }
@@ -229,29 +290,52 @@ function toggleDetails(toggle: Element) {
   element.open = !element.open;
 }
 
-function rememberCollapsed() {
-  localStorage.setItem('local:'+document.location.pathname, JSON.stringify(collapsed));
+// Compute and save the set of instance list ids that aren't in the
+// default state.
+function storeLocalConfig() {
+  // TODO: only compute if "rememberToggles" is set. Otherwise, just
+  // erase any existing setting.
+  const instanceListToggles: HTMLElement[] =
+    // Restrict to 'details-toggle' elements for "instances"
+    // *plural*. These are the toggles that control instance lists and
+    // not the list of methods for individual instances.
+    Array.prototype.slice.call(document.getElementsByClassName(
+      'instances details-toggle details-toggle-control'));
+  const nonDefaultInstanceListIds: string[] = [];
+  instanceListToggles.forEach(toggle => {
+    const id = toggle.getAttribute('data-details-id');
+    if (!id) { throw new Error("element with class 'details-toggle' has no 'data-details-id' attribute!"); }
+    const details = document.getElementById(id) as HTMLDetailsElement;
+    if (details.open != getDefaultOpenSetting()) {
+      nonDefaultInstanceListIds.push(id);
+    }
+  });
+  localStorage.setItem('local:'+document.location.pathname,
+                       JSON.stringify(nonDefaultInstanceListIds));
 }
 
-function restoreToggled() {
-  loadGlobalConfig();
+function putInstanceListsInDefaultState() {
   switch (globalConfig.defaultInstanceState) {
-    case DefaultState.Closed: collapseAllInstances(); break;
-    case DefaultState.Open: expandAllInstances(); break;
+    case DefaultState.Closed: _collapseAllInstances(true); break;
+    case DefaultState.Open: _collapseAllInstances(false); break;
     default: break;
   }
+}
+
+// Expand and collapse instance lists according to global and local
+// config.
+function restoreToggled() {
+  loadGlobalConfig();
+  putInstanceListsInDefaultState();
   if (!globalConfig.rememberToggles) { return; }
   const local = localStorage.getItem('local:'+document.location.pathname);
   if (!local) { return; }
   try {
-    const collapsed_ = JSON.parse(local);
-    for (const id of Object.keys(collapsed_)) {
-      const info = detailsRegistry[id];
-      collapsed[id] = collapsed_[id];
-      if (info) {
-        info.element.open = collapsed[id];
-      }
-    }
+    const nonDefaultInstanceListIds: string[] = JSON.parse(local);
+    nonDefaultInstanceListIds.forEach(id => {
+      const info = lookupDetailsRegistry(id);
+      info.element.open = ! getDefaultOpenSetting();
+    });
   } catch(e) {
     switch (e.constructor) {
       case SyntaxError: localStorage.removeItem('local:'+document.location.pathname); return;
@@ -260,12 +344,21 @@ function restoreToggled() {
   }
 }
 
+// Handler for clicking on the "toggle" element that toggles the
+// <details> element with id given by the 'data-details-id' property
+// of the "toggle" element.
 function onToggleClick(ev: MouseEvent) {
   ev.preventDefault();
   const toggle = ev.currentTarget as HTMLElement;
   toggleDetails(toggle);
+  storeLocalConfig();
 }
 
+// Set event handlers on elements responsible for expanding and
+// collapsing <details> elements.
+//
+// This applies to all 'details-toggle's, not just to to top-level
+// 'details-toggle's that control instance lists.
 function initCollapseToggles() {
   const toggles: HTMLElement[] = Array.prototype.slice.call(document.getElementsByClassName('details-toggle'));
   toggles.forEach(toggle => {
@@ -280,8 +373,6 @@ function initCollapseToggles() {
   });
 }
 
-var allInstancesCollapsed = false;
-
 // Collapse or expand all instances.
 function _collapseAllInstances(collapse: boolean) {
   const ilists = document.getElementsByClassName('subs instances');
@@ -292,15 +383,16 @@ function _collapseAllInstances(collapse: boolean) {
       toggleDetails(toggle);
     }
   });
-  allInstancesCollapsed = collapse;
 }
 
 function collapseAllInstances() {
   _collapseAllInstances(true);
+  storeLocalConfig();
 }
 
 function expandAllInstances() {
   _collapseAllInstances(false);
+  storeLocalConfig();
 }
 
 export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
