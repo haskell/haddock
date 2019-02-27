@@ -89,11 +89,10 @@ function addPreferencesButton(action: () => void) {
   const pageMenu = document.querySelector('#page-menu') as HTMLUListElement;
   const dummy = document.createElement('li');
   pageMenu.insertBefore(dummy, pageMenu.firstChild);
-  preact.render(<PreferencesButton onClick={action} title="⋮Instances" />, pageMenu, dummy);
+  preact.render(<PreferencesButton onClick={action} title="Instances" />, pageMenu, dummy);
 }
 
 type PreferencesProps = {
-  baseUrl: string
   showHideTrigger: (action: () => void) => void
 }
 
@@ -103,7 +102,15 @@ type PreferencesState = {
 
 class Preferences extends Component<PreferencesProps, PreferencesState> {
   componentWillMount() {
-    document.addEventListener('onclick', this.toggleVisibility.bind(this));
+    document.addEventListener('mousedown', this.hide.bind(this));
+
+    document.addEventListener('keydown', (e) => {
+      if (this.state.isVisible) {
+        if (e.key === 'Escape') {
+          this.hide();
+        }
+      }
+    })
   }
 
   hide() {
@@ -207,8 +214,6 @@ function PreferencesMenu() {
                 onClick={expandAllInstances}>
         Expand All Instances
         </button>
-      </div>
-      <div>
         <button type="button"
                 onClick={collapseAllInstances}>
         Collapse All Instances
@@ -448,12 +453,12 @@ function expandAllInstances() {
   storeLocalConfig();
 }
 
-export function init(docBaseUrl?: string, showHide?: (action: () => void) => void) {
+export function init(showHide?: (action: () => void) => void) {
   gatherDetailsElements();
   initCollapseToggles();
   restoreToggled();
   preact.render(
-    <Preferences baseUrl={docBaseUrl || "."} showHideTrigger={showHide || addPreferencesButton} />,
+    <Preferences showHideTrigger={showHide || addPreferencesButton} />,
     document.body
   );
 }

@@ -468,42 +468,10 @@ table.info {
   text-align: right;
 }
 
-div#style-menu-holder {
-  position: relative;
-  z-index: 2;
-  display: inline;
-}
-
-#style-menu {
-  position: absolute;
-  z-index: 1;
-  overflow: visible;
-  background: #374c5e;
-  margin: 0;
-  text-align: center;
-  right: 0;
-  padding: 0;
-  top: 1.25em;
-}
-
 #style-menu li {
-	display: inline-block;
+	display: block;
 	border-style: none;
-	margin: 0;
-	padding: 0;
-	color: #000;
 	list-style-type: none;
-	border-top: 1px solid #919191
-}
-
-#style-menu li + li {
-	border-left: 1px solid #919191;
-}
-
-#style-menu a {
-  width: 6em;
-  padding: 3px;
-  display: block;
 }
 
 #footer {
@@ -899,26 +867,9 @@ div#style-menu-holder {
 
 /* @group Dropdown menus */
 
-.dropdown-menu * {
-  color: #5E5184;
-}
-
-.dropdown-menu button {
-  border: 1px #5E5184 solid;
-  border-radius: 3px;
-  background: #5E5184;
-  padding: 3px;
-  color: #f4f4f4;
-}
-
-.dropdown-menu button:hover {
-  color: #5E5184;
-  background: #f4f4f4;
-}
-
-.dropdown-menu button:active {
-  color: #f4f4f4;
-  background: #5E5184;
+#preferences-menu, #style-menu {
+  width: 25em;
+  overflow-y: auto;
 }
 
 /* @end */
