@@ -19,6 +19,12 @@
   overflow-y: auto;
 }
 
+@media only screen and (max-width: 999px) {
+  #search {
+    top: 5.7em;
+  }
+}
+
 #search-form, #search-results {
   box-shadow: 2px 2px 6px rgb(199, 204, 208);
   pointer-events: all;
@@ -180,6 +186,12 @@
   z-index: 1000;
   border: 0.05em solid #b2d5fb;
   background: #e8f3ff;
+}
+
+@media only screen and (max-width: 999px) {
+  .dropdown-menu {
+    top: 5.7em;
+  }
 }
 
 .dropdown-menu * {
