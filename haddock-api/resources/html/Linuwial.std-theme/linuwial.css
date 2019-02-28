@@ -11,7 +11,7 @@ html {
 
 body {
   background: #fefefe;
-  color: #333;
+  color: #111;
   text-align: left;
   min-height: 100vh;
   position: relative;
@@ -388,7 +388,7 @@ summary {
 pre {
   padding: 0.5rem 1rem;
   margin: 1em 0 0 0;
-  background-color: #f7f7f7;
+  background-color: #eee;
   overflow: auto;
 }
 
@@ -408,7 +408,7 @@ blockquote {
 }
 
 .src {
-  background: #f4f4f4;
+  background: #eee;
   padding: 0.2em 0.5em;
 }
 
@@ -533,7 +533,7 @@ div#style-menu-holder {
 }
 
 #contents-list {
-  background:  #f7f7f7;
+  background:  #eee;
   padding: 1em;
   margin: 0;
 }
