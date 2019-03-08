@@ -43,18 +43,16 @@ import Haddock.Types
 import Haddock.Utils
 
 import Control.Monad
+import Control.Exception (evaluate)
 import Data.List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Distribution.Verbosity
-import System.Directory
-import System.FilePath
 import System.Exit
 import Text.Printf
 
 import Digraph
 import DynFlags hiding (verbosity)
-import Exception
 import GHC hiding (verbosity)
 import GhcMake
 import HscTypes
@@ -91,7 +89,7 @@ processModules verbosity modules flags extIfaces = do
   out verbosity verbose "Creating interfaces..."
   let instIfaceMap =  Map.fromList [ (instMod iface, iface) | ext <- extIfaces
                                    , iface <- ifInstalledIfaces ext ]
-  interfaces <- createIfaces0 verbosity modules flags instIfaceMap
+  interfaces <- createIfaces verbosity modules flags instIfaceMap
 
   let exportedNames =
         Set.unions $ map (Set.fromList . ifaceExports) $
@@ -124,51 +122,22 @@ processModules verbosity modules flags extIfaces = do
 --------------------------------------------------------------------------------
 
 
-createIfaces0 :: Verbosity -> [String] -> [Flag] -> InstIfaceMap -> Ghc [Interface]
-createIfaces0 verbosity modules flags instIfaceMap =
-  -- Output dir needs to be set before calling depanal since depanal uses it to
-  -- compute output file names that are stored in the DynFlags of the
-  -- resulting ModSummaries.
-  (if useTempDir then withTempOutputDir else id) $ do
-    modGraph <- depAnalysis
-    createIfaces verbosity flags instIfaceMap modGraph
-
-  where
-    useTempDir :: Bool
-    useTempDir = Flag_NoTmpCompDir `notElem` flags
-
-
-    withTempOutputDir :: Ghc a -> Ghc a
-    withTempOutputDir action = do
-      tmp <- liftIO getTemporaryDirectory
-      x   <- liftIO getProcessID
-      let dir = tmp </> ".haddock-" ++ show x
-      -- Why do we change the output dir here?
-      -- In any case mustn't set the hiDir to some path where we won't find the
-      -- .hi-files we need.
-      modifySessionDynFlags (\dflags0 -> (setOutputDir dir dflags0) { hiDir = hiDir dflags0 } )
-      withTempDir dir action
-
-
-    depAnalysis :: Ghc ModuleGraph
-    depAnalysis = do
-      targets <- mapM (\f -> guessTarget f Nothing) modules
-      setTargets targets
-      depanal [] False
-
-
-createIfaces :: Verbosity -> [Flag] -> InstIfaceMap -> ModuleGraph -> Ghc [Interface]
-createIfaces verbosity flags instIfaceMap mods = do
+createIfaces :: Verbosity -> [String] -> [Flag] -> InstIfaceMap -> Ghc [Interface]
+createIfaces verbosity modules flags instIfaceMap = do
+  -- Ask GHC to tell us what the module graph is
+  targets <- mapM (\filePath -> guessTarget filePath Nothing) modules
+  setTargets targets
+  modGraph <- depanal [] False
 
   -- Create (if necessary) and load .hi-files.
   success <- withTiming getDynFlags "load'" (const ()) $ do
-               load' LoadAllTargets Nothing mods
+               load' LoadAllTargets Nothing modGraph
   when (failed success) $ do
     out verbosity normal "load' failed"
     liftIO exitFailure
 
-  let sortedMods = flattenSCCs $ topSortModuleGraph False mods Nothing
-
+  -- Visit modules in that order
+  let sortedMods = flattenSCCs $ topSortModuleGraph False modGraph Nothing
   out verbosity normal "Haddock coverage:"
   (ifaces, _) <- foldM f ([], Map.empty) sortedMods
   return (reverse ifaces)
@@ -193,11 +162,12 @@ processModule verbosity modsum flags modMap instIfaceMap = do
       loadSysInterface (text "processModule 1")
                        (ms_mod modsum)
 
+  let mod_loc = ms_location modsum
   if not $ isBootSummary modsum then do
     out verbosity verbose "Creating interface..."
     (interface, msgs) <- {-# SCC createIterface #-}
                         withTiming getDynFlags "createInterface" (const ()) $
-                          runWriterGhc $ createInterface mod_iface flags modMap instIfaceMap
+                          runWriterGhc $ createInterface mod_iface mod_loc flags modMap instIfaceMap
 
     liftIO $ mapM_ putStrLn (nub msgs)
     dflags <- getDynFlags
@@ -264,12 +234,3 @@ buildHomeLinks ifaces = foldl upd Map.empty (reverse ifaces)
         keep_old env n = Map.insertWith (\_ old -> old) n mdl env
         keep_new env n = Map.insert n mdl env
 
-
---------------------------------------------------------------------------------
--- * Utils
---------------------------------------------------------------------------------
-
-
-withTempDir :: (ExceptionMonad m) => FilePath -> m a -> m a
-withTempDir dir = gbracket_ (liftIO $ createDirectory dir)
-                            (liftIO $ removeDirectoryRecursive dir)

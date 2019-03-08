@@ -46,7 +46,7 @@ library
                , Cabal           ^>= 2.4.0
                , ghc             ^>= 8.7
                , ghc-paths       ^>= 0.1.0.9
-               , haddock-library ^>= 1.7.0
+               , haddock-library ^>= 1.8.0
                , xhtml           ^>= 3000.2.2
 
   -- Versions for the dependencies below are transitively pinned by
@@ -59,6 +59,7 @@ library
                , directory
                , filepath
                , ghc-boot
+               , ghc-boot-th
                , transformers
 
   hs-source-dirs: src
@@ -97,7 +98,6 @@ library
     Haddock.Backends.HaddockDB
     Haddock.Backends.Hoogle
     Haddock.Backends.Hyperlinker
-    Haddock.Backends.Hyperlinker.Ast
     Haddock.Backends.Hyperlinker.Parser
     Haddock.Backends.Hyperlinker.Renderer
     Haddock.Backends.Hyperlinker.Types
@@ -130,7 +130,6 @@ test-suite spec
     Haddock
     Haddock.Backends.Hoogle
     Haddock.Backends.Hyperlinker
-    Haddock.Backends.Hyperlinker.Ast
     Haddock.Backends.Hyperlinker.Renderer
     Haddock.Backends.Hyperlinker.Utils
     Haddock.Backends.LaTeX
@@ -171,7 +170,7 @@ test-suite spec
   build-depends: Cabal           ^>= 2.4
                , ghc             ^>= 8.7
                , ghc-paths       ^>= 0.1.0.9
-               , haddock-library ^>= 1.7.0
+               , haddock-library ^>= 1.8.0
                , xhtml           ^>= 3000.2.2
                , hspec           >= 2.4.4 && < 2.6
                , QuickCheck      ^>= 2.11
@@ -187,6 +186,7 @@ test-suite spec
                , directory
                , filepath
                , ghc-boot
+               , ghc-boot-th
                , transformers
 
   build-tool-depends:

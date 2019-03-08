@@ -31,23 +31,21 @@ module Haddock.Types (
 import Control.Exception
 import Control.Arrow hiding ((<+>))
 import Control.DeepSeq
-import Data.Typeable
+import Control.Monad (ap)
+import Control.Monad.IO.Class (MonadIO(..))
+import Data.Typeable (Typeable)
 import Data.Map (Map)
 import Data.Data (Data)
-import qualified Data.Map as Map
-import Documentation.Haddock.Parser
-import Documentation.Haddock.Types
 import BasicTypes (Fixity(..), PromotionFlag(..))
 
-import GHC hiding (NoLink)
+import GHC
 import DynFlags (Language, HasDynFlags(..))
 import qualified GHC.LanguageExtensions as LangExt
 import OccName
 import Outputable
-import Control.Monad (ap)
-import Control.Monad.IO.Class
 
-import Haddock.Backends.Hyperlinker.Types
+import Documentation.Haddock.Types
+import Documentation.Haddock.Parser
 
 -----------------------------------------------------------------------------
 -- * Convenient synonyms
@@ -136,7 +134,8 @@ data Interface = Interface
 
     -- | Tokenized source code of module (avaliable if Haddock is invoked with
     -- source generation flag).
-  , ifaceTokenizedSrc :: !(Maybe [RichToken])
+  , ifaceHieFile :: !(Maybe FilePath)
+  , ifaceDynFlags :: !DynFlags
   }
 
 type WarningMap = Map Name (Doc Name)
@@ -267,7 +266,7 @@ type DocForDecl name = (Documentation name, FnArgsDoc name)
 
 
 noDocForDecl :: DocForDecl name
-noDocForDecl = (Documentation Nothing Nothing, Map.empty)
+noDocForDecl = (Documentation Nothing Nothing, mempty)
 
 
 -----------------------------------------------------------------------------

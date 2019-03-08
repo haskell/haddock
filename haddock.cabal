@@ -64,7 +64,8 @@ executable haddock
 
   -- haddock typically only supports a single GHC major version 
   build-depends:
-    base ^>= 4.12.0
+    -- FIXME: drop 4.12.0.0 once GHC HEAD updates to 4.13.0.0
+    base ^>= 4.12.0.0 || ^>= 4.13.0.0
 
   if flag(in-ghc-tree)
     hs-source-dirs: haddock-api/src,  haddock-library/src
@@ -78,6 +79,7 @@ executable haddock
       xhtml >= 3000.2 && < 3000.3,
       Cabal >= 1.10,
       ghc-boot,
+      ghc-boot-th,
       ghc == 8.7.*,
       bytestring,
       parsec,
@@ -89,7 +91,6 @@ executable haddock
       Documentation.Haddock.Parser.Monad
       Documentation.Haddock.Types
       Documentation.Haddock.Doc
-      Documentation.Haddock.Utf8
       Documentation.Haddock.Parser.Util
       Documentation.Haddock.Markup
 
@@ -119,7 +120,6 @@ executable haddock
       Haddock.Backends.HaddockDB
       Haddock.Backends.Hoogle
       Haddock.Backends.Hyperlinker
-      Haddock.Backends.Hyperlinker.Ast
       Haddock.Backends.Hyperlinker.Parser
       Haddock.Backends.Hyperlinker.Renderer
       Haddock.Backends.Hyperlinker.Types

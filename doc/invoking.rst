@@ -504,7 +504,7 @@ The following options are available:
 
 .. option:: --bypass-interface-version-check
 
-    **DANGEROUS** Causes Haddock to ignore the interface verions of
+    **DANGEROUS** Causes Haddock to ignore the interface versions of
     binary Haddock interface files. This can make Haddock crash during
     deserialization of interface files.
 
