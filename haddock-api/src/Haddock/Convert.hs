@@ -187,7 +187,9 @@ synifyTyCon prr _coax tc
   | isFunTyCon tc || isPrimTyCon tc
   = return $
     DataDecl { tcdLName = synifyName tc
-             , tcdTyVars = HsQTvs  { hsq_ext = []   -- No kind polymorphism
+             , tcdTyVars = HsQTvs { hsq_ext =
+                                       HsQTvsRn { hsq_implicit = []   -- No kind polymorphism
+                                                , hsq_dependent = emptyNameSet }
                                    , hsq_explicit = zipWith mk_hs_tv
                                                             tyVarKinds
                                                             alphaTyVars --a, b, c... which are unfortunately all kind *
@@ -434,7 +436,8 @@ synifyCtx = noLoc . map (synifyType WithinType [])
 
 
 synifyTyVars :: [TyVar] -> LHsQTyVars GhcRn
-synifyTyVars ktvs = HsQTvs { hsq_ext = []
+synifyTyVars ktvs = HsQTvs { hsq_ext = HsQTvsRn { hsq_implicit = []
+                                                , hsq_dependent = emptyNameSet }
                            , hsq_explicit = map synifyTyVar ktvs }
 
 synifyTyVar :: TyVar -> LHsTyVarBndr GhcRn
