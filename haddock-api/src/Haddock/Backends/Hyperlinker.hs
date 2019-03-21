@@ -52,8 +52,7 @@ ppHyperlinkedSource outdir libdir mstyle pretty srcs' ifaces = do
 
 -- | Generate hyperlinked source for particular interface.
 ppHyperlinkedModuleSource :: FilePath -> Bool -> SrcMaps -> Interface -> IO ()
-ppHyperlinkedModuleSource srcdir pretty srcs iface = case ifaceHieFile iface of
-    Just hfp -> do
+ppHyperlinkedModuleSource srcdir pretty srcs iface = do
         -- Parse the GHC-produced HIE file
         u <- mkSplitUniqSupply 'a'
         HieFile { hie_hs_file = file
@@ -76,8 +75,8 @@ ppHyperlinkedModuleSource srcdir pretty srcs iface = case ifaceHieFile iface of
             | M.size asts == 0 -> return ()
             | otherwise -> error $ unwords [ "couldn't find ast for"
                                            , file, show (M.keys asts) ]
-    Nothing -> return ()
   where
+    hfp = ifaceHieFile iface
     df = ifaceDynFlags iface
     render' = render (Just srcCssFile) (Just highlightScript) srcs
     path = srcdir </> hypSrcModuleFile (ifaceMod iface)

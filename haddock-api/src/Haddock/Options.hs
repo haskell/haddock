@@ -89,7 +89,6 @@ data Flag
   | Flag_GenContents
   | Flag_UseIndex String
   | Flag_GenIndex
-  | Flag_IgnoreAllExports
   | Flag_HideModule String
   | Flag_ShowModule String
   | Flag_ShowAllModules
@@ -147,9 +146,9 @@ options backwardsCompat =
       "URL for a source code link on the contents\nand index pages",
     Option ['s'] (if backwardsCompat then ["source", "source-module"] else ["source-module"])
       (ReqArg Flag_SourceModuleURL "URL")
-      "URL for a source code link for each module\n(using the %{FILE} or %{MODULE} vars)",
+      "URL for a source code link for each module\n(using the %{MODULE} var)",
     Option []  ["source-entity"]  (ReqArg Flag_SourceEntityURL "URL")
-      "URL for a source code link for each entity\n(using the %{FILE}, %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
+      "URL for a source code link for each entity\n(using the %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
     Option []  ["source-entity-line"] (ReqArg Flag_SourceLEntityURL "URL")
       "URL for a source code link for each entity.\nUsed if name links are unavailable, eg. for TH splices.",
     Option []  ["comments-base"]   (ReqArg Flag_WikiBaseURL "URL")
@@ -157,7 +156,7 @@ options backwardsCompat =
     Option []  ["comments-module"]  (ReqArg Flag_WikiModuleURL "URL")
       "URL for a comments link for each module\n(using the %{MODULE} var)",
     Option []  ["comments-entity"]  (ReqArg Flag_WikiEntityURL "URL")
-      "URL for a comments link for each entity\n(using the %{FILE}, %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
+      "URL for a comments link for each entity\n(using the %{MODULE}, %{NAME},\n%{KIND} or %{LINE} vars)",
     Option ['c']  ["css", "theme"] (ReqArg Flag_CSS "PATH")
       "the CSS file or theme directory to use for HTML output",
     Option []  ["built-in-themes"] (NoArg Flag_BuiltInThemes)
@@ -167,7 +166,7 @@ options backwardsCompat =
     Option ['t']  ["title"]    (ReqArg Flag_Heading "TITLE")
       "page heading",
     Option ['q']  ["qual"] (ReqArg Flag_Qualification "QUAL")
-      "qualification of names, one of \n'none' (default), 'full', 'local'\n'relative' or 'aliased'",
+      "qualification of names, one of \n'none' (default), 'full', 'local'\nor 'relative'",
     Option ['?']  ["help"]  (NoArg Flag_Help)
       "display this help and exit",
     Option ['V']  ["version"]  (NoArg Flag_Version)
@@ -188,8 +187,6 @@ options backwardsCompat =
       "use a separately-generated HTML index",
     Option [] ["gen-index"] (NoArg Flag_GenIndex)
       "generate an HTML index from specified\ninterfaces",
-    Option [] ["ignore-all-exports"] (NoArg Flag_IgnoreAllExports)
-      "behave as if all modules have the\nignore-exports attribute",
     Option [] ["hide"] (ReqArg Flag_HideModule "MODULE")
       "behave as if MODULE has the hide attribute",
     Option [] ["show"] (ReqArg Flag_ShowModule "MODULE")
@@ -316,7 +313,6 @@ qualification flags =
       ["full"]       -> Right OptFullQual
       ["local"]      -> Right OptLocalQual
       ["relative"]   -> Right OptRelativeQual
-      ["aliased"]    -> Right OptAliasedQual
       [arg]          -> Left $ "unknown qualification type " ++ show arg
       _:_            -> Left "qualification option given multiple times"
 

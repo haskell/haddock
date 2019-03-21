@@ -81,7 +81,15 @@
 	    >newtype</span
 	    > <a id="t:O" class="def"
 	    >O</a
-	    > g f a <a href="#" class="selflink"
+	    > (g :: <a href="#" title="Data.Kind"
+	    >Type</a
+	    > -&gt; <a href="#" title="Data.Kind"
+	    >Type</a
+	    >) (f :: <a href="#" title="Data.Kind"
+	    >Type</a
+	    > -&gt; <a href="#" title="Data.Kind"
+	    >Type</a
+	    >) a <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ><div class="subs constructors"
@@ -131,9 +139,19 @@
 	><p class="src"
 	  ><a id="v:biO" class="def"
 	    >biO</a
-	    > :: (g <a href="#" title="TypeOperators"
-	    >`O`</a
-	    > f) a <a href="#" class="selflink"
+	    > :: <span class="keyword"
+	    >forall</span
+	    > (g :: <a href="#" title="Data.Kind"
+	    >Type</a
+	    > -&gt; <a href="#" title="Data.Kind"
+	    >Type</a
+	    >) (f :: <a href="#" title="Data.Kind"
+	    >Type</a
+	    > -&gt; <a href="#" title="Data.Kind"
+	    >Type</a
+	    >) a. <a href="#" title="TypeOperators"
+	    >O</a
+	    > g f a <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ></div
@@ -141,7 +159,9 @@
 	><p class="src"
 	  ><a id="v:f" class="def"
 	    >f</a
-	    > :: a ~ b =&gt; a -&gt; b <a href="#" class="selflink"
+	    > :: a <a href="#" title="GHC.Types"
+	    >~</a
+	    > b =&gt; a -&gt; b <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ></div
@@ -149,7 +169,11 @@
 	><p class="src"
 	  ><a id="v:g" class="def"
 	    >g</a
-	    > :: (a ~ b, b ~ c) =&gt; a -&gt; c <a href="#" class="selflink"
+	    > :: (a <a href="#" title="GHC.Types"
+	    >~</a
+	    > b, b <a href="#" title="GHC.Types"
+	    >~</a
+	    > c) =&gt; a -&gt; c <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ></div
@@ -161,9 +185,9 @@
 	    >:-:</a
 	    > a) <a href="#" title="TypeOperators"
 	    >&lt;=&gt;</a
-	    > (a <a href="#" title="TypeOperators"
-	    >`Op`</a
-	    > a) =&gt; a <a href="#" class="selflink"
+	    > <a href="#" title="TypeOperators"
+	    >Op</a
+	    > a a =&gt; a <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ></div
@@ -173,9 +197,9 @@
 	    >y</a
 	    > :: (a <a href="#" title="TypeOperators"
 	    >&lt;=&gt;</a
-	    > a, (a <a href="#" title="TypeOperators"
-	    >`Op`</a
-	    > a) <a href="#" title="TypeOperators"
+	    > a, <a href="#" title="TypeOperators"
+	    >Op</a
+	    > a a <a href="#" title="TypeOperators"
 	    >&lt;=&gt;</a
 	    > a) =&gt; a <a href="#" class="selflink"
 	    >#</a

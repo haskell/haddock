@@ -24,11 +24,13 @@ import Data.Char ( isSpace )
 import Haddock.Types( DocNameI )
 
 import Exception
+import FastString ( fsLit )
 import FV
 import Outputable ( Outputable, panic, showPpr )
 import Name
 import NameSet
 import Module
+import PrelNames ( mkBaseModule )
 import HscTypes
 import GHC
 import Class
@@ -47,6 +49,7 @@ import qualified StringBuffer             as S
 import           Data.ByteString ( ByteString )
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS
+
 
 moduleString :: Module -> String
 moduleString = moduleNameString . moduleName
@@ -161,6 +164,9 @@ nubByName f ns = go emptyNameSet ns
                             in x : go s' xs
       where
         y = f x
+
+dATA_LIST :: Module
+dATA_LIST = mkBaseModule (fsLit "Data.List")
 
 -- ---------------------------------------------------------------------
 

@@ -52,17 +52,31 @@
 	      >data</span
 	      > <a href="#"
 	      >T</a
-	      > :: (* -&gt; (*, *)) -&gt; * <span class="keyword"
+	      > (a :: <a href="#" title="Data.Kind"
+	      >Type</a
+	      > -&gt; (<a href="#" title="Data.Kind"
+	      >Type</a
+	      >, <a href="#" title="Data.Kind"
+	      >Type</a
+	      >)) <span class="keyword"
 	      >where</span
 	      ><ul class="subs"
 	      ><li
 		><a href="#"
 		  >T</a
-		  > :: a -&gt; <a href="#" title="Bug923"
+		  > :: <span class="keyword"
+		  >forall</span
+		  > a. a -&gt; <a href="#" title="Bug923"
 		  >T</a
-		  > ('<a href="#" title="GHC.Tuple"
+		  > ('<a href="#" title="Data.Tuple"
 		  >(,)</a
-		  > a)</li
+		  > a :: <a href="#" title="Data.Kind"
+		  >Type</a
+		  > -&gt; (<a href="#" title="Data.Kind"
+		  >Type</a
+		  >, <a href="#" title="Data.Kind"
+		  >Type</a
+		  >))</li
 		></ul
 	      ></li
 	    ></ul
@@ -77,7 +91,13 @@
 	    >data</span
 	    > <a id="t:T" class="def"
 	    >T</a
-	    > :: (* -&gt; (*, *)) -&gt; * <span class="keyword"
+	    > (a :: <a href="#" title="Data.Kind"
+	    >Type</a
+	    > -&gt; (<a href="#" title="Data.Kind"
+	    >Type</a
+	    >, <a href="#" title="Data.Kind"
+	    >Type</a
+	    >)) <span class="keyword"
 	    >where</span
 	    > <a href="#" class="selflink"
 	    >#</a
@@ -94,11 +114,19 @@
 	      ><td class="src"
 		><a id="v:T" class="def"
 		  >T</a
-		  > :: a -&gt; <a href="#" title="Bug923"
+		  > :: <span class="keyword"
+		  >forall</span
+		  > a. a -&gt; <a href="#" title="Bug923"
 		  >T</a
-		  > ('<a href="#" title="GHC.Tuple"
+		  > ('<a href="#" title="Data.Tuple"
 		  >(,)</a
-		  > a)</td
+		  > a :: <a href="#" title="Data.Kind"
+		  >Type</a
+		  > -&gt; (<a href="#" title="Data.Kind"
+		  >Type</a
+		  >, <a href="#" title="Data.Kind"
+		  >Type</a
+		  >))</td
 		><td class="doc empty"
 		>&nbsp;</td
 		></tr
@@ -122,7 +150,7 @@
 		      >Eq</a
 		      > (<a href="#" title="Bug923"
 		      >T</a
-		      > ('<a href="#" title="GHC.Tuple"
+		      > ('<a href="#" title="Data.Tuple"
 		      >(,)</a
 		      > a :: <a href="#" title="Data.Kind"
 		      >Type</a
@@ -156,11 +184,11 @@
 			  >(==)</a
 			  > :: <a href="#" title="Bug923"
 			  >T</a
-			  > ('<a href="#" title="GHC.Tuple"
+			  > ('<a href="#" title="Data.Tuple"
 			  >(,)</a
 			  > a) -&gt; <a href="#" title="Bug923"
 			  >T</a
-			  > ('<a href="#" title="GHC.Tuple"
+			  > ('<a href="#" title="Data.Tuple"
 			  >(,)</a
 			  > a) -&gt; <a href="#" title="Data.Bool"
 			  >Bool</a
@@ -172,11 +200,11 @@
 			  >(/=)</a
 			  > :: <a href="#" title="Bug923"
 			  >T</a
-			  > ('<a href="#" title="GHC.Tuple"
+			  > ('<a href="#" title="Data.Tuple"
 			  >(,)</a
 			  > a) -&gt; <a href="#" title="Bug923"
 			  >T</a
-			  > ('<a href="#" title="GHC.Tuple"
+			  > ('<a href="#" title="Data.Tuple"
 			  >(,)</a
 			  > a) -&gt; <a href="#" title="Data.Bool"
 			  >Bool</a

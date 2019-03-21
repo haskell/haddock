@@ -8,6 +8,10 @@
 /latex-test/out/
 /hoogle-test/out/
 
+# ignore interface files
+*.hi
+*.dyn_hi
+
 /doc/haddock
 /doc/haddock.ps
 /doc/haddock.pdf

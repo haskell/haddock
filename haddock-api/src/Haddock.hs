@@ -493,8 +493,19 @@ withGhc' libDir needHieFiles flags ghcActs = runGhc (Just libDir) $ do
     parseGhcFlags dynflags = do
       -- TODO: handle warnings?
 
-      let extra_opts | needHieFiles = [Opt_WriteHie, Opt_Haddock]
-                     | otherwise = [Opt_Haddock]
+      let extra_opts =
+            [ Opt_Haddock
+              -- Include docstrings in .hi-files.
+
+            , Opt_SkipIfaceVersionCheck
+              -- Ignore any aspects of .hi-files except docs.
+
+            , Opt_WriteInterface
+              -- If we can't use an old .hi-file, save the new one.
+            ] ++
+            [ Opt_WriteHie | needHieFiles
+              -- Generate .hie-files
+            ]
           dynflags' = (foldl' gopt_set dynflags extra_opts)
                         { hscTarget = HscNothing
                         , ghcMode   = CompManager

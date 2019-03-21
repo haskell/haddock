@@ -102,7 +102,7 @@
 	      >class</span
 	      > <a href="#"
 	      >Test</a
-	      > a</li
+	      > (a :: k)</li
 	    ><li class="src short"
 	    ><span class="keyword"
 	      >type family</span
@@ -114,13 +114,13 @@
 	      >data family</span
 	      > <a href="#"
 	      >Bat</a
-	      > (a :: k) :: *</li
+	      > (a :: k)</li
 	    ><li class="src short"
 	    ><span class="keyword"
 	      >class</span
 	      > <a href="#"
 	      >Assoc</a
-	      > a <span class="keyword"
+	      > (a :: k) <span class="keyword"
 	      >where</span
 	      ><ul class="subs"
 	      ><li
@@ -128,13 +128,13 @@
 		  >data</span
 		  > <a href="#"
 		  >AssocD</a
-		  > a :: *</li
+		  > (a :: k)</li
 		><li
 		><span class="keyword"
 		  >type</span
 		  > <a href="#"
 		  >AssocT</a
-		  > a :: *</li
+		  > (a :: k)</li
 		></ul
 	      ></li
 	    ><li class="src short"
@@ -157,6 +157,12 @@
 	      > (a :: k) <a href="#"
 	      >&gt;&lt;</a
 	      > (b :: k)</li
+	    ><li class="src short"
+	    ><span class="keyword"
+	      >data family</span
+	      > <a href="#"
+	      >AssocD</a
+	      > (a :: k)</li
 	    ></ul
 	  ></details
 	></div
@@ -1129,7 +1135,7 @@
 	    >class</span
 	    > <a id="t:Test" class="def"
 	    >Test</a
-	    > a <a href="#" class="selflink"
+	    > (a :: k) <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ><div class="doc"
@@ -1321,7 +1327,7 @@
 	    >data family</span
 	    > <a id="t:Bat" class="def"
 	    >Bat</a
-	    > (a :: k) :: * <a href="#" class="selflink"
+	    > (a :: k) <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ><div class="doc"
@@ -1517,7 +1523,7 @@
 	    >class</span
 	    > <a id="t:Assoc" class="def"
 	    >Assoc</a
-	    > a <a href="#" class="selflink"
+	    > (a :: k) <a href="#" class="selflink"
 	    >#</a
 	    ></p
 	  ><div class="doc"
@@ -1532,7 +1538,7 @@
 	      >data</span
 	      > <a id="t:AssocD" class="def"
 	      >AssocD</a
-	      > a :: * <a href="#" class="selflink"
+	      > (a :: k) <a href="#" class="selflink"
 	      >#</a
 	      ></p
 	    ><div class="doc"
@@ -1544,7 +1550,7 @@
 	      >type</span
 	      > <a id="t:AssocT" class="def"
 	      >AssocT</a
-	      > a :: * <a href="#" class="selflink"
+	      > (a :: k) <a href="#" class="selflink"
 	      >#</a
 	      ></p
 	    ><div class="doc"
@@ -1908,6 +1914,110 @@
 		      >Defined in <a href="#"
 			>TypeFamilies</a
 			></p
+		      ></details
+		    ></td
+		  ></tr
+		></table
+	      ></details
+	    ></div
+	  ></div
+	><div class="top"
+	><p class="src"
+	  ><span class="keyword"
+	    >data family</span
+	    > <a id="t:AssocD" class="def"
+	    >AssocD</a
+	    > (a :: k) <a href="#" class="selflink"
+	    >#</a
+	    ></p
+	  ><div class="doc"
+	  ><p
+	    >Doc for: data AssocD a</p
+	    ></div
+	  ><div class="subs instances"
+	  ><h4 class="instances details-toggle-control details-toggle" data-details-id="i:AssocD"
+	    >Instances</h4
+	    ><details id="i:AssocD" open="open"
+	    ><summary class="hide-when-js-enabled"
+	      >Instances details</summary
+	      ><table
+	      ><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:AssocD:AssocD:1"
+		      ></span
+		      > <span class="keyword"
+		      >data</span
+		      > <a href="#" title="TypeFamilies"
+		      >AssocD</a
+		      > <a href="#" title="TypeFamilies"
+		      >Y</a
+		      ></span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc empty"
+		  >&nbsp;</td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:AssocD:AssocD:1"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>TypeFamilies</a
+			></p
+		      > <div class="src"
+		      ><span class="keyword"
+			>data</span
+			> <a href="#" title="TypeFamilies"
+			>AssocD</a
+			> <a href="#" title="TypeFamilies"
+			>Y</a
+			> = <a id="v:AssocY" class="def"
+			>AssocY</a
+			></div
+		      ></details
+		    ></td
+		  ></tr
+		><tr
+		><td class="src clearfix"
+		  ><span class="inst-left"
+		    ><span class="instance details-toggle-control details-toggle" data-details-id="i:if:AssocD:AssocD:2"
+		      ></span
+		      > <span class="keyword"
+		      >data</span
+		      > <a href="#" title="TypeFamilies"
+		      >AssocD</a
+		      > <a href="#" title="TypeFamilies"
+		      >X</a
+		      ></span
+		    > <a href="#" class="selflink"
+		    >#</a
+		    ></td
+		  ><td class="doc empty"
+		  >&nbsp;</td
+		  ></tr
+		><tr
+		><td colspan="2"
+		  ><details id="i:if:AssocD:AssocD:2"
+		    ><summary class="hide-when-js-enabled"
+		      >Instance details</summary
+		      ><p
+		      >Defined in <a href="#"
+			>TypeFamilies</a
+			></p
+		      > <div class="src"
+		      ><span class="keyword"
+			>data</span
+			> <a href="#" title="TypeFamilies"
+			>AssocD</a
+			> <a href="#" title="TypeFamilies"
+			>X</a
+			> = <a id="v:AssocX" class="def"
+			>AssocX</a
+			></div
 		      ></details
 		    ></td
 		  ></tr

@@ -27,8 +27,6 @@ import Control.Monad
 import Data.Array
 import Data.IORef
 import Data.List
-import qualified Data.Map as Map
-import Data.Map (Map)
 import Data.Word
 
 import BinIface (getSymtabName, getDictFastString)
@@ -356,12 +354,6 @@ serialiseName bh name _ = do
 -- * GhcBinary instances
 -------------------------------------------------------------------------------
 
-
-instance (Ord k, Binary k, Binary v) => Binary (Map k v) where
-  put_ bh m = put_ bh (Map.toList m)
-  get bh = fmap (Map.fromList) (get bh)
-
-
 instance Binary InterfaceFile where
   put_ bh (InterfaceFile env ifaces) = do
     put_ bh env
@@ -394,8 +386,8 @@ instance Binary InstalledInterface where
     visExps <- get bh
     opts    <- get bh
     fixMap  <- get bh
-    return (InstalledInterface modu is_sig info docMap argMap
-            exps visExps opts fixMap)
+    return (InstalledInterface modu is_sig info
+            docMap argMap exps visExps opts fixMap)
 
 
 instance Binary DocOption where
@@ -403,11 +395,11 @@ instance Binary DocOption where
             putByte bh 0
     put_ bh OptPrune = do
             putByte bh 1
-    put_ bh OptIgnoreExports = do
-            putByte bh 2
     put_ bh OptNotHome = do
-            putByte bh 3
+            putByte bh 2
     put_ bh OptShowExtensions = do
+            putByte bh 3
+    put_ bh OptPrintRuntimeRep = do
             putByte bh 4
     get bh = do
             h <- getByte bh
@@ -417,11 +409,11 @@ instance Binary DocOption where
               1 -> do
                     return OptPrune
               2 -> do
-                    return OptIgnoreExports
-              3 -> do
                     return OptNotHome
-              4 -> do
+              3 -> do
                     return OptShowExtensions
+              4 -> do
+                    return OptPrintRuntimeRep
               _ -> fail "invalid binary data found"
 
 
