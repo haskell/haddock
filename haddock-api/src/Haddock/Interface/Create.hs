@@ -43,6 +43,7 @@ import Control.Applicative
 import Control.Exception (evaluate)
 import Control.Monad
 import Data.Traversable
+import GHC.Stack (HasCallStack)
 
 import Avail hiding (avail)
 import qualified Avail
@@ -63,16 +64,21 @@ import BasicTypes ( StringLiteral(..), SourceText(..) )
 import qualified Outputable as O
 import HsDecls ( getConArgs )
 
+mkExceptionContext :: TypecheckedModule -> String
+mkExceptionContext =
+  ("creating Haddock interface for " ++) . moduleNameString . ms_mod_name . pm_mod_summary . tm_parsed_module
 
 -- | Use a 'TypecheckedModule' to produce an 'Interface'.
 -- To do this, we need access to already processed modules in the topological
 -- sort. That's what's in the 'IfaceMap'.
-createInterface :: TypecheckedModule
+createInterface :: HasCallStack
+                => TypecheckedModule
                 -> [Flag]       -- Boolean flags
                 -> IfaceMap     -- Locally processed modules
                 -> InstIfaceMap -- External, already installed interfaces
                 -> ErrMsgGhc Interface
-createInterface tm flags modMap instIfaceMap = do
+createInterface tm flags modMap instIfaceMap =
+ withExceptionContext (mkExceptionContext tm) $ do
 
   let ms             = pm_mod_summary . tm_parsed_module $ tm
       mi             = moduleInfo tm
@@ -199,7 +205,6 @@ createInterface tm flags modMap instIfaceMap = do
   , ifaceWarningMap        = warningMap
   , ifaceTokenizedSrc      = tokenizedSrc
   }
-
 
 -- | Given all of the @import M as N@ declarations in a package,
 -- create a mapping from the module identity of M, to an alias N
@@ -634,7 +639,8 @@ collectDocs = go Nothing []
 -- We create the export items even if the module is hidden, since they
 -- might be useful when creating the export items for other modules.
 mkExportItems
-  :: Bool               -- is it a signature
+  :: HasCallStack
+  => Bool               -- is it a signature
   -> IfaceMap
   -> Maybe Package      -- this package
   -> Module             -- this module
@@ -693,7 +699,8 @@ mkExportItems
       availExportItem is_sig modMap thisMod semMod warnings exportedNames
         maps fixMap splices instIfaceMap dflags avail
 
-availExportItem :: Bool               -- is it a signature
+availExportItem :: HasCallStack
+                => Bool               -- is it a signature
                 -> IfaceMap
                 -> Module             -- this module
                 -> Module             -- semantic module
@@ -775,7 +782,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
 
         _ -> return []
 
-    availExportDecl :: AvailInfo -> LHsDecl GhcRn
+    availExportDecl :: HasCallStack => AvailInfo -> LHsDecl GhcRn
                     -> (DocForDecl Name, [(Name, DocForDecl Name)])
                     -> ErrMsgGhc [ ExportItem GhcRn ]
     availExportDecl avail decl (doc, subs)
@@ -1039,7 +1046,7 @@ fullModuleContents is_sig modMap pkgName thisMod semMod warnings gre exportedNam
 -- it might be an individual record selector or a class method.  In these
 -- cases we have to extract the required declaration (and somehow cobble
 -- together a type signature for it...).
-extractDecl :: DeclMap -> Name -> LHsDecl GhcRn -> LHsDecl GhcRn
+extractDecl :: HasCallStack => DeclMap -> Name -> LHsDecl GhcRn -> LHsDecl GhcRn
 extractDecl declMap name decl
   | name `elem` getMainDeclBinder (unLoc decl) = decl
   | otherwise  =
@@ -1116,10 +1123,11 @@ extractDecl declMap name decl
       _ -> error "internal: extractDecl"
 
 
-extractPatternSyn :: Name -> Name -> [LHsType GhcRn] -> [LConDecl GhcRn] -> LSig GhcRn
+extractPatternSyn :: HasCallStack => Name -> Name -> [LHsType GhcRn] -> [LConDecl GhcRn] -> LSig GhcRn
 extractPatternSyn nm t tvs cons =
   case filter matches cons of
-    [] -> error "extractPatternSyn: constructor pattern not found"
+    [] -> O.pprPanic "extractPatternSyn" $
+          O.text "constructor pattern " O.<+> O.ppr nm O.<+> O.text "not found in type" O.<+> O.ppr t
     con:_ -> extract <$> con
  where
   matches :: LConDecl GhcRn -> Bool
