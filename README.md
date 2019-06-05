@@ -1,4 +1,4 @@
-# Haddock, a Haskell Documentation Tool [![Build Status](https://travis-ci.org/haskell/haddock.svg?branch=ghc-head)](https://travis-ci.org/haskell/haddock)
+# Haddock, a Haskell Documentation Tool [![Build Status](https://travis-ci.org/haskell/haddock.svg?branch=ghc-head)](https://travis-ci.org/haskell/haddock) [![Open Source Helpers](https://www.codetriage.com/haskell/haddock/badges/users.svg)](https://www.codetriage.com/haskell/haddock)
 
 
 ## About haddock
