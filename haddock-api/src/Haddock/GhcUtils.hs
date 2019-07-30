@@ -587,11 +587,10 @@ orderedFVs
   :: VarSet  -- ^ free variables to ignore
   -> [Type]  -- ^ types to traverse (in order) looking for free variables
   -> [TyVar] -- ^ free type variables, in the order they appear in
-orderedFVs vs tys =
-  reverse . fst $ tyCoFVsOfTypes' tys (const True) vs ([], emptyVarSet)
+orderedFVs vs tys = reverse $ fvVarList $ FV.delFVs vs $ tyCoFVsOfTypes' tys
 
 
--- See the "Free variables of types and coercions" section in 'TyCoRep', or
+-- See the "Free variables of types and coercions" section in 'TyCoFVs', or
 -- check out Note [Free variables of types]. The functions in this section
 -- don't output type variables in the order they first appear in in the 'Type'.
 --
@@ -616,20 +615,20 @@ orderedFVs vs tys =
 -- | Just like 'tyCoFVsOfType', but traverses type variables in reverse order
 -- of  appearance.
 tyCoFVsOfType' :: Type -> FV
-tyCoFVsOfType' (TyVarTy v)        a b c = (FV.unitFV v `unionFV` tyCoFVsOfType' (tyVarKind v)) a b c
-tyCoFVsOfType' (TyConApp _ tys)   a b c = tyCoFVsOfTypes' tys a b c
-tyCoFVsOfType' (LitTy {})         a b c = emptyFV a b c
-tyCoFVsOfType' (AppTy fun arg)    a b c = (tyCoFVsOfType' arg `unionFV` tyCoFVsOfType' fun) a b c
-tyCoFVsOfType' (FunTy _ arg res)  a b c = (tyCoFVsOfType' res `unionFV` tyCoFVsOfType' arg) a b c
-tyCoFVsOfType' (ForAllTy bndr ty) a b c = tyCoFVsBndr' bndr (tyCoFVsOfType' ty)  a b c
-tyCoFVsOfType' (CastTy ty _)      a b c = (tyCoFVsOfType' ty) a b c
-tyCoFVsOfType' (CoercionTy _ )    a b c = emptyFV a b c
+tyCoFVsOfType' (TyVarTy v)        = FV.unitFV v `unionFV` tyCoFVsOfType' (tyVarKind v)
+tyCoFVsOfType' (TyConApp _ tys)   = tyCoFVsOfTypes' tys
+tyCoFVsOfType' (LitTy {})         = emptyFV
+tyCoFVsOfType' (AppTy fun arg)    = tyCoFVsOfType' arg `unionFV` tyCoFVsOfType' fun
+tyCoFVsOfType' (FunTy _ arg res)  = tyCoFVsOfType' res `unionFV` tyCoFVsOfType' arg
+tyCoFVsOfType' (ForAllTy bndr ty) = tyCoFVsBndr' bndr (tyCoFVsOfType' ty)
+tyCoFVsOfType' (CastTy ty _)      = tyCoFVsOfType' ty
+tyCoFVsOfType' (CoercionTy _ )    = emptyFV
 
 -- | Just like 'tyCoFVsOfTypes', but traverses type variables in reverse order
 -- of appearance.
 tyCoFVsOfTypes' :: [Type] -> FV
-tyCoFVsOfTypes' (ty:tys) fv_cand in_scope acc = (tyCoFVsOfTypes' tys `unionFV` tyCoFVsOfType' ty) fv_cand in_scope acc
-tyCoFVsOfTypes' []       fv_cand in_scope acc = emptyFV fv_cand in_scope acc
+tyCoFVsOfTypes' (ty:tys) = tyCoFVsOfTypes' tys `unionFV` tyCoFVsOfType' ty
+tyCoFVsOfTypes' []       = emptyFV
 
 -- | Just like 'tyCoFVsBndr', but traverses type variables in reverse order of
 -- appearance.
