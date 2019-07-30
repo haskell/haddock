@@ -1,6 +1,7 @@
 {-# LANGUAGE TransformListComp #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Decl
@@ -43,11 +44,11 @@ import Outputable ( panic )
 ppDecl :: Bool                                     -- ^ print summary info only
        -> LinksInfo                                -- ^ link information
        -> LHsDecl DocNameI                         -- ^ declaration to print
-       -> [(HsDecl DocNameI, DocForDecl DocName)]  -- ^ relevant pattern synonyms
-       -> DocForDecl DocName                       -- ^ documentation for this decl
-       -> [DocInstance DocNameI]                   -- ^ relevant instances
+       -> [(HsDecl DocNameI, (DocForDecl ty DocName))]  -- ^ relevant pattern synonyms
+       -> DocForDecl ty DocName                       -- ^ documentation for this decl
+       -> [(DocInstance ty DocNameI)]                   -- ^ relevant instances
        -> [(DocName, Fixity)]                      -- ^ relevant fixities
-       -> [(DocName, DocForDecl DocName)]          -- ^ documentation for all decls
+       -> [(DocName, (DocForDecl ty DocName))]          -- ^ documentation for all decls
        -> Splice
        -> Unicode                                  -- ^ unicode output
        -> Maybe Package
@@ -68,14 +69,14 @@ ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdoc
   _                              -> error "declaration not supported by ppDecl"
 
 
-ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
+ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl ty DocName ->
              [Located DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
              Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppLFunSig summary links loc doc lnames lty fixities splice unicode pkg qual =
   ppFunSig summary links loc doc (map unLoc lnames) lty fixities
            splice unicode pkg qual
 
-ppFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
+ppFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl ty DocName ->
             [DocName] -> LHsType DocNameI -> [(DocName, Fixity)] ->
             Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppFunSig summary links loc doc docnames typ fixities splice unicode pkg qual =
@@ -85,7 +86,7 @@ ppFunSig summary links loc doc docnames typ fixities splice unicode pkg qual =
     pp_typ = ppLType unicode qual HideEmptyContexts typ
 
 -- | Pretty print a pattern synonym
-ppLPatSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
+ppLPatSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl ty DocName
           -> [Located DocName]     -- ^ names of patterns in declaration
           -> LHsType DocNameI      -- ^ type of patterns in declaration
           -> [(DocName, Fixity)]
@@ -97,7 +98,7 @@ ppLPatSig summary links loc doc lnames typ fixities splice unicode pkg qual =
     pp_typ = ppPatSigType unicode qual typ
 
 
-ppSigLike :: Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl DocName ->
+ppSigLike :: Bool -> LinksInfo -> SrcSpan -> Html -> DocForDecl ty DocName ->
              [DocName] -> [(DocName, Fixity)] -> (HsType DocNameI, Html) ->
              Splice -> Unicode -> Maybe Package -> Qualification -> HideEmptyContexts -> Html
 ppSigLike summary links loc leader doc docnames fixities (typ, pp_typ)
@@ -116,7 +117,7 @@ ppSigLike summary links loc leader doc docnames fixities (typ, pp_typ)
 
 
 ppTypeOrFunSig :: Bool -> LinksInfo -> SrcSpan -> [DocName] -> HsType DocNameI
-               -> DocForDecl DocName -> (Html, Html, Html)
+               -> DocForDecl ty DocName -> (Html, Html, Html)
                -> Splice -> Unicode -> Maybe Package -> Qualification
                -> HideEmptyContexts -> Html
 ppTypeOrFunSig summary links loc docnames typ (doc, argDocs) (pref1, pref2, sep)
@@ -135,19 +136,20 @@ ppTypeOrFunSig summary links loc docnames typ (doc, argDocs) (pref1, pref2, sep)
 --
 -- If one passes in a list of the available subdocs, any top-level `HsRecTy`
 -- found will be expanded out into their fields.
-ppSubSigLike :: Unicode -> Qualification
+ppSubSigLike :: forall ty.
+                Unicode -> Qualification
              -> HsType DocNameI                  -- ^ type signature
-             -> FnArgsDoc DocName                -- ^ docs to add
-             -> [(DocName, DocForDecl DocName)]  -- ^ all subdocs (useful when
+             -> FnArgsDoc ty DocName                -- ^ docs to add
+             -> [(DocName, DocForDecl ty DocName)]  -- ^ all subdocs (useful when
                                                  -- we expand an `HsRecTy`)
-             -> Html -> HideEmptyContexts -> [SubDecl]
+             -> Html -> HideEmptyContexts -> [(SubDecl ty)]
 ppSubSigLike unicode qual typ argDocs subdocs sep emptyCtxts = do_args 0 sep typ
   where
     argDoc n = Map.lookup n argDocs
 
     do_largs n leader (L _ t) = do_args n leader t
 
-    do_args :: Int -> Html -> HsType DocNameI -> [SubDecl]
+    do_args :: Int -> Html -> HsType DocNameI -> [(SubDecl ty)]
     do_args n leader (HsForAllTy _ tvs ltype)
       = do_largs n (leader <+> ppForAllPart unicode qual tvs) ltype
 
@@ -210,7 +212,7 @@ ppTyVars :: Unicode -> Qualification -> [LHsTyVarBndr DocNameI] -> [Html]
 ppTyVars unicode qual tvs = map (ppHsTyVarBndr unicode qual . unLoc) tvs
 
 
-ppFor :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName
+ppFor :: Bool -> LinksInfo -> SrcSpan -> DocForDecl ty DocName
       -> ForeignDecl DocNameI -> [(DocName, Fixity)]
       -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppFor summary links loc doc (ForeignImport _ (L _ name) typ _) fixities
@@ -221,7 +223,7 @@ ppFor _ _ _ _ _ _ _ _ _ _ = error "ppFor"
 
 -- we skip type patterns for now
 ppTySyn :: Bool -> LinksInfo -> [(DocName, Fixity)] -> SrcSpan
-        -> DocForDecl DocName -> TyClDecl DocNameI
+        -> DocForDecl ty DocName -> TyClDecl DocNameI
         -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppTySyn summary links fixities loc doc (SynDecl { tcdLName = L _ name, tcdTyVars = ltyvars
                                                 , tcdRhs = ltype })
@@ -267,10 +269,10 @@ ppSimpleSig links splice unicode qual emptyCtxts loc names typ =
 ppFamDecl :: Bool                     -- ^ is a summary
           -> Bool                     -- ^ is an associated type
           -> LinksInfo
-          -> [DocInstance DocNameI]   -- ^ relevant instances
+          -> [(DocInstance ty DocNameI)]   -- ^ relevant instances
           -> [(DocName, Fixity)]      -- ^ relevant fixities
           -> SrcSpan
-          -> Documentation DocName    -- ^ this decl's documentation
+          -> Documentation ty DocName    -- ^ this decl's documentation
           -> FamilyDecl DocNameI      -- ^ this decl
           -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppFamDecl summary associated links instances fixities loc doc decl splice unicode pkg qual
@@ -293,7 +295,7 @@ ppFamDecl summary associated links instances fixities loc doc decl splice unicod
       = ppInstances links (OriginFamily docname) instances splice unicode pkg qual
 
     -- Individual equation of a closed type family
-    ppFamDeclEqn :: TyFamInstEqn DocNameI -> SubDecl
+    ppFamDeclEqn :: TyFamInstEqn DocNameI -> SubDecl ty
     ppFamDeclEqn (HsIB { hsib_body = FamEqn { feqn_tycon = L _ n
                                             , feqn_rhs = rhs
                                             , feqn_pats = ts } })
@@ -376,7 +378,7 @@ ppResultSig result unicode qual = case result of
 --------------------------------------------------------------------------------
 
 
-ppAssocType :: Bool -> LinksInfo -> DocForDecl DocName -> LFamilyDecl DocNameI
+ppAssocType :: Bool -> LinksInfo -> DocForDecl ty DocName -> LFamilyDecl DocNameI
             -> [(DocName, Fixity)] -> Splice -> Unicode -> Maybe Package
             -> Qualification -> Html
 ppAssocType summ links doc (L loc decl) fixities splice unicode pkg qual =
@@ -474,7 +476,7 @@ ppFds fds unicode qual =
         ppVars = hsep . map ((ppDocName qual Prefix True) . unLoc)
 
 ppShortClassDecl :: Bool -> LinksInfo -> TyClDecl DocNameI -> SrcSpan
-                 -> [(DocName, DocForDecl DocName)]
+                 -> [(DocName, DocForDecl ty DocName)]
                  -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppShortClassDecl summary links (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, tcdTyVars = tvs
                                           , tcdFDs = fds, tcdSigs = sigs, tcdATs = ats }) loc
@@ -505,9 +507,9 @@ ppShortClassDecl _ _ _ _ _ _ _ _ _ = error "declaration type not supported by pp
 
 
 
-ppClassDecl :: Bool -> LinksInfo -> [DocInstance DocNameI] -> [(DocName, Fixity)]
-            -> SrcSpan -> Documentation DocName
-            -> [(DocName, DocForDecl DocName)] -> TyClDecl DocNameI
+ppClassDecl :: Bool -> LinksInfo -> [(DocInstance ty DocNameI)] -> [(DocName, Fixity)]
+            -> SrcSpan -> Documentation ty DocName
+            -> [(DocName, (DocForDecl ty DocName))] -> TyClDecl DocNameI
             -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppClassDecl summary links instances fixities loc d subdocs
         decl@(ClassDecl { tcdCtxt = lctxt, tcdLName = lname, tcdTyVars = ltyvars
@@ -580,7 +582,7 @@ ppClassDecl _ _ _ _ _ _ _ _ _ _ _ _ = error "declaration type not supported by p
 
 
 ppInstances :: LinksInfo
-            -> InstOrigin DocName -> [DocInstance DocNameI]
+            -> InstOrigin DocName -> [(DocInstance ty DocNameI)]
             -> Splice -> Unicode -> Maybe Package -> Qualification
             -> Html
 ppInstances links origin instances splice unicode pkg qual
@@ -588,13 +590,13 @@ ppInstances links origin instances splice unicode pkg qual
   -- force Splice = True to use line URLs
   where
     instName = getOccString origin
-    instDecl :: Int -> DocInstance DocNameI -> (SubDecl, Maybe Module, Located DocName)
+    instDecl :: Int -> DocInstance ty DocNameI -> (SubDecl ty, Maybe Module, Located DocName)
     instDecl no (inst, mdoc, loc, mdl) =
         ((ppInstHead links splice unicode qual mdoc origin False no inst mdl), mdl, loc)
 
 
 ppOrphanInstances :: LinksInfo
-                  -> [DocInstance DocNameI]
+                  -> [(DocInstance ty DocNameI)]
                   -> Splice -> Unicode -> Maybe Package -> Qualification
                   -> Html
 ppOrphanInstances links instances splice unicode pkg qual
@@ -603,19 +605,19 @@ ppOrphanInstances links instances splice unicode pkg qual
     instOrigin :: InstHead name -> InstOrigin (IdP name)
     instOrigin inst = OriginClass (ihdClsName inst)
 
-    instDecl :: Int -> DocInstance DocNameI -> (SubDecl, Maybe Module, Located DocName)
+    instDecl :: Int -> DocInstance ty DocNameI -> (SubDecl ty, Maybe Module, Located DocName)
     instDecl no (inst, mdoc, loc, mdl) =
         ((ppInstHead links splice unicode qual mdoc (instOrigin inst) True no inst Nothing), mdl, loc)
 
 
 ppInstHead :: LinksInfo -> Splice -> Unicode -> Qualification
-           -> Maybe (MDoc DocName)
+           -> Maybe (MDoc ty DocName)
            -> InstOrigin DocName
            -> Bool -- ^ Is instance orphan
            -> Int  -- ^ Normal
            -> InstHead DocNameI
            -> Maybe Module
-           -> SubDecl
+           -> SubDecl ty
 ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) mdl =
     case ihdInstType of
         ClassInst { .. } ->
@@ -669,7 +671,7 @@ ppInstanceSigs links splice unicode qual sigs = do
     return $ ppSimpleSig links splice unicode qual HideEmptyContexts (getLoc $ head $ lnames) names rtyp
 
 
-lookupAnySubdoc :: Eq id1 => id1 -> [(id1, DocForDecl id2)] -> DocForDecl id2
+lookupAnySubdoc :: Eq id1 => id1 -> [(id1, DocForDecl ty id2)] -> DocForDecl ty id2
 lookupAnySubdoc n = fromMaybe noDocForDecl . lookup n
 
 
@@ -694,7 +696,7 @@ instanceId origin no orphan ihd = concat $
 
 -- TODO: print contexts
 ppShortDataDecl :: Bool -> Bool -> TyClDecl DocNameI
-                -> [(HsDecl DocNameI, DocForDecl DocName)]
+                -> [(HsDecl DocNameI, DocForDecl ty DocName)]
                 -> Unicode -> Qualification -> Html
 ppShortDataDecl summary dataInst dataDecl pats unicode qual
 
@@ -735,13 +737,13 @@ ppShortDataDecl summary dataInst dataDecl pats unicode qual
 
 -- | Pretty-print a data declaration
 ppDataDecl :: Bool -> LinksInfo
-           -> [DocInstance DocNameI]                  -- ^ relevant instances
+           -> [(DocInstance ty DocNameI)]                  -- ^ relevant instances
            -> [(DocName, Fixity)]                     -- ^ relevant fixities
-           -> [(DocName, DocForDecl DocName)]         -- ^ all decl documentation
+           -> [(DocName, DocForDecl ty DocName)]         -- ^ all decl documentation
            -> SrcSpan
-           -> Documentation DocName                   -- ^ this decl's documentation
+           -> Documentation ty DocName                   -- ^ this decl's documentation
            -> TyClDecl DocNameI                       -- ^ this decl
-           -> [(HsDecl DocNameI, DocForDecl DocName)] -- ^ relevant patterns
+           -> [(HsDecl DocNameI, DocForDecl ty DocName)] -- ^ relevant patterns
            -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
            splice unicode pkg qual
@@ -847,10 +849,10 @@ ppShortConstrParts summary dataInst con unicode qual
 
 
 -- | Pretty print an expanded constructor
-ppSideBySideConstr :: [(DocName, DocForDecl DocName)] -> [(DocName, Fixity)]
+ppSideBySideConstr :: [(DocName, DocForDecl ty DocName)] -> [(DocName, Fixity)]
                    -> Unicode -> Maybe Package -> Qualification
                    -> LConDecl DocNameI -- ^ constructor declaration to print
-                   -> SubDecl
+                   -> SubDecl ty
 ppSideBySideConstr subdocs fixities unicode pkg qual (L _ con)
  = ( decl       -- Constructor header (name, fixity)
    , mbDoc      -- Docs on the whole constructor
@@ -964,8 +966,8 @@ ppConstrHdr forall_ tvs ctxt unicode qual = ppForall +++ ppCtxt
 
 
 -- | Pretty-print a record field
-ppSideBySideField :: [(DocName, DocForDecl DocName)] -> Unicode -> Qualification
-                  -> ConDeclField DocNameI -> SubDecl
+ppSideBySideField :: [(DocName, DocForDecl ty DocName)] -> Unicode -> Qualification
+                  -> ConDeclField DocNameI -> SubDecl ty
 ppSideBySideField subdocs unicode qual (ConDeclField _ names ltype _) =
   ( hsep (punctuate comma [ ppBinder False (rdrNameOcc field)
                           | L _ name <- names
@@ -994,8 +996,8 @@ ppShortField _ _ _ (XConDeclField _) = panic "haddock:ppShortField"
 ppSideBySidePat :: [(DocName, Fixity)] -> Unicode -> Qualification
                    -> [Located DocName]    -- ^ pattern name(s)
                    -> LHsSigType DocNameI  -- ^ type of pattern(s)
-                   -> DocForDecl DocName   -- ^ doc map
-                   -> SubDecl
+                   -> DocForDecl ty DocName   -- ^ doc map
+                   -> SubDecl ty
 ppSideBySidePat fixities unicode qual lnames typ (doc, argDocs) =
   ( decl
   , combineDocumentation doc
@@ -1197,4 +1199,3 @@ ppr_mono_ty (HsTyLit _ n) _ _ _ = ppr_tylit n
 ppr_tylit :: HsTyLit -> Html
 ppr_tylit (HsNumTy _ n) = toHtml (show n)
 ppr_tylit (HsStrTy _ s) = toHtml (show s)
-

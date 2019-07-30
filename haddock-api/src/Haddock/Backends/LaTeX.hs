@@ -78,9 +78,9 @@ Extract the last element of a list, which must be finite and non-empty.
 
 ppLaTeX :: String                       -- Title
         -> Maybe String                 -- Package name
-        -> [Interface]
+        -> [(Interface ty)]
         -> FilePath                     -- destination directory
-        -> Maybe (Doc GHC.RdrName)      -- prologue text, maybe
+        -> Maybe (Doc ty GHC.RdrName)      -- prologue text, maybe
         -> Maybe String                 -- style file
         -> FilePath
         -> IO ()
@@ -105,9 +105,9 @@ ppLaTeXTop
    :: String
    -> Maybe String
    -> FilePath
-   -> Maybe (Doc GHC.RdrName)
+   -> Maybe (Doc ty GHC.RdrName)
    -> Maybe String
-   -> [Interface]
+   -> [(Interface ty)]
    -> IO ()
 
 ppLaTeXTop doctitle packageStr odir prologue maybe_style ifaces = do
@@ -138,7 +138,7 @@ ppLaTeXTop doctitle packageStr odir prologue maybe_style ifaces = do
   writeFile filename (show tex)
 
 
-ppLaTeXModule :: String -> FilePath -> Interface -> IO ()
+ppLaTeXModule :: String -> FilePath -> Interface ty -> IO ()
 ppLaTeXModule _title odir iface = do
   createDirectoryIfMissing True odir
   let
@@ -171,7 +171,7 @@ ppLaTeXModule _title odir iface = do
   writeFile (odir </> moduleLaTeXFile mdl) (fullRender PageMode 80 1 txtPrinter "" tex)
 
 -- | Prints out an entry in a module export list.
-exportListItem :: ExportItem DocNameI -> LaTeX
+exportListItem :: ExportItem ty DocNameI -> LaTeX
 exportListItem ExportDecl { expItemDecl = decl, expItemSubDocs = subdocs }
   = let (leader, names) = declNames decl
     in sep (punctuate comma [ leader <+> ppDocBinder name | name <- names ]) <>
@@ -190,7 +190,7 @@ exportListItem _
 
 -- Deal with a group of undocumented exports together, to avoid lots
 -- of blank vertical space between them.
-processExports :: [ExportItem DocNameI] -> LaTeX
+processExports :: [(ExportItem ty DocNameI)] -> LaTeX
 processExports [] = empty
 processExports (decl : es)
   | Just sig <- isSimpleSig decl
@@ -206,19 +206,19 @@ processExports (e : es) =
   processExport e $$ processExports es
 
 
-isSimpleSig :: ExportItem DocNameI -> Maybe ([DocName], HsType DocNameI)
+isSimpleSig :: ExportItem ty DocNameI -> Maybe ([DocName], HsType DocNameI)
 isSimpleSig ExportDecl { expItemDecl = L _ (SigD _ (TypeSig _ lnames t))
                        , expItemMbDoc = (Documentation Nothing Nothing, argDocs) }
   | Map.null argDocs = Just (map unLoc lnames, unLoc (hsSigWcType t))
 isSimpleSig _ = Nothing
 
 
-isExportModule :: ExportItem DocNameI -> Maybe Module
+isExportModule :: ExportItem ty DocNameI -> Maybe Module
 isExportModule (ExportModule m) = Just m
 isExportModule _ = Nothing
 
 
-processExport :: ExportItem DocNameI -> LaTeX
+processExport :: ExportItem ty DocNameI -> LaTeX
 processExport (ExportGroup lev _id0 doc)
   = ppDocGroup lev (docToLaTeX doc)
 processExport (ExportDecl decl pats doc subdocs insts fixities _splice)
@@ -255,7 +255,7 @@ declNames (L _ decl) = case decl of
   _ -> error "declaration not supported by declNames"
 
 
-forSummary :: (ExportItem DocNameI) -> Bool
+forSummary :: (ExportItem ty DocNameI) -> Bool
 forSummary (ExportGroup _ _ _) = False
 forSummary (ExportDoc _)       = False
 forSummary _                    = True
@@ -276,10 +276,10 @@ moduleBasename mdl = map (\c -> if c == '.' then '-' else c)
 
 -- | Pretty print a declaration
 ppDecl :: LHsDecl DocNameI                         -- ^ decl to print
-       -> [(HsDecl DocNameI, DocForDecl DocName)]  -- ^ all pattern decls
-       -> DocForDecl DocName                       -- ^ documentation for decl
-       -> [DocInstance DocNameI]                   -- ^ all instances
-       -> [(DocName, DocForDecl DocName)]          -- ^ all subdocs
+       -> [(HsDecl DocNameI, DocForDecl ty DocName)]  -- ^ all pattern decls
+       -> DocForDecl ty DocName                       -- ^ documentation for decl
+       -> [(DocInstance ty DocNameI)]                   -- ^ all instances
+       -> [(DocName, DocForDecl ty DocName)]          -- ^ all subdocs
        -> [(DocName, Fixity)]                      -- ^ all fixities
        -> LaTeX
 
@@ -302,7 +302,7 @@ ppDecl decl pats (doc, fnArgsDoc) instances subdocs _fxts = case unLoc decl of
     unicode = False
 
 
-ppFor :: DocForDecl DocName -> ForeignDecl DocNameI -> Bool -> LaTeX
+ppFor :: DocForDecl ty DocName -> ForeignDecl DocNameI -> Bool -> LaTeX
 ppFor doc (ForeignImport _ (L _ name) typ _) unicode =
   ppFunSig doc [name] (hsSigType typ) unicode
 ppFor _ _ _ = error "ppFor error in Haddock.Backends.LaTeX"
@@ -314,8 +314,8 @@ ppFor _ _ _ = error "ppFor error in Haddock.Backends.LaTeX"
 -------------------------------------------------------------------------------
 
 -- | Pretty-print a data\/type family declaration
-ppFamDecl :: Documentation DocName    -- ^ this decl's docs
-          -> [DocInstance DocNameI]   -- ^ relevant instances
+ppFamDecl :: Documentation ty DocName    -- ^ this decl's docs
+          -> [(DocInstance ty DocNameI)]   -- ^ relevant instances
           -> TyClDecl DocNameI        -- ^ family to print
           -> Bool                     -- ^ unicode
           -> LaTeX
@@ -392,7 +392,7 @@ ppFamHeader (FamilyDecl { fdLName = L _ name
 
 
 -- we skip type patterns for now
-ppTySyn :: DocForDecl DocName -> TyClDecl DocNameI -> Bool -> LaTeX
+ppTySyn :: DocForDecl ty DocName -> TyClDecl DocNameI -> Bool -> LaTeX
 
 ppTySyn doc (SynDecl { tcdLName = L _ name, tcdTyVars = ltyvars
                          , tcdRhs = ltype }) unicode
@@ -411,7 +411,7 @@ ppTySyn _ _ _ = error "declaration not supported by ppTySyn"
 -------------------------------------------------------------------------------
 
 
-ppFunSig :: DocForDecl DocName -> [DocName] -> LHsType DocNameI
+ppFunSig :: DocForDecl ty DocName -> [DocName] -> LHsType DocNameI
          -> Bool -> LaTeX
 ppFunSig doc docnames (L _ typ) unicode =
   ppTypeOrFunSig typ doc
@@ -424,7 +424,7 @@ ppFunSig doc docnames (L _ typ) unicode =
    names = map getName docnames
 
 -- | Pretty-print a pattern synonym
-ppLPatSig :: DocForDecl DocName  -- ^ documentation
+ppLPatSig :: DocForDecl ty DocName  -- ^ documentation
           -> [DocName]           -- ^ pattern names in the pattern signature
           -> LHsSigType DocNameI -- ^ type of the pattern synonym
           -> Bool                -- ^ unicode
@@ -443,7 +443,7 @@ ppLPatSig doc docnames ty unicode
 -- | Pretty-print a type, adding documentation to the whole type and its
 -- arguments as needed.
 ppTypeOrFunSig :: HsType DocNameI
-               -> DocForDecl DocName  -- ^ documentation
+               -> DocForDecl ty  DocName  -- ^ documentation
                -> ( LaTeX             --   first-line (no-argument docs only)
                   , LaTeX             --   first-line (argument docs only)
                   , LaTeX             --   type prefix (argument docs only)
@@ -463,8 +463,8 @@ ppTypeOrFunSig typ (doc, argDocs) (pref1, pref2, sep0) unicode
 -- its doc)
 ppSubSigLike :: Bool                  -- ^ unicode
              -> HsType DocNameI       -- ^ type signature
-             -> FnArgsDoc DocName     -- ^ docs to add
-             -> [(DocName, DocForDecl DocName)] -- ^ all subdocs (useful when we have `HsRecTy`)
+             -> FnArgsDoc ty DocName     -- ^ docs to add
+             -> [(DocName, DocForDecl ty DocName)] -- ^ all subdocs (useful when we have `HsRecTy`)
              -> LaTeX                 -- ^ seperator (beginning of first line)
              -> [(LaTeX, LaTeX)]      -- ^ arguments (leader/sep, type)
 ppSubSigLike unicode typ argDocs subdocs leader = do_args 0 leader typ
@@ -548,13 +548,13 @@ multiDecl decls =
 -------------------------------------------------------------------------------
 
 
-maybeDoc :: Maybe (Doc DocName) -> LaTeX
+maybeDoc :: Maybe (Doc ty DocName) -> LaTeX
 maybeDoc = maybe empty docToLaTeX
 
 
 -- for table cells, we strip paragraphs out to avoid extra vertical space
 -- and don't add a quote environment.
-rDoc  :: Maybe (Doc DocName) -> LaTeX
+rDoc  :: Maybe (Doc ty DocName) -> LaTeX
 rDoc = maybeDoc . fmap latexStripTrailingWhitespace
 
 
@@ -582,8 +582,8 @@ ppFds fds unicode =
                            hsep (map (ppDocName . unLoc) vars2)
 
 
-ppClassDecl :: [DocInstance DocNameI]
-            -> Documentation DocName -> [(DocName, DocForDecl DocName)]
+ppClassDecl :: [DocInstance ty DocNameI]
+            -> Documentation ty DocName -> [(DocName, DocForDecl ty DocName)]
             -> TyClDecl DocNameI -> Bool -> LaTeX
 ppClassDecl instances doc subdocs
   (ClassDecl { tcdCtxt = lctxt, tcdLName = lname, tcdTyVars = ltyvars, tcdFDs = lfds
@@ -619,7 +619,7 @@ ppClassDecl instances doc subdocs
 
 ppClassDecl _ _ _ _ _ = error "declaration type not supported by ppShortClassDecl"
 
-ppDocInstances :: Bool -> [DocInstance DocNameI] -> LaTeX
+ppDocInstances :: Bool -> [(DocInstance ty DocNameI)] -> LaTeX
 ppDocInstances _unicode [] = empty
 ppDocInstances unicode (i : rest)
   | Just ihead <- isUndocdInstance i
@@ -630,14 +630,14 @@ ppDocInstances unicode (i : rest)
   where
     (is, rest') = spanWith isUndocdInstance rest
 
-isUndocdInstance :: DocInstance a -> Maybe (InstHead a)
+isUndocdInstance :: DocInstance ty a -> Maybe (InstHead a)
 isUndocdInstance (i,Nothing,_,_) = Just i
 isUndocdInstance _ = Nothing
 
 -- | Print a possibly commented instance. The instance header is printed inside
 -- an 'argBox'. The comment is printed to the right of the box in normal comment
 -- style.
-ppDocInstance :: Bool -> DocInstance DocNameI -> LaTeX
+ppDocInstance :: Bool -> DocInstance ty DocNameI -> LaTeX
 ppDocInstance unicode (instHead, doc, _, _) =
   declWithDoc (ppInstDecl unicode instHead) (fmap docToLaTeX $ fmap _doc doc)
 
@@ -655,7 +655,7 @@ ppInstDecl unicode (InstHead {..}) = case ihdInstType of
     tibody = maybe empty (\t -> equals <+> ppType unicode t)
 
 lookupAnySubdoc :: (Eq name1) =>
-                   name1 -> [(name1, DocForDecl name2)] -> DocForDecl name2
+                   name1 -> [(name1, DocForDecl ty name2)] -> DocForDecl ty name2
 lookupAnySubdoc n subdocs = case lookup n subdocs of
   Nothing -> noDocForDecl
   Just docs -> docs
@@ -666,10 +666,10 @@ lookupAnySubdoc n subdocs = case lookup n subdocs of
 -------------------------------------------------------------------------------
 
 -- | Pretty-print a data declaration
-ppDataDecl :: [(HsDecl DocNameI, DocForDecl DocName)] -- ^ relevant patterns
-           -> [DocInstance DocNameI]                  -- ^ relevant instances
-           -> [(DocName, DocForDecl DocName)]         -- ^ relevant decl docs
-           -> Maybe (Documentation DocName)           -- ^ this decl's docs
+ppDataDecl :: [(HsDecl DocNameI, DocForDecl ty DocName)] -- ^ relevant patterns
+           -> [DocInstance ty DocNameI]                  -- ^ relevant instances
+           -> [(DocName, DocForDecl ty DocName)]         -- ^ relevant decl docs
+           -> Maybe (Documentation ty DocName)           -- ^ this decl's docs
            -> TyClDecl DocNameI                       -- ^ data decl to print
            -> Bool                                    -- ^ unicode
            -> LaTeX
@@ -732,7 +732,7 @@ ppConstrHdr forall_ tvs ctxt unicode = ppForall <> ppCtxt
 
 
 -- | Pretty-print a constructor
-ppSideBySideConstr :: [(DocName, DocForDecl DocName)]  -- ^ all decl docs
+ppSideBySideConstr :: [(DocName, DocForDecl ty DocName)]  -- ^ all decl docs
                    -> Bool                             -- ^ unicode
                    -> LaTeX                            -- ^ prefix to decl
                    -> LConDecl DocNameI                -- ^ constructor decl
@@ -836,7 +836,7 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
 
 
 -- | Pretty-print a record field
-ppSideBySideField :: [(DocName, DocForDecl DocName)] -> Bool -> ConDeclField DocNameI ->  LaTeX
+ppSideBySideField :: [(DocName, DocForDecl ty DocName)] -> Bool -> ConDeclField DocNameI ->  LaTeX
 ppSideBySideField subdocs unicode (ConDeclField _ names ltype _) =
   decltt (cat (punctuate comma (map (ppBinder . rdrNameOcc . unLoc . rdrNameFieldOcc . unLoc) names))
     <+> dcolon unicode <+> ppLType unicode ltype) <-> rDoc mbDoc
@@ -850,7 +850,7 @@ ppSideBySideField _ _ (XConDeclField _) = panic "haddock:ppSideBySideField"
 -- | Pretty-print a bundled pattern synonym
 ppSideBySidePat :: [Located DocName]    -- ^ pattern name(s)
                 -> LHsSigType DocNameI  -- ^ type of pattern(s)
-                -> DocForDecl DocName   -- ^ doc map
+                -> DocForDecl ty DocName   -- ^ doc map
                 -> Bool                 -- ^ unicode
                 -> LaTeX
 ppSideBySidePat lnames typ (doc, argDocs) unicode =
@@ -1241,22 +1241,22 @@ rdrLatexMarkup :: DocMarkup RdrName (StringContext -> LaTeX)
 rdrLatexMarkup = parLatexMarkup ppVerbRdrName
 
 
-docToLaTeX :: Doc DocName -> LaTeX
+docToLaTeX :: Doc ty DocName -> LaTeX
 docToLaTeX doc = markup latexMarkup doc Plain
 
 
-documentationToLaTeX :: Documentation DocName -> Maybe LaTeX
+documentationToLaTeX :: Documentation ty DocName -> Maybe LaTeX
 documentationToLaTeX = fmap docToLaTeX . fmap _doc . combineDocumentation
 
 
-rdrDocToLaTeX :: Doc RdrName -> LaTeX
+rdrDocToLaTeX :: Doc ty RdrName -> LaTeX
 rdrDocToLaTeX doc = markup rdrLatexMarkup doc Plain
 
 
 data StringContext = Plain | Verb | Mono
 
 
-latexStripTrailingWhitespace :: Doc a -> Doc a
+latexStripTrailingWhitespace :: Doc ty a -> Doc ty a
 latexStripTrailingWhitespace (DocString s)
   | null s'   = DocEmpty
   | otherwise = DocString s

@@ -27,7 +27,7 @@ ppHyperlinkedSource :: FilePath -- ^ Output directory
                     -> Maybe FilePath -- ^ Custom CSS file path
                     -> Bool -- ^ Flag indicating whether to pretty-print HTML
                     -> SrcMap -- ^ Paths to sources
-                    -> [Interface] -- ^ Interfaces for which we create source
+                    -> [(Interface ty)] -- ^ Interfaces for which we create source
                     -> IO ()
 ppHyperlinkedSource outdir libdir mstyle pretty srcs ifaces = do
     createDirectoryIfMissing True srcdir
@@ -40,7 +40,7 @@ ppHyperlinkedSource outdir libdir mstyle pretty srcs ifaces = do
     srcdir = outdir </> hypSrcDir
 
 -- | Generate hyperlinked source for particular interface.
-ppHyperlinkedModuleSource :: FilePath -> Bool -> SrcMap -> Interface
+ppHyperlinkedModuleSource :: FilePath -> Bool -> SrcMap -> Interface ty
                           -> IO ()
 ppHyperlinkedModuleSource srcdir pretty srcs iface =
     case ifaceTokenizedSrc iface of

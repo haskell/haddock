@@ -26,7 +26,7 @@ import RdrName
 -- NB.  The headers must be given in the order Module, Description,
 -- Copyright, License, Maintainer, Stability, Portability, except that
 -- any or all may be omitted.
-parseModuleHeader :: DynFlags -> Maybe Package -> String -> (HaddockModInfo RdrName, MDoc RdrName)
+parseModuleHeader :: DynFlags -> Maybe Package -> String -> (HaddockModInfo ty RdrName, MDoc ty RdrName)
 parseModuleHeader dflags pkgName str0 =
    let
       kvs :: [(String, String)]
@@ -186,4 +186,3 @@ fields = do
     fs <- many (field i)
     r  <- rest
     return (fs, r)
-

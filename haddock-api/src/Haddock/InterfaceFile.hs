@@ -46,19 +46,19 @@ import UniqSupply
 import Unique
 
 
-data InterfaceFile = InterfaceFile {
+data InterfaceFile ty = InterfaceFile {
   ifLinkEnv         :: LinkEnv,
-  ifInstalledIfaces :: [InstalledInterface]
+  ifInstalledIfaces :: [(InstalledInterface ty)]
 }
 
 
-ifModule :: InterfaceFile -> Module
+ifModule :: InterfaceFile ty -> Module
 ifModule if_ =
   case ifInstalledIfaces if_ of
     [] -> error "empty InterfaceFile"
     iface:_ -> instMod iface
 
-ifUnitId :: InterfaceFile -> UnitId
+ifUnitId :: InterfaceFile ty -> UnitId
 ifUnitId if_ =
   case ifInstalledIfaces if_ of
     [] -> error "empty InterfaceFile"
@@ -96,7 +96,7 @@ initBinMemSize :: Int
 initBinMemSize = 1024*1024
 
 
-writeInterfaceFile :: FilePath -> InterfaceFile -> IO ()
+writeInterfaceFile :: FilePath -> InterfaceFile ty -> IO ()
 writeInterfaceFile filename iface = do
   bh0 <- openBinMem initBinMemSize
   put_ bh0 binaryInterfaceMagic
@@ -186,11 +186,11 @@ freshNameCache = ( create_fresh_nc , \_ -> return () )
 -- monad being used.  The exact monad is whichever monad the first
 -- argument, the getter and setter of the name cache, requires.
 --
-readInterfaceFile :: forall m.
+readInterfaceFile :: forall ty m.
                      MonadIO m
                   => NameCacheAccessor m
                   -> FilePath
-                  -> m (Either String InterfaceFile)
+                  -> m (Either String (InterfaceFile ty))
 readInterfaceFile (get_name_cache, set_name_cache) filename = do
   bh0 <- liftIO $ readBinMem filename
 
@@ -360,7 +360,7 @@ instance (Ord k, Binary k, Binary v) => Binary (Map k v) where
   get bh = fmap (Map.fromList) (get bh)
 
 
-instance Binary InterfaceFile where
+instance Binary (InterfaceFile ty) where
   put_ bh (InterfaceFile env ifaces) = do
     put_ bh env
     put_ bh ifaces
@@ -371,7 +371,7 @@ instance Binary InterfaceFile where
     return (InterfaceFile env ifaces)
 
 
-instance Binary InstalledInterface where
+instance Binary (InstalledInterface ty) where
   put_ bh (InstalledInterface modu is_sig info docMap argMap
            exps visExps opts fixMap) = do
     put_ bh modu
@@ -494,7 +494,7 @@ instance Binary Meta where
         p <- get bh
         return (Meta v p)
 
-instance (Binary mod, Binary id) => Binary (MetaDoc mod id) where
+instance (Binary mod, Binary id) => Binary (MetaDoc ty mod id) where
   put_ bh MetaDoc { _meta = m, _doc = d } = do
     put_ bh m
     put_ bh d
@@ -503,7 +503,7 @@ instance (Binary mod, Binary id) => Binary (MetaDoc mod id) where
     d <- get bh
     return $ MetaDoc { _meta = m, _doc = d }
 
-instance (Binary mod, Binary id) => Binary (DocH mod id) where
+instance (Binary mod, Binary id) => Binary (DocH ty mod id) where
     put_ bh DocEmpty = do
             putByte bh 0
     put_ bh (DocAppend aa ab) = do
@@ -655,7 +655,7 @@ instance (Binary mod, Binary id) => Binary (DocH mod id) where
               _ -> error "invalid binary data found in the interface file"
 
 
-instance Binary name => Binary (HaddockModInfo name) where
+instance Binary name => Binary (HaddockModInfo ty name) where
   put_ bh hmi = do
     put_ bh (hmi_description hmi)
     put_ bh (hmi_copyright   hmi)

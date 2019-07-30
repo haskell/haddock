@@ -79,8 +79,8 @@ processModules
   -> [String]                   -- ^ A list of file or module names sorted by
                                 -- module topology
   -> [Flag]                     -- ^ Command-line flags
-  -> [InterfaceFile]            -- ^ Interface files of package dependencies
-  -> Ghc ([Interface], LinkEnv) -- ^ Resulting list of interfaces and renaming
+  -> [(InterfaceFile ty)]            -- ^ Interface files of package dependencies
+  -> Ghc ([(Interface ty)], LinkEnv) -- ^ Resulting list of interfaces and renaming
                                 -- environment
 processModules verbosity modules flags extIfaces = do
 #if defined(mingw32_HOST_OS)
@@ -125,7 +125,7 @@ processModules verbosity modules flags extIfaces = do
 --------------------------------------------------------------------------------
 
 
-createIfaces0 :: Verbosity -> [String] -> [Flag] -> InstIfaceMap -> Ghc ([Interface], ModuleSet)
+createIfaces0 :: Verbosity -> [String] -> [Flag] -> InstIfaceMap ty -> Ghc ([(Interface ty)], ModuleSet)
 createIfaces0 verbosity modules flags instIfaceMap =
   -- Output dir needs to be set before calling depanal since depanal uses it to
   -- compute output file names that are stored in the DynFlags of the
@@ -155,7 +155,7 @@ createIfaces0 verbosity modules flags instIfaceMap =
       depanal [] False
 
 
-createIfaces :: Verbosity -> [Flag] -> InstIfaceMap -> ModuleGraph -> Ghc ([Interface], ModuleSet)
+createIfaces :: Verbosity -> [Flag] -> InstIfaceMap ty -> ModuleGraph -> Ghc ([(Interface ty)], ModuleSet)
 createIfaces verbosity flags instIfaceMap mods = do
   let sortedMods = flattenSCCs $ topSortModuleGraph False mods Nothing
   out verbosity normal "Haddock coverage:"
@@ -175,7 +175,7 @@ createIfaces verbosity flags instIfaceMap mods = do
                              , ms ) -- Boot modules don't generate ifaces.
 
 
-processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe (Interface, ModuleSet))
+processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap ty -> InstIfaceMap ty -> Ghc (Maybe ((Interface ty), ModuleSet))
 processModule verbosity modsum flags modMap instIfaceMap = do
   out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modsum) ++ "..."
 
@@ -257,7 +257,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
 --
 -- The interfaces are passed in in topologically sorted order, but we start
 -- by reversing the list so we can do a foldl.
-buildHomeLinks :: [Interface] -> LinkEnv
+buildHomeLinks :: [(Interface ty)] -> LinkEnv
 buildHomeLinks ifaces = foldl upd Map.empty (reverse ifaces)
   where
     upd old_env iface

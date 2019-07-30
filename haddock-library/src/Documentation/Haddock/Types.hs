@@ -38,28 +38,28 @@ data Meta = Meta { _version :: Maybe Version
                  , _package :: Maybe Package
                  } deriving (Eq, Show)
 
-data MetaDoc mod id =
+data MetaDoc ty mod id =
   MetaDoc { _meta :: Meta
-          , _doc :: DocH mod id
+          , _doc :: DocH ty mod id
           } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 #if MIN_VERSION_base(4,8,0)
-instance Bifunctor MetaDoc where
+instance Bifunctor (MetaDoc ty) where
   bimap f g (MetaDoc m d) = MetaDoc m (bimap f g d)
 #endif
 
 #if MIN_VERSION_base(4,10,0)
-instance Bifoldable MetaDoc where
+instance Bifoldable (MetaDoc ty) where
   bifoldr f g z d = bifoldr f g z (_doc d)
 
-instance Bitraversable MetaDoc where
+instance Bitraversable (MetaDoc ty) where
   bitraverse f g (MetaDoc m d) = MetaDoc m <$> bitraverse f g d
 #endif
 
-overDoc :: (DocH a b -> DocH c d) -> MetaDoc a b -> MetaDoc c d
+overDoc :: (DocH ty a b -> DocH ty c d) -> MetaDoc ty a b -> MetaDoc ty c d
 overDoc f d = d { _doc = f $ _doc d }
 
-overDocF :: Functor f => (DocH a b -> f (DocH c d)) -> MetaDoc a b -> f (MetaDoc c d)
+overDocF :: Functor f => (DocH ty a b -> f (DocH ty c d)) -> MetaDoc ty a b -> f (MetaDoc ty c d)
 overDocF f d = (\x -> d { _doc = x }) <$> f (_doc d)
 
 type Version = [Int]
@@ -100,24 +100,24 @@ data Table id = Table
   , tableBodyRows   :: [TableRow id]
   } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data DocH mod id
+data DocH ty mod id
   = DocEmpty
-  | DocAppend (DocH mod id) (DocH mod id)
+  | DocAppend (DocH ty mod id) (DocH ty mod id)
   | DocString String
-  | DocParagraph (DocH mod id)
+  | DocParagraph (DocH ty mod id)
   | DocIdentifier id
   | DocIdentifierUnchecked mod
   -- ^ A qualified identifier that couldn't be resolved.
   | DocModule String
-  | DocWarning (DocH mod id)
+  | DocWarning (DocH ty mod id)
   -- ^ This constructor has no counterpart in Haddock markup.
-  | DocEmphasis (DocH mod id)
-  | DocMonospaced (DocH mod id)
-  | DocBold (DocH mod id)
-  | DocUnorderedList [DocH mod id]
-  | DocOrderedList [DocH mod id]
-  | DocDefList [(DocH mod id, DocH mod id)]
-  | DocCodeBlock (DocH mod id)
+  | DocEmphasis (DocH ty mod id)
+  | DocMonospaced (DocH ty mod id)
+  | DocBold (DocH ty mod id)
+  | DocUnorderedList [DocH ty mod id]
+  | DocOrderedList [DocH ty mod id]
+  | DocDefList [(DocH ty mod id, DocH ty mod id)]
+  | DocCodeBlock (DocH ty mod id)
   | DocHyperlink Hyperlink
   | DocPic Picture
   | DocMathInline String
@@ -126,12 +126,12 @@ data DocH mod id
   -- ^ A (HTML) anchor.
   | DocProperty String
   | DocExamples [Example]
-  | DocHeader (Header (DocH mod id))
-  | DocTable (Table (DocH mod id))
+  | DocHeader (Header (DocH ty mod id))
+  | DocTable (Table (DocH ty mod id))
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 #if MIN_VERSION_base(4,8,0)
-instance Bifunctor DocH where
+instance Bifunctor (DocH ty) where
   bimap _ _ DocEmpty = DocEmpty
   bimap f g (DocAppend docA docB) = DocAppend (bimap f g docA) (bimap f g docB)
   bimap _ _ (DocString s) = DocString s
@@ -159,7 +159,7 @@ instance Bifunctor DocH where
 #endif
 
 #if MIN_VERSION_base(4,10,0)
-instance Bifoldable DocH where
+instance Bifoldable (DocH ty) where
   bifoldr f g z (DocAppend docA docB) = bifoldr f g (bifoldr f g z docA) docB
   bifoldr f g z (DocParagraph doc) = bifoldr f g z doc
   bifoldr _ g z (DocIdentifier i) = g i z
@@ -176,7 +176,7 @@ instance Bifoldable DocH where
   bifoldr f g z (DocTable (Table header body)) = foldr (\r acc -> foldr (flip (bifoldr f g)) acc r) (foldr (\r acc -> foldr (flip (bifoldr f g)) acc r) z body) header
   bifoldr _ _ z _ = z
 
-instance Bitraversable DocH where
+instance Bitraversable (DocH ty) where
   bitraverse _ _ DocEmpty = pure DocEmpty
   bitraverse f g (DocAppend docA docB) = DocAppend <$> bitraverse f g docA <*> bitraverse f g docB
   bitraverse _ _ (DocString s) = pure (DocString s)

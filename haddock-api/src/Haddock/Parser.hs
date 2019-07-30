@@ -28,10 +28,10 @@ import RdrName (RdrName)
 import SrcLoc (mkRealSrcLoc, unLoc)
 import StringBuffer (stringToStringBuffer)
 
-parseParas :: DynFlags -> Maybe Package -> String -> MetaDoc mod RdrName
+parseParas :: DynFlags -> Maybe Package -> String -> MetaDoc ty mod RdrName
 parseParas d p = overDoc (P.overIdentifier (parseIdent d)) . P.parseParas p
 
-parseString :: DynFlags -> String -> DocH mod RdrName
+parseString :: DynFlags -> String -> DocH ty mod RdrName
 parseString d = P.overIdentifier (parseIdent d) . P.parseString
 
 parseIdent :: DynFlags -> String -> Maybe RdrName

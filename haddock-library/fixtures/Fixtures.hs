@@ -24,7 +24,7 @@ import qualified Options.Applicative as O
 import           Documentation.Haddock.Types
 import qualified Documentation.Haddock.Parser as Parse
 
-type Doc id = DocH () id
+type Doc id = DocH () () id
 
 data Fixture = Fixture
     { fixtureName   :: FilePath
@@ -140,8 +140,8 @@ runCmd CmdAccept = readFixtures >>= acceptFixtures
 -- Orphans
 -------------------------------------------------------------------------------
 
-deriving instance Generic (DocH mod id)
-instance (ToExpr mod, ToExpr id)  => ToExpr (DocH mod id)
+deriving instance Generic (DocH ty mod id)
+instance (ToExpr mod, ToExpr id)  => ToExpr (DocH ty mod id)
 
 deriving instance Generic (Header id)
 instance ToExpr id => ToExpr (Header id)

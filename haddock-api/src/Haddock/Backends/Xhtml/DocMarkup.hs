@@ -116,10 +116,10 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
 -- elements. This is effectivelly a hack to prevent the 'Doc' type
 -- from changing if it is possible to recover the layout information
 -- we won't need after the fact.
-data Hack a id =
-  UntouchedDoc (MetaDoc a id)
-  | CollapsingHeader (Header (DocH a id)) (MetaDoc a id) Int (Maybe String)
-  | HackAppend (Hack a id) (Hack a id)
+data Hack ty a id =
+  UntouchedDoc (MetaDoc ty a id)
+  | CollapsingHeader (Header (DocH ty a id)) (MetaDoc ty a id) Int (Maybe String)
+  | HackAppend (Hack ty a id) (Hack ty a id)
   deriving Eq
 
 -- | Group things under bold 'DocHeader's together.
@@ -134,7 +134,7 @@ toHack :: Int -- ^ Counter for header IDs which serves to assign
        -- this should work more or less fine: it is in fact the
        -- implicit assumption the collapse/expand mechanism makes for
        -- things like ‘Instances’ boxes.
-       -> [MetaDoc a id] -> Hack a id
+       -> [(MetaDoc ty a id)] -> Hack ty a id
 toHack _ _ [] = UntouchedDoc emptyMetaDoc
 toHack _ _ [x] = UntouchedDoc x
 toHack n nm (MetaDoc { _doc = DocHeader (Header l (DocBold x)) }:xs) =
@@ -160,7 +160,7 @@ toHack n nm (x:xs) = HackAppend (UntouchedDoc x) (toHack n nm xs)
 -- | Remove ‘top-level’ 'DocAppend's turning them into a flat list.
 -- This lends itself much better to processing things in order user
 -- might look at them, such as in 'toHack'.
-flatten :: MetaDoc a id -> [MetaDoc a id]
+flatten :: MetaDoc ty a id -> [(MetaDoc ty a id)]
 flatten MetaDoc { _meta = m, _doc = DocAppend x y } =
   let f z = MetaDoc { _meta = m, _doc = z }
   in flatten (f x) ++ flatten (f y)
@@ -171,12 +171,12 @@ flatten x = [x]
 -- extract/append the underlying 'Doc' and convert it to 'Html'. For
 -- 'CollapsingHeader', we attach extra info to the generated 'Html'
 -- that allows us to expand/collapse the content.
-hackMarkup :: DocMarkup id Html -> Maybe Package -> Hack (ModuleName, OccName) id -> Html
+hackMarkup :: DocMarkup id Html -> Maybe Package -> Hack ty (ModuleName, OccName) id -> Html
 hackMarkup fmt' currPkg h' =
   let (html, ms) = hackMarkup' fmt' h'
   in html +++ renderMeta fmt' currPkg (metaConcat ms)
   where
-    hackMarkup' :: DocMarkup id Html -> Hack (ModuleName, OccName) id
+    hackMarkup' :: DocMarkup id Html -> Hack ty (ModuleName, OccName) id
                 -> (Html, [Meta])
     hackMarkup' fmt h = case h of
       UntouchedDoc d -> (markup fmt $ _doc d, [_meta d])
@@ -209,7 +209,7 @@ renderMeta _ _ _ = noHtml
 markupHacked :: DocMarkup id Html
              -> Maybe Package      -- this package
              -> Maybe String
-             -> MDoc id
+             -> MDoc ty id
              -> Html
 markupHacked fmt currPkg n = hackMarkup fmt currPkg . toHack 0 n . flatten
 
@@ -218,7 +218,7 @@ markupHacked fmt currPkg n = hackMarkup fmt currPkg . toHack 0 n . flatten
 docToHtml :: Maybe String  -- ^ Name of the thing this doc is for. See
                            -- comments on 'toHack' for details.
           -> Maybe Package -- ^ Current package
-          -> Qualification -> MDoc DocName -> Html
+          -> Qualification -> MDoc ty DocName -> Html
 docToHtml n pkg qual = markupHacked fmt pkg n . cleanup
   where fmt = parHtmlMarkup qual True (ppDocName qual Raw)
 
@@ -226,16 +226,16 @@ docToHtml n pkg qual = markupHacked fmt pkg n . cleanup
 -- in links. This is used to generate the Contents box elements.
 docToHtmlNoAnchors :: Maybe String  -- ^ See 'toHack'
                    -> Maybe Package -- ^ Current package
-                   -> Qualification -> MDoc DocName -> Html
+                   -> Qualification -> MDoc ty DocName -> Html
 docToHtmlNoAnchors n pkg qual = markupHacked fmt pkg n . cleanup
   where fmt = parHtmlMarkup qual False (ppDocName qual Raw)
 
-origDocToHtml :: Maybe Package -> Qualification -> MDoc Name -> Html
+origDocToHtml :: Maybe Package -> Qualification -> MDoc ty Name -> Html
 origDocToHtml pkg qual = markupHacked fmt pkg Nothing . cleanup
   where fmt = parHtmlMarkup qual True (const $ ppName Raw)
 
 
-rdrDocToHtml :: Maybe Package -> Qualification -> MDoc RdrName -> Html
+rdrDocToHtml :: Maybe Package -> Qualification -> MDoc ty RdrName -> Html
 rdrDocToHtml pkg qual = markupHacked fmt pkg Nothing . cleanup
   where fmt = parHtmlMarkup qual True (const ppRdrName)
 
@@ -249,19 +249,19 @@ docElement el content_ =
 
 docSection :: Maybe Name -- ^ Name of the thing this doc is for
            -> Maybe Package -- ^ Current package
-           -> Qualification -> Documentation DocName -> Html
+           -> Qualification -> Documentation ty DocName -> Html
 docSection n pkg qual =
   maybe noHtml (docSection_ n pkg qual) . combineDocumentation
 
 
 docSection_ :: Maybe Name    -- ^ Name of the thing this doc is for
             -> Maybe Package -- ^ Current package
-            -> Qualification -> MDoc DocName -> Html
+            -> Qualification -> MDoc ty DocName -> Html
 docSection_ n pkg qual =
   (docElement thediv <<) . docToHtml (getOccString <$> n) pkg qual
 
 
-cleanup :: MDoc a -> MDoc a
+cleanup :: MDoc ty a -> MDoc ty a
 cleanup = overDoc (markup fmtUnParagraphLists)
   where
     -- If there is a single paragraph, then surrounding it with <P>..</P>
@@ -269,11 +269,11 @@ cleanup = overDoc (markup fmtUnParagraphLists)
     -- we have multiple paragraphs, then we want the extra whitespace to
     -- separate them.  So we catch the single paragraph case and transform it
     -- here. We don't do this in code blocks as it eliminates line breaks.
-    unParagraph :: Doc a -> Doc a
+    unParagraph :: Doc ty a -> Doc ty a
     unParagraph (DocParagraph d) = d
     unParagraph doc              = doc
 
-    fmtUnParagraphLists :: DocMarkup a (Doc a)
+    fmtUnParagraphLists :: DocMarkup a (Doc ty a)
     fmtUnParagraphLists = idMarkup {
       markupUnorderedList = DocUnorderedList . map unParagraph,
       markupOrderedList   = DocOrderedList   . map unParagraph

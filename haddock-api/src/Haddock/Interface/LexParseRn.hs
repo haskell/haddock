@@ -38,7 +38,7 @@ import EnumSet
 import RnEnv (dataTcOccs)
 
 processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDocString]
-                  -> ErrMsgM (Maybe (MDoc Name))
+                  -> ErrMsgM (Maybe (MDoc ty Name))
 processDocStrings dflags pkg gre strs = do
   mdoc <- metaDocConcat <$> traverse (processDocStringParas dflags pkg gre) strs
   case mdoc of
@@ -48,16 +48,16 @@ processDocStrings dflags pkg gre strs = do
     MetaDoc { _meta = Meta Nothing Nothing, _doc = DocEmpty } -> pure Nothing
     x -> pure (Just x)
 
-processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDocString -> ErrMsgM (MDoc Name)
+processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDocString -> ErrMsgM (MDoc ty Name)
 processDocStringParas dflags pkg gre hds =
   overDocF (rename dflags gre) $ parseParas dflags pkg (unpackHDS hds)
 
-processDocString :: DynFlags -> GlobalRdrEnv -> HsDocString -> ErrMsgM (Doc Name)
+processDocString :: DynFlags -> GlobalRdrEnv -> HsDocString -> ErrMsgM (Doc ty Name)
 processDocString dflags gre hds =
   rename dflags gre $ parseString dflags (unpackHDS hds)
 
 processModuleHeader :: DynFlags -> Maybe Package -> GlobalRdrEnv -> SafeHaskellMode -> Maybe LHsDocString
-                    -> ErrMsgM (HaddockModInfo Name, Maybe (MDoc Name))
+                    -> ErrMsgM (HaddockModInfo ty Name, Maybe (MDoc ty Name))
 processModuleHeader dflags pkgName gre safety mayStr = do
   (hmi, doc) <-
     case mayStr of
@@ -89,7 +89,7 @@ processModuleHeader dflags pkgName gre safety mayStr = do
 -- fallbacks in case we can't locate the identifiers.
 --
 -- See the comments in the source for implementation commentary.
-rename :: DynFlags -> GlobalRdrEnv -> Doc RdrName -> ErrMsgM (Doc Name)
+rename :: DynFlags -> GlobalRdrEnv -> Doc ty RdrName -> ErrMsgM (Doc ty Name)
 rename dflags gre = rn
   where
     rn d = case d of
@@ -155,7 +155,7 @@ rename dflags gre = rn
 -- users shouldn't rely on this doing the right thing. See tickets
 -- #253 and #375 on the confusion this causes depending on which
 -- default we pick in 'rename'.
-outOfScope :: DynFlags -> RdrName -> ErrMsgM (Doc a)
+outOfScope :: DynFlags -> RdrName -> ErrMsgM (Doc ty a)
 outOfScope dflags x =
   case x of
     Unqual occ -> warnAndMonospace occ
@@ -177,7 +177,7 @@ outOfScope dflags x =
 ambiguous :: DynFlags
           -> RdrName
           -> [GlobalRdrElt] -- ^ More than one @gre@s sharing the same `RdrName` above.
-          -> ErrMsgM (Doc Name)
+          -> ErrMsgM (Doc ty Name)
 ambiguous dflags x gres = do
   let noChildren = map availName (gresToAvailInfo gres)
       dflt = maximumBy (comparing (isLocalName &&& isTyConName)) noChildren

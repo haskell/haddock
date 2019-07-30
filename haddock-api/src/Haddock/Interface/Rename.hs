@@ -32,7 +32,7 @@ import qualified Data.Map as Map hiding ( Map )
 import Prelude hiding (mapM)
 
 
-renameInterface :: DynFlags -> LinkEnv -> Bool -> Interface -> ErrMsgM Interface
+renameInterface :: DynFlags -> LinkEnv -> Bool -> (Interface ty) -> ErrMsgM (Interface ty)
 renameInterface dflags renamingEnv warnings iface =
 
   -- first create the local env, where every name exported by this module
@@ -157,16 +157,16 @@ renameL :: Located Name -> RnM (Located DocName)
 renameL = mapM rename
 
 
-renameExportItems :: [ExportItem GhcRn] -> RnM [ExportItem DocNameI]
+renameExportItems :: [ExportItem ty GhcRn] -> RnM [ExportItem ty DocNameI]
 renameExportItems = mapM renameExportItem
 
 
-renameDocForDecl :: DocForDecl Name -> RnM (DocForDecl DocName)
+renameDocForDecl :: DocForDecl ty Name -> RnM (DocForDecl ty DocName)
 renameDocForDecl (doc, fnArgsDoc) =
   (,) <$> renameDocumentation doc <*> renameFnArgsDoc fnArgsDoc
 
 
-renameDocumentation :: Documentation Name -> RnM (Documentation DocName)
+renameDocumentation :: Documentation ty Name -> RnM (Documentation ty DocName)
 renameDocumentation (Documentation mDoc mWarning) =
   Documentation <$> mapM renameDoc mDoc <*> mapM renameDoc mWarning
 
@@ -178,7 +178,7 @@ renameLDocHsSyn = return
 renameDoc :: Traversable t => t Name -> RnM (t DocName)
 renameDoc = traverse rename
 
-renameFnArgsDoc :: FnArgsDoc Name -> RnM (FnArgsDoc DocName)
+renameFnArgsDoc :: FnArgsDoc ty Name -> RnM (FnArgsDoc ty DocName)
 renameFnArgsDoc = mapM renameDoc
 
 
@@ -335,7 +335,7 @@ renameInstHead InstHead {..} = do
 renameLDecl :: LHsDecl GhcRn -> RnM (LHsDecl DocNameI)
 renameLDecl (L loc d) = return . L loc =<< renameDecl d
 
-renamePats :: [(HsDecl GhcRn, DocForDecl Name)] -> RnM [(HsDecl DocNameI, DocForDecl DocName)]
+renamePats :: [(HsDecl GhcRn, DocForDecl ty Name)] -> RnM [(HsDecl DocNameI, DocForDecl ty DocName)]
 renamePats = mapM
   (\(d,doc) -> do { d'   <- renameDecl d
                   ; doc' <- renameDocForDecl doc
@@ -663,14 +663,14 @@ renameWc rn_thing (HsWC { hswc_body = thing })
                       , hswc_ext = noExt }) }
 renameWc _ (XHsWildCardBndrs _) = panic "haddock:renameWc"
 
-renameDocInstance :: DocInstance GhcRn -> RnM (DocInstance DocNameI)
+renameDocInstance :: DocInstance ty GhcRn -> RnM (DocInstance ty DocNameI)
 renameDocInstance (inst, idoc, L l n, m) = do
   inst' <- renameInstHead inst
   n' <- rename n
   idoc' <- mapM renameDoc idoc
   return (inst', idoc', L l n', m)
 
-renameExportItem :: ExportItem GhcRn -> RnM (ExportItem DocNameI)
+renameExportItem :: ExportItem ty GhcRn -> RnM (ExportItem ty DocNameI)
 renameExportItem item = case item of
   ExportModule mdl -> return (ExportModule mdl)
   ExportGroup lev id_ doc -> do
@@ -695,7 +695,7 @@ renameExportItem item = case item of
     return (ExportDoc doc')
 
 
-renameSub :: (Name, DocForDecl Name) -> RnM (DocName, DocForDecl DocName)
+renameSub :: (Name, DocForDecl ty Name) -> RnM (DocName, DocForDecl ty DocName)
 renameSub (n,doc) = do
   n' <- rename n
   doc' <- renameDocForDecl doc

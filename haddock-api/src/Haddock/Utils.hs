@@ -113,15 +113,15 @@ out progVerbosity msgVerbosity msg
 
 
 -- | Extract a module's short description.
-toDescription :: Interface -> Maybe (MDoc Name)
+toDescription :: Interface ty -> Maybe (MDoc ty Name)
 toDescription = fmap mkMeta . hmi_description . ifaceInfo
 
 
 -- | Extract a module's short description.
-toInstalledDescription :: InstalledInterface -> Maybe (MDoc Name)
+toInstalledDescription :: InstalledInterface ty -> Maybe (MDoc ty Name)
 toInstalledDescription = fmap mkMeta . hmi_description . instInfo
 
-mkMeta :: Doc a -> MDoc a
+mkMeta :: Doc ty a -> MDoc ty a
 mkMeta x = emptyMetaDoc { _doc = x }
 
 mkEmptySigWcType :: LHsType GhcRn -> LHsSigWcType GhcRn

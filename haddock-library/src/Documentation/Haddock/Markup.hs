@@ -6,7 +6,7 @@ module Documentation.Haddock.Markup (
 
 import Documentation.Haddock.Types
 
-markup :: DocMarkupH mod id a -> DocH mod id -> a
+markup :: DocMarkupH mod id a -> DocH ty mod id -> a
 markup m DocEmpty                    = markupEmpty m
 markup m (DocAppend d1 d2)           = markupAppend m (markup m d1) (markup m d2)
 markup m (DocString s)               = markupString m s
@@ -32,11 +32,11 @@ markup m (DocExamples e)             = markupExample m e
 markup m (DocHeader (Header l t))    = markupHeader m (Header l (markup m t))
 markup m (DocTable (Table h b))      = markupTable m (Table (map (fmap (markup m)) h) (map (fmap (markup m)) b))
 
-markupPair :: DocMarkupH mod id a -> (DocH mod id, DocH mod id) -> (a, a)
+markupPair :: DocMarkupH mod id a -> (DocH ty mod id, DocH ty mod id) -> (a, a)
 markupPair m (a,b) = (markup m a, markup m b)
 
 -- | The identity markup
-idMarkup :: DocMarkupH mod id (DocH mod id)
+idMarkup :: DocMarkupH mod id (DocH ty mod id)
 idMarkup = Markup {
   markupEmpty                = DocEmpty,
   markupString               = DocString,

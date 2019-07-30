@@ -52,7 +52,7 @@ type Modules = Set.Set Module
 type ExportInfo = (ExportedNames, Modules)
 
 -- Also attaches fixities
-attachInstances :: ExportInfo -> [Interface] -> InstIfaceMap -> ModuleSet -> Ghc [Interface]
+attachInstances :: ExportInfo -> [(Interface ty)] -> InstIfaceMap ty -> ModuleSet -> Ghc [(Interface ty)]
 attachInstances expInfo ifaces instIfaceMap mods = do
   (_msgs, mb_index) <- getNameToInstancesIndex (map ifaceMod ifaces) mods'
   mapM (attach $ fromMaybe emptyNameEnv mb_index) ifaces
@@ -70,7 +70,7 @@ attachInstances expInfo ifaces instIfaceMap mods = do
                      , ifaceOrphanInstances = orphanInstances
                      }
 
-attachOrphanInstances :: ExportInfo -> Interface -> IfaceMap -> InstIfaceMap -> [ClsInst] -> [DocInstance GhcRn]
+attachOrphanInstances :: ExportInfo -> Interface ty -> IfaceMap ty -> InstIfaceMap ty -> [ClsInst] -> [(DocInstance ty GhcRn)]
 attachOrphanInstances expInfo iface ifaceMap instIfaceMap cls_instances =
   [ (synifyInstHead i, instLookup instDocMap n iface ifaceMap instIfaceMap, (L (getSrcSpan n) n), Nothing)
   | let is = [ (instanceSig i, getName i) | i <- cls_instances, isOrphan (is_orphan i) ]
@@ -82,11 +82,11 @@ attachOrphanInstances expInfo iface ifaceMap instIfaceMap cls_instances =
 attachToExportItem
   :: NameEnv ([ClsInst], [FamInst])
   -> ExportInfo
-  -> Interface
-  -> IfaceMap
-  -> InstIfaceMap
-  -> ExportItem GhcRn
-  -> Ghc (ExportItem GhcRn)
+  -> Interface ty
+  -> IfaceMap ty
+  -> InstIfaceMap ty
+  -> ExportItem ty GhcRn
+  -> Ghc (ExportItem ty GhcRn)
 attachToExportItem index expInfo iface ifaceMap instIfaceMap export =
   case attachFixities export of
     e@ExportDecl { expItemDecl = L eSpan (TyClD _ d) } -> do
@@ -153,8 +153,8 @@ attachToExportItem index expInfo iface ifaceMap instIfaceMap export =
       in L l (Right r)
 
 
-instLookup :: (InstalledInterface -> Map.Map Name a) -> Name
-            -> Interface -> IfaceMap -> InstIfaceMap -> Maybe a
+instLookup :: (InstalledInterface ty -> Map.Map Name a) -> Name
+            -> Interface ty -> IfaceMap ty -> InstIfaceMap ty -> Maybe a
 instLookup f name iface ifaceMap instIfaceMap =
   case Map.lookup name (f $ toInstalledIface iface) of
     res@(Just _) -> res

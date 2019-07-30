@@ -8,7 +8,7 @@ import Control.Applicative ((<|>), empty)
 import Documentation.Haddock.Types
 import Data.Char (isSpace)
 
-docConcat :: [DocH mod id] -> DocH mod id
+docConcat :: [DocH ty mod id] -> DocH ty mod id
 docConcat = foldr docAppend DocEmpty
 
 -- | Concat using 'metaAppend'.
@@ -16,13 +16,13 @@ metaConcat :: [Meta] -> Meta
 metaConcat = foldr metaAppend emptyMeta
 
 -- | Like 'docConcat' but also joins the 'Meta' info.
-metaDocConcat :: [MetaDoc mod id] -> MetaDoc mod id
+metaDocConcat :: [MetaDoc ty mod id] -> MetaDoc ty mod id
 metaDocConcat = foldr metaDocAppend emptyMetaDoc
 
 -- | We do something perhaps unexpected here and join the meta info
 -- in ‘reverse’: this results in the metadata from the ‘latest’
 -- paragraphs taking precedence.
-metaDocAppend :: MetaDoc mod id -> MetaDoc mod id -> MetaDoc mod id
+metaDocAppend :: MetaDoc ty mod id -> MetaDoc ty mod id -> MetaDoc ty mod id
 metaDocAppend (MetaDoc { _meta = m, _doc = d })
               (MetaDoc { _meta = m', _doc = d' }) =
   MetaDoc { _meta = m' `metaAppend` m, _doc = d `docAppend` d' }
@@ -32,13 +32,13 @@ metaDocAppend (MetaDoc { _meta = m, _doc = d })
 metaAppend :: Meta -> Meta -> Meta
 metaAppend (Meta v1 p1) (Meta v2 p2) = Meta (v1 <|> v2) (p1 <|> p2)
 
-emptyMetaDoc :: MetaDoc mod id
+emptyMetaDoc :: MetaDoc ty mod id
 emptyMetaDoc = MetaDoc { _meta = emptyMeta, _doc = DocEmpty }
 
 emptyMeta :: Meta
 emptyMeta = Meta empty empty
 
-docAppend :: DocH mod id -> DocH mod id -> DocH mod id
+docAppend :: DocH ty mod id -> DocH ty mod id -> DocH ty mod id
 docAppend (DocDefList ds1) (DocDefList ds2) = DocDefList (ds1++ds2)
 docAppend (DocDefList ds1) (DocAppend (DocDefList ds2) d) = DocAppend (DocDefList (ds1++ds2)) d
 docAppend (DocOrderedList ds1) (DocOrderedList ds2) = DocOrderedList (ds1 ++ ds2)
@@ -54,7 +54,7 @@ docAppend d1 d2 = DocAppend d1 d2
 
 -- again to make parsing easier - we spot a paragraph whose only item
 -- is a DocMonospaced and make it into a DocCodeBlock
-docParagraph :: DocH mod id -> DocH mod id
+docParagraph :: DocH ty mod id -> DocH ty mod id
 docParagraph (DocMonospaced p)
   = DocCodeBlock (docCodeBlock p)
 docParagraph (DocAppend (DocString s1) (DocMonospaced p))
@@ -81,7 +81,7 @@ docParagraph p
 -- gives an extra vertical space after the code block.  The single space
 -- on the final line seems to trigger the extra vertical space.
 --
-docCodeBlock :: DocH mod id -> DocH mod id
+docCodeBlock :: DocH ty mod id -> DocH ty mod id
 docCodeBlock (DocString s)
   = DocString (reverse $ dropWhile (`elem` " \t") $ reverse s)
 docCodeBlock (DocAppend l r)

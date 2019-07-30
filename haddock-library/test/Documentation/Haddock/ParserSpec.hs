@@ -13,12 +13,12 @@ import           Test.QuickCheck
 import           Prelude hiding ((<>))
 
 infixr 6 <>
-(<>) :: Doc id -> Doc id -> Doc id
+(<>) :: Doc ty id -> Doc ty id -> Doc ty id
 (<>) = docAppend
 
-type Doc id = DocH () id
+type Doc ty id = DocH ty () id
 
-instance IsString (Doc String) where
+instance IsString ((Doc ty) String) where
   fromString = DocString
 
 instance IsString a => IsString (Maybe a) where
@@ -31,13 +31,13 @@ emptyMeta =
   , _package = Nothing
   }
 
-parseParas :: String -> MetaDoc () String
+parseParas :: String -> MetaDoc ty () String
 parseParas = overDoc Parse.toRegular . Parse.parseParas Nothing
 
-parseString :: String -> Doc String
+parseString :: String -> Doc ty String
 parseString = Parse.toRegular . Parse.parseString
 
-hyperlink :: String -> Maybe String -> Doc String
+hyperlink :: String -> Maybe String -> Doc ty String
 hyperlink url = DocHyperlink . Hyperlink url
 
 main :: IO ()
@@ -47,7 +47,7 @@ spec :: Spec
 spec = do
   describe "parseString" $ do
     let infix 1 `shouldParseTo`
-        shouldParseTo :: String -> Doc String -> Expectation
+        shouldParseTo :: String -> Doc ty String -> Expectation
         shouldParseTo input ast = parseString input `shouldBe` ast
 
     it "is total" $ do
@@ -247,7 +247,7 @@ spec = do
             "foo " <> hyperlink "https://example.com/example" Nothing <> " bar"
 
     context "when parsing images" $ do
-      let image :: String -> Maybe String -> Doc String
+      let image :: String -> Maybe String -> Doc ty String
           image uri = DocPic . Picture uri
 
       it "accepts markdown syntax for images" $ do
@@ -418,7 +418,7 @@ spec = do
 
   describe "parseParas" $ do
     let infix 1 `shouldParseTo`
-        shouldParseTo :: String -> Doc String -> Expectation
+        shouldParseTo :: String -> Doc ty String -> Expectation
         shouldParseTo input ast = _doc (parseParas input) `shouldBe` ast
 
     it "is total" $ do

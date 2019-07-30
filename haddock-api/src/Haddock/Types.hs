@@ -51,10 +51,10 @@ import Haddock.Backends.Hyperlinker.Types
 -----------------------------------------------------------------------------
 
 
-type IfaceMap      = Map Module Interface
-type InstIfaceMap  = Map Module InstalledInterface  -- TODO: rename
-type DocMap a      = Map Name (MDoc a)
-type ArgMap a      = Map Name (Map Int (MDoc a))
+type IfaceMap ty      = Map Module (Interface ty)
+type InstIfaceMap ty  = Map Module (InstalledInterface ty)  -- TODO: rename
+type DocMap ty a      = Map Name (MDoc ty a)
+type ArgMap ty a      = Map Name (Map Int (MDoc ty a))
 type SubMap        = Map Name [Name]
 type DeclMap       = Map Name [LHsDecl GhcRn]
 type InstMap       = Map SrcSpan Name
@@ -72,7 +72,7 @@ type DocPaths      = (FilePath, Maybe FilePath) -- paths to HTML and sources
 -- lies in creating this structure. Note that the record contains some fields
 -- that are only used to create the final record, and that are not used by the
 -- backends.
-data Interface = Interface
+data Interface ty = Interface
   {
     -- | The module behind this interface.
     ifaceMod             :: !Module
@@ -84,13 +84,13 @@ data Interface = Interface
   , ifaceOrigFilename    :: !FilePath
 
     -- | Textual information about the module.
-  , ifaceInfo            :: !(HaddockModInfo Name)
+  , ifaceInfo            :: !(HaddockModInfo ty Name)
 
     -- | Documentation header.
-  , ifaceDoc             :: !(Documentation Name)
+  , ifaceDoc             :: !(Documentation ty Name)
 
     -- | Documentation header with cross-reference information.
-  , ifaceRnDoc           :: !(Documentation DocName)
+  , ifaceRnDoc           :: !(Documentation ty DocName)
 
     -- | Haddock options for this module (prune, ignore-exports, etc).
   , ifaceOptions         :: ![DocOption]
@@ -102,18 +102,18 @@ data Interface = Interface
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
-  , ifaceDocMap          :: !(DocMap Name)
-  , ifaceArgMap          :: !(ArgMap Name)
+  , ifaceDocMap          :: !(DocMap ty Name)
+  , ifaceArgMap          :: !(ArgMap ty Name)
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
-  , ifaceRnDocMap        :: !(DocMap DocName)
-  , ifaceRnArgMap        :: !(ArgMap DocName)
+  , ifaceRnDocMap        :: !(DocMap ty DocName)
+  , ifaceRnArgMap        :: !(ArgMap ty DocName)
 
   , ifaceFixMap          :: !(Map Name Fixity)
 
-  , ifaceExportItems     :: ![ExportItem GhcRn]
-  , ifaceRnExportItems   :: ![ExportItem DocNameI]
+  , ifaceExportItems     :: ![ExportItem ty GhcRn]
+  , ifaceRnExportItems   :: ![ExportItem ty DocNameI]
 
     -- | All names exported by the module.
   , ifaceExports         :: ![Name]
@@ -131,27 +131,27 @@ data Interface = Interface
   , ifaceFamInstances    :: ![FamInst]
 
     -- | Orphan instances
-  , ifaceOrphanInstances :: ![DocInstance GhcRn]
-  , ifaceRnOrphanInstances :: ![DocInstance DocNameI]
+  , ifaceOrphanInstances :: ![DocInstance ty GhcRn]
+  , ifaceRnOrphanInstances :: ![DocInstance ty DocNameI]
 
     -- | The number of haddockable and haddocked items in the module, as a
     -- tuple. Haddockable items are the exports and the module itself.
   , ifaceHaddockCoverage :: !(Int, Int)
 
     -- | Warnings for things defined in this module.
-  , ifaceWarningMap :: !WarningMap
+  , ifaceWarningMap :: !(WarningMap ty)
 
     -- | Tokenized source code of module (avaliable if Haddock is invoked with
     -- source generation flag).
   , ifaceTokenizedSrc :: !(Maybe [RichToken])
   }
 
-type WarningMap = Map Name (Doc Name)
+type WarningMap ty = Map Name (Doc ty Name)
 
 
 -- | A subset of the fields of 'Interface' that we store in the interface
 -- files.
-data InstalledInterface = InstalledInterface
+data InstalledInterface ty = InstalledInterface
   {
     -- | The module represented by this interface.
     instMod              :: Module
@@ -160,13 +160,13 @@ data InstalledInterface = InstalledInterface
   , instIsSig            :: Bool
 
     -- | Textual information about the module.
-  , instInfo             :: HaddockModInfo Name
+  , instInfo             :: HaddockModInfo ty Name
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
-  , instDocMap           :: DocMap Name
+  , instDocMap           :: DocMap ty Name
 
-  , instArgMap           :: ArgMap Name
+  , instArgMap           :: ArgMap ty Name
 
     -- | All names exported by this module.
   , instExports          :: [Name]
@@ -184,7 +184,7 @@ data InstalledInterface = InstalledInterface
 
 
 -- | Convert an 'Interface' to an 'InstalledInterface'
-toInstalledIface :: Interface -> InstalledInterface
+toInstalledIface :: Interface ty -> InstalledInterface ty
 toInstalledIface interface = InstalledInterface
   { instMod              = ifaceMod              interface
   , instIsSig            = ifaceIsSig            interface
@@ -203,7 +203,7 @@ toInstalledIface interface = InstalledInterface
 -----------------------------------------------------------------------------
 
 
-data ExportItem name
+data ExportItem ty name
 
   -- | An exported declaration.
   = ExportDecl
@@ -212,18 +212,18 @@ data ExportItem name
         expItemDecl :: !(LHsDecl name)
 
         -- | Bundled patterns for a data type declaration
-      , expItemPats :: ![(HsDecl name, DocForDecl (IdP name))]
+      , expItemPats :: ![(HsDecl name, DocForDecl ty (IdP name))]
 
         -- | Maybe a doc comment, and possibly docs for arguments (if this
         -- decl is a function or type-synonym).
-      , expItemMbDoc :: !(DocForDecl (IdP name))
+      , expItemMbDoc :: !(DocForDecl ty (IdP name))
 
         -- | Subordinate names, possibly with documentation.
-      , expItemSubDocs :: ![(IdP name, DocForDecl (IdP name))]
+      , expItemSubDocs :: ![(IdP name, DocForDecl ty (IdP name))]
 
         -- | Instances relevant to this declaration, possibly with
         -- documentation.
-      , expItemInstances :: ![DocInstance name]
+      , expItemInstances :: ![DocInstance ty name]
 
         -- | Fixity decls relevant to this declaration (including subordinates).
       , expItemFixities :: ![(IdP name, Fixity)]
@@ -252,28 +252,28 @@ data ExportItem name
       , expItemSectionId :: !String
 
         -- | Section heading text.
-      , expItemSectionText :: !(Doc (IdP name))
+      , expItemSectionText :: !(Doc ty (IdP name))
       }
 
   -- | Some documentation.
-  | ExportDoc !(MDoc (IdP name))
+  | ExportDoc !(MDoc ty (IdP name))
 
   -- | A cross-reference to another module.
   | ExportModule !Module
 
-data Documentation name = Documentation
-  { documentationDoc :: Maybe (MDoc name)
-  , documentationWarning :: !(Maybe (Doc name))
+data Documentation ty name = Documentation
+  { documentationDoc :: Maybe (MDoc ty name)
+  , documentationWarning :: !(Maybe (Doc ty name))
   } deriving Functor
 
 
 -- | Arguments and result are indexed by Int, zero-based from the left,
 -- because that's the easiest to use when recursing over types.
-type FnArgsDoc name = Map Int (MDoc name)
-type DocForDecl name = (Documentation name, FnArgsDoc name)
+type FnArgsDoc ty name = Map Int (MDoc ty name)
+type DocForDecl ty name = (Documentation ty name, FnArgsDoc ty name)
 
 
-noDocForDecl :: DocForDecl name
+noDocForDecl :: DocForDecl ty name
 noDocForDecl = (Documentation Nothing Nothing, Map.empty)
 
 
@@ -389,7 +389,9 @@ mkPseudoFamilyDecl (XFamilyDecl {}) = panic "haddock:mkPseudoFamilyDecl"
 
 
 -- | An instance head that may have documentation and a source location.
-type DocInstance name = (InstHead name, Maybe (MDoc (IdP name)), Located (IdP name), Maybe Module)
+type DocInstance ty name = (InstHead name,
+                          Maybe (MDoc ty (IdP name)),
+                          Located (IdP name), Maybe Module)
 
 -- | The head of an instance. Consists of a class name, a list of type
 -- parameters (which may be annotated with kinds), and an instance type
@@ -422,15 +424,15 @@ instance NamedThing name => NamedThing (InstOrigin name) where
 -----------------------------------------------------------------------------
 
 
-type LDoc id = Located (Doc id)
+type LDoc ty id = Located (Doc ty id)
 
-type Doc id = DocH (ModuleName, OccName) id
-type MDoc id = MetaDoc (ModuleName, OccName) id
+type Doc ty id = DocH ty (ModuleName, OccName) id
+type MDoc ty id = MetaDoc ty (ModuleName, OccName) id
 
 type DocMarkup id a = DocMarkupH (ModuleName, OccName) id a
 
 instance (NFData a, NFData mod)
-         => NFData (DocH mod a) where
+         => NFData (DocH ty mod a) where
   rnf doc = case doc of
     DocEmpty                  -> ()
     DocAppend a b             -> a `deepseq` b `deepseq` ()
@@ -489,8 +491,8 @@ exampleToString :: Example -> String
 exampleToString (Example expression result) =
     ">>> " ++ expression ++ "\n" ++  unlines result
 
-data HaddockModInfo name = HaddockModInfo
-  { hmi_description :: Maybe (Doc name)
+data HaddockModInfo ty name = HaddockModInfo
+  { hmi_description :: Maybe (Doc ty name)
   , hmi_copyright   :: Maybe String
   , hmi_license     :: Maybe String
   , hmi_maintainer  :: Maybe String
@@ -502,7 +504,7 @@ data HaddockModInfo name = HaddockModInfo
   }
 
 
-emptyHaddockModInfo :: HaddockModInfo a
+emptyHaddockModInfo :: HaddockModInfo ty a
 emptyHaddockModInfo = HaddockModInfo
   { hmi_description = Nothing
   , hmi_copyright   = Nothing
@@ -741,4 +743,3 @@ type instance XHsWC      DocNameI _ = NoExt
 
 type instance XHsQTvs        DocNameI = NoExt
 type instance XConDeclField  DocNameI = NoExt
-

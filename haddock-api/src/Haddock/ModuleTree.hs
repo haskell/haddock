@@ -23,10 +23,10 @@ import PackageConfig ( sourcePackageIdString )
 import qualified Control.Applicative as A
 
 
-data ModuleTree = Node String (Maybe Module) (Maybe String) (Maybe String) (Maybe (MDoc Name)) [ModuleTree]
+data ModuleTree ty= Node String (Maybe Module) (Maybe String) (Maybe String) (Maybe (MDoc ty Name)) [(ModuleTree ty)]
 
 
-mkModuleTree :: DynFlags -> Bool -> [(Module, Maybe (MDoc Name))] -> [ModuleTree]
+mkModuleTree :: DynFlags -> Bool -> [(Module, Maybe (MDoc ty Name))] -> [(ModuleTree ty)]
 mkModuleTree dflags showPkgs mods =
   foldr fn [] [ (mdl, splitModule mdl, modPkg mdl, modSrcPkg mdl, short) | (mdl, short) <- mods ]
   where
@@ -38,7 +38,7 @@ mkModuleTree dflags showPkgs mods =
     fn (m,mod_,pkg,srcPkg,short) = addToTrees mod_ m pkg srcPkg short
 
 
-addToTrees :: [String] -> Module -> Maybe String -> Maybe String -> Maybe (MDoc Name) -> [ModuleTree] -> [ModuleTree]
+addToTrees :: [String] -> Module -> Maybe String -> Maybe String -> Maybe (MDoc ty Name) -> [(ModuleTree ty)] -> [(ModuleTree ty)]
 addToTrees [] _ _ _ _ ts = ts
 addToTrees ss m pkg srcPkg short [] = mkSubTree ss m pkg srcPkg short
 addToTrees (s1:ss) m pkg srcPkg short (t@(Node s2 leaf node_pkg node_srcPkg node_short subs) : ts)
@@ -51,7 +51,7 @@ addToTrees (s1:ss) m pkg srcPkg short (t@(Node s2 leaf node_pkg node_srcPkg node
   this_short = if null ss then short else node_short
 
 
-mkSubTree :: [String] -> Module -> Maybe String -> Maybe String -> Maybe (MDoc Name) -> [ModuleTree]
+mkSubTree :: [String] -> Module -> Maybe String -> Maybe String -> Maybe (MDoc ty Name) -> [(ModuleTree ty)]
 mkSubTree []     _ _   _      _     = []
 mkSubTree [s]    m pkg srcPkg short = [Node s (Just m) pkg srcPkg short []]
 mkSubTree (s:s':ss) m pkg srcPkg short = [Node s Nothing Nothing Nothing Nothing (mkSubTree (s':ss) m pkg srcPkg short)]

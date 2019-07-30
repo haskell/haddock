@@ -85,7 +85,7 @@ import Haddock
 createInterfaces
   :: [Flag]         -- ^ A list of command-line flags
   -> [String]       -- ^ File or module names
-  -> IO [Interface] -- ^ Resulting list of interfaces
+  -> IO [(Interface ty)] -- ^ Resulting list of interfaces
 createInterfaces flags modules = do
   (_, ifaces, _) <- withGhc flags (readPackagesAndProcessModules flags modules)
   return ifaces

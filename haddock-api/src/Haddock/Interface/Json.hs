@@ -19,13 +19,13 @@ import qualified Data.Map as Map
 import Haddock.Types
 import Haddock.InterfaceFile
 
-jsonInterfaceFile :: InterfaceFile -> JsonDoc
+jsonInterfaceFile :: InterfaceFile ty -> JsonDoc
 jsonInterfaceFile InterfaceFile{..} =
   jsonObject [ ("link_env" , jsonMap nameStableString (jsonString . moduleNameString . moduleName) ifLinkEnv)
              , ("inst_ifaces", jsonArray (map jsonInstalledInterface ifInstalledIfaces))
              ]
 
-jsonInstalledInterface :: InstalledInterface -> JsonDoc
+jsonInstalledInterface :: InstalledInterface ty -> JsonDoc
 jsonInstalledInterface InstalledInterface{..} = jsonObject properties
   where
     properties =
@@ -40,7 +40,7 @@ jsonInstalledInterface InstalledInterface{..} = jsonObject properties
       , ("fix_map"         , jsonMap nameStableString jsonFixity instFixMap)
       ]
 
-jsonHaddockModInfo :: HaddockModInfo Name -> JsonDoc
+jsonHaddockModInfo :: HaddockModInfo ty Name -> JsonDoc
 jsonHaddockModInfo HaddockModInfo{..} =
   jsonObject [ ("description" , jsonMaybe jsonDoc hmi_description)
              , ("copyright"   , jsonMaybe jsonString hmi_copyright)
@@ -55,13 +55,13 @@ jsonHaddockModInfo HaddockModInfo{..} =
 jsonMap :: (a -> String) -> (b -> JsonDoc) -> Map a b -> JsonDoc
 jsonMap f g = jsonObject . map (f *** g) . Map.toList
 
-jsonMDoc :: MDoc Name -> JsonDoc
+jsonMDoc :: MDoc ty Name -> JsonDoc
 jsonMDoc MetaDoc{..} =
   jsonObject [ ("meta", jsonObject [("version", jsonMaybe (jsonString . show) (_version _meta))])
              , ("doc",  jsonDoc _doc)
              ]
 
-jsonDoc :: Doc Name -> JsonDoc
+jsonDoc :: Doc ty Name -> JsonDoc
 jsonDoc doc = jsonString (show (bimap (moduleNameString . fst) nameStableString doc))
 
 jsonModule :: Module -> JsonDoc

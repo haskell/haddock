@@ -217,7 +217,7 @@ withGhc flags action = do
 
 
 readPackagesAndProcessModules :: [Flag] -> [String]
-                              -> Ghc ([(DocPaths, InterfaceFile)], [Interface], LinkEnv)
+                              -> Ghc ([(DocPaths, (InterfaceFile ty))], [(Interface ty)], LinkEnv)
 readPackagesAndProcessModules flags files = do
     -- Get packages supplied with --read-interface.
     packages <- readInterfaceFiles nameCacheFromGhc (readIfaceArgs flags)
@@ -230,7 +230,7 @@ readPackagesAndProcessModules flags files = do
 
 
 renderStep :: DynFlags -> [Flag] -> SinceQual -> QualOption
-           -> [(DocPaths, InterfaceFile)] -> [Interface] -> IO ()
+           -> [(DocPaths, (InterfaceFile ty))] -> [(Interface ty)] -> IO ()
 renderStep dflags flags sinceQual nameQual pkgs interfaces = do
   updateHTMLXRefs pkgs
   let
@@ -243,8 +243,9 @@ renderStep dflags flags sinceQual nameQual pkgs interfaces = do
   render dflags flags sinceQual nameQual interfaces installedIfaces extSrcMap
 
 -- | Render the interfaces with whatever backend is specified in the flags.
-render :: DynFlags -> [Flag] -> SinceQual -> QualOption -> [Interface]
-       -> [InstalledInterface] -> Map Module FilePath -> IO ()
+render :: forall ty.
+          DynFlags -> [Flag] -> SinceQual -> QualOption -> [(Interface ty)]
+       -> [(InstalledInterface ty)] -> Map Module FilePath -> IO ()
 render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
 
   let
@@ -309,7 +310,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
 
     sourceUrls' = (srcBase, srcModule', pkgSrcMap', pkgSrcLMap')
 
-    installedMap :: Map Module InstalledInterface
+    installedMap :: Map Module (InstalledInterface ty)
     installedMap = Map.fromList [ (unwire (instMod iface), iface) | iface <- installedIfaces ]
 
     -- The user gives use base-4.9.0.0, but the InstalledInterface
@@ -411,7 +412,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
 readInterfaceFiles :: MonadIO m
                    => NameCacheAccessor m
                    -> [(DocPaths, FilePath)]
-                   -> m [(DocPaths, InterfaceFile)]
+                   -> m [(DocPaths, (InterfaceFile ty))]
 readInterfaceFiles name_cache_accessor pairs = do
   catMaybes `liftM` mapM ({-# SCC readInterfaceFile #-} tryReadIface) pairs
   where
@@ -604,7 +605,7 @@ hypSrcWarnings flags = do
     isSourceCssFlag _ = False
 
 
-updateHTMLXRefs :: [(DocPaths, InterfaceFile)] -> IO ()
+updateHTMLXRefs :: [(DocPaths, (InterfaceFile ty))] -> IO ()
 updateHTMLXRefs packages = do
   writeIORef html_xrefs_ref (Map.fromList mapping)
   writeIORef html_xrefs_ref' (Map.fromList mapping')
@@ -614,7 +615,7 @@ updateHTMLXRefs packages = do
     mapping' = [ (moduleName m, html) | (m, html) <- mapping ]
 
 
-getPrologue :: DynFlags -> [Flag] -> IO (Maybe (MDoc RdrName))
+getPrologue :: DynFlags -> [Flag] -> IO (Maybe (MDoc ty RdrName))
 getPrologue dflags flags =
   case [filename | Flag_Prologue filename <- flags ] of
     [] -> return Nothing

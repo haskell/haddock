@@ -78,7 +78,7 @@ type Identifier = (Char, String, Char)
 
 -- | Drops the quotes/backticks around all identifiers, as if they
 -- were valid but still 'String's.
-toRegular :: DocH mod Identifier -> DocH mod String
+toRegular :: DocH ty mod Identifier -> DocH ty mod String
 toRegular = fmap (\(_, x, _) -> x)
 
 -- | Maps over 'DocIdentifier's over 'String' with potentially failing
@@ -86,8 +86,8 @@ toRegular = fmap (\(_, x, _) -> x)
 -- the identifier is deemed to not be valid and is treated as a
 -- regular string.
 overIdentifier :: (String -> Maybe a)
-               -> DocH mod Identifier
-               -> DocH mod a
+               -> DocH ty mod Identifier
+               -> DocH ty mod a
 overIdentifier f d = g d
   where
     g (DocIdentifier (o, x, e)) = case f x of
@@ -132,7 +132,7 @@ parse p = either err id . parseOnly (p <* Parsec.eof)
 -- to the input string.
 parseParas :: Maybe Package
            -> String -- ^ String to parse
-           -> MetaDoc mod Identifier
+           -> MetaDoc ty mod Identifier
 parseParas pkg input = case parseParasState input of
   (state, a) -> MetaDoc { _meta = Meta { _version = parserStateSince state
                                        , _package = pkg
@@ -140,32 +140,32 @@ parseParas pkg input = case parseParasState input of
                         , _doc = a
                         }
 
-parseParasState :: String -> (ParserState, DocH mod Identifier)
+parseParasState :: String -> (ParserState, DocH ty mod Identifier)
 parseParasState = parse (emptyLines *> p) . T.pack . (++ "\n") . filter (/= '\r')
   where
-    p :: Parser (DocH mod Identifier)
+    p :: Parser (DocH ty mod Identifier)
     p = docConcat <$> many (paragraph <* emptyLines)
 
     emptyLines :: Parser ()
     emptyLines = void $ many (try (skipHorizontalSpace *> "\n"))
 
-parseParagraphs :: String -> Parser (DocH mod Identifier)
+parseParagraphs :: String -> Parser (DocH ty mod Identifier)
 parseParagraphs input = case parseParasState input of
   (state, a) -> Parsec.putState state *> pure a
 
 -- | Variant of 'parseText' for 'String' instead of 'Text'
-parseString :: String -> DocH mod Identifier
+parseString :: String -> DocH ty mod Identifier
 parseString = parseText . T.pack
 
 -- | Parse a text paragraph. Actually just a wrapper over 'parseParagraph' which
 -- drops leading whitespace.
-parseText :: Text -> DocH mod Identifier
+parseText :: Text -> DocH ty mod Identifier
 parseText = parseParagraph . T.dropWhile isSpace . T.filter (/= '\r')
 
-parseParagraph :: Text -> DocH mod Identifier
+parseParagraph :: Text -> DocH ty mod Identifier
 parseParagraph = snd . parse p
   where
-    p :: Parser (DocH mod Identifier)
+    p :: Parser (DocH ty mod Identifier)
     p = docConcat <$> many (choice' [ monospace
                                     , anchor
                                     , identifier
@@ -187,7 +187,7 @@ parseParagraph = snd . parse p
 --
 -- >>> parseString "&#65;"
 -- DocString "A"
-encodedChar :: Parser (DocH mod a)
+encodedChar :: Parser (DocH ty mod a)
 encodedChar = "&#" *> c <* ";"
   where
     c = DocString . return . chr <$> num
@@ -203,7 +203,7 @@ specialChar = "_/<@\"&'`# "
 -- | Plain, regular parser for text. Called as one of the last parsers
 -- to ensure that we have already given a chance to more meaningful parsers
 -- before capturing their characers.
-string' :: Parser (DocH mod a)
+string' :: Parser (DocH ty mod a)
 string' = DocString . unescape . T.unpack <$> takeWhile1_ (`notElem` specialChar)
   where
     unescape "" = ""
@@ -213,14 +213,14 @@ string' = DocString . unescape . T.unpack <$> takeWhile1_ (`notElem` specialChar
 -- | Skips a single special character and treats it as a plain string.
 -- This is done to skip over any special characters belonging to other
 -- elements but which were not deemed meaningful at their positions.
-skipSpecialChar :: Parser (DocH mod a)
+skipSpecialChar :: Parser (DocH ty mod a)
 skipSpecialChar = DocString . return <$> Parsec.oneOf specialChar
 
 -- | Emphasis parser.
 --
 -- >>> parseString "/Hello world/"
 -- DocEmphasis (DocString "Hello world")
-emphasis :: Parser (DocH mod Identifier)
+emphasis :: Parser (DocH ty mod Identifier)
 emphasis = DocEmphasis . parseParagraph <$>
   disallowNewline ("/" *> takeWhile1_ (/= '/') <* "/")
 
@@ -228,7 +228,7 @@ emphasis = DocEmphasis . parseParagraph <$>
 --
 -- >>> parseString "__Hello world__"
 -- DocBold (DocString "Hello world")
-bold :: Parser (DocH mod Identifier)
+bold :: Parser (DocH ty mod Identifier)
 bold = DocBold . parseParagraph <$> disallowNewline ("__" *> takeUntil "__")
 
 disallowNewline :: Parser Text -> Parser Text
@@ -251,7 +251,7 @@ takeWhile1_ = mfilter (not . T.null) . takeWhile_
 --
 -- >>> parseString "#Hello world#"
 -- DocAName "Hello world"
-anchor :: Parser (DocH mod a)
+anchor :: Parser (DocH ty mod a)
 anchor = DocAName . T.unpack <$>
          disallowNewline ("#" *> takeWhile1_ (/= '#') <* "#")
 
@@ -259,7 +259,7 @@ anchor = DocAName . T.unpack <$>
 --
 -- >>> parseString "@cruel@"
 -- DocMonospaced (DocString "cruel")
-monospace :: Parser (DocH mod Identifier)
+monospace :: Parser (DocH ty mod Identifier)
 monospace = DocMonospaced . parseParagraph
             <$> ("@" *> takeWhile1_ (/= '@') <* "@")
 
@@ -267,7 +267,7 @@ monospace = DocMonospaced . parseParagraph
 --
 -- Note that we allow '#' and '\' to support anchors (old style anchors are of
 -- the form "SomeModule\#anchor").
-moduleName :: Parser (DocH mod a)
+moduleName :: Parser (DocH ty mod a)
 moduleName = DocModule <$> ("\"" *> modid <* "\"")
   where
     modid = intercalate "." <$> conid `Parsec.sepBy1` "."
@@ -284,7 +284,7 @@ moduleName = DocModule <$> ("\"" *> modid <* "\"")
 -- DocPic (Picture {pictureUri = "hello.png", pictureTitle = Nothing})
 -- >>> parseString "<<hello.png world>>"
 -- DocPic (Picture {pictureUri = "hello.png", pictureTitle = Just "world"})
-picture :: Parser (DocH mod a)
+picture :: Parser (DocH ty mod a)
 picture = DocPic . makeLabeled Picture
           <$> disallowNewline ("<<" *> takeUntil ">>")
 
@@ -292,7 +292,7 @@ picture = DocPic . makeLabeled Picture
 --
 -- >>> parseString "\\(\\int_{-\\infty}^{\\infty} e^{-x^2/2} = \\sqrt{2\\pi}\\)"
 -- DocMathInline "\\int_{-\\infty}^{\\infty} e^{-x^2/2} = \\sqrt{2\\pi}"
-mathInline :: Parser (DocH mod a)
+mathInline :: Parser (DocH ty mod a)
 mathInline = DocMathInline . T.unpack
              <$> disallowNewline  ("\\(" *> takeUntil "\\)")
 
@@ -300,17 +300,17 @@ mathInline = DocMathInline . T.unpack
 --
 -- >>> parseString "\\[\\int_{-\\infty}^{\\infty} e^{-x^2/2} = \\sqrt{2\\pi}\\]"
 -- DocMathDisplay "\\int_{-\\infty}^{\\infty} e^{-x^2/2} = \\sqrt{2\\pi}"
-mathDisplay :: Parser (DocH mod a)
+mathDisplay :: Parser (DocH ty mod a)
 mathDisplay = DocMathDisplay . T.unpack
               <$> ("\\[" *> takeUntil "\\]")
 
-markdownImage :: Parser (DocH mod a)
+markdownImage :: Parser (DocH ty mod a)
 markdownImage = fromHyperlink <$> ("!" *> linkParser)
   where
     fromHyperlink (Hyperlink url label) = DocPic (Picture url label)
 
 -- | Paragraph parser, called by 'parseParas'.
-paragraph :: Parser (DocH mod Identifier)
+paragraph :: Parser (DocH ty mod Identifier)
 paragraph = choice' [ examples
                     , table
                     , do indent <- takeIndent
@@ -343,7 +343,7 @@ paragraph = choice' [ examples
 -- Algorithms loosely follows ideas in
 -- http://docutils.sourceforge.net/docutils/parsers/rst/tableparser.py
 --
-table :: Parser (DocH mod Identifier)
+table :: Parser (DocH ty mod Identifier)
 table = do
     -- first we parse the first row, which determines the width of the table
     firstRow <- parseFirstRow
@@ -397,7 +397,7 @@ table = do
 tableStepTwo
     :: Int              -- ^ width
     -> [Text]           -- ^ rows
-    -> Parser (Table (DocH mod Identifier))
+    -> Parser (Table (DocH ty mod Identifier))
 tableStepTwo width = go 0 [] where
     go _ left [] = tableStepThree width (reverse left) Nothing
     go n left (r : rs)
@@ -413,7 +413,7 @@ tableStepThree
     :: Int              -- ^ width
     -> [Text]           -- ^ rows
     -> Maybe Int        -- ^ index of header separator
-    -> Parser (Table (DocH mod Identifier))
+    -> Parser (Table (DocH ty mod Identifier))
 tableStepThree width rs hdrIndex = do
     cells <- loop (Set.singleton (0, 0))
     tableStepFour rs hdrIndex cells
@@ -476,7 +476,7 @@ tcYS :: TC -> [Int]
 tcYS (TC y _ y2 _) = [y, y2]
 
 -- | Fourth step. Given the locations of cells, forms 'Table' structure.
-tableStepFour :: [Text] -> Maybe Int -> [TC] -> Parser (Table (DocH mod Identifier))
+tableStepFour :: [Text] -> Maybe Int -> [TC] -> Parser (Table (DocH ty mod Identifier))
 tableStepFour rs hdrIndex cells =  case hdrIndex of
     Nothing -> return $ Table [] rowsDoc
     Just i  -> case elemIndex i yTabStops of
@@ -514,7 +514,7 @@ tableStepFour rs hdrIndex cells =  case hdrIndex of
         ]
 
 -- | Parse \@since annotations.
-since :: Parser (DocH mod a)
+since :: Parser (DocH ty mod a)
 since = ("@since " *> version <* skipHorizontalSpace <* endOfLine) >>= setSince >> return DocEmpty
   where
     version = decimal `Parsec.sepBy1` "."
@@ -526,7 +526,7 @@ since = ("@since " *> version <* skipHorizontalSpace <* endOfLine) >>= setSince 
 -- Right (DocHeader (Header {headerLevel = 1, headerTitle = DocString "Hello"}))
 -- >>> snd <$> parseOnly header "== World"
 -- Right (DocHeader (Header {headerLevel = 2, headerTitle = DocString "World"}))
-header :: Parser (DocH mod Identifier)
+header :: Parser (DocH ty mod Identifier)
 header = do
   let psers = map (string . flip T.replicate "=") [6, 5 .. 1]
       pser = choice' psers
@@ -535,17 +535,17 @@ header = do
   rest <- try paragraph <|> return DocEmpty
   return $ DocHeader (Header (length delim) line) `docAppend` rest
 
-textParagraph :: Parser (DocH mod Identifier)
+textParagraph :: Parser (DocH ty mod Identifier)
 textParagraph = parseText . T.intercalate "\n" <$> some nonEmptyLine
 
-textParagraphThatStartsWithMarkdownLink :: Parser (DocH mod Identifier)
+textParagraphThatStartsWithMarkdownLink :: Parser (DocH ty mod Identifier)
 textParagraphThatStartsWithMarkdownLink = docParagraph <$> (docAppend <$> markdownLink <*> optionalTextParagraph)
   where
-    optionalTextParagraph :: Parser (DocH mod Identifier)
+    optionalTextParagraph :: Parser (DocH ty mod Identifier)
     optionalTextParagraph = choice' [ docAppend <$> whitespace <*> textParagraph
                                     , pure DocEmpty ]
 
-    whitespace :: Parser (DocH mod a)
+    whitespace :: Parser (DocH ty mod a)
     whitespace = DocString <$> (f <$> takeHorizontalSpace <*> optional "\n")
       where
         f :: Text -> Maybe Text -> String
@@ -554,13 +554,13 @@ textParagraphThatStartsWithMarkdownLink = docParagraph <$> (docAppend <$> markdo
           | otherwise = " "
 
 -- | Parses unordered (bullet) lists.
-unorderedList :: Text -> Parser (DocH mod Identifier)
+unorderedList :: Text -> Parser (DocH ty mod Identifier)
 unorderedList indent = DocUnorderedList <$> p
   where
     p = ("*" <|> "-") *> innerList indent p
 
 -- | Parses ordered lists (numbered or dashed).
-orderedList :: Text -> Parser (DocH mod Identifier)
+orderedList :: Text -> Parser (DocH ty mod Identifier)
 orderedList indent = DocOrderedList <$> p
   where
     p = (paren <|> dot) *> innerList indent p
@@ -572,8 +572,8 @@ orderedList indent = DocOrderedList <$> p
 -- same paragraph. Usually used as
 --
 -- > someListFunction = listBeginning *> innerList someListFunction
-innerList :: Text -> Parser [DocH mod Identifier]
-          -> Parser [DocH mod Identifier]
+innerList :: Text -> Parser [DocH ty mod Identifier]
+          -> Parser [DocH ty mod Identifier]
 innerList indent item = do
   c <- takeLine
   (cs, items) <- more indent item
@@ -583,7 +583,7 @@ innerList indent item = do
     Right i -> contents : i
 
 -- | Parses definition lists.
-definitionList :: Text -> Parser (DocH mod Identifier)
+definitionList :: Text -> Parser (DocH ty mod Identifier)
 definitionList indent = DocDefList <$> p
   where
     p = do
@@ -603,7 +603,7 @@ dropNLs = T.dropWhileEnd (== '\n')
 -- We need the 'Either' here to be able to tell in the respective functions
 -- whether we're dealing with the next list or a nested paragraph.
 more :: Monoid a => Text -> Parser a
-     -> Parser ([Text], Either (DocH mod Identifier) a)
+     -> Parser ([Text], Either (DocH ty mod Identifier) a)
 more indent item = choice' [ innerParagraphs indent
                            , moreListItems indent item
                            , moreContent indent item
@@ -612,14 +612,14 @@ more indent item = choice' [ innerParagraphs indent
 
 -- | Used by 'innerList' and 'definitionList' to parse any nested paragraphs.
 innerParagraphs :: Text
-                -> Parser ([Text], Either (DocH mod Identifier) a)
+                -> Parser ([Text], Either (DocH ty mod Identifier) a)
 innerParagraphs indent = (,) [] . Left <$> ("\n" *> indentedParagraphs indent)
 
 -- | Attempts to fetch the next list if possibly. Used by 'innerList' and
 -- 'definitionList' to recursively grab lists that aren't separated by a whole
 -- paragraph.
 moreListItems :: Text -> Parser a
-              -> Parser ([Text], Either (DocH mod Identifier) a)
+              -> Parser ([Text], Either (DocH ty mod Identifier) a)
 moreListItems indent item = (,) [] . Right <$> indentedItem
   where
     indentedItem = string indent *> Parsec.spaces *> item
@@ -627,12 +627,12 @@ moreListItems indent item = (,) [] . Right <$> indentedItem
 -- | Helper for 'innerList' and 'definitionList' which simply takes
 -- a line of text and attempts to parse more list content with 'more'.
 moreContent :: Monoid a => Text -> Parser a
-            -> Parser ([Text], Either (DocH mod Identifier) a)
+            -> Parser ([Text], Either (DocH ty mod Identifier) a)
 moreContent indent item = first . (:) <$> nonEmptyLine <*> more indent item
 
 -- | Parses an indented paragraph.
 -- The indentation is 4 spaces.
-indentedParagraphs :: Text -> Parser (DocH mod Identifier)
+indentedParagraphs :: Text -> Parser (DocH ty mod Identifier)
 indentedParagraphs indent =
     (T.unpack . T.concat <$> dropFrontOfPara indent') >>= parseParagraphs
   where
@@ -683,7 +683,7 @@ takeIndent = do
 -- >> bar
 -- >> baz
 --
-birdtracks :: Parser (DocH mod a)
+birdtracks :: Parser (DocH ty mod a)
 birdtracks = DocCodeBlock . DocString . T.unpack . T.intercalate "\n" . stripSpace <$> some line
   where
     line = try (skipHorizontalSpace *> ">" *> takeLine)
@@ -698,7 +698,7 @@ stripSpace = fromMaybe <*> mapM strip'
 
 -- | Parses examples. Examples are a paragraph level entitity (separated by an empty line).
 -- Consecutive examples are accepted.
-examples :: Parser (DocH mod a)
+examples :: Parser (DocH ty mod a)
 examples = DocExamples <$> (many (try (skipHorizontalSpace *> "\n")) *> go)
   where
     go :: Parser [Example]
@@ -741,13 +741,13 @@ endOfLine = void "\n" <|> Parsec.eof
 --
 -- >>> snd <$> parseOnly property "prop> hello world"
 -- Right (DocProperty "hello world")
-property :: Parser (DocH mod a)
+property :: Parser (DocH ty mod a)
 property = DocProperty . T.unpack . T.strip <$> ("prop>" *> takeWhile1 (Parsec.noneOf "\n"))
 
 -- |
 -- Paragraph level codeblock. Anything between the two delimiting \@ is parsed
 -- for markup.
-codeblock :: Parser (DocH mod Identifier)
+codeblock :: Parser (DocH ty mod Identifier)
 codeblock =
   DocCodeBlock . parseParagraph . dropSpaces
   <$> ("@" *> skipHorizontalSpace *> "\n" *> block' <* "@")
@@ -782,15 +782,15 @@ codeblock =
           | isNewline && isSpace c = Just isNewline
           | otherwise = Just $ c == '\n'
 
-hyperlink :: Parser (DocH mod a)
+hyperlink :: Parser (DocH ty mod a)
 hyperlink = choice' [ angleBracketLink, markdownLink, autoUrl ]
 
-angleBracketLink :: Parser (DocH mod a)
+angleBracketLink :: Parser (DocH ty mod a)
 angleBracketLink =
     DocHyperlink . makeLabeled Hyperlink
     <$> disallowNewline ("<" *> takeUntil ">")
 
-markdownLink :: Parser (DocH mod a)
+markdownLink :: Parser (DocH ty mod a)
 markdownLink = DocHyperlink <$> linkParser
 
 linkParser :: Parser Hyperlink
@@ -813,12 +813,12 @@ linkParser = flip Hyperlink <$> label <*> (whitespace *> url)
 
 -- | Looks for URL-like things to automatically hyperlink even if they
 -- weren't marked as links.
-autoUrl :: Parser (DocH mod a)
+autoUrl :: Parser (DocH ty mod a)
 autoUrl = mkLink <$> url
   where
     url = mappend <$> choice' [ "http://", "https://", "ftp://"] <*> takeWhile1 (Parsec.satisfy (not . isSpace))
 
-    mkLink :: Text -> DocH mod a
+    mkLink :: Text -> DocH ty mod a
     mkLink s = case T.unsnoc s of
       Just (xs,x) | x `elem` (",.!?" :: String) -> DocHyperlink (mkHyperlink xs) `docAppend` DocString [x]
       _ -> DocHyperlink (mkHyperlink s)
@@ -846,7 +846,7 @@ parseValid = p some
 
 -- | Parses identifiers with help of 'parseValid'. Asks GHC for
 -- 'String' from the string it deems valid.
-identifier :: Parser (DocH mod Identifier)
+identifier :: Parser (DocH ty mod Identifier)
 identifier = do
   o <- idDelim
   vid <- parseValid

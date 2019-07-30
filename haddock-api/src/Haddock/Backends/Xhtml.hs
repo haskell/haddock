@@ -11,7 +11,7 @@
 -- Stability   :  experimental
 -- Portability :  portable
 -----------------------------------------------------------------------------
-{-# LANGUAGE CPP, NamedFieldPuns #-}
+{-# LANGUAGE CPP, NamedFieldPuns,  RankNTypes, ScopedTypeVariables #-}
 module Haddock.Backends.Xhtml (
   ppHtml, copyHtmlBits,
   ppHtmlIndex, ppHtmlContents,
@@ -60,10 +60,10 @@ import Name
 ppHtml :: DynFlags
        -> String                       -- ^ Title
        -> Maybe String                 -- ^ Package
-       -> [Interface]
-       -> [InstalledInterface]         -- ^ Reexported interfaces
+       -> [(Interface ty)]
+       -> [(InstalledInterface ty)]         -- ^ Reexported interfaces
        -> FilePath                     -- ^ Destination directory
-       -> Maybe (MDoc GHC.RdrName)     -- ^ Prologue text, maybe
+       -> Maybe (MDoc ty GHC.RdrName)     -- ^ Prologue text, maybe
        -> Themes                       -- ^ Themes
        -> Maybe String                 -- ^ The mathjax URL (--mathjax)
        -> SourceURLs                   -- ^ The source URL (--source)
@@ -142,7 +142,7 @@ headHtml docTitle themes mathjax_url =
                      ,   "}"
                      , "});" ]
 
-srcButton :: SourceURLs -> Maybe Interface -> Maybe Html
+srcButton :: SourceURLs -> Maybe (Interface ty) -> Maybe Html
 srcButton (Just src_base_url, _, _, _) Nothing =
   Just (anchor ! [href src_base_url] << "Source")
 srcButton (_, Just src_module_url, _, _) (Just iface) =
@@ -177,7 +177,7 @@ indexButton maybe_index_url
   where url = fromMaybe indexHtmlFile maybe_index_url
 
 
-bodyHtml :: String -> Maybe Interface
+bodyHtml :: String -> Maybe (Interface ty)
     -> SourceURLs -> WikiURLs
     -> Maybe String -> Maybe String
     -> Html -> Html
@@ -203,12 +203,12 @@ bodyHtml doctitle iface
       )
     ]
 
-moduleInfo :: Interface -> Html
+moduleInfo :: forall ty. Interface ty -> Html
 moduleInfo iface =
    let
       info = ifaceInfo iface
 
-      doOneEntry :: (String, HaddockModInfo GHC.Name -> Maybe String) -> Maybe HtmlTable
+      doOneEntry :: (String, HaddockModInfo ty GHC.Name -> Maybe String) -> Maybe HtmlTable
       doOneEntry (fieldName, field) =
         field info >>= \a -> return (th << fieldName <-> td << a)
 
@@ -267,7 +267,7 @@ ppHtmlContents
    -> Maybe String
    -> SourceURLs
    -> WikiURLs
-   -> [InstalledInterface] -> Bool -> Maybe (MDoc GHC.RdrName)
+   -> [(InstalledInterface ty)] -> Bool -> Maybe (MDoc ty GHC.RdrName)
    -> Bool
    -> Maybe Package  -- ^ Current package
    -> Qualification  -- ^ How to qualify names
@@ -296,24 +296,24 @@ ppHtmlContents dflags odir doctitle _maybe_package
   writeFile (joinPath [odir, contentsHtmlFile]) (renderToString debug html)
 
 
-ppPrologue :: Maybe Package -> Qualification -> String -> Maybe (MDoc GHC.RdrName) -> Html
+ppPrologue :: Maybe Package -> Qualification -> String -> Maybe (MDoc ty GHC.RdrName) -> Html
 ppPrologue _ _ _ Nothing = noHtml
 ppPrologue pkg qual title (Just doc) =
   divDescription << (h1 << title +++ docElement thediv (rdrDocToHtml pkg qual doc))
 
 
-ppSignatureTree :: Maybe Package -> Qualification -> [ModuleTree] -> Html
+ppSignatureTree :: Maybe Package -> Qualification -> [(ModuleTree ty)] -> Html
 ppSignatureTree pkg qual ts =
   divModuleList << (sectionName << "Signatures" +++ mkNodeList pkg qual [] "n" ts)
 
 
-ppModuleTree :: Maybe Package -> Qualification -> [ModuleTree] -> Html
+ppModuleTree :: Maybe Package -> Qualification -> [(ModuleTree ty)] -> Html
 ppModuleTree _ _ [] = mempty
 ppModuleTree pkg qual ts =
   divModuleList << (sectionName << "Modules" +++ mkNodeList pkg qual [] "n" ts)
 
 
-mkNodeList :: Maybe Package -> Qualification -> [String] -> String -> [ModuleTree] -> Html
+mkNodeList :: Maybe Package -> Qualification -> [String] -> String -> [(ModuleTree ty)] -> Html
 mkNodeList pkg qual ss p ts = case ts of
   [] -> noHtml
   _ -> unordList (zipWith (mkNode pkg qual ss) ps ts)
@@ -321,7 +321,7 @@ mkNodeList pkg qual ss p ts = case ts of
     ps = [ p ++ '.' : show i | i <- [(1::Int)..]]
 
 
-mkNode :: Maybe Package -> Qualification -> [String] -> String -> ModuleTree -> Html
+mkNode :: Maybe Package -> Qualification -> [String] -> String -> ModuleTree ty -> Html
 mkNode pkg qual ss p (Node s leaf _pkg srcPkg short ts) =
   htmlModule <+> shortDescr +++ htmlPkg +++ subtree
   where
@@ -365,7 +365,7 @@ ppJsonIndex :: FilePath
            -> Bool
            -> Maybe Package
            -> QualOption
-           -> [Interface]
+           -> [(Interface ty)]
            -> IO ()
 ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = do
   createDirectoryIfMissing True odir
@@ -375,7 +375,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
     modules :: Value
     modules = Array (concatMap goInterface ifaces)
 
-    goInterface :: Interface -> [Value]
+    goInterface :: Interface ty -> [Value]
     goInterface iface =
         concatMap (goExport mdl qual) (ifaceRnExportItems iface)
       where
@@ -383,7 +383,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
         qual    = makeModuleQual qual_opt aliases mdl
         mdl     = ifaceMod iface
 
-    goExport :: Module -> Qualification -> ExportItem DocNameI -> [Value]
+    goExport :: Module -> Qualification -> ExportItem ty DocNameI -> [Value]
     goExport mdl qual item
       | Just item_html <- processExport True links_info unicode pkg qual item
       = [ Object
@@ -397,11 +397,11 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
       where
         names = exportName item ++ exportSubs item
 
-    exportSubs :: ExportItem name -> [IdP name]
+    exportSubs :: ExportItem ty name -> [IdP name]
     exportSubs ExportDecl { expItemSubDocs } = map fst expItemSubDocs
     exportSubs _ = []
 
-    exportName :: ExportItem name -> [IdP name]
+    exportName :: ExportItem ty name -> [IdP name]
     exportName ExportDecl { expItemDecl } = getMainDeclBinder (unLoc expItemDecl)
     exportName ExportNoDecl { expItemName } = [expItemName]
     exportName _ = []
@@ -422,7 +422,7 @@ ppHtmlIndex :: FilePath
             -> Maybe String
             -> SourceURLs
             -> WikiURLs
-            -> [InstalledInterface]
+            -> [(InstalledInterface ty)]
             -> Bool
             -> IO ()
 ppHtmlIndex odir doctitle _maybe_package themes
@@ -544,7 +544,7 @@ ppHtmlModule
         :: FilePath -> String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs
         -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
-        -> Bool -> Interface -> IO ()
+        -> Bool -> Interface ty -> IO ()
 ppHtmlModule odir doctitle themes
   maybe_mathjax_url maybe_source_url maybe_wiki_url
   maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
@@ -579,7 +579,7 @@ signatureDocURL :: String
 signatureDocURL = "https://wiki.haskell.org/Module_signature"
 
 
-ifaceToHtml :: SourceURLs -> WikiURLs -> Interface -> Bool -> Maybe Package -> Qualification -> Html
+ifaceToHtml :: SourceURLs -> WikiURLs -> Interface ty -> Bool -> Maybe Package -> Qualification -> Html
 ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
   = ppModuleContents pkg qual exports (not . null $ ifaceRnOrphanInstances iface) +++
     description +++
@@ -633,7 +633,7 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
 
 ppModuleContents :: Maybe Package -- ^ This package
                  -> Qualification
-                 -> [ExportItem DocNameI]
+                 -> [(ExportItem ty DocNameI)]
                  -> Bool          -- ^ Orphans sections
                  -> Html
 ppModuleContents pkg qual exports orphan
@@ -649,7 +649,7 @@ ppModuleContents pkg qual exports orphan
     | orphan =  [ linkedAnchor "section.orphans" << "Orphan instances" ]
     | otherwise = []
 
-  process :: Int -> [ExportItem DocNameI] -> ([Html],[ExportItem DocNameI])
+  process :: Int -> [(ExportItem ty DocNameI)] -> ([Html],[(ExportItem ty DocNameI)])
   process _ [] = ([], [])
   process n items@(ExportGroup lev id0 doc : rest)
     | lev <= n  = ( [], items )
@@ -666,9 +666,9 @@ ppModuleContents pkg qual exports orphan
 
 -- we need to assign a unique id to each section heading so we can hyperlink
 -- them from the contents:
-numberSectionHeadings :: [ExportItem DocNameI] -> [ExportItem DocNameI]
+numberSectionHeadings :: [(ExportItem ty DocNameI)] -> [(ExportItem ty DocNameI)]
 numberSectionHeadings = go 1
-  where go :: Int -> [ExportItem DocNameI] -> [ExportItem DocNameI]
+  where go :: Int -> [(ExportItem ty DocNameI)] -> [(ExportItem ty DocNameI)]
         go _ [] = []
         go n (ExportGroup lev _ doc : es)
           = ExportGroup lev (show n) doc : go (n+1) es
@@ -677,7 +677,7 @@ numberSectionHeadings = go 1
 
 
 processExport :: Bool -> LinksInfo -> Bool -> Maybe Package -> Qualification
-              -> ExportItem DocNameI -> Maybe Html
+              -> ExportItem ty DocNameI -> Maybe Html
 processExport _ _ _ _ _ ExportDecl { expItemDecl = L _ (InstD {}) } = Nothing -- Hide empty instances
 processExport summary _ _ pkg qual (ExportGroup lev id0 doc)
   = nothingIf summary $ groupHeading lev id0 << docToHtml (Just id0) pkg qual (mkMeta doc)
