@@ -73,7 +73,7 @@ overIdentifier f d = g d
     g (DocString x) = DocString x
     g (DocParagraph x) = DocParagraph $ g x
     g (DocIdentifierUnchecked x) = DocIdentifierUnchecked x
-    g (DocModule x) = DocModule x
+    g (DocModule (ModLink m x)) = DocModule (ModLink m (fmap g x))
     g (DocWarning x) = DocWarning $ g x
     g (DocEmphasis x) = DocEmphasis $ g x
     g (DocMonospaced x) = DocMonospaced $ g x
@@ -149,6 +149,7 @@ parseParagraph = snd . parse p
                                     , mathDisplay
                                     , mathInline
                                     , markdownImage
+                                    , markdownLink
                                     , hyperlink
                                     , bold
                                     , emphasis
@@ -243,12 +244,45 @@ monospace = DocMonospaced . parseParagraph
 -- Note that we allow '#' and '\' to support anchors (old style anchors are of
 -- the form "SomeModule\#anchor").
 moduleName :: Parser (DocH mod a)
-moduleName = DocModule <$> ("\"" *> modid <* "\"")
+moduleName = DocModule . flip ModLink Nothing <$> ("\"" *> moduleNameWithAnchor <* "\"")
+
+-- | A labeled link to an indentifier, module or url using markdown
+-- syntax.
+markdownLink :: Parser (DocH mod Identifier)
+markdownLink = do
+  lbl <- markdownLinkText
+  choice' [ markdownModuleName lbl, markdownURL lbl ]
   where
-    modid = intercalate "." <$> conid `Parsec.sepBy1` "."
+    markdownModuleName lbl = do
+      mn <- "(" *> skipHorizontalSpace *>
+            "\"" *> moduleNameWithAnchor <* "\""
+            <* skipHorizontalSpace <* ")"
+      pure $ DocModule (ModLink mn (Just lbl))
+
+    markdownURL lbl = do
+      target <- markdownLinkTarget
+      pure $ DocHyperlink $ Hyperlink target (Just lbl)
+
+-- | A module name, optionally with an anchor
+--
+moduleNameWithAnchor :: Parser String
+moduleNameWithAnchor = do
+  m <- modName
+  maybeAnchor <- Parsec.optionMaybe $ try $ do
+    hash <- string "#" <|> string "\\#"
+    an <- Parsec.many1 (conChar <|> Parsec.char ':')
+    return $ T.unpack hash ++ an
+  return $ case maybeAnchor of
+             Nothing -> m
+             Just l -> m ++ l
+  where
+    modName :: Parser String
+    modName = intercalate "." <$> conid `Parsec.sepBy1` "."
+
+    conid :: Parser String
     conid = (:)
       <$> Parsec.satisfy (\c -> isAlpha c && isUpper c)
-      <*> many (conChar <|> Parsec.oneOf "\\#")
+      <*> many conChar
 
     conChar = Parsec.alphaNum <|> Parsec.char '_'
 
@@ -285,9 +319,11 @@ mathDisplay = DocMathDisplay . T.unpack
 -- >>> parseString "![some /emphasis/ in a description](www.site.com)"
 -- DocPic (Picture "www.site.com" (Just "some emphasis in a description"))
 markdownImage :: Parser (DocH mod Identifier)
-markdownImage = DocPic . fromHyperlink <$> ("!" *> linkParser)
+markdownImage = do
+  text <- markup stringMarkup <$> ("!" *> markdownLinkText)
+  url <- markdownLinkTarget
+  pure $ DocPic (Picture url (Just text))
   where
-    fromHyperlink (Hyperlink u l) = Picture u (fmap (markup stringMarkup) l)
     stringMarkup = plainMarkup (const "") renderIdent
     renderIdent (Identifier ns l c r) = renderNs ns <> [l] <> c <> [r]
 
@@ -767,22 +803,21 @@ codeblock =
           | otherwise = Just $ c == '\n'
 
 hyperlink :: Parser (DocH mod Identifier)
-hyperlink = choice' [ angleBracketLink, markdownLink, autoUrl ]
+hyperlink = choice' [ angleBracketLink, autoUrl ]
 
 angleBracketLink :: Parser (DocH mod a)
 angleBracketLink =
     DocHyperlink . makeLabeled (\s -> Hyperlink s . fmap DocString)
     <$> disallowNewline ("<" *> takeUntil ">")
 
-markdownLink :: Parser (DocH mod Identifier)
-markdownLink = DocHyperlink <$> linkParser
+-- | The text for a markdown link, enclosed in square brackets.
+markdownLinkText :: Parser (DocH mod Identifier)
+markdownLinkText = parseParagraph . T.strip <$> ("[" *> takeUntil "]")
 
-linkParser :: Parser (Hyperlink (DocH mod Identifier))
-linkParser = flip Hyperlink <$> label <*> (whitespace *> url)
+-- | The target for a markdown link, enclosed in parenthesis.
+markdownLinkTarget :: Parser String
+markdownLinkTarget = whitespace *> url
   where
-    label :: Parser (Maybe (DocH mod Identifier))
-    label = Just . parseParagraph . T.strip <$> ("[" *> takeUntil "]")
-
     whitespace :: Parser ()
     whitespace = skipHorizontalSpace <* optional ("\n" *> skipHorizontalSpace)
 
