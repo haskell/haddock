@@ -84,7 +84,7 @@ binaryInterfaceMagic = 0xD0Cface
 --
 binaryInterfaceVersion :: Word16
 #if MIN_VERSION_ghc(9,0,0) && !MIN_VERSION_ghc(9,1,0)
-binaryInterfaceVersion = 37
+binaryInterfaceVersion = 38
 
 binaryInterfaceVersionCompatibility :: [Word16]
 binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
@@ -443,6 +443,15 @@ instance Binary a => Binary (Hyperlink a) where
         url <- get bh
         label <- get bh
         return (Hyperlink url label)
+
+instance Binary a => Binary (ModLink a) where
+    put_ bh (ModLink m label) = do
+        put_ bh m
+        put_ bh label
+    get bh = do
+        m <- get bh
+        label <- get bh
+        return (ModLink m label)
 
 instance Binary Picture where
     put_ bh (Picture uri title) = do
