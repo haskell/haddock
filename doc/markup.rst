@@ -508,22 +508,6 @@ on, where the number of ``*``\ s indicates the level of the heading
 If you use section headings, then Haddock will generate a table of
 contents at the top of the module documentation for you.
 
-The alternative style of placing the commas at the beginning of each
-line is also supported. e.g.: ::
-
-    module Foo (
-      -- * Classes
-      , C(..)
-      -- * Types
-      -- ** A data type
-      , T
-      -- ** A record
-      , R
-      -- * Some functions
-      , f
-      , g
-      ) where
-
 When not using an export list, you may insert section headers in the
 module body. Such section headers associate with all entities
 declaried up until the next section header. For example: ::
