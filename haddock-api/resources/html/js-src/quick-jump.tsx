@@ -79,6 +79,9 @@ type QuickJumpState = {
   moduleResults: ResultsInModule[]
   failedLoading?: boolean
   fuse: Fuse<DocItem>
+  // The ID from setTimeout() after input to the search box.
+  // A number means there's a pending search, otherwise it's |undefined|.
+  searchTimeoutID: number | undefined
 }
 
 class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
@@ -98,7 +101,8 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
       isVisible: false,
       expanded: {},
       activeLinkIndex: -1,
-      moduleResults: []
+      moduleResults: [],
+      searchTimeoutID: undefined,
     });
     loadJSON(this.props.baseUrl + "/doc-index.json", (data) => {
       this.setState({
@@ -151,7 +155,12 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
   }
 
   hide() {
-    this.setState({ isVisible: false, searchString: '' });
+    this.setState(prevState => {
+      if (prevState.searchTimeoutID !== undefined) {
+        clearTimeout(prevState.searchTimeoutID);
+      }
+      return { isVisible: false, searchString: '', searchTimeoutID: undefined };
+    });
   }
 
   show() {
@@ -180,7 +189,21 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
     this.activeLinkAction();
   }
 
+  // Sets a timeout to perform a seach in a little while.
+  // If there already is a pending timeout it's cancelled.
+  // When the timeout fires updateResults() is called.
+  handleInputChanged() {
+    this.setState(prevState => {
+      if (prevState.searchTimeoutID !== undefined) {
+        clearTimeout(prevState.searchTimeoutID);
+      }
+      return { searchTimeoutID: setTimeout(this.updateResults.bind(this), 150) };
+    });
+  }
+
   updateResults() {
+    this.setState({ searchTimeoutID: undefined });
+
     const searchString = (this.input && this.input.value) || '';
     const results: FuseResult<DocItem>[] = this.state.fuse.search(searchString) as any as FuseResult<DocItem>[];
 
@@ -267,7 +290,7 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
           ref={(input) => { this.input = input as undefined | HTMLInputElement; }}
           onFocus={this.show.bind(this)}
           onClick={this.show.bind(this)}
-          onInput={this.updateResults.bind(this)}
+          onInput={this.handleInputChanged.bind(this)}
         />
       </div>
       <div id="search-results" ref={(el) => { this.searchResults = el; }}
