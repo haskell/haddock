@@ -41,7 +41,7 @@ before_install:
  - travis_retry curl -L $GHC_ZIP --output artifact.zip
  - unzip artifact.zip
  - tar xpf ghc.tar.xz --strip-components 1
- - ./configure
+ - ./configure --disable-ld-override
  - sudo make V=1 install
 
  # Set up some vars
