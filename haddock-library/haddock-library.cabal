@@ -19,6 +19,8 @@ bug-reports:          https://github.com/haskell/haddock/issues
 category:             Documentation
 extra-source-files:
   CHANGES.md
+  fixtures/examples/*.input
+  fixtures/examples/*.parsed
 
 common lib-defaults
   default-language: Haskell2010
