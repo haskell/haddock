@@ -87,14 +87,10 @@ install:
     echo "program-default-options"                >> $CABALHOME/config
     echo "  ghc-options: $GHCJOBS +RTS -M6G -RTS" >> $CABALHOME/config
   - cat $CABALHOME/config
-  - rm -fv cabal.project cabal.project.local cabal.project.freeze
+  - rm -fv cabal.project.local cabal.project.freeze
   - travis_retry ${CABAL} v2-update -v
   # Generate cabal.project
-  - rm -rf cabal.project cabal.project.local cabal.project.freeze
-  - touch cabal.project
-  - |
-    echo "packages: ." >> cabal.project
-  - |
+  - rm -rf cabal.project.local cabal.project.freeze
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(haddock)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
