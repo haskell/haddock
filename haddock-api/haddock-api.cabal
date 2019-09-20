@@ -186,7 +186,7 @@ test-suite spec
                , transformers
 
   build-tool-depends:
-    hspec-discover:hspec-discover >= 2.4.4 && < 2.7
+    hspec-discover:hspec-discover >= 2.4.4 && < 2.8
 
 source-repository head
   type:     git
