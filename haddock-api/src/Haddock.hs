@@ -425,7 +425,7 @@ render dflags unit_state flags sinceQual qual ifaces installedIfaces extSrcMap =
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
     withTiming dflags' "ppHyperlinkedSource" (const ()) $ do
       _ <- {-# SCC ppHyperlinkedSource #-}
-           ppHyperlinkedSource odir libDir opt_source_css pretty srcMap ifaces
+           ppHyperlinkedSource (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
       return ()
 
 
