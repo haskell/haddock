@@ -1,0 +1,18 @@
+# Do not build feature branch with open Pull Requests
+# prevents PR double builds as branch
+skip_branch_with_pr: true
+
+install:
+  - choco install -y ghc --version 8.8.1
+  - refreshenv
+  - cabal --version
+  - cabal %CABOPTS% update
+
+environment:
+  global:
+    CABOPTS:  "--store-dir=C:\\SR"
+
+build_script:
+  - cabal v2-configure --enable-tests
+  - cabal v2-build
+  - cabal v2-test all
