@@ -306,7 +306,7 @@ defaultDiffTool =
 
 defaultStdOut :: FilePath
 #ifdef mingw32_HOST_OS
-defaultStdOut = "nul"
+defaultStdOut = "\\\\.\\NUL"
 #else
 defaultStdOut = "/dev/null"
 #endif
