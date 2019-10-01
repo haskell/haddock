@@ -91,8 +91,9 @@ createInterface tm unit_state flags modMap instIfaceMap = do
 
       (TcGblEnv { tcg_rdr_env = gre
                 , tcg_warns   = warnings
-                , tcg_exports = all_exports
+                , tcg_exports = all_exports0
                 }, md) = tm_internals_ tm
+      all_local_avails = gresToAvailInfo . filter isLocalGRE . globalRdrEnvElts $ gre
 
   -- The 'pkgName' is necessary to decide what package to mention in "@since"
   -- annotations. Not having it is not fatal though.
@@ -119,9 +120,9 @@ createInterface tm unit_state flags modMap instIfaceMap = do
   let declsWithDocs = topDecls group_
 
       exports0 = fmap (map (first unLoc)) mayExports
-      exports
-        | OptIgnoreExports `elem` opts = Nothing
-        | otherwise = exports0
+      (all_exports, exports)
+        | OptIgnoreExports `elem` opts = (all_local_avails, Nothing)
+        | otherwise = (all_exports0, exports0)
 
       unrestrictedImportedMods
         -- module re-exports are only possible with
