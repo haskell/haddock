@@ -259,7 +259,7 @@ spec = do
           "http://example.com/? Some other sentence." `shouldParseTo`
             hyperlink "http://example.com/" Nothing <> "? Some other sentence."
 
-        it "autolinks URLs occuring mid-sentence with multiple ‘/’s" $ do
+        it "autolinks URLs occuring mid-sentence with multiple '/'s" $ do
           "foo https://example.com/example bar" `shouldParseTo`
             "foo " <> hyperlink "https://example.com/example" Nothing <> " bar"
 

@@ -21,7 +21,7 @@ checkConfig = CheckConfig
     }
   where
     strip _ = stripAnchors' . stripLinks' . stripIds' . stripFooter
-    
+
     stripLinks' = stripLinksWhen $ \href -> "#local-" `isPrefixOf` href
     stripAnchors' = stripAnchorsWhen $ \name -> "local-" `isPrefixOf` name
     stripIds' = stripIdsWhen $ \name -> "local-" `isPrefixOf` name
@@ -43,9 +43,18 @@ main = do
             ]
         }
 
+ignoredTests :: [ FilePath]
+ignoredTests =
+  [
+#ifdef mingw32_HOST_OS
+    -- See issue #1095.
+    "PositionPragmas", "CPP"
+#endif
+  ]
 
 checkIgnore :: FilePath -> Bool
 checkIgnore file
+    | takeBaseName file `elem` ignoredTests = True
     | and . map ($ file) $ [isHtmlFile, isSourceFile, isModuleFile] = False
   where
     isHtmlFile = (== ".html") . takeExtension
