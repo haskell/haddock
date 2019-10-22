@@ -33,6 +33,7 @@ import Data.Word
 
 import BinIface (getSymtabName, getDictFastString)
 import Binary
+import Binary.Unsafe (ioP, ioG)
 import FastMutInt
 import FastString
 import GHC hiding (NoLink)
@@ -92,67 +93,64 @@ binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
 #endif
 
 
-initBinMemSize :: Int
-initBinMemSize = 1024*1024
-
-
 writeInterfaceFile :: FilePath -> InterfaceFile -> IO ()
 writeInterfaceFile filename iface = do
-  bh0 <- openBinMem initBinMemSize
-  put_ bh0 binaryInterfaceMagic
-  put_ bh0 binaryInterfaceVersion
+  bd <- runPutIO $ do
 
-  -- remember where the dictionary pointer will go
-  dict_p_p <- tellBin bh0
-  put_ bh0 dict_p_p
+    put binaryInterfaceMagic
+    put binaryInterfaceVersion
 
-  -- remember where the symbol table pointer will go
-  symtab_p_p <- tellBin bh0
-  put_ bh0 symtab_p_p
+    -- remember where the dictionary pointer will go
+    dict_p_p <- tellP
+    put dict_p_p
 
-  -- Make some intial state
-  symtab_next <- newFastMutInt
-  writeFastMutInt symtab_next 0
-  symtab_map <- newIORef emptyUFM
-  let bin_symtab = BinSymbolTable {
-                      bin_symtab_next = symtab_next,
-                      bin_symtab_map  = symtab_map }
-  dict_next_ref <- newFastMutInt
-  writeFastMutInt dict_next_ref 0
-  dict_map_ref <- newIORef emptyUFM
-  let bin_dict = BinDictionary {
-                      bin_dict_next = dict_next_ref,
-                      bin_dict_map  = dict_map_ref }
+    -- remember where the symbol table pointer will go
+    symtab_p_p <- tellP
+    put symtab_p_p
 
-  -- put the main thing
-  let bh = setUserData bh0 $ newWriteState (putName bin_symtab)
-                                           (putName bin_symtab)
-                                           (putFastString bin_dict)
-  put_ bh iface
+    -- Make some intial state
+    symtab_next <- ioP $ newFastMutInt
+    ioP $ writeFastMutInt symtab_next 0
+    symtab_map <- ioP $ newIORef emptyUFM
+    let bin_symtab = BinSymbolTable {
+                        bin_symtab_next = symtab_next,
+                        bin_symtab_map  = symtab_map }
+    dict_next_ref <- ioP $ newFastMutInt
+    ioP $ writeFastMutInt dict_next_ref 0
+    dict_map_ref <- ioP $ newIORef emptyUFM
+    let bin_dict = BinDictionary {
+                        bin_dict_next = dict_next_ref,
+                        bin_dict_map  = dict_map_ref }
 
-  -- write the symtab pointer at the front of the file
-  symtab_p <- tellBin bh
-  putAt bh symtab_p_p symtab_p
-  seekBin bh symtab_p
+    -- put the main thing
+    writeState (putName bin_symtab)
+               (putName bin_symtab)
+               (putFastString bin_dict) $ do
 
-  -- write the symbol table itself
-  symtab_next' <- readFastMutInt symtab_next
-  symtab_map'  <- readIORef symtab_map
-  putSymbolTable bh symtab_next' symtab_map'
+      put iface
 
-  -- write the dictionary pointer at the fornt of the file
-  dict_p <- tellBin bh
-  putAt bh dict_p_p dict_p
-  seekBin bh dict_p
+      -- write the symtab pointer at the front of the file
+      symtab_p <- tellP
+      putAt symtab_p_p symtab_p
+      seekP symtab_p
 
-  -- write the dictionary itself
-  dict_next <- readFastMutInt dict_next_ref
-  dict_map  <- readIORef dict_map_ref
-  putDictionary bh dict_next dict_map
+      -- write the symbol table itself
+      symtab_next' <- ioP $ readFastMutInt symtab_next
+      symtab_map'  <- ioP $ readIORef symtab_map
+      putSymbolTable symtab_next' symtab_map'
+
+      -- write the dictionary pointer at the fornt of the file
+      dict_p <- tellP
+      putAt dict_p_p dict_p
+      seekP dict_p
+
+      -- write the dictionary itself
+      dict_next <- ioP $ readFastMutInt dict_next_ref
+      dict_map  <- ioP $ readIORef dict_map_ref
+      putDictionary dict_next dict_map
 
   -- and send the result to the file
-  writeBinMem bh filename
-  return ()
+  writeBinData bd filename
 
 
 type NameCacheAccessor m = (m NameCache, NameCache -> m ())
@@ -193,63 +191,63 @@ readInterfaceFile :: forall m.
                   -> Bool  -- ^ Disable version check. Can cause runtime crash.
                   -> m (Either String InterfaceFile)
 readInterfaceFile (get_name_cache, set_name_cache) filename bypass_checks = do
-  bh0 <- liftIO $ readBinMem filename
+  nc_var <- get_name_cache >>= (liftIO . newIORef)
 
-  magic   <- liftIO $ get bh0
-  version <- liftIO $ get bh0
+  bd <- liftIO $ readBinData filename
 
-  case () of
-    _ | magic /= binaryInterfaceMagic -> return . Left $
-      "Magic number mismatch: couldn't load interface file: " ++ filename
-      | not bypass_checks
-      , (version `notElem` binaryInterfaceVersionCompatibility) -> return . Left $
-      "Interface file is of wrong version: " ++ filename
-      | otherwise -> with_name_cache $ \update_nc -> do
+  x <- liftIO . runGetIO bd $ do
+    magic   <- get
+    version <- get
 
-      dict  <- get_dictionary bh0
+    case () of
+      _ | magic /= binaryInterfaceMagic -> return . Left $
+        "Magic number mismatch: couldn't load interface file: " ++ filename
+        | not bypass_checks
+        , (version `notElem` binaryInterfaceVersionCompatibility) -> return . Left $
+        "Interface file is of wrong version: " ++ filename
+        | otherwise -> do
 
-      -- read the symbol table so we are capable of reading the actual data
-      bh1 <- do
-          let bh1 = setUserData bh0 $ newReadState (error "getSymtabName")
-                                                   (getDictFastString dict)
-          symtab <- update_nc (get_symbol_table bh1)
-          return $ setUserData bh1 $ newReadState (getSymtabName (NCU (\f -> update_nc (return . f))) dict symtab)
-                                                  (getDictFastString dict)
+          dict <- get_dictionary
 
-      -- load the actual data
-      iface <- liftIO $ get bh1
-      return (Right iface)
+          -- read the symbol table so we are capable of reading the actual data
+          readState (error "getSymtabName") (getDictFastString dict) $ do
+            symtab <- update_nc nc_var ioG get_symbol_table
+            readState (getSymtabName (NCU (\f -> update_nc nc_var id (return . f))) dict symtab)
+                      (getDictFastString dict) $
+
+              -- load the actual data
+              Right <$> get
+
+  liftIO (readIORef nc_var) >>= set_name_cache
+
+  return x
+
  where
-   with_name_cache :: forall a.
-                      ((forall n b. MonadIO n
-                                => (NameCache -> n (NameCache, b))
-                                -> n b)
-                       -> m a)
-                   -> m a
-   with_name_cache act = do
-      nc_var <-  get_name_cache >>= (liftIO . newIORef)
-      x <- act $ \f -> do
-              nc <- liftIO $ readIORef nc_var
-              (nc', x) <- f nc
-              liftIO $ writeIORef nc_var nc'
-              return x
-      liftIO (readIORef nc_var) >>= set_name_cache
-      return x
+   update_nc :: forall n b. Monad n
+             => IORef NameCache
+             -> (forall a. IO a -> n a)
+             -> (NameCache -> n (NameCache, b))
+             -> n b
+   update_nc nc_var lift f = do
+     nc <- lift $ readIORef nc_var
+     (nc', x) <- f nc
+     lift $ writeIORef nc_var nc'
+     return x
 
-   get_dictionary bin_handle = liftIO $ do
-      dict_p <- get bin_handle
-      data_p <- tellBin bin_handle
-      seekBin bin_handle dict_p
-      dict <- getDictionary bin_handle
-      seekBin bin_handle data_p
+   get_dictionary = do
+      dict_p <- get
+      data_p <- tellG
+      seekG dict_p
+      dict <- getDictionary
+      seekG data_p
       return dict
 
-   get_symbol_table bh1 theNC = liftIO $ do
-      symtab_p <- get bh1
-      data_p'  <- tellBin bh1
-      seekBin bh1 symtab_p
-      (nc', symtab) <- getSymbolTable bh1 theNC
-      seekBin bh1 data_p'
+   get_symbol_table theNC = do
+      symtab_p <- get
+      data_p'  <- tellG
+      seekG symtab_p
+      (nc', symtab) <- getSymbolTable theNC
+      seekG data_p'
       return (nc', symtab)
 
 
@@ -258,20 +256,20 @@ readInterfaceFile (get_name_cache, set_name_cache) filename bypass_checks = do
 -------------------------------------------------------------------------------
 
 
-putName :: BinSymbolTable -> BinHandle -> Name -> IO ()
+putName :: BinSymbolTable -> Name -> Put ()
 putName BinSymbolTable{
             bin_symtab_map = symtab_map_ref,
-            bin_symtab_next = symtab_next }    bh name
+            bin_symtab_next = symtab_next }    name
   = do
-    symtab_map <- readIORef symtab_map_ref
+    symtab_map <- ioP $ readIORef symtab_map_ref
     case lookupUFM symtab_map name of
-      Just (off,_) -> put_ bh (fromIntegral off :: Word32)
+      Just (off,_) -> put (fromIntegral off :: Word32)
       Nothing -> do
-         off <- readFastMutInt symtab_next
-         writeFastMutInt symtab_next (off+1)
-         writeIORef symtab_map_ref
+         off <- ioP $ readFastMutInt symtab_next
+         ioP $ writeFastMutInt symtab_next (off+1)
+         ioP $ writeIORef symtab_map_ref
              $! addToUFM symtab_map name (off,name)
-         put_ bh (fromIntegral off :: Word32)
+         put (fromIntegral off :: Word32)
 
 
 data BinSymbolTable = BinSymbolTable {
@@ -281,19 +279,19 @@ data BinSymbolTable = BinSymbolTable {
   }
 
 
-putFastString :: BinDictionary -> BinHandle -> FastString -> IO ()
+putFastString :: BinDictionary -> FastString -> Put ()
 putFastString BinDictionary { bin_dict_next = j_r,
-                              bin_dict_map  = out_r}  bh f
+                              bin_dict_map  = out_r}  f
   = do
-    out <- readIORef out_r
+    out <- ioP $ readIORef out_r
     let unique = getUnique f
     case lookupUFM out unique of
-        Just (j, _)  -> put_ bh (fromIntegral j :: Word32)
+        Just (j, _)  -> put (fromIntegral j :: Word32)
         Nothing -> do
-           j <- readFastMutInt j_r
-           put_ bh (fromIntegral j :: Word32)
-           writeFastMutInt j_r (j + 1)
-           writeIORef out_r $! addToUFM out unique (j, f)
+           j <- ioP $ readFastMutInt j_r
+           put (fromIntegral j :: Word32)
+           ioP $ writeFastMutInt j_r (j + 1)
+           ioP $ writeIORef out_r $! addToUFM out unique (j, f)
 
 
 data BinDictionary = BinDictionary {
@@ -303,17 +301,17 @@ data BinDictionary = BinDictionary {
   }
 
 
-putSymbolTable :: BinHandle -> Int -> UniqFM (Int,Name) -> IO ()
-putSymbolTable bh next_off symtab = do
-  put_ bh next_off
+putSymbolTable :: Int -> UniqFM (Int,Name) -> Put ()
+putSymbolTable next_off symtab = do
+  put next_off
   let names = elems (array (0,next_off-1) (eltsUFM symtab))
-  mapM_ (\n -> serialiseName bh n symtab) names
+  mapM_ (\n -> serialiseName n symtab) names
 
 
-getSymbolTable :: BinHandle -> NameCache -> IO (NameCache, Array Int Name)
-getSymbolTable bh namecache = do
-  sz <- get bh
-  od_names <- replicateM sz (get bh)
+getSymbolTable :: NameCache -> Get (NameCache, Array Int Name)
+getSymbolTable namecache = do
+  sz <- get
+  od_names <- replicateM sz get
   let arr = listArray (0,sz-1) names
       (namecache', names) = mapAccumR (fromOnDiskName arr) namecache od_names
   return (namecache', arr)
@@ -346,10 +344,10 @@ fromOnDiskName _ nc (pid, mod_name, occ) =
         }
 
 
-serialiseName :: BinHandle -> Name -> UniqFM (Int,Name) -> IO ()
-serialiseName bh name _ = do
+serialiseName :: Name -> UniqFM (Int,Name) -> Put ()
+serialiseName name _ = do
   let modu = nameModule name
-  put_ bh (moduleUnitId modu, moduleName modu, nameOccName name)
+  put (moduleUnitId modu, moduleName modu, nameOccName name)
 
 
 -------------------------------------------------------------------------------
@@ -358,59 +356,51 @@ serialiseName bh name _ = do
 
 
 instance (Ord k, Binary k, Binary v) => Binary (Map k v) where
-  put_ bh m = put_ bh (Map.toList m)
-  get bh = fmap (Map.fromList) (get bh)
+  put = put . Map.toList
+  get = Map.fromList <$> get
 
 
 instance Binary InterfaceFile where
-  put_ bh (InterfaceFile env ifaces) = do
-    put_ bh env
-    put_ bh ifaces
+  put (InterfaceFile env ifaces) = do
+    put env
+    put ifaces
 
-  get bh = do
-    env    <- get bh
-    ifaces <- get bh
-    return (InterfaceFile env ifaces)
+  get = InterfaceFile <$> get <*> get
 
 
 instance Binary InstalledInterface where
-  put_ bh (InstalledInterface modu is_sig info docMap argMap
+  put (InstalledInterface modu is_sig info docMap argMap
            exps visExps opts fixMap) = do
-    put_ bh modu
-    put_ bh is_sig
-    put_ bh info
-    lazyPut bh (docMap, argMap)
-    put_ bh exps
-    put_ bh visExps
-    put_ bh opts
-    put_ bh fixMap
+    put modu
+    put is_sig
+    put info
+    lazyPut (docMap, argMap)
+    put exps
+    put visExps
+    put opts
+    put fixMap
 
-  get bh = do
-    modu    <- get bh
-    is_sig  <- get bh
-    info    <- get bh
-    ~(docMap, argMap) <- lazyGet bh
-    exps    <- get bh
-    visExps <- get bh
-    opts    <- get bh
-    fixMap  <- get bh
+  get = do
+    modu    <- get
+    is_sig  <- get
+    info    <- get
+    ~(docMap, argMap) <- lazyGet
+    exps    <- get
+    visExps <- get
+    opts    <- get
+    fixMap  <- get
     return (InstalledInterface modu is_sig info docMap argMap
             exps visExps opts fixMap)
 
 
 instance Binary DocOption where
-    put_ bh OptHide = do
-            putByte bh 0
-    put_ bh OptPrune = do
-            putByte bh 1
-    put_ bh OptIgnoreExports = do
-            putByte bh 2
-    put_ bh OptNotHome = do
-            putByte bh 3
-    put_ bh OptShowExtensions = do
-            putByte bh 4
-    get bh = do
-            h <- getByte bh
+    put OptHide           = putByte 0
+    put OptPrune          = putByte 1
+    put OptIgnoreExports  = putByte 2
+    put OptNotHome        = putByte 3
+    put OptShowExtensions = putByte 4
+    get = do
+            h <- getByte
             case h of
               0 -> do
                     return OptHide
@@ -426,278 +416,254 @@ instance Binary DocOption where
 
 
 instance Binary Example where
-    put_ bh (Example expression result) = do
-        put_ bh expression
-        put_ bh result
-    get bh = do
-        expression <- get bh
-        result <- get bh
-        return (Example expression result)
+    put (Example expression result) = do
+        put expression
+        put result
+    get = Example <$> get <*> get
 
 instance Binary a => Binary (Hyperlink a) where
-    put_ bh (Hyperlink url label) = do
-        put_ bh url
-        put_ bh label
-    get bh = do
-        url <- get bh
-        label <- get bh
-        return (Hyperlink url label)
+    put (Hyperlink url label) = do
+        put url
+        put label
+    get = Hyperlink <$> get <*> get
 
 instance Binary Picture where
-    put_ bh (Picture uri title) = do
-        put_ bh uri
-        put_ bh title
-    get bh = do
-        uri <- get bh
-        title <- get bh
-        return (Picture uri title)
+    put (Picture uri title) = do
+        put uri
+        put title
+    get = Picture <$> get <*> get
 
 instance Binary a => Binary (Header a) where
-    put_ bh (Header l t) = do
-        put_ bh l
-        put_ bh t
-    get bh = do
-        l <- get bh
-        t <- get bh
-        return (Header l t)
+    put (Header l t) = do
+        put l
+        put t
+    get = Header <$> get <*> get
 
 instance Binary a => Binary (Table a) where
-    put_ bh (Table h b) = do
-        put_ bh h
-        put_ bh b
-    get bh = do
-        h <- get bh
-        b <- get bh
-        return (Table h b)
+    put (Table h b) = do
+        put h
+        put b
+    get = Table <$> get <*> get
 
 instance Binary a => Binary (TableRow a) where
-    put_ bh (TableRow cs) = put_ bh cs
-    get bh = do
-        cs <- get bh
-        return (TableRow cs)
+    put (TableRow cs) = put cs
+    get = TableRow <$> get
 
 instance Binary a => Binary (TableCell a) where
-    put_ bh (TableCell i j c) = do
-        put_ bh i
-        put_ bh j
-        put_ bh c
-    get bh = do
-        i <- get bh
-        j <- get bh
-        c <- get bh
-        return (TableCell i j c)
+    put (TableCell i j c) = do
+        put i
+        put j
+        put c
+    get = TableCell <$> get <*> get <*> get
 
 instance Binary Meta where
-    put_ bh (Meta v p) = do
-        put_ bh v
-        put_ bh p
-    get bh = do
-        v <- get bh
-        p <- get bh
-        return (Meta v p)
+    put (Meta v p) = do
+        put v
+        put p
+    get = Meta <$> get <*> get
 
 instance (Binary mod, Binary id) => Binary (MetaDoc mod id) where
-  put_ bh MetaDoc { _meta = m, _doc = d } = do
-    put_ bh m
-    put_ bh d
-  get bh = do
-    m <- get bh
-    d <- get bh
+  put MetaDoc { _meta = m, _doc = d } = do
+    put m
+    put d
+  get = do
+    m <- get
+    d <- get
     return $ MetaDoc { _meta = m, _doc = d }
 
 instance (Binary mod, Binary id) => Binary (DocH mod id) where
-    put_ bh DocEmpty = do
-            putByte bh 0
-    put_ bh (DocAppend aa ab) = do
-            putByte bh 1
-            put_ bh aa
-            put_ bh ab
-    put_ bh (DocString ac) = do
-            putByte bh 2
-            put_ bh ac
-    put_ bh (DocParagraph ad) = do
-            putByte bh 3
-            put_ bh ad
-    put_ bh (DocIdentifier ae) = do
-            putByte bh 4
-            put_ bh ae
-    put_ bh (DocModule af) = do
-            putByte bh 5
-            put_ bh af
-    put_ bh (DocEmphasis ag) = do
-            putByte bh 6
-            put_ bh ag
-    put_ bh (DocMonospaced ah) = do
-            putByte bh 7
-            put_ bh ah
-    put_ bh (DocUnorderedList ai) = do
-            putByte bh 8
-            put_ bh ai
-    put_ bh (DocOrderedList aj) = do
-            putByte bh 9
-            put_ bh aj
-    put_ bh (DocDefList ak) = do
-            putByte bh 10
-            put_ bh ak
-    put_ bh (DocCodeBlock al) = do
-            putByte bh 11
-            put_ bh al
-    put_ bh (DocHyperlink am) = do
-            putByte bh 12
-            put_ bh am
-    put_ bh (DocPic x) = do
-            putByte bh 13
-            put_ bh x
-    put_ bh (DocAName an) = do
-            putByte bh 14
-            put_ bh an
-    put_ bh (DocExamples ao) = do
-            putByte bh 15
-            put_ bh ao
-    put_ bh (DocIdentifierUnchecked x) = do
-            putByte bh 16
-            put_ bh x
-    put_ bh (DocWarning ag) = do
-            putByte bh 17
-            put_ bh ag
-    put_ bh (DocProperty x) = do
-            putByte bh 18
-            put_ bh x
-    put_ bh (DocBold x) = do
-            putByte bh 19
-            put_ bh x
-    put_ bh (DocHeader aa) = do
-            putByte bh 20
-            put_ bh aa
-    put_ bh (DocMathInline x) = do
-            putByte bh 21
-            put_ bh x
-    put_ bh (DocMathDisplay x) = do
-            putByte bh 22
-            put_ bh x
-    put_ bh (DocTable x) = do
-            putByte bh 23
-            put_ bh x
+    put DocEmpty = do
+            putByte 0
+    put (DocAppend aa ab) = do
+            putByte 1
+            put aa
+            put ab
+    put (DocString ac) = do
+            putByte 2
+            put ac
+    put (DocParagraph ad) = do
+            putByte 3
+            put ad
+    put (DocIdentifier ae) = do
+            putByte 4
+            put ae
+    put (DocModule af) = do
+            putByte 5
+            put af
+    put (DocEmphasis ag) = do
+            putByte 6
+            put ag
+    put (DocMonospaced ah) = do
+            putByte 7
+            put ah
+    put (DocUnorderedList ai) = do
+            putByte 8
+            put ai
+    put (DocOrderedList aj) = do
+            putByte 9
+            put aj
+    put (DocDefList ak) = do
+            putByte 10
+            put ak
+    put (DocCodeBlock al) = do
+            putByte 11
+            put al
+    put (DocHyperlink am) = do
+            putByte 12
+            put am
+    put (DocPic x) = do
+            putByte 13
+            put x
+    put (DocAName an) = do
+            putByte 14
+            put an
+    put (DocExamples ao) = do
+            putByte 15
+            put ao
+    put (DocIdentifierUnchecked x) = do
+            putByte 16
+            put x
+    put (DocWarning ag) = do
+            putByte 17
+            put ag
+    put (DocProperty x) = do
+            putByte 18
+            put x
+    put (DocBold x) = do
+            putByte 19
+            put x
+    put (DocHeader aa) = do
+            putByte 20
+            put aa
+    put (DocMathInline x) = do
+            putByte 21
+            put x
+    put (DocMathDisplay x) = do
+            putByte 22
+            put x
+    put (DocTable x) = do
+            putByte 23
+            put x
 
-    get bh = do
-            h <- getByte bh
+    get = do
+            h <- getByte
             case h of
               0 -> do
                     return DocEmpty
               1 -> do
-                    aa <- get bh
-                    ab <- get bh
+                    aa <- get
+                    ab <- get
                     return (DocAppend aa ab)
               2 -> do
-                    ac <- get bh
+                    ac <- get
                     return (DocString ac)
               3 -> do
-                    ad <- get bh
+                    ad <- get
                     return (DocParagraph ad)
               4 -> do
-                    ae <- get bh
+                    ae <- get
                     return (DocIdentifier ae)
               5 -> do
-                    af <- get bh
+                    af <- get
                     return (DocModule af)
               6 -> do
-                    ag <- get bh
+                    ag <- get
                     return (DocEmphasis ag)
               7 -> do
-                    ah <- get bh
+                    ah <- get
                     return (DocMonospaced ah)
               8 -> do
-                    ai <- get bh
+                    ai <- get
                     return (DocUnorderedList ai)
               9 -> do
-                    aj <- get bh
+                    aj <- get
                     return (DocOrderedList aj)
               10 -> do
-                    ak <- get bh
+                    ak <- get
                     return (DocDefList ak)
               11 -> do
-                    al <- get bh
+                    al <- get
                     return (DocCodeBlock al)
               12 -> do
-                    am <- get bh
+                    am <- get
                     return (DocHyperlink am)
               13 -> do
-                    x <- get bh
+                    x <- get
                     return (DocPic x)
               14 -> do
-                    an <- get bh
+                    an <- get
                     return (DocAName an)
               15 -> do
-                    ao <- get bh
+                    ao <- get
                     return (DocExamples ao)
               16 -> do
-                    x <- get bh
+                    x <- get
                     return (DocIdentifierUnchecked x)
               17 -> do
-                    ag <- get bh
+                    ag <- get
                     return (DocWarning ag)
               18 -> do
-                    x <- get bh
+                    x <- get
                     return (DocProperty x)
               19 -> do
-                    x <- get bh
+                    x <- get
                     return (DocBold x)
               20 -> do
-                    aa <- get bh
+                    aa <- get
                     return (DocHeader aa)
               21 -> do
-                    x <- get bh
+                    x <- get
                     return (DocMathInline x)
               22 -> do
-                    x <- get bh
+                    x <- get
                     return (DocMathDisplay x)
               23 -> do
-                    x <- get bh
+                    x <- get
                     return (DocTable x)
               _ -> error "invalid binary data found in the interface file"
 
 
 instance Binary name => Binary (HaddockModInfo name) where
-  put_ bh hmi = do
-    put_ bh (hmi_description hmi)
-    put_ bh (hmi_copyright   hmi)
-    put_ bh (hmi_license     hmi)
-    put_ bh (hmi_maintainer  hmi)
-    put_ bh (hmi_stability   hmi)
-    put_ bh (hmi_portability hmi)
-    put_ bh (hmi_safety      hmi)
-    put_ bh (fromEnum <$> hmi_language hmi)
-    put_ bh (map fromEnum $ hmi_extensions hmi)
+  put hmi = do
+    put (hmi_description hmi)
+    put (hmi_copyright   hmi)
+    put (hmi_license     hmi)
+    put (hmi_maintainer  hmi)
+    put (hmi_stability   hmi)
+    put (hmi_portability hmi)
+    put (hmi_safety      hmi)
+    put (fromEnum <$> hmi_language hmi)
+    put (map fromEnum $ hmi_extensions hmi)
 
-  get bh = do
-    descr <- get bh
-    copyr <- get bh
-    licen <- get bh
-    maint <- get bh
-    stabi <- get bh
-    porta <- get bh
-    safet <- get bh
-    langu <- fmap toEnum <$> get bh
-    exten <- map toEnum <$> get bh
+  get = do
+    descr <- get
+    copyr <- get
+    licen <- get
+    maint <- get
+    stabi <- get
+    porta <- get
+    safet <- get
+    langu <- fmap toEnum <$> get
+    exten <- map toEnum <$> get
     return (HaddockModInfo descr copyr licen maint stabi porta safet langu exten)
 
 instance Binary DocName where
-  put_ bh (Documented name modu) = do
-    putByte bh 0
-    put_ bh name
-    put_ bh modu
-  put_ bh (Undocumented name) = do
-    putByte bh 1
-    put_ bh name
+  put (Documented name modu) = do
+    putByte 0
+    put name
+    put modu
+  put (Undocumented name) = do
+    putByte 1
+    put name
 
-  get bh = do
-    h <- getByte bh
+  get = do
+    h <- getByte
     case h of
       0 -> do
-        name <- get bh
-        modu <- get bh
+        name <- get
+        modu <- get
         return (Documented name modu)
       1 -> do
-        name <- get bh
+        name <- get
         return (Undocumented name)
       _ -> error "get DocName: Bad h"
