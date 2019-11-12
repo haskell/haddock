@@ -509,11 +509,11 @@ If you use section headings, then Haddock will generate a table of
 contents at the top of the module documentation for you.
 
 The alternative style of placing the commas at the beginning of each
-line is also supported. e.g.: ::
+line is not supported, but you can get close: ::
 
     module Foo (
       -- * Classes
-      , C(..)
+        C(..)
       -- * Types
       -- ** A data type
       , T
