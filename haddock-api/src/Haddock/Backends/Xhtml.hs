@@ -303,6 +303,7 @@ ppPrologue pkg qual title (Just doc) =
 
 
 ppSignatureTree :: Maybe Package -> Qualification -> [ModuleTree] -> Html
+ppSignatureTree _ _ [] = mempty
 ppSignatureTree pkg qual ts =
   divModuleList << (sectionName << "Signatures" +++ mkNodeList pkg qual [] "n" ts)
 
