@@ -131,7 +131,7 @@ or like this: ::
           b  -- ^ This is the documentation for the argument of type 'b'
 
 There is one edge case that is handled differently: only one ``-- ^``
-annotation occuring after the constructor and all its arguments is
+annotation occurring after the constructor and all its arguments is
 applied to the constructor, not its last argument: ::
 
     data T a b
@@ -157,7 +157,7 @@ example doc comments can appear before or after the comma in separated
 lists such as the list of record fields above.
 
 In case that more than one constructor exports a field with the same
-name, the documentation attached to the first occurence of the field
+name, the documentation attached to the first occurrence of the field
 will be used, even if a comment is not present. ::
 
     data T a = A { someField :: a -- ^ Doc for someField of A
@@ -165,7 +165,7 @@ will be used, even if a comment is not present. ::
              | B { someField :: a -- ^ Doc for someField of B
                  }
 
-In the above example, all occurences of ``someField`` in the
+In the above example, all occurrences of ``someField`` in the
 documentation are going to be documented with
 ``Doc for someField of A``. Note that Haddock versions 2.14.0 and before
 would join up documentation of each field and render the result. The
@@ -1112,7 +1112,7 @@ like this: ::
     ![image description](pathtoimage.png)
 
 If the output format supports it, the image will be rendered inside the
-documentation. The image description is used as relpacement text and/or
+documentation. The image description is used as replacement text and/or
 image title.
 
 Mathematics / LaTeX

@@ -139,7 +139,7 @@ richToken srcs details Token{..}
 
     contexts = concatMap (Set.elems . identInfo) . Map.elems . nodeIdentifiers $ details
 
-    -- pick an arbitary identifier to hyperlink with
+    -- pick an arbitrary identifier to hyperlink with
     identDet = Map.lookupMin . nodeIdentifiers $ details
 
     -- If we have name information, we can make links

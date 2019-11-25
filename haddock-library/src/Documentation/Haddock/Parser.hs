@@ -680,7 +680,7 @@ stripSpace = fromMaybe <*> mapM strip'
                  Just (' ',t') -> Just t'
                  _ -> Nothing
 
--- | Parses examples. Examples are a paragraph level entitity (separated by an empty line).
+-- | Parses examples. Examples are a paragraph level entity (separated by an empty line).
 -- Consecutive examples are accepted.
 examples :: Parser (DocH mod a)
 examples = DocExamples <$> (many (try (skipHorizontalSpace *> "\n")) *> go)

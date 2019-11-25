@@ -110,7 +110,7 @@ writeInterfaceFile filename iface = do
   symtab_p_p <- tellBin bh0
   put_ bh0 symtab_p_p
 
-  -- Make some intial state
+  -- Make some initial state
   symtab_next <- newFastMutInt
   writeFastMutInt symtab_next 0
   symtab_map <- newIORef emptyUFM
