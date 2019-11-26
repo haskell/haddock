@@ -29,6 +29,7 @@ import Control.Applicative
 import Control.Arrow ( first )
 import Control.Monad hiding (mapM)
 import qualified Data.Map as Map hiding ( Map )
+import qualified Data.Set as Set
 import Prelude hiding (mapM)
 
 -- | Traverse docstrings and ASTs in the Haddock interface, renaming 'Name' to
@@ -39,8 +40,8 @@ import Prelude hiding (mapM)
 --
 -- The renamed output gets written into fields in the Haddock interface record
 -- that were previously left empty.
-renameInterface :: DynFlags -> LinkEnv -> Bool -> Interface -> ErrMsgM Interface
-renameInterface dflags renamingEnv warnings iface =
+renameInterface :: DynFlags -> [String] -> LinkEnv -> Bool -> Interface -> ErrMsgM Interface
+renameInterface _dflags ignoredSymbols renamingEnv warnings iface =
 
   -- first create the local env, where every name exported by this module
   -- is mapped to itself, and everything else comes from the global renaming
@@ -78,9 +79,12 @@ renameInterface dflags renamingEnv warnings iface =
 
       qualifiedName n = (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
 
+      ignoreSet = Set.fromList ignoredSymbols
+
       strings = [ qualifiedName n
 
                 | n <- missingNames
+                , not (qualifiedName n `Set.member` ignoreSet)
                 , not (isSystemName n)
                 , not (isBuiltInSyntax n)
                 , Exact n /= eqTyCon_RDR
