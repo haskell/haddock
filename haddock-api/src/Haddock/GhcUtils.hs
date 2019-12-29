@@ -40,7 +40,7 @@ import VarSet    ( VarSet, emptyVarSet )
 import VarEnv    ( TyVarEnv, extendVarEnv, elemVarEnv, emptyVarEnv )
 import TyCoRep   ( Type(..) )
 import Type      ( isRuntimeRepVar )
-import TysWiredIn( liftedRepDataConTyCon )
+import TysWiredIn( liftedRepTy )
 
 import           StringBuffer ( StringBuffer )
 import qualified StringBuffer             as S
@@ -660,7 +660,7 @@ defaultRuntimeRepVars = go emptyVarEnv
 
     go subs (TyVarTy tv)
       | tv `elemVarEnv` subs
-      = TyConApp liftedRepDataConTyCon []
+      = liftedRepTy
       | otherwise
       = TyVarTy (updateTyVarKind (go subs) tv)
 

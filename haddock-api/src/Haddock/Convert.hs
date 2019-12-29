@@ -42,7 +42,7 @@ import TysPrim ( alphaTyVars )
 import TysWiredIn ( eqTyConName, listTyConName, liftedTypeKindTyConName
                   , unitTy, promotedNilDataCon, promotedConsDataCon )
 import PrelNames ( hasKey, eqTyConKey, ipClassKey, tYPETyConKey
-                 , liftedRepDataConKey )
+                 , liftedDataConKey, boxedRepDataConKey )
 import Unique ( getUnique )
 import Util ( chkAppend,dropList, filterByList, filterOut )
 import Var
@@ -531,8 +531,9 @@ synifyType _ vs (TyConApp tc tys)
     res_ty
       -- Use */# instead of TYPE 'Lifted/TYPE 'Unlifted (#473)
       | tc `hasKey` tYPETyConKey
-      , [TyConApp lev []] <- tys
-      , lev `hasKey` liftedRepDataConKey
+      , [TyConApp rep [TyConApp lev []]] <- tys
+      , rep `hasKey` boxedRepDataConKey
+      , lev `hasKey` liftedDataConKey
       = noLoc (HsTyVar noExtField NotPromoted (noLoc liftedTypeKindTyConName))
       -- Use non-prefix tuple syntax where possible, because it looks nicer.
       | Just sort <- tyConTuple_maybe tc
