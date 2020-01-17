@@ -57,8 +57,7 @@ moduleString = moduleNameString . moduleName
 isNameSym :: Name -> Bool
 isNameSym = isSymOcc . nameOccName
 
-getMainDeclBinder :: (SrcSpanLess (LPat p) ~ Pat p , HasSrcSpan (LPat p)) =>
-                     HsDecl p -> [IdP p]
+getMainDeclBinder :: HsDecl (GhcPass p) -> [IdP (GhcPass p)]
 getMainDeclBinder (TyClD _ d) = [tcdName d]
 getMainDeclBinder (ValD _ d) =
   case collectHsBindBinders d of
@@ -219,6 +218,31 @@ getGADTConType (ConDeclGADT { con_forall = L _ has_forall
 getGADTConType (ConDeclH98 {}) = panic "getGADTConType"
   -- Should only be called on ConDeclGADT
 getGADTConType (XConDecl nec) = noExtCon nec
+
+getMainDeclBinderI :: HsDecl DocNameI -> [IdP DocNameI]
+getMainDeclBinderI (TyClD _ d) = [tcdNameI d]
+getMainDeclBinderI (ValD _ d) =
+  case collectHsBindBinders d of
+    []       -> []
+    (name:_) -> [name]
+getMainDeclBinderI (SigD _ d) = sigNameNoLoc d
+getMainDeclBinderI (ForD _ (ForeignImport _ name _ _)) = [unLoc name]
+getMainDeclBinderI (ForD _ (ForeignExport _ _ _ _)) = []
+getMainDeclBinderI _ = []
+
+familyDeclLNameI :: FamilyDecl DocNameI -> Located DocName
+familyDeclLNameI (FamilyDecl { fdLName = n }) = n
+familyDeclLNameI (XFamilyDecl nec) = noExtCon nec
+
+tyClDeclLNameI :: TyClDecl DocNameI -> Located DocName
+tyClDeclLNameI (FamDecl { tcdFam = fd })     = familyDeclLNameI fd
+tyClDeclLNameI (SynDecl { tcdLName = ln })   = ln
+tyClDeclLNameI (DataDecl { tcdLName = ln })  = ln
+tyClDeclLNameI (ClassDecl { tcdLName = ln }) = ln
+tyClDeclLNameI (XTyClDecl nec) = noExtCon nec
+
+tcdNameI :: TyClDecl DocNameI -> DocName
+tcdNameI = unLoc . tyClDeclLNameI
 
 -- -------------------------------------
 
