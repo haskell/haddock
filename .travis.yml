@@ -26,10 +26,8 @@ before_cache:
   - rm -rfv $CABALHOME/packages/head.hackage
 matrix:
   include:
-    - os: linux
-      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-head], sources: [hvr-ghc]}}
-      env:
-        - GHC_ZIP='https://gitlab.haskell.org/ghc/ghc/-/jobs/artifacts/master/download?job=validate-x86_64-linux-deb9'
+    - compiler: ghc-8.10.1
+      addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.10.1","cabal-install-3.0"]}}
 
 before_install:
   - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
