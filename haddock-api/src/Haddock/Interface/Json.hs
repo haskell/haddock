@@ -13,7 +13,6 @@ import Outputable
 
 import Control.Arrow
 import Data.Map (Map)
-import Data.Bifunctor
 import qualified Data.Map as Map
 
 import Haddock.Types
@@ -61,11 +60,169 @@ jsonMDoc MetaDoc{..} =
              , ("doc",  jsonDoc _doc)
              ]
 
+showModName :: Wrap (ModuleName, OccName) -> String
+showModName = showWrapped (moduleNameString . fst)
+
+showName :: Wrap Name -> String
+showName = showWrapped nameStableString
+
+
 jsonDoc :: Doc Name -> JsonDoc
-jsonDoc doc = jsonString (show (bimap showModName showName doc))
+
+jsonDoc DocEmpty = jsonObject
+    [ ("tag", jsonString "DocEmpty") ]
+
+jsonDoc (DocAppend x y) = jsonObject
+    [ ("tag", jsonString "DocAppend")
+    , ("x", jsonDoc x)
+    , ("y", jsonDoc y)
+    ]
+
+jsonDoc (DocString s) = jsonObject
+    [ ("tag", jsonString "DocString")
+    , ("s", jsonString s)
+    ]
+
+jsonDoc (DocParagraph x) = jsonObject
+    [ ("tag", jsonString "DocParagraph")
+    , ("x", jsonDoc x)
+    ]
+
+jsonDoc (DocIdentifier name) = jsonObject
+    [ ("tag", jsonString "DocIdentifier")
+    , ("name", jsonString (showName name))
+    ]
+
+jsonDoc (DocIdentifierUnchecked modName) = jsonObject
+    [ ("tag", jsonString "DocIdentifierUnchecked")
+    , ("modName", jsonString (showModName modName))
+    ]
+
+jsonDoc (DocModule s) = jsonObject
+    [ ("tag", jsonString "DocModule")
+    , ("s", jsonString s)
+    ]
+
+jsonDoc (DocWarning x) = jsonObject
+    [ ("tag", jsonString "DocWarning")
+    , ("x", jsonDoc x)
+    ]
+
+jsonDoc (DocEmphasis x) = jsonObject
+    [ ("tag", jsonString "DocEmphasis")
+    , ("x", jsonDoc x)
+    ]
+
+jsonDoc (DocMonospaced x) = jsonObject
+    [ ("tag", jsonString "DocMonospaced")
+    , ("x", jsonDoc x)
+    ]
+
+jsonDoc (DocBold x) = jsonObject
+    [ ("tag", jsonString "DocBold")
+    , ("x", jsonDoc x)
+    ]
+
+jsonDoc (DocUnorderedList xs) = jsonObject
+    [ ("tag", jsonString "DocUnorderedList")
+    , ("xs", jsonArray (fmap jsonDoc xs))
+    ]
+
+jsonDoc (DocOrderedList xs) = jsonObject
+    [ ("tag", jsonString "DocOrderedList")
+    , ("xs", jsonArray (fmap jsonDoc xs))
+    ]
+
+jsonDoc (DocDefList xys) = jsonObject
+    [ ("tag", jsonString "DocDefList")
+    , ("xys", jsonArray (fmap jsonDef xys))
+    ]
   where
-    showModName = showWrapped (moduleNameString . fst)
-    showName = showWrapped nameStableString
+    jsonDef (x, y) = jsonObject [("x", jsonDoc x), ("y", jsonDoc y)]
+
+jsonDoc (DocCodeBlock x) = jsonObject
+    [ ("tag", jsonString "DocCodeBlock")
+    , ("x", jsonDoc x)
+    ]
+
+jsonDoc (DocHyperlink hyperlink) = jsonObject
+    [ ("tag", jsonString "DocHyperlink")
+    , ("hyperlink", jsonHyperlink hyperlink)
+    ]
+  where
+    jsonHyperlink Hyperlink{..} = jsonObject
+        [ ("hyperlinkUrl", jsonString hyperlinkUrl)
+        , ("hyperlinkLabel", jsonMaybe jsonDoc hyperlinkLabel)
+        ]
+
+jsonDoc (DocPic picture) = jsonObject
+    [ ("tag", jsonString "DocPic")
+    , ("picture", jsonPicture picture)
+    ]
+  where
+    jsonPicture Picture{..} = jsonObject
+        [ ("pictureUrl", jsonString pictureUri)
+        , ("pictureLabel", jsonMaybe jsonString pictureTitle)
+        ]
+
+jsonDoc (DocMathInline s) = jsonObject
+    [ ("tag", jsonString "DocMathInline")
+    , ("s", jsonString s)
+    ]
+
+jsonDoc (DocMathDisplay s) = jsonObject
+    [ ("tag", jsonString "DocMathDisplay")
+    , ("s", jsonString s)
+    ]
+
+jsonDoc (DocAName s) = jsonObject
+    [ ("tag", jsonString "DocAName")
+    , ("s", jsonString s)
+    ]
+
+jsonDoc (DocProperty s) = jsonObject
+    [ ("tag", jsonString "DocProperty")
+    , ("s", jsonString s)
+    ]
+
+jsonDoc (DocExamples examples) = jsonObject
+    [ ("tag", jsonString "DocExamples")
+    , ("examples", jsonArray (fmap jsonExample examples))
+    ]
+  where
+    jsonExample Example{..} = jsonObject
+        [ ("exampleExpression", jsonString exampleExpression)
+        , ("exampleResult", jsonArray (fmap jsonString exampleResult))
+        ]
+
+jsonDoc (DocHeader header) = jsonObject
+    [ ("tag", jsonString "DocHeader")
+    , ("header", jsonHeader header)
+    ]
+  where
+    jsonHeader Header{..} = jsonObject
+        [ ("headerLevel", jsonInt headerLevel)
+        , ("headerTitle", jsonDoc headerTitle)
+        ]
+
+jsonDoc (DocTable table) = jsonObject
+    [ ("tag", jsonString "DocTable")
+    , ("table", jsonTable table)
+    ]
+  where
+    jsonTable Table{..} = jsonObject
+        [ ("tableHeaderRows", jsonArray (fmap jsonTableRow tableHeaderRows))
+        , ("tableBodyRows", jsonArray (fmap jsonTableRow tableBodyRows))
+        ]
+
+    jsonTableRow TableRow{..} = jsonArray (fmap jsonTableCell tableRowCells)
+
+    jsonTableCell TableCell{..} = jsonObject
+        [ ("tableCellColspan", jsonInt tableCellColspan)
+        , ("tableCellRowspan", jsonInt tableCellRowspan)
+        , ("tableCellContents", jsonDoc tableCellContents)
+        ]
+
 
 jsonModule :: Module -> JsonDoc
 jsonModule = JSString . moduleStableString
