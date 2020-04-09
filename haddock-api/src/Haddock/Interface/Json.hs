@@ -57,7 +57,7 @@ jsonMap f g = jsonObject . map (f *** g) . Map.toList
 jsonMDoc :: MDoc Name -> JsonDoc
 jsonMDoc MetaDoc{..} =
   jsonObject [ ("meta", jsonObject [("version", jsonMaybe (jsonString . show) (_version _meta))])
-             , ("doc",  jsonDoc _doc)
+             , ("document",  jsonDoc _doc)
              ]
 
 showModName :: Wrap (ModuleName, OccName) -> String
@@ -74,18 +74,18 @@ jsonDoc DocEmpty = jsonObject
 
 jsonDoc (DocAppend x y) = jsonObject
     [ ("tag", jsonString "DocAppend")
-    , ("x", jsonDoc x)
-    , ("y", jsonDoc y)
+    , ("first", jsonDoc x)
+    , ("second", jsonDoc y)
     ]
 
 jsonDoc (DocString s) = jsonObject
     [ ("tag", jsonString "DocString")
-    , ("s", jsonString s)
+    , ("string", jsonString s)
     ]
 
 jsonDoc (DocParagraph x) = jsonObject
     [ ("tag", jsonString "DocParagraph")
-    , ("x", jsonDoc x)
+    , ("document", jsonDoc x)
     ]
 
 jsonDoc (DocIdentifier name) = jsonObject
@@ -100,49 +100,49 @@ jsonDoc (DocIdentifierUnchecked modName) = jsonObject
 
 jsonDoc (DocModule s) = jsonObject
     [ ("tag", jsonString "DocModule")
-    , ("s", jsonString s)
+    , ("string", jsonString s)
     ]
 
 jsonDoc (DocWarning x) = jsonObject
     [ ("tag", jsonString "DocWarning")
-    , ("x", jsonDoc x)
+    , ("document", jsonDoc x)
     ]
 
 jsonDoc (DocEmphasis x) = jsonObject
     [ ("tag", jsonString "DocEmphasis")
-    , ("x", jsonDoc x)
+    , ("document", jsonDoc x)
     ]
 
 jsonDoc (DocMonospaced x) = jsonObject
     [ ("tag", jsonString "DocMonospaced")
-    , ("x", jsonDoc x)
+    , ("document", jsonDoc x)
     ]
 
 jsonDoc (DocBold x) = jsonObject
     [ ("tag", jsonString "DocBold")
-    , ("x", jsonDoc x)
+    , ("document", jsonDoc x)
     ]
 
 jsonDoc (DocUnorderedList xs) = jsonObject
     [ ("tag", jsonString "DocUnorderedList")
-    , ("xs", jsonArray (fmap jsonDoc xs))
+    , ("documents", jsonArray (fmap jsonDoc xs))
     ]
 
 jsonDoc (DocOrderedList xs) = jsonObject
     [ ("tag", jsonString "DocOrderedList")
-    , ("xs", jsonArray (fmap jsonDoc xs))
+    , ("documents", jsonArray (fmap jsonDoc xs))
     ]
 
 jsonDoc (DocDefList xys) = jsonObject
     [ ("tag", jsonString "DocDefList")
-    , ("xys", jsonArray (fmap jsonDef xys))
+    , ("definitions", jsonArray (fmap jsonDef xys))
     ]
   where
-    jsonDef (x, y) = jsonObject [("x", jsonDoc x), ("y", jsonDoc y)]
+    jsonDef (x, y) = jsonObject [("document", jsonDoc x), ("y", jsonDoc y)]
 
 jsonDoc (DocCodeBlock x) = jsonObject
     [ ("tag", jsonString "DocCodeBlock")
-    , ("x", jsonDoc x)
+    , ("document", jsonDoc x)
     ]
 
 jsonDoc (DocHyperlink hyperlink) = jsonObject
@@ -167,22 +167,22 @@ jsonDoc (DocPic picture) = jsonObject
 
 jsonDoc (DocMathInline s) = jsonObject
     [ ("tag", jsonString "DocMathInline")
-    , ("s", jsonString s)
+    , ("string", jsonString s)
     ]
 
 jsonDoc (DocMathDisplay s) = jsonObject
     [ ("tag", jsonString "DocMathDisplay")
-    , ("s", jsonString s)
+    , ("string", jsonString s)
     ]
 
 jsonDoc (DocAName s) = jsonObject
     [ ("tag", jsonString "DocAName")
-    , ("s", jsonString s)
+    , ("string", jsonString s)
     ]
 
 jsonDoc (DocProperty s) = jsonObject
     [ ("tag", jsonString "DocProperty")
-    , ("s", jsonString s)
+    , ("string", jsonString s)
     ]
 
 jsonDoc (DocExamples examples) = jsonObject
