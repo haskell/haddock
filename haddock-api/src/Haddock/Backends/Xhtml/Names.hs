@@ -26,7 +26,7 @@ import Text.XHtml hiding ( name, p, quote )
 import qualified Data.Map as M
 import qualified Data.List as List
 
-import GHC hiding (LexicalFixity(..))
+import GHC hiding (LexicalFixity(..), anchor)
 import GHC.Types.Name
 import GHC.Types.Name.Reader
 import GHC.Data.FastString (unpackFS)
@@ -54,8 +54,9 @@ ppUncheckedLink _ (mdl, occ) = linkIdOcc' mdl (Just occ) << ppOccName occ -- TOD
 
 
 -- The Bool indicates if it is to be rendered in infix notation
-ppLDocName :: Qualification -> Notation -> Located DocName -> Html
+ppLDocName :: Qualification -> Notation -> GenLocated l DocName -> Html
 ppLDocName qual notation (L _ d) = ppDocName qual notation True d
+
 
 ppDocName :: Qualification -> Notation -> Bool -> DocName -> Html
 ppDocName qual notation insertAnchors docName =
