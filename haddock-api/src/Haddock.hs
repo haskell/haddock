@@ -42,6 +42,7 @@ import Haddock.Utils
 import Haddock.GhcUtils (modifySessionDynFlags, setOutputDir)
 
 import Control.Monad hiding (forM_)
+import Control.Monad.IO.Class (MonadIO(..))
 import Data.Bifunctor (second)
 import Data.Foldable (forM_, foldl')
 import Data.Traversable (for)
@@ -55,20 +56,14 @@ import qualified Data.Map as Map
 import System.IO
 import System.Exit
 
-#if defined(mingw32_HOST_OS)
-import Foreign
-import Foreign.C
-import Data.Int
-#endif
-
 #ifdef IN_GHC_TREE
 import System.FilePath
+import System.Environment (getExecutablePath)
 #else
 import qualified GHC.Paths as GhcPaths
 import Paths_haddock_api (getDataDir)
-import System.Directory (doesDirectoryExist)
 #endif
-import System.Directory (getTemporaryDirectory)
+import System.Directory (doesDirectoryExist, getTemporaryDirectory)
 import System.FilePath ((</>))
 
 import Text.ParserCombinators.ReadP (readP_to_S)
@@ -237,7 +232,7 @@ noCheckWarning = "Warning: `--bypass-interface-version-check' can cause " ++
 
 withGhc :: [Flag] -> Ghc a -> IO a
 withGhc flags action = do
-  libDir <- fmap snd (getGhcDirs flags)
+  libDir <- fmap (fromMaybe (error "No GhcDir found") . snd) (getGhcDirs flags)
 
   -- Catches all GHC source errors, then prints and re-throws them.
   let handleSrcErrors action' = flip handleSourceError action' $ \err -> do
@@ -368,7 +363,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
   let withQuickjump = Flag_QuickJumpIndex `elem` flags
 
   when (Flag_GenIndex `elem` flags) $ do
-    withTiming (pure dflags') "ppHtmlIndex" (const ()) $ do
+    withTiming dflags' "ppHtmlIndex" (const ()) $ do
       _ <- {-# SCC ppHtmlIndex #-}
            ppHtmlIndex odir title pkgStr
                   themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
@@ -378,7 +373,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
     copyHtmlBits odir libDir themes withQuickjump
 
   when (Flag_GenContents `elem` flags) $ do
-    withTiming (pure dflags') "ppHtmlContents" (const ()) $ do
+    withTiming dflags' "ppHtmlContents" (const ()) $ do
       _ <- {-# SCC ppHtmlContents #-}
            ppHtmlContents dflags' odir title pkgStr
                      themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
@@ -388,7 +383,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
     copyHtmlBits odir libDir themes withQuickjump
 
   when (Flag_Html `elem` flags) $ do
-    withTiming (pure dflags') "ppHtml" (const ()) $ do
+    withTiming dflags' "ppHtml" (const ()) $ do
       _ <- {-# SCC ppHtml #-}
            ppHtml dflags' title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
@@ -423,16 +418,16 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
           ]
 
   when (Flag_LaTeX `elem` flags) $ do
-    withTiming (pure dflags') "ppLatex" (const ()) $ do
+    withTiming dflags' "ppLatex" (const ()) $ do
       _ <- {-# SCC ppLatex #-}
            ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
                    libDir
       return ()
 
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
-    withTiming (pure dflags') "ppHyperlinkedSource" (const ()) $ do
+    withTiming dflags' "ppHyperlinkedSource" (const ()) $ do
       _ <- {-# SCC ppHyperlinkedSource #-}
-           ppHyperlinkedSource odir libDir opt_source_css pretty srcMap ifaces
+           ppHyperlinkedSource (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
       return ()
 
 
@@ -474,8 +469,7 @@ withGhc' libDir needHieFiles flags ghcActs = runGhc (Just libDir) $ do
   -- We disable pattern match warnings because than can be very
   -- expensive to check
   let dynflags'' = unsetPatternMatchWarnings $
-        updOptLevel 0 $
-        gopt_unset dynflags' Opt_SplitObjs
+        updOptLevel 0 dynflags'
   -- ignore the following return-value, which is a list of packages
   -- that may need to be re-linked: Haddock doesn't do any
   -- dynamic or static linking at all!
@@ -528,51 +522,87 @@ unsetPatternMatchWarnings dflags =
 -------------------------------------------------------------------------------
 
 
-getHaddockLibDir :: [Flag] -> IO String
+getHaddockLibDir :: [Flag] -> IO FilePath
 getHaddockLibDir flags =
   case [str | Flag_Lib str <- flags] of
     [] -> do
 #ifdef IN_GHC_TREE
-      getInTreeDir
+
+      -- When in the GHC tree, we should be able to locate the "lib" folder
+      -- based on the location of the current executable.
+      base_dir <- getBaseDir      -- Provided by GHC
+      let res_dirs = [ d | Just d <- [base_dir] ] ++
+
 #else
-      -- if data directory does not exist we are probably
-      -- invoking from either ./haddock-api or ./
-      let res_dirs = [ getDataDir -- provided by Cabal
-                     , pure "resources"
-                     , pure "haddock-api/resources"
+
+      -- When Haddock was installed by @cabal@, the resources (which are listed
+      -- under @data-files@ in the Cabal file) will have been copied to a
+      -- special directory.
+      data_dir <- getDataDir      -- Provided by Cabal
+      let res_dirs = [ data_dir ] ++
+
+#endif
+
+      -- When Haddock is built locally (eg. regular @cabal new-build@), the data
+      -- directory does not exist and we are probably invoking from either
+      -- @./haddock-api@ or @./@
+                     [ "resources"
+                     , "haddock-api/resources"
                      ]
 
-          check get_path = do
-            p <- get_path
-            exists <- doesDirectoryExist p
-            pure $ if exists then Just p else Nothing
+      res_dir <- check res_dirs
+      case res_dir of
+        Just p -> return p
+        _      -> die "Haddock's resource directory does not exist!\n"
 
-      dirs <- mapM check res_dirs
-      case [p | Just p <- dirs] of
-        (p : _) -> return p
-        _       -> die "Haddock's resource directory does not exist!\n"
-#endif
     fs -> return (last fs)
-
-
-getGhcDirs :: [Flag] -> IO (String, String)
-getGhcDirs flags = do
-  case [ dir | Flag_GhcLibDir dir <- flags ] of
-    [] -> do
-#ifdef IN_GHC_TREE
-      libDir <- getInTreeDir
-      return (ghcPath, libDir)
-#else
-      return (ghcPath, GhcPaths.libdir)
-#endif
-    xs -> return (ghcPath, last xs)
   where
+    -- Pick the first path that corresponds to a directory that exists
+    check :: [FilePath] -> IO (Maybe FilePath)
+    check [] = pure Nothing
+    check (path : other_paths) = do
+      exists <- doesDirectoryExist path
+      if exists then pure (Just path) else check other_paths
+
+-- | Find the @lib@ directory for GHC and the path to @ghc@
+getGhcDirs :: [Flag] -> IO (Maybe FilePath, Maybe FilePath)
+getGhcDirs flags = do
+
 #ifdef IN_GHC_TREE
-    ghcPath = "not available"
+  base_dir <- getBaseDir
+  let ghc_path = Nothing
 #else
-    ghcPath = GhcPaths.ghc
+  let base_dir = Just GhcPaths.libdir
+      ghc_path = Just GhcPaths.ghc
 #endif
 
+  -- If the user explicitly specifies a lib dir, use that
+  let ghc_dir = case [ dir | Flag_GhcLibDir dir <- flags ] of
+                  [] -> base_dir
+                  xs -> Just (last xs)
+
+  pure (ghc_path, ghc_dir)
+
+
+#ifdef IN_GHC_TREE
+
+-- | See 'getBaseDir' in "SysTools.BaseDir"
+getBaseDir :: IO (Maybe FilePath)
+getBaseDir = do
+
+  -- Getting executable path can fail. Turn that into 'Nothing'
+  exec_path_opt <- catch (Just <$> getExecutablePath)
+                         (\(_ :: SomeException) -> pure Nothing)
+
+  -- Check that the path we are about to return actually exists
+  case exec_path_opt of
+    Nothing -> pure Nothing
+    Just exec_path -> do
+      let base_dir = takeDirectory (takeDirectory exec_path) </> "lib"
+      exists <- doesDirectoryExist base_dir
+      pure (if exists then Just base_dir else Nothing)
+
+#endif
 
 shortcutFlags :: [Flag] -> IO ()
 shortcutFlags flags = do
@@ -586,12 +616,12 @@ shortcutFlags flags = do
   when (Flag_GhcVersion       `elem` flags) (bye (cProjectVersion ++ "\n"))
 
   when (Flag_PrintGhcPath `elem` flags) $ do
-    dir <- fmap fst (getGhcDirs flags)
-    bye $ dir ++ "\n"
+    path <- fmap fst (getGhcDirs flags)
+    bye $ fromMaybe "not available" path ++ "\n"
 
   when (Flag_PrintGhcLibDir `elem` flags) $ do
     dir <- fmap snd (getGhcDirs flags)
-    bye $ dir ++ "\n"
+    bye $ fromMaybe "not available" dir ++ "\n"
 
   when (Flag_UseUnicode `elem` flags && Flag_Html `notElem` flags) $
     throwE "Unicode can only be enabled for HTML output."
@@ -668,38 +698,3 @@ rightOrThrowE :: Either String b -> IO b
 rightOrThrowE (Left msg) = throwE msg
 rightOrThrowE (Right x) = pure x
 
-
-#ifdef IN_GHC_TREE
-
-getInTreeDir :: IO String
-getInTreeDir = getExecDir >>= \case
-  Nothing -> error "No GhcDir found"
-  Just d -> return (d </> ".." </> "lib")
-
-
-getExecDir :: IO (Maybe String)
-#if defined(mingw32_HOST_OS)
-getExecDir = try_size 2048 -- plenty, PATH_MAX is 512 under Win32.
-  where
-    try_size size = allocaArray (fromIntegral size) $ \buf -> do
-        ret <- c_GetModuleFileName nullPtr buf size
-        case ret of
-          0 -> return Nothing
-          _ | ret < size -> fmap (Just . dropFileName) $ peekCWString buf
-            | otherwise  -> try_size (size * 2)
-
-# if defined(i386_HOST_ARCH)
-#  define WINDOWS_CCONV stdcall
-# elif defined(x86_64_HOST_ARCH)
-#  define WINDOWS_CCONV ccall
-# else
-#  error Unknown mingw32 arch
-# endif
-
-foreign import WINDOWS_CCONV unsafe "windows.h GetModuleFileNameW"
-  c_GetModuleFileName :: Ptr () -> CWString -> Word32 -> IO Word32
-#else
-getExecDir = return Nothing
-#endif
-
-#endif

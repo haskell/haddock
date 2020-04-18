@@ -28,8 +28,7 @@ import ConLike
 import Data.Either (lefts, rights)
 import DataCon
 import FamInstEnv
-import FV
-import HsSyn
+import GHC.Hs
 import Name
 import NameSet ( emptyNameSet )
 import RdrName ( mkVarUnqual )
@@ -45,8 +44,7 @@ import TysWiredIn ( eqTyConName, listTyConName, liftedTypeKindTyConName
 import PrelNames ( hasKey, eqTyConKey, ipClassKey, tYPETyConKey
                  , liftedRepDataConKey )
 import Unique ( getUnique )
-import Util ( chkAppend, compareLength, dropList, filterByList, filterOut
-            , splitAtList )
+import Util ( chkAppend, dropList, filterByList, filterOut )
 import Var
 import VarSet
 
@@ -76,7 +74,7 @@ tyThingToLHsDecl prr t = case t of
   -- in a future code version we could turn idVarDetails = foreign-call
   -- into a ForD instead of a SigD if we wanted.  Haddock doesn't
   -- need to care.
-  AnId i -> allOK $ SigD noExt (synifyIdSig prr ImplicitizeForAll [] i)
+  AnId i -> allOK $ SigD noExtField (synifyIdSig prr ImplicitizeForAll [] i)
 
   -- type-constructors (e.g. Maybe) are complicated, put the definition
   -- later in the file (also it's used for class associated-types too.)
@@ -87,19 +85,21 @@ tyThingToLHsDecl prr t = case t of
            extractFamilyDecl _           =
              Left "tyThingToLHsDecl: impossible associated tycon"
 
-           extractFamDefDecl :: FamilyDecl GhcRn -> Type -> TyFamDefltEqn GhcRn
-           extractFamDefDecl fd rhs = FamEqn
-             { feqn_ext = noExt
+           extractFamDefDecl :: FamilyDecl GhcRn -> Type -> TyFamDefltDecl GhcRn
+           extractFamDefDecl fd rhs =
+             TyFamInstDecl $ HsIB { hsib_ext = hsq_ext (fdTyVars fd)
+                                  , hsib_body = FamEqn
+             { feqn_ext = noExtField
              , feqn_tycon = fdLName fd
-             , feqn_bndrs  = Nothing
-                 -- TODO: this must change eventually
-             , feqn_pats = fdTyVars fd
+             , feqn_bndrs = Nothing
+             , feqn_pats = map (HsValArg . hsLTyVarBndrToType) $
+                           hsq_explicit $ fdTyVars fd
              , feqn_fixity = fdFixity fd
-             , feqn_rhs = synifyType WithinType [] rhs }
+             , feqn_rhs = synifyType WithinType [] rhs }}
 
            extractAtItem
              :: ClassATItem
-             -> Either ErrMsg (LFamilyDecl GhcRn, Maybe (LTyFamDefltEqn GhcRn))
+             -> Either ErrMsg (LFamilyDecl GhcRn, Maybe (LTyFamDefltDecl GhcRn))
            extractAtItem (ATI at_tc def) = do
              tyDecl <- synifyTyCon prr Nothing at_tc
              famDecl <- extractFamilyDecl tyDecl
@@ -110,7 +110,7 @@ tyThingToLHsDecl prr t = case t of
            (atFamDecls, atDefFamDecls) = unzip (rights atTyClDecls)
            vs = tyConVisibleTyVars (classTyCon cl)
 
-       in withErrs (lefts atTyClDecls) . TyClD noExt $ ClassDecl
+       in withErrs (lefts atTyClDecls) . TyClD noExtField $ ClassDecl
          { tcdCtxt = synifyCtx (classSCTheta cl)
          , tcdLName = synifyName cl
          , tcdTyVars = synifyTyVars vs
@@ -118,7 +118,7 @@ tyThingToLHsDecl prr t = case t of
          , tcdFDs = map (\ (l,r) -> noLoc
                         (map (noLoc . getName) l, map (noLoc . getName) r) ) $
                          snd $ classTvsFds cl
-         , tcdSigs = noLoc (MinimalSig noExt NoSourceText . noLoc . fmap noLoc $ classMinimalDef cl) :
+         , tcdSigs = noLoc (MinimalSig noExtField NoSourceText . noLoc . fmap noLoc $ classMinimalDef cl) :
                       [ noLoc tcdSig
                       | clsOp <- classOpItems cl
                       , tcdSig <- synifyTcIdSig vs clsOp ]
@@ -129,18 +129,18 @@ tyThingToLHsDecl prr t = case t of
          , tcdDocs = [] --we don't have any docs at this point
          , tcdCExt = placeHolderNamesTc }
     | otherwise
-    -> synifyTyCon prr Nothing tc >>= allOK . TyClD noExt
+    -> synifyTyCon prr Nothing tc >>= allOK . TyClD noExtField
 
   -- type-constructors (e.g. Maybe) are complicated, put the definition
   -- later in the file (also it's used for class associated-types too.)
   ACoAxiom ax -> synifyAxiom ax >>= allOK
 
   -- a data-constructor alone just gets rendered as a function:
-  AConLike (RealDataCon dc) -> allOK $ SigD noExt (TypeSig noExt [synifyName dc]
+  AConLike (RealDataCon dc) -> allOK $ SigD noExtField (TypeSig noExtField [synifyName dc]
     (synifySigWcType ImplicitizeForAll [] (dataConUserType dc)))
 
   AConLike (PatSynCon ps) ->
-    allOK . SigD noExt $ PatSynSig noExt [synifyName ps] (synifyPatSynSigType ps)
+    allOK . SigD noExtField $ PatSynSig noExtField [synifyName ps] (synifyPatSynSigType ps)
   where
     withErrs e x = return (e, x)
     allOK x = return (mempty, x)
@@ -150,11 +150,10 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
   = let name            = synifyName tc
         args_types_only = filterOutInvisibleTypes tc args
         typats          = map (synifyType WithinType []) args_types_only
-        annot_typats    = zipWith3 annotHsType (mkIsPolyTvs fam_tvs)
-                                   args_types_only typats
+        annot_typats    = zipWith3 annotHsType args_poly args_types_only typats
         hs_rhs          = synifyType WithinType [] rhs
     in HsIB { hsib_ext = map tyVarName tkvs
-            , hsib_body   = FamEqn { feqn_ext    = noExt
+            , hsib_body   = FamEqn { feqn_ext    = noExtField
                                    , feqn_tycon  = name
                                    , feqn_bndrs  = Nothing
                                        -- TODO: this must change eventually
@@ -162,19 +161,19 @@ synifyAxBranch tc (CoAxBranch { cab_tvs = tkvs, cab_lhs = args, cab_rhs = rhs })
                                    , feqn_fixity = synifyFixity name
                                    , feqn_rhs    = hs_rhs } }
   where
-    fam_tvs = tyConVisibleTyVars tc
+    args_poly = tyConArgsPolyKinded tc
 
 synifyAxiom :: CoAxiom br -> Either ErrMsg (HsDecl GhcRn)
 synifyAxiom ax@(CoAxiom { co_ax_tc = tc })
   | isOpenTypeFamilyTyCon tc
   , Just branch <- coAxiomSingleBranch_maybe ax
-  = return $ InstD noExt
-           $ TyFamInstD noExt
+  = return $ InstD noExtField
+           $ TyFamInstD noExtField
            $ TyFamInstDecl { tfid_eqn = synifyAxBranch tc branch }
 
   | Just ax' <- isClosedSynFamilyTyConWithAxiom_maybe tc
   , getUnique ax' == getUnique ax   -- without the getUniques, type error
-  = synifyTyCon ShowRuntimeRep (Just ax) tc >>= return . TyClD noExt
+  = synifyTyCon ShowRuntimeRep (Just ax) tc >>= return . TyClD noExtField
 
   | otherwise
   = Left "synifyAxiom: closed/open family confusion"
@@ -189,9 +188,7 @@ synifyTyCon prr _coax tc
   | isFunTyCon tc || isPrimTyCon tc
   = return $
     DataDecl { tcdLName = synifyName tc
-             , tcdTyVars = HsQTvs { hsq_ext =
-                                       HsQTvsRn { hsq_implicit = []   -- No kind polymorphism
-                                                , hsq_dependent = emptyNameSet }
+             , tcdTyVars = HsQTvs  { hsq_ext = []   -- No kind polymorphism
                                    , hsq_explicit = zipWith mk_hs_tv
                                                             tyVarKinds
                                                             alphaTyVars --a, b, c... which are unfortunately all kind *
@@ -199,7 +196,7 @@ synifyTyCon prr _coax tc
 
            , tcdFixity = synifyFixity tc
 
-           , tcdDataDefn = HsDataDefn { dd_ext = noExt
+           , tcdDataDefn = HsDataDefn { dd_ext = noExtField
                                       , dd_ND = DataType  -- arbitrary lie, they are neither
                                                     -- algebraic data nor newtype:
                                       , dd_ctxt = noLoc []
@@ -212,8 +209,8 @@ synifyTyCon prr _coax tc
   where
     -- tyConTyVars doesn't work on fun/prim, but we can make them up:
     mk_hs_tv realKind fakeTyVar
-      | isLiftedTypeKind realKind = noLoc $ UserTyVar noExt (noLoc (getName fakeTyVar))
-      | otherwise = noLoc $ KindedTyVar noExt (noLoc (getName fakeTyVar)) (synifyKindSig realKind)
+      | isLiftedTypeKind realKind = noLoc $ UserTyVar noExtField (noLoc (getName fakeTyVar))
+      | otherwise = noLoc $ KindedTyVar noExtField (noLoc (getName fakeTyVar)) (synifyKindSig realKind)
 
     conKind = defaultType prr (tyConKind tc)
     tyVarKinds = fst . splitFunTys . snd . splitPiTysInvisible $ conKind
@@ -237,8 +234,8 @@ synifyTyCon _prr _coax tc
         -> mkFamDecl DataFamily
   where
     resultVar = famTcResVar tc
-    mkFamDecl i = return $ FamDecl noExt $
-      FamilyDecl { fdExt = noExt
+    mkFamDecl i = return $ FamDecl noExtField $
+      FamilyDecl { fdExt = noExtField
                  , fdInfo = i
                  , fdLName = synifyName tc
                  , fdTyVars = synifyTyVars (tyConVisibleTyVars tc)
@@ -289,7 +286,7 @@ synifyTyCon _prr coax tc
   cons = rights consRaw
   -- "deriving" doesn't affect the signature, no need to specify any.
   alg_deriv = noLoc []
-  defn = HsDataDefn { dd_ext     = noExt
+  defn = HsDataDefn { dd_ext     = noExtField
                     , dd_ND      = alg_nd
                     , dd_ctxt    = alg_ctx
                     , dd_cType   = Nothing
@@ -334,10 +331,10 @@ synifyInjectivityAnn (Just lhs) tvs (Injective inj) =
 
 synifyFamilyResultSig :: Maybe Name -> Kind -> LFamilyResultSig GhcRn
 synifyFamilyResultSig  Nothing    kind
-   | isLiftedTypeKind kind = noLoc $ NoSig noExt
-   | otherwise = noLoc $ KindSig  noExt (synifyKindSig kind)
+   | isLiftedTypeKind kind = noLoc $ NoSig noExtField
+   | otherwise = noLoc $ KindSig  noExtField (synifyKindSig kind)
 synifyFamilyResultSig (Just name) kind =
-   noLoc $ TyVarSig noExt (noLoc $ KindedTyVar noExt (noLoc name) (synifyKindSig kind))
+   noLoc $ TyVarSig noExtField (noLoc $ KindedTyVar noExtField (noLoc name) (synifyKindSig kind))
 
 -- User beware: it is your responsibility to pass True (use_gadt_syntax)
 -- for any constructor that would be misrepresented by omitting its
@@ -365,12 +362,12 @@ synifyDataCon use_gadt_syntax dc =
                let tySyn = synifyType WithinType [] ty
                in case bang of
                     (HsSrcBang _ NoSrcUnpack NoSrcStrict) -> tySyn
-                    bang' -> noLoc $ HsBangTy noExt bang' tySyn)
+                    bang' -> noLoc $ HsBangTy noExtField bang' tySyn)
             arg_tys (dataConSrcBangs dc)
 
   field_tys = zipWith con_decl_field (dataConFieldLabels dc) linear_tys
   con_decl_field fl synTy = noLoc $
-    ConDeclField noExt [noLoc $ FieldOcc (flSelector fl) (noLoc $ mkVarUnqual $ flLabel fl)] synTy
+    ConDeclField noExtField [noLoc $ FieldOcc (flSelector fl) (noLoc $ mkVarUnqual $ flLabel fl)] synTy
                  Nothing
   hs_arg_tys = case (use_named_field_syntax, use_infix_syntax) of
           (True,True) -> Left "synifyDataCon: contradiction!"
@@ -384,7 +381,7 @@ synifyDataCon use_gadt_syntax dc =
       \hat ->
         if use_gadt_syntax
            then return $ noLoc $
-              ConDeclGADT { con_g_ext  = noExt
+              ConDeclGADT { con_g_ext  = noExtField
                           , con_names  = [name]
                           , con_forall = noLoc $ not $ null user_tvs
                           , con_qvars  = synifyTyVars user_tvs
@@ -393,7 +390,7 @@ synifyDataCon use_gadt_syntax dc =
                           , con_res_ty = synifyType WithinType [] res_ty
                           , con_doc    = Nothing }
            else return $ noLoc $
-              ConDeclH98 { con_ext    = noExt
+              ConDeclH98 { con_ext    = noExtField
                          , con_name   = name
                          , con_forall = noLoc False
                          , con_ex_tvs = map synifyTyVar ex_tvs
@@ -417,7 +414,7 @@ synifyIdSig
   -> [TyVar]          -- ^ free variables in the type to convert
   -> Id               -- ^ the 'Id' from which to get the type signature
   -> Sig GhcRn
-synifyIdSig prr s vs i = TypeSig noExt [synifyName i] (synifySigWcType s vs t)
+synifyIdSig prr s vs i = TypeSig noExtField [synifyName i] (synifySigWcType s vs t)
   where
     t = defaultType prr (varType i)
 
@@ -426,8 +423,8 @@ synifyIdSig prr s vs i = TypeSig noExt [synifyName i] (synifySigWcType s vs t)
 -- 'ClassOpSig'.
 synifyTcIdSig :: [TyVar] -> ClassOpItem -> [Sig GhcRn]
 synifyTcIdSig vs (i, dm) =
-  [ ClassOpSig noExt False [synifyName i] (mainSig (varType i)) ] ++
-  [ ClassOpSig noExt True [noLoc dn] (defSig dt)
+  [ ClassOpSig noExtField False [synifyName i] (mainSig (varType i)) ] ++
+  [ ClassOpSig noExtField True [noLoc dn] (defSig dt)
   | Just (dn, GenericDM dt) <- [dm] ]
   where
     mainSig t = synifySigType DeleteTopLevelQuantification vs t
@@ -438,8 +435,7 @@ synifyCtx = noLoc . map (synifyType WithinType [])
 
 
 synifyTyVars :: [TyVar] -> LHsQTyVars GhcRn
-synifyTyVars ktvs = HsQTvs { hsq_ext = HsQTvsRn { hsq_implicit = []
-                                                , hsq_dependent = emptyNameSet }
+synifyTyVars ktvs = HsQTvs { hsq_ext = []
                            , hsq_explicit = map synifyTyVar ktvs }
 
 synifyTyVar :: TyVar -> LHsTyVarBndr GhcRn
@@ -450,8 +446,8 @@ synifyTyVar = synifyTyVar' emptyVarSet
 synifyTyVar' :: VarSet -> TyVar -> LHsTyVarBndr GhcRn
 synifyTyVar' no_kinds tv
   | isLiftedTypeKind kind || tv `elemVarSet` no_kinds
-  = noLoc (UserTyVar noExt (noLoc name))
-  | otherwise = noLoc (KindedTyVar noExt (noLoc name) (synifyKindSig kind))
+  = noLoc (UserTyVar noExtField (noLoc name))
+  | otherwise = noLoc (KindedTyVar noExtField (noLoc name) (synifyKindSig kind))
   where
     kind = tyVarKind tv
     name = getName tv
@@ -469,20 +465,29 @@ annotHsType True ty hs_ty
   | not $ isEmptyVarSet $ filterVarSet isTyVar $ tyCoVarsOfType ty
   = let ki    = typeKind ty
         hs_ki = synifyType WithinType [] ki
-    in noLoc (HsKindSig noExt hs_ty hs_ki)
+    in noLoc (HsKindSig noExtField hs_ty hs_ki)
 annotHsType _    _ hs_ty = hs_ty
 
--- | For every type variable in the input,
--- report whether or not the tv is poly-kinded. This is used to eventually
--- feed into 'annotHsType'.
-mkIsPolyTvs :: [TyVar] -> [Bool]
-mkIsPolyTvs = map is_poly_tv
+-- | For every argument type that a type constructor accepts,
+-- report whether or not the argument is poly-kinded. This is used to
+-- eventually feed into 'annotThType'.
+tyConArgsPolyKinded :: TyCon -> [Bool]
+tyConArgsPolyKinded tc =
+     map (is_poly_ty . tyVarKind)      tc_vis_tvs
+  ++ map (is_poly_ty . tyCoBinderType) tc_res_kind_vis_bndrs
+  ++ repeat True
   where
-    is_poly_tv tv = not $
+    is_poly_ty :: Type -> Bool
+    is_poly_ty ty = not $
                     isEmptyVarSet $
                     filterVarSet isTyVar $
-                    tyCoVarsOfType $
-                    tyVarKind tv
+                    tyCoVarsOfType ty
+
+    tc_vis_tvs :: [TyVar]
+    tc_vis_tvs = tyConVisibleTyVars tc
+
+    tc_res_kind_vis_bndrs :: [TyCoBinder]
+    tc_res_kind_vis_bndrs = filter isVisibleBinder $ fst $ splitPiTys $ tyConResKind tc
 
 --states of what to do with foralls:
 data SynifyTypeState
@@ -526,7 +531,7 @@ synifyType
   -> [TyVar]          -- ^ free variables in the type to convert
   -> Type             -- ^ the type to convert
   -> LHsType GhcRn
-synifyType _ _ (TyVarTy tv) = noLoc $ HsTyVar noExt NotPromoted $ noLoc (getName tv)
+synifyType _ _ (TyVarTy tv) = noLoc $ HsTyVar noExtField NotPromoted $ noLoc (getName tv)
 synifyType _ vs (TyConApp tc tys)
   = maybe_sig res_ty
   where
@@ -536,105 +541,94 @@ synifyType _ vs (TyConApp tc tys)
       | tc `hasKey` tYPETyConKey
       , [TyConApp lev []] <- tys
       , lev `hasKey` liftedRepDataConKey
-      = noLoc (HsTyVar noExt NotPromoted (noLoc liftedTypeKindTyConName))
+      = noLoc (HsTyVar noExtField NotPromoted (noLoc liftedTypeKindTyConName))
       -- Use non-prefix tuple syntax where possible, because it looks nicer.
       | Just sort <- tyConTuple_maybe tc
-      , tyConArity tc == length tys
-      = noLoc $ HsTupleTy noExt
+      , tyConArity tc == tys_len
+      = noLoc $ HsTupleTy noExtField
                           (case sort of
                               BoxedTuple      -> HsBoxedTuple
                               ConstraintTuple -> HsConstraintTuple
                               UnboxedTuple    -> HsUnboxedTuple)
                            (map (synifyType WithinType vs) vis_tys)
-      | isUnboxedSumTyCon tc = noLoc $ HsSumTy noExt (map (synifyType WithinType vs) vis_tys)
+      | isUnboxedSumTyCon tc = noLoc $ HsSumTy noExtField (map (synifyType WithinType vs) vis_tys)
       | Just dc <- isPromotedDataCon_maybe tc
       , isTupleDataCon dc
       , dataConSourceArity dc == length vis_tys
-      = noLoc $ HsExplicitTupleTy noExt (map (synifyType WithinType vs) vis_tys)
+      = noLoc $ HsExplicitTupleTy noExtField (map (synifyType WithinType vs) vis_tys)
       -- ditto for lists
       | getName tc == listTyConName, [ty] <- vis_tys =
-         noLoc $ HsListTy noExt (synifyType WithinType vs ty)
+         noLoc $ HsListTy noExtField (synifyType WithinType vs ty)
       | tc == promotedNilDataCon, [] <- vis_tys
-      = noLoc $ HsExplicitListTy noExt IsPromoted []
+      = noLoc $ HsExplicitListTy noExtField IsPromoted []
       | tc == promotedConsDataCon
       , [ty1, ty2] <- vis_tys
       = let hTy = synifyType WithinType vs ty1
         in case synifyType WithinType vs ty2 of
              tTy | L _ (HsExplicitListTy _ IsPromoted tTy') <- stripKindSig tTy
-                 -> noLoc $ HsExplicitListTy noExt IsPromoted (hTy : tTy')
+                 -> noLoc $ HsExplicitListTy noExtField IsPromoted (hTy : tTy')
                  | otherwise
-                 -> noLoc $ HsOpTy noExt hTy (noLoc $ getName tc) tTy
+                 -> noLoc $ HsOpTy noExtField hTy (noLoc $ getName tc) tTy
       -- ditto for implicit parameter tycons
       | tc `hasKey` ipClassKey
       , [name, ty] <- tys
       , Just x <- isStrLitTy name
-      = noLoc $ HsIParamTy noExt (noLoc $ HsIPName x) (synifyType WithinType vs ty)
+      = noLoc $ HsIParamTy noExtField (noLoc $ HsIPName x) (synifyType WithinType vs ty)
       -- and equalities
       | tc `hasKey` eqTyConKey
       , [ty1, ty2] <- tys
-      = noLoc $ HsOpTy noExt
+      = noLoc $ HsOpTy noExtField
                        (synifyType WithinType vs ty1)
                        (noLoc eqTyConName)
                        (synifyType WithinType vs ty2)
       -- and infix type operators
       | isSymOcc (nameOccName (getName tc))
       , ty1:ty2:tys_rest <- vis_tys
-      = mk_app_tys (HsOpTy noExt
+      = mk_app_tys (HsOpTy noExtField
                            (synifyType WithinType vs ty1)
                            (noLoc $ getName tc)
                            (synifyType WithinType vs ty2))
                    tys_rest
       -- Most TyCons:
       | otherwise
-      = mk_app_tys (HsTyVar noExt prom $ noLoc (getName tc))
+      = mk_app_tys (HsTyVar noExtField prom $ noLoc (getName tc))
                    vis_tys
       where
         prom = if isPromotedDataCon tc then IsPromoted else NotPromoted
         mk_app_tys ty_app ty_args =
-          foldl (\t1 t2 -> noLoc $ HsAppTy noExt t1 t2)
+          foldl (\t1 t2 -> noLoc $ HsAppTy noExtField t1 t2)
                 (noLoc ty_app)
                 (map (synifyType WithinType vs) $
                  filterOut isCoercionTy ty_args)
 
-    vis_tys  = filterOutInvisibleTypes tc tys
-    binders  = tyConBinders tc
-    res_kind = tyConResKind tc
+    tys_len = length tys
+    vis_tys = filterOutInvisibleTypes tc tys
 
     maybe_sig :: LHsType GhcRn -> LHsType GhcRn
     maybe_sig ty'
-      | needs_kind_sig
+      | tyConAppNeedsKindSig False tc tys_len
       = let full_kind  = typeKind (mkTyConApp tc tys)
             full_kind' = synifyType WithinType vs full_kind
-        in noLoc $ HsKindSig noExt ty' full_kind'
+        in noLoc $ HsKindSig noExtField ty' full_kind'
       | otherwise = ty'
 
-    needs_kind_sig :: Bool
-    needs_kind_sig
-      | GT <- compareLength tys binders
-      = False
-      | otherwise
-      = let (dropped_binders, remaining_binders)
-                  = splitAtList  tys binders
-            result_kind  = mkTyConKind remaining_binders res_kind
-            result_vars  = tyCoVarsOfType result_kind
-            dropped_vars = fvVarSet $
-                           mapUnionFV injectiveVarsOfBinder dropped_binders
-
-        in not (subVarSet result_vars dropped_vars)
-
-synifyType s vs (AppTy t1 (CoercionTy {})) = synifyType s vs t1
-synifyType _ vs (AppTy t1 t2) = let
+synifyType _ vs ty@(AppTy {}) = let
+  (ty_head, ty_args) = splitAppTys ty
+  ty_head' = synifyType WithinType vs ty_head
+  ty_args' = map (synifyType WithinType vs) $
+             filterOut isCoercionTy $
+             filterByList (map isVisibleArgFlag $ appTyArgFlags ty_head ty_args)
+                          ty_args
+  in foldl (\t1 t2 -> noLoc $ HsAppTy noExtField t1 t2) ty_head' ty_args'
+synifyType s vs funty@(FunTy InvisArg _ _) = synifyForAllType s Inferred vs funty
+synifyType _ vs       (FunTy VisArg t1 t2) = let
   s1 = synifyType WithinType vs t1
   s2 = synifyType WithinType vs t2
-  in noLoc $ HsAppTy noExt s1 s2
-synifyType s vs funty@(FunTy t1 t2)
-  | isPredTy t1 = synifyForAllType s vs funty
-  | otherwise = let s1 = synifyType WithinType vs t1
-                    s2 = synifyType WithinType vs t2
-                in noLoc $ HsFunTy noExt s1 s2
-synifyType s vs forallty@(ForAllTy _tv _ty) = synifyForAllType s vs forallty
+  in noLoc $ HsFunTy noExtField s1 s2
+synifyType s vs forallty@(ForAllTy (Bndr _ argf) _ty) =
+  synifyForAllType s argf vs forallty
 
-synifyType _ _ (LitTy t) = noLoc $ HsTyLit noExt $ synifyTyLit t
+synifyType _ _ (LitTy t) = noLoc $ HsTyLit noExtField $ synifyTyLit t
 synifyType s vs (CastTy t _) = synifyType s vs t
 synifyType _ _ (CoercionTy {}) = error "synifyType:Coercion"
 
@@ -642,17 +636,19 @@ synifyType _ _ (CoercionTy {}) = error "synifyType:Coercion"
 -- an 'HsType'
 synifyForAllType
   :: SynifyTypeState  -- ^ what to do with the 'forall'
+  -> ArgFlag          -- ^ the visibility of the @forall@
   -> [TyVar]          -- ^ free variables in the type to convert
   -> Type             -- ^ the forall type to convert
   -> LHsType GhcRn
-synifyForAllType s vs ty =
-  let (tvs, ctx, tau) = tcSplitSigmaTyPreserveSynonyms ty
+synifyForAllType s argf vs ty =
+  let (tvs, ctx, tau) = tcSplitSigmaTySameVisPreserveSynonyms argf ty
       sPhi = HsQualTy { hst_ctxt = synifyCtx ctx
-                      , hst_xqual = noExt
+                      , hst_xqual = noExtField
                       , hst_body = synifyType WithinType (tvs' ++ vs) tau }
 
-      sTy = HsForAllTy { hst_bndrs = sTvs
-                       , hst_xforall = noExt
+      sTy = HsForAllTy { hst_fvf = argToForallVisFlag argf
+                       , hst_bndrs = sTvs
+                       , hst_xforall = noExtField
                        , hst_body  = noLoc sPhi }
 
       sTvs = map synifyTyVar tvs
@@ -692,10 +688,11 @@ implicitForAll tycons vs tvs ctx synInner tau
   sPhi | null ctx = unLoc sRho
        | otherwise
        = HsQualTy { hst_ctxt = synifyCtx ctx
-                  , hst_xqual = noExt
+                  , hst_xqual = noExtField
                   , hst_body = synInner (tvs' ++ vs) tau }
-  sTy = HsForAllTy { hst_bndrs = sTvs
-                   , hst_xforall = noExt
+  sTy = HsForAllTy { hst_fvf = ForallInvis
+                   , hst_bndrs = sTvs
+                   , hst_xforall = noExtField
                    , hst_body = noLoc sPhi }
 
   no_kinds_needed = noKindTyVars tycons tau
@@ -737,7 +734,7 @@ noKindTyVars ts ty
                  _ -> noKindTyVars ts f
     in unionVarSets (func : args)
 noKindTyVars ts (ForAllTy _ t) = noKindTyVars ts t
-noKindTyVars ts (FunTy t1 t2) = noKindTyVars ts t1 `unionVarSet` noKindTyVars ts t2
+noKindTyVars ts (FunTy _ t1 t2) = noKindTyVars ts t1 `unionVarSet` noKindTyVars ts t2
 noKindTyVars ts (CastTy t _) = noKindTyVars ts t
 noKindTyVars _ _ = emptyVarSet
 
@@ -756,7 +753,7 @@ synifyPatSynType ps =
 
   in implicitForAll ts [] (univ_tvs ++ ex_tvs) req_theta'
        (\vs -> implicitForAll ts vs [] prov_theta (synifyType WithinType))
-       (mkFunTys arg_tys res_ty)
+       (mkVisFunTys arg_tys res_ty)
 
 synifyTyLit :: TyLit -> HsTyLit
 synifyTyLit (NumTyLit n) = HsNumTy NoSourceText n
@@ -787,8 +784,8 @@ synifyInstHead (vs, preds, cls, types) = specializeInstHead $ InstHead
     cls_tycon = classTyCon cls
     ts  = filterOutInvisibleTypes cls_tycon types
     ts' = map (synifyType WithinType vs) ts
-    annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
-    is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars cls_tycon)
+    annot_ts = zipWith3 annotHsType args_poly ts ts'
+    args_poly = tyConArgsPolyKinded cls_tycon
     synifyClsIdSig = synifyIdSig ShowRuntimeRep DeleteTopLevelQuantification vs
 
 -- Convert a family instance, this could be a type family or data family
@@ -827,8 +824,8 @@ synifyFamInst fi opaque = do
     ts = filterOutInvisibleTypes fam_tc eta_expanded_lhs
     synifyTypes = map (synifyType WithinType [])
     ts' = synifyTypes ts
-    annot_ts = zipWith3 annotHsType is_poly_tvs ts ts'
-    is_poly_tvs = mkIsPolyTvs (tyConVisibleTyVars fam_tc)
+    annot_ts = zipWith3 annotHsType args_poly ts ts'
+    args_poly = tyConArgsPolyKinded fam_tc
 
 {-
 Note [Invariant: Never expand type synonyms]
@@ -842,21 +839,22 @@ See https://github.com/haskell/haddock/issues/879 for a bug where this
 invariant didn't hold.
 -}
 
--- | A version of 'TcType.tcSplitSigmaTy' that preserves type synonyms.
+-- | A version of 'TcType.tcSplitSigmaTySameVis' that preserves type synonyms.
 --
 -- See Note [Invariant: Never expand type synonyms]
-tcSplitSigmaTyPreserveSynonyms :: Type -> ([TyVar], ThetaType, Type)
-tcSplitSigmaTyPreserveSynonyms ty =
-    case tcSplitForAllTysPreserveSynonyms ty of
+tcSplitSigmaTySameVisPreserveSynonyms :: ArgFlag -> Type -> ([TyVar], ThetaType, Type)
+tcSplitSigmaTySameVisPreserveSynonyms argf ty =
+    case tcSplitForAllTysSameVisPreserveSynonyms argf ty of
       (tvs, rho) -> case tcSplitPhiTyPreserveSynonyms rho of
         (theta, tau) -> (tvs, theta, tau)
 
 -- | See Note [Invariant: Never expand type synonyms]
-tcSplitForAllTysPreserveSynonyms :: Type -> ([TyVar], Type)
-tcSplitForAllTysPreserveSynonyms ty = split ty ty []
+tcSplitForAllTysSameVisPreserveSynonyms :: ArgFlag -> Type -> ([TyVar], Type)
+tcSplitForAllTysSameVisPreserveSynonyms supplied_argf ty = split ty ty []
   where
-    split _       (ForAllTy (Bndr tv _) ty') tvs = split ty' ty' (tv:tvs)
-    split orig_ty _                          tvs = (reverse tvs, orig_ty)
+    split _       (ForAllTy (Bndr tv argf) ty') tvs
+      | argf `sameVis` supplied_argf                = split ty' ty' (tv:tvs)
+    split orig_ty _                             tvs = (reverse tvs, orig_ty)
 
 -- | See Note [Invariant: Never expand type synonyms]
 tcSplitPhiTyPreserveSynonyms :: Type -> (ThetaType, Type)
@@ -869,7 +867,5 @@ tcSplitPhiTyPreserveSynonyms ty0 = split ty0 []
 
 -- | See Note [Invariant: Never expand type synonyms]
 tcSplitPredFunTyPreserveSynonyms_maybe :: Type -> Maybe (PredType, Type)
-tcSplitPredFunTyPreserveSynonyms_maybe (FunTy arg res)
-  | isPredTy arg = Just (arg, res)
-tcSplitPredFunTyPreserveSynonyms_maybe _
-  = Nothing
+tcSplitPredFunTyPreserveSynonyms_maybe (FunTy InvisArg arg res) = Just (arg, res)
+tcSplitPredFunTyPreserveSynonyms_maybe _ = Nothing

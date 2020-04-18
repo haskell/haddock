@@ -21,12 +21,12 @@ module Haddock.InterfaceFile (
 
 
 import Haddock.Types
-import Haddock.Utils hiding (out)
 
 import Control.Monad
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Data.Array
 import Data.IORef
-import Data.List
+import Data.List (mapAccumR)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Word
@@ -82,8 +82,8 @@ binaryInterfaceMagic = 0xD0Cface
 -- (2) set `binaryInterfaceVersionCompatibility` to [binaryInterfaceVersion]
 --
 binaryInterfaceVersion :: Word16
-#if (__GLASGOW_HASKELL__ >= 807) && (__GLASGOW_HASKELL__ < 809)
-binaryInterfaceVersion = 36
+#if (__GLASGOW_HASKELL__ >= 809) && (__GLASGOW_HASKELL__ < 811)
+binaryInterfaceVersion = 37
 
 binaryInterfaceVersionCompatibility :: [Word16]
 binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
@@ -158,7 +158,7 @@ writeInterfaceFile filename iface = do
 type NameCacheAccessor m = (m NameCache, NameCache -> m ())
 
 
-nameCacheFromGhc :: forall m. (GhcMonad m, MonadIO m) => NameCacheAccessor m
+nameCacheFromGhc :: GhcMonad m => NameCacheAccessor m
 nameCacheFromGhc = ( read_from_session , write_to_session )
   where
     read_from_session = do

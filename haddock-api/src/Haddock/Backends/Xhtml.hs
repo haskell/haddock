@@ -294,6 +294,10 @@ ppHtmlContents dflags odir doctitle _maybe_package
           ]
   createDirectoryIfMissing True odir
   writeUtf8File (joinPath [odir, contentsHtmlFile]) (renderToString debug html)
+  where
+    -- Extract a module's short description.
+    toInstalledDescription :: InstalledInterface -> Maybe (MDoc Name)
+    toInstalledDescription = fmap mkMeta . hmi_description . instInfo
 
 
 ppPrologue :: Maybe Package -> Qualification -> String -> Maybe (MDoc GHC.RdrName) -> Html
@@ -677,7 +681,7 @@ processExport :: Bool -> LinksInfo -> Bool -> Maybe Package -> Qualification
               -> ExportItem DocNameI -> Maybe Html
 processExport _ _ _ _ _ ExportDecl { expItemDecl = L _ (InstD {}) } = Nothing -- Hide empty instances
 processExport summary _ _ pkg qual (ExportGroup lev id0 doc)
-  = nothingIf summary $ groupHeading lev id0 << docToHtml (Just id0) pkg qual (mkMeta doc)
+  = nothingIf summary $ groupHeading lev id0 << docToHtmlNoAnchors (Just id0) pkg qual (mkMeta doc)
 processExport summary links unicode pkg qual (ExportDecl decl pats doc subdocs insts fixities splice)
   = processDecl summary $ ppDecl summary links decl pats doc insts fixities subdocs splice unicode pkg qual
 processExport summary _ _ _ qual (ExportNoDecl y [])

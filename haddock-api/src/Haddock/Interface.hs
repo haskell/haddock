@@ -43,8 +43,9 @@ import Haddock.Types
 import Haddock.Utils
 
 import Control.Monad
+import Control.Monad.IO.Class ( liftIO )
 import Control.Exception (evaluate)
-import Data.List
+import Data.List (foldl', isPrefixOf, nub)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Text.Printf
@@ -59,7 +60,7 @@ import TcRnTypes (tcg_rdr_env)
 import Name (nameIsFromExternalPackage, nameOccName)
 import OccName (isTcOcc)
 import RdrName (unQualOK, gre_name, globalRdrEnvElts)
-import ErrUtils (withTiming)
+import ErrUtils (withTimingD)
 import DynamicLoading (initializePlugins)
 
 #if defined(mingw32_HOST_OS)
@@ -96,7 +97,7 @@ processModules verbosity modules flags extIfaces = do
       mods = Set.fromList $ map ifaceMod interfaces
   out verbosity verbose "Attaching instances..."
   interfaces' <- {-# SCC attachInstances #-}
-                 withTiming getDynFlags "attachInstances" (const ()) $ do
+                 withTimingD "attachInstances" (const ()) $ do
                    attachInstances (exportedNames, mods) interfaces instIfaceMap ms
 
   out verbosity verbose "Building cross-linking environment..."
@@ -136,7 +137,7 @@ createIfaces verbosity modules flags instIfaceMap = do
   where
     f (ifaces, ifaceMap, !ms) modSummary = do
       x <- {-# SCC processModule #-}
-           withTiming getDynFlags "processModule" (const ()) $ do
+           withTimingD "processModule" (const ()) $ do
              processModule verbosity modSummary flags ifaceMap instIfaceMap
       return $ case x of
         Just (iface, ms') -> ( iface:ifaces
@@ -161,7 +162,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
   if not $ isBootSummary modsum then do
     out verbosity verbose "Creating interface..."
     (interface, msgs) <- {-# SCC createIterface #-}
-                        withTiming getDynFlags "createInterface" (const ()) $ do
+                        withTimingD "createInterface" (const ()) $ do
                           runWriterGhc $ createInterface tm flags modMap instIfaceMap
 
     -- We need to keep track of which modules were somehow in scope so that when

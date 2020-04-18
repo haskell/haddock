@@ -38,7 +38,8 @@ import System.FilePath
 import Data.Char
 import Control.Monad
 import Data.Maybe
-import Data.List
+import Data.List            ( sort )
+import Data.Void            ( absurd )
 import Prelude hiding ((<>))
 
 import Haddock.Doc (combineDocumentation)
@@ -311,7 +312,7 @@ ppDecl decl pats (doc, fnArgsDoc) instances subdocs _fxts = case unLoc decl of
 
 ppFor :: DocForDecl DocName -> ForeignDecl DocNameI -> Bool -> LaTeX
 ppFor doc (ForeignImport _ (L _ name) typ _) unicode =
-  ppFunSig Nothing doc [name] (hsSigType typ) unicode
+  ppFunSig Nothing doc [name] (hsSigTypeI typ) unicode
 ppFor _ _ _ = error "ppFor error in Haddock.Backends.LaTeX"
 --  error "foreign declarations are currently not supported by --latex"
 
@@ -355,8 +356,8 @@ ppFamDecl associated doc instances decl unicode =
              , equals
              , ppType unicode (unLoc rhs)
              ]
-    ppFamDeclEqn (XHsImplicitBndrs _) = panic "haddock:ppFamDecl"
-    ppFamDeclEqn (HsIB { hsib_body = XFamEqn _}) = panic "haddock:ppFamDecl"
+    ppFamDeclEqn (XHsImplicitBndrs nec) = noExtCon nec
+    ppFamDeclEqn (HsIB { hsib_body = XFamEqn nec}) = noExtCon nec
 
     instancesBit = ppDocInstances unicode instances
 
@@ -365,7 +366,7 @@ ppFamHeader :: FamilyDecl DocNameI  -- ^ family header to print
             -> Bool                 -- ^ unicode
             -> Bool                 -- ^ is the family associated?
             -> LaTeX
-ppFamHeader (XFamilyDecl _) _ _ = panic "haddock;ppFamHeader"
+ppFamHeader (XFamilyDecl nec) _ _ = noExtCon nec
 ppFamHeader (FamilyDecl { fdLName = L _ name
                         , fdTyVars = tvs
                         , fdInfo = info
@@ -388,7 +389,7 @@ ppFamHeader (FamilyDecl { fdLName = L _ name
       NoSig _               -> empty
       KindSig _ kind        -> dcolon unicode <+> ppLKind unicode kind
       TyVarSig _ (L _ bndr) -> equals <+> ppHsTyVarBndr unicode bndr
-      XFamilyResultSig _    -> panic "haddock:ppFamHeader"
+      XFamilyResultSig nec  -> noExtCon nec
 
     injAnn = case injectivity of
       Nothing -> empty
@@ -449,7 +450,7 @@ ppLPatSig :: DocForDecl DocName  -- ^ documentation
           -> Bool                -- ^ unicode
           -> LaTeX
 ppLPatSig doc docnames ty unicode
-  = ppFunSig (Just (keyword "pattern")) doc docnames (hsSigType ty) unicode
+  = ppFunSig (Just (keyword "pattern")) doc docnames (hsSigTypeI ty) unicode
 
 -- | Pretty-print a type, adding documentation to the whole type and its
 -- arguments as needed.
@@ -485,9 +486,9 @@ ppSubSigLike unicode typ argDocs subdocs leader = do_args 0 leader typ
     arg_doc n = rDoc . fmap _doc $ Map.lookup n argDocs
 
     do_args :: Int -> LaTeX -> HsType DocNameI -> [(LaTeX, LaTeX)]
-    do_args _n leader (HsForAllTy _ tvs ltype)
+    do_args _n leader (HsForAllTy _ fvf tvs ltype)
       = [ ( decltt leader
-          , decltt (ppForAllPart unicode tvs)
+          , decltt (ppForAllPart unicode tvs fvf)
               <+> ppLType unicode ltype
           ) ]
     do_args n leader (HsQualTy _ lctxt ltype)
@@ -530,7 +531,7 @@ ppTyVars unicode = map (ppHsTyVarBndr unicode . unLoc)
 
 
 tyvarNames :: LHsQTyVars DocNameI -> [Name]
-tyvarNames = map (getName . hsLTyVarName) . hsQTvExplicit
+tyvarNames = map (getName . hsTyVarBndrName . unLoc) . hsQTvExplicit
 
 
 declWithDoc :: LaTeX -> Maybe LaTeX -> LaTeX
@@ -621,16 +622,16 @@ ppClassDecl instances doc subdocs
 
     atTable =
       text "\\haddockpremethods{}" <> emph (text "Associated Types") $$
-      vcat  [ ppFamDecl True (fst doc) [] (FamDecl noExt decl) True
+      vcat  [ ppFamDecl True (fst doc) [] (FamDecl noExtField decl) True
             | L _ decl <- ats
-            , let name = unL . fdLName $ decl
+            , let name = unLoc . fdLName $ decl
                   doc = lookupAnySubdoc name subdocs
             ]
 
 
     methodTable =
       text "\\haddockpremethods{}" <> emph (text "Methods") $$
-      vcat  [ ppFunSig leader doc names (hsSigType typ) unicode
+      vcat  [ ppFunSig leader doc names (hsSigTypeI typ) unicode
             | L _ (ClassOpSig _ is_def lnames typ) <- lsigs
             , let doc | is_def = noDocForDecl
                       | otherwise = lookupAnySubdoc (head names) subdocs
@@ -750,7 +751,7 @@ ppConstrHdr forall_ tvs ctxt unicode = ppForall <> ppCtxt
   where
     ppForall
       | null tvs || not forall_ = empty
-      | otherwise = ppForAllPart unicode tvs
+      | otherwise = ppForAllPart unicode tvs ForallInvis
 
     ppCtxt
       | null ctxt = empty
@@ -769,9 +770,9 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
   where
     -- Find the name of a constructors in the decl (`getConName` always returns
     -- a non-empty list)
-    aConName = unLoc (head (getConNames con))
+    aConName = unLoc (head (getConNamesI con))
 
-    occ      = map (nameOccName . getName . unLoc) $ getConNames con
+    occ      = map (nameOccName . getName . unLoc) $ getConNamesI con
 
     ppOcc      = cat (punctuate comma (map ppBinder occ))
     ppOccInfix = cat (punctuate comma (map ppBinderInfix occ))
@@ -816,7 +817,7 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
                             -- ++AZ++ make this prepend "{..}" when it is a record style GADT
                             , ppLType unicode (getGADTConType con)
                             ]
-      XConDecl{} -> panic "haddock:ppSideBySideConstr"
+      XConDecl nec -> noExtCon nec
 
     fieldPart = case (con, getConArgs con) of
         -- Record style GADTs
@@ -850,12 +851,12 @@ ppSideBySideConstr subdocs unicode leader (L _ con) =
         [ l <+> text "\\enspace" <+> r
         | (l,r) <- ppSubSigLike unicode (unLoc (getGADTConType con)) argDocs subdocs (dcolon unicode)
         ]
-      XConDecl{} -> panic "haddock:doConstrArgsWithDocs"
+      XConDecl nec -> noExtCon nec
 
 
     -- don't use "con_doc con", in case it's reconstructed from a .hi file,
     -- or also because we want Haddock to do the doc-parsing, not GHC.
-    mbDoc = case getConNames con of
+    mbDoc = case getConNamesI con of
               [] -> panic "empty con_names"
               (cn:_) -> lookup (unLoc cn) subdocs >>=
                         fmap _doc . combineDocumentation . fst
@@ -870,7 +871,7 @@ ppSideBySideField subdocs unicode (ConDeclField _ names ltype _) =
     -- don't use cd_fld_doc for same reason we don't use con_doc above
     -- Where there is more than one name, they all have the same documentation
     mbDoc = lookup (extFieldOcc $ unLoc $ head names) subdocs >>= fmap _doc . combineDocumentation . fst
-ppSideBySideField _ _ (XConDeclField _) = panic "haddock:ppSideBySideField"
+ppSideBySideField _ _ (XConDeclField nec) = noExtCon nec
 
 
 -- | Pretty-print a bundled pattern synonym
@@ -890,7 +891,7 @@ ppSideBySidePat lnames typ (doc, argDocs) unicode =
          | otherwise = hsep [ keyword "pattern"
                             , ppOcc
                             , dcolon unicode
-                            , ppLType unicode (hsSigType typ)
+                            , ppLType unicode (hsSigTypeI typ)
                             ]
 
     fieldPart
@@ -900,7 +901,7 @@ ppSideBySidePat lnames typ (doc, argDocs) unicode =
           | (l,r) <- ppSubSigLike unicode (unLoc patTy) argDocs [] (dcolon unicode)
           ]
 
-    patTy = hsSigType typ
+    patTy = hsSigTypeI typ
 
     mDoc = fmap _doc $ combineDocumentation doc
 
@@ -1037,7 +1038,7 @@ ppHsTyVarBndr :: Bool -> HsTyVarBndr DocNameI -> LaTeX
 ppHsTyVarBndr _ (UserTyVar _ (L _ name)) = ppDocName name
 ppHsTyVarBndr unicode (KindedTyVar _ (L _ name) kind) =
   parens (ppDocName name <+> dcolon unicode <+> ppLKind unicode kind)
-ppHsTyVarBndr _ (XTyVarBndr _) = panic "haddock:ppHsTyVarBndr"
+ppHsTyVarBndr _ (XTyVarBndr nec) = noExtCon nec
 
 ppLKind :: Bool -> LHsKind DocNameI -> LaTeX
 ppLKind unicode y = ppKind unicode (unLoc y)
@@ -1049,17 +1050,21 @@ ppKind unicode ki = ppr_mono_ty (reparenTypePrec PREC_TOP ki) unicode
 -- Drop top-level for-all type variables in user style
 -- since they are implicit in Haskell
 
-ppForAllPart :: Bool -> [LHsTyVarBndr DocNameI] -> LaTeX
-ppForAllPart unicode tvs = hsep (forallSymbol unicode : ppTyVars unicode tvs) <> dot
-
+ppForAllPart :: Bool -> [LHsTyVarBndr DocNameI] -> ForallVisFlag -> LaTeX
+ppForAllPart unicode tvs fvf = hsep (forallSymbol unicode : tvs') <> fv
+  where
+    tvs' = ppTyVars unicode tvs
+    fv = case fvf of
+           ForallVis   -> text "\\ " <> arrow unicode
+           ForallInvis -> dot
 
 ppr_mono_lty :: LHsType DocNameI -> Bool -> LaTeX
 ppr_mono_lty ty unicode = ppr_mono_ty (unLoc ty) unicode
 
 
 ppr_mono_ty :: HsType DocNameI -> Bool -> LaTeX
-ppr_mono_ty (HsForAllTy _ tvs ty) unicode
-  = sep [ ppForAllPart unicode tvs
+ppr_mono_ty (HsForAllTy _ fvf tvs ty) unicode
+  = sep [ ppForAllPart unicode tvs fvf
         , ppr_mono_lty ty unicode ]
 ppr_mono_ty (HsQualTy _ ctxt ty) unicode
   = sep [ ppLContext ctxt unicode
@@ -1076,7 +1081,7 @@ ppr_mono_ty (HsSumTy _ tys) u       = sumParens (map (ppLType u) tys)
 ppr_mono_ty (HsKindSig _ ty kind) u = ppr_mono_lty ty u <+> dcolon u <+> ppLKind u kind
 ppr_mono_ty (HsListTy _ ty)       u = brackets (ppr_mono_lty ty u)
 ppr_mono_ty (HsIParamTy _ (L _ n) ty) u = ppIPName n <+> dcolon u <+> ppr_mono_lty ty u
-ppr_mono_ty (HsSpliceTy {})     _ = error "ppr_mono_ty HsSpliceTy"
+ppr_mono_ty (HsSpliceTy v _)    _ = absurd v
 ppr_mono_ty (HsRecTy {})        _ = text "{..}"
 ppr_mono_ty (XHsType (NHsCoreTy {}))  _ = error "ppr_mono_ty HsCoreTy"
 ppr_mono_ty (HsExplicitListTy _ IsPromoted tys) u = Pretty.quote $ brackets $ hsep $ punctuate comma $ map (ppLType u) tys

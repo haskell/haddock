@@ -9,6 +9,7 @@ module Haddock.Interface.Specialize
     ) where
 
 
+import Haddock.GhcUtils ( hsTyVarBndrName )
 import Haddock.Syb
 import Haddock.Types
 
@@ -56,13 +57,9 @@ specialize specs = go spec_map0
 -- Again, it is just a convenience function around 'specialize'. Note that
 -- length of type list should be the same as the number of binders.
 specializeTyVarBndrs :: LHsQTyVars GhcRn -> [HsType GhcRn] -> HsType GhcRn -> HsType GhcRn
-specializeTyVarBndrs bndrs typs =
-    specialize $ zip bndrs' typs
+specializeTyVarBndrs bndrs typs = specialize $ zip bndrs' typs
   where
-    bndrs' = map (bname . unLoc) . hsq_explicit $ bndrs
-    bname (UserTyVar _ (L _ name)) = name
-    bname (KindedTyVar _ (L _ name) _) = name
-    bname (XTyVarBndr _) = error "haddock:specializeTyVarBndrs"
+    bndrs' = map (hsTyVarBndrName . unLoc) . hsq_explicit $ bndrs
 
 
 
@@ -76,7 +73,7 @@ specializeSig :: LHsQTyVars GhcRn -> [HsType GhcRn]
               -> Sig GhcRn
               -> Sig GhcRn
 specializeSig bndrs typs (TypeSig _ lnames typ) =
-  TypeSig noExt lnames (typ {hswc_body = (hswc_body typ) {hsib_body = noLoc typ'}})
+  TypeSig noExtField lnames (typ {hswc_body = (hswc_body typ) {hsib_body = noLoc typ'}})
   where
     true_type :: HsType GhcRn
     true_type = unLoc (hsSigWcType typ)
@@ -112,7 +109,7 @@ sugar = sugarOperators . sugarTuples . sugarLists
 
 sugarLists :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
 sugarLists (HsAppTy _ (L _ (HsTyVar _ _ (L _ name))) ltyp)
-    | getName name == listTyConName = HsListTy NoExt ltyp
+    | getName name == listTyConName = HsListTy noExtField ltyp
 sugarLists typ = typ
 
 
@@ -123,7 +120,7 @@ sugarTuples typ =
     aux apps (HsAppTy _ (L _ ftyp) atyp) = aux (atyp:apps) ftyp
     aux apps (HsParTy _ (L _ typ')) = aux apps typ'
     aux apps (HsTyVar _ _ (L _ name))
-        | isBuiltInSyntax name' && suitable = HsTupleTy NoExt HsBoxedTuple apps
+        | isBuiltInSyntax name' && suitable = HsTupleTy noExtField HsBoxedTuple apps
       where
         name' = getName name
         strName = getOccString name
@@ -136,7 +133,7 @@ sugarTuples typ =
 sugarOperators :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
 sugarOperators (HsAppTy _ (L _ (HsAppTy _ (L _ (HsTyVar _ _ (L l name))) la)) lb)
     | isSymOcc $ getOccName name' = mkHsOpTy la (L l name) lb
-    | funTyConName == name' = HsFunTy NoExt la lb
+    | funTyConName == name' = HsFunTy noExtField la lb
   where
     name' = getName name
 sugarOperators typ = typ
@@ -206,13 +203,13 @@ freeVariables =
     everythingWithState Set.empty Set.union query
   where
     query term ctx = case cast term :: Maybe (HsType GhcRn) of
-        Just (HsForAllTy _ bndrs _) ->
+        Just (HsForAllTy _ _ bndrs _) ->
             (Set.empty, Set.union ctx (bndrsNames bndrs))
         Just (HsTyVar _ _ (L _ name))
             | getName name `Set.member` ctx -> (Set.empty, ctx)
             | otherwise -> (Set.singleton $ getName name, ctx)
         _ -> (Set.empty, ctx)
-    bndrsNames = Set.fromList . map (getName . tyVarName . unLoc)
+    bndrsNames = Set.fromList . map (getName . hsTyVarBndrName . unLoc)
 
 
 -- | Make given type visually unambiguous.
@@ -244,8 +241,8 @@ data RenameEnv name = RenameEnv
 
 
 renameType :: HsType GhcRn -> Rename (IdP GhcRn) (HsType GhcRn)
-renameType (HsForAllTy x bndrs lt) =
-    HsForAllTy x
+renameType (HsForAllTy x fvf bndrs lt) =
+    HsForAllTy x fvf
         <$> mapM (located renameBinder) bndrs
         <*> renameLType lt
 renameType (HsQualTy x lctxt lt) =
@@ -295,10 +292,10 @@ renameBinder :: HsTyVarBndr GhcRn -> Rename (IdP GhcRn) (HsTyVarBndr GhcRn)
 renameBinder (UserTyVar x lname) = UserTyVar x <$> located renameName lname
 renameBinder (KindedTyVar x lname lkind) =
   KindedTyVar x <$> located renameName lname <*> located renameType lkind
-renameBinder (XTyVarBndr _) = error "haddock:renameBinder"
+renameBinder (XTyVarBndr nec) = noExtCon nec
 
 -- | Core renaming logic.
-renameName :: (Eq name, SetName name) => name -> Rename name name
+renameName :: SetName name => name -> Rename name name
 renameName name = do
     RenameEnv { .. } <- get
     case Map.lookup (getName name) rneCtx of
@@ -349,7 +346,3 @@ located :: Functor f => (a -> f b) -> Located a -> f (Located b)
 located f (L loc e) = L loc <$> f e
 
 
-tyVarName :: HsTyVarBndr name -> IdP name
-tyVarName (UserTyVar _ name) = unLoc name
-tyVarName (KindedTyVar _ (L _ name) _) = name
-tyVarName (XTyVarBndr _ ) = error "haddock:tyVarName"
