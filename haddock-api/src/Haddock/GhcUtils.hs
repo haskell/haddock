@@ -23,8 +23,9 @@ module Haddock.GhcUtils where
 
 import Control.Arrow
 import Data.Char ( isSpace )
+import Data.Maybe
 
-import Haddock.Types( DocName, DocNameI )
+import Haddock.Types( DocName, DocNameI, XRecCond )
 
 import GHC.Utils.FV as FV
 import GHC.Utils.Outputable ( Outputable, panic, showPpr )
@@ -34,7 +35,7 @@ import GHC.Driver.Types
 import GHC
 import GHC.Core.Class
 import GHC.Driver.Session
-import GHC.Types.SrcLoc  ( advanceSrcLoc )
+import GHC.Types.SrcLoc  ( advanceSrcLoc, mapLoc )
 import GHC.Types.Var     ( Specificity, VarBndr(..), TyVarBinder
                          , tyVarKind, updateTyVarKind, isInvisibleArgFlag )
 import GHC.Types.Var.Set ( VarSet, emptyVarSet )
@@ -71,20 +72,20 @@ filterSigNames p orig@(InlineSig _ n _)          = ifTrueJust (p $ unLoc n) orig
 filterSigNames p (FixSig _ (FixitySig _ ns ty)) =
   case filter (p . unLoc) ns of
     []       -> Nothing
-    filtered -> Just (FixSig noExtField (FixitySig noExtField filtered ty))
+    filtered -> Just (FixSig noAnn (FixitySig noExtField filtered ty))
 filterSigNames _ orig@(MinimalSig _ _ _)      = Just orig
 filterSigNames p (TypeSig _ ns ty) =
   case filter (p . unLoc) ns of
     []       -> Nothing
-    filtered -> Just (TypeSig noExtField filtered ty)
+    filtered -> Just (TypeSig noAnn filtered ty)
 filterSigNames p (ClassOpSig _ is_default ns ty) =
   case filter (p . unLoc) ns of
     []       -> Nothing
-    filtered -> Just (ClassOpSig noExtField is_default filtered ty)
+    filtered -> Just (ClassOpSig noAnn is_default filtered ty)
 filterSigNames p (PatSynSig _ ns ty) =
   case filter (p . unLoc) ns of
     []       -> Nothing
-    filtered -> Just (PatSynSig noExtField filtered ty)
+    filtered -> Just (PatSynSig noAnn filtered ty)
 filterSigNames _ _                             = Nothing
 
 ifTrueJust :: Bool -> name -> Maybe name
@@ -117,7 +118,7 @@ hsTyVarNameI (KindedTyVar _ _ (L _ n) _) = n
 hsLTyVarNameI :: LHsTyVarBndr flag DocNameI -> DocName
 hsLTyVarNameI = hsTyVarNameI . unLoc
 
-getConNamesI :: ConDecl DocNameI -> [Located DocName]
+getConNamesI :: ConDecl DocNameI -> [LocatedN DocName]
 getConNamesI ConDeclH98  {con_name  = name}  = [name]
 getConNamesI ConDeclGADT {con_names = names} = names
 
@@ -144,23 +145,24 @@ getGADTConType (ConDeclGADT { con_forall = L _ has_forall
                             , con_qvars = qtvs
                             , con_mb_cxt = mcxt, con_args = args
                             , con_res_ty = res_ty })
- | has_forall = noLoc (HsForAllTy { hst_xforall = noExtField
-                                  , hst_tele = mkHsForAllInvisTeleI qtvs
-                                  , hst_body  = theta_ty })
+ | has_forall = noLocA (HsForAllTy { hst_xforall = noAnn
+                                   , hst_tele    = mkHsForAllInvisTeleI qtvs
+                                   , hst_body    = theta_ty })
  | otherwise  = theta_ty
  where
    theta_ty | Just theta <- mcxt
-            = noLoc (HsQualTy { hst_xqual = noExtField, hst_ctxt = theta, hst_body = tau_ty })
+            = noLocA (HsQualTy { hst_xqual = noAnn, hst_ctxt = Just theta, hst_body = tau_ty })
             | otherwise
             = tau_ty
 
---   tau_ty :: LHsType DocNameI
+   tau_ty :: LHsType DocNameI
    tau_ty = case args of
-              RecCon flds ->  mkFunTy (noLoc (HsRecTy noExtField (unLoc flds))) res_ty
+              RecCon flds ->  mkFunTy (noLocA (HsRecTy noAnn (unLoc flds))) res_ty
               PrefixCon pos_args -> foldr mkFunTy res_ty (map hsScaledThing pos_args)
               InfixCon arg1 arg2 -> (hsScaledThing arg1) `mkFunTy` ((hsScaledThing arg2) `mkFunTy` res_ty)
 
-   mkFunTy a b = noLoc (HsFunTy noExtField HsUnrestrictedArrow a b)
+   mkFunTy :: LHsType DocNameI -> LHsType DocNameI -> LHsType DocNameI
+   mkFunTy a b = noLocA (HsFunTy noAnn HsUnrestrictedArrow a b)
 
 getGADTConType (ConDeclH98 {}) = panic "getGADTConType"
   -- Should only be called on ConDeclGADT
@@ -176,10 +178,10 @@ getMainDeclBinderI (ForD _ (ForeignImport _ name _ _)) = [unLoc name]
 getMainDeclBinderI (ForD _ (ForeignExport _ _ _ _)) = []
 getMainDeclBinderI _ = []
 
-familyDeclLNameI :: FamilyDecl DocNameI -> Located DocName
+familyDeclLNameI :: FamilyDecl DocNameI -> LocatedN DocName
 familyDeclLNameI (FamilyDecl { fdLName = n }) = n
 
-tyClDeclLNameI :: TyClDecl DocNameI -> Located DocName
+tyClDeclLNameI :: TyClDecl DocNameI -> LocatedN DocName
 tyClDeclLNameI (FamDecl { tcdFam = fd })     = familyDeclLNameI fd
 tyClDeclLNameI (SynDecl { tcdLName = ln })   = ln
 tyClDeclLNameI (DataDecl { tcdLName = ln })  = ln
@@ -187,6 +189,9 @@ tyClDeclLNameI (ClassDecl { tcdLName = ln }) = ln
 
 tcdNameI :: TyClDecl DocNameI -> DocName
 tcdNameI = unLoc . tyClDeclLNameI
+
+fromMaybeContext :: Maybe (LHsContext DocNameI) -> HsContext DocNameI
+fromMaybeContext mctxt = unLoc $ fromMaybe (noLocA []) mctxt
 
 -- -------------------------------------
 
@@ -199,24 +204,22 @@ getGADTConTypeG (ConDeclGADT { con_forall = L _ has_forall
                             , con_qvars = qtvs
                             , con_mb_cxt = mcxt, con_args = args
                             , con_res_ty = res_ty })
- | has_forall = noLoc (HsForAllTy { hst_xforall = noExtField
-                                  , hst_tele = mkHsForAllInvisTele qtvs
-                                  , hst_body  = theta_ty })
+ | has_forall = noLocA (HsForAllTy { hst_xforall = noAnn
+                                   , hst_tele    = mkHsForAllInvisTele qtvs
+                                   , hst_body    = theta_ty })
  | otherwise  = theta_ty
  where
    theta_ty | Just theta <- mcxt
-            = noLoc (HsQualTy { hst_xqual = noExtField, hst_ctxt = theta, hst_body = tau_ty })
+            = noLocA (HsQualTy { hst_xqual = noAnn, hst_ctxt = Just theta, hst_body = tau_ty })
             | otherwise
             = tau_ty
 
---   tau_ty :: LHsType DocNameI
    tau_ty = case args of
-              RecCon flds ->  mkFunTy (noLoc (HsRecTy noExtField (unLoc flds))) res_ty
+              RecCon flds ->  mkFunTy (noLocA (HsRecTy noExtField (unLoc flds))) res_ty
               PrefixCon pos_args -> foldr mkFunTy res_ty (map hsScaledThing pos_args)
               InfixCon arg1 arg2 -> (hsScaledThing arg1) `mkFunTy` ((hsScaledThing arg2) `mkFunTy` res_ty)
 
-   -- mkFunTy :: LHsType DocNameI -> LHsType DocNameI -> LHsType DocNameI
-   mkFunTy a b = noLoc (HsFunTy noExtField HsUnrestrictedArrow a b)
+   mkFunTy a b = noLocA (HsFunTy noAnn HsUnrestrictedArrow a b)
 
 getGADTConTypeG (ConDeclH98 {}) = panic "getGADTConTypeG"
   -- Should only be called on ConDeclGADT
@@ -247,12 +250,13 @@ data Precedence
 --
 -- We cannot add parens that may be required by fixities because we do not have
 -- any fixity information to work with in the first place :(.
-reparenTypePrec :: forall a. (XParTy a ~ NoExtField, MapXRec a, UnXRec a, WrapXRec a) => Precedence -> HsType a -> HsType a
+reparenTypePrec :: forall a. (XRecCond a)
+                => Precedence -> HsType a -> HsType a
 reparenTypePrec = go
   where
 
   -- Shorter name for 'reparenType'
-  go :: Precedence -> HsType a -> HsType a
+  go :: XParTy a ~ ApiAnn' AnnParen => Precedence -> HsType a -> HsType a
   go _ (HsBangTy x b ty)     = HsBangTy x b (reparenLType ty)
   go _ (HsTupleTy x con tys) = HsTupleTy x con (map reparenLType tys)
   go _ (HsSumTy x tys)       = HsSumTy x (map reparenLType tys)
@@ -267,7 +271,7 @@ reparenTypePrec = go
   go p (HsForAllTy x tele ty)
     = paren p PREC_CTX $ HsForAllTy x (reparenHsForAllTelescope tele) (reparenLType ty)
   go p (HsQualTy x ctxt ty)
-    = paren p PREC_FUN $ HsQualTy x (mapXRec @a (map reparenLType) ctxt) (reparenLType ty)
+    = paren p PREC_FUN $ HsQualTy x (fmap (mapXRec @a (map reparenLType)) ctxt) (reparenLType ty)
   go p (HsFunTy x w ty1 ty2)
     = paren p PREC_FUN $ HsFunTy x w (goL PREC_FUN ty1) (goL PREC_TOP ty2)
   go p (HsAppTy x fun_ty arg_ty)
@@ -285,27 +289,28 @@ reparenTypePrec = go
   go _ t@XHsType{} = t
 
   -- Located variant of 'go'
-  goL :: Precedence -> LHsType a -> LHsType a
+  goL :: XParTy a ~ ApiAnn' AnnParen => Precedence -> LHsType a -> LHsType a
   goL ctxt_prec = mapXRec @a (go ctxt_prec)
 
   -- Optionally wrap a type in parens
-  paren :: Precedence            -- Precedence of context
+  paren :: XParTy a ~ ApiAnn' AnnParen
+        => Precedence            -- Precedence of context
         -> Precedence            -- Precedence of top-level operator
         -> HsType a -> HsType a  -- Wrap in parens if (ctxt >= op)
-  paren ctxt_prec op_prec | ctxt_prec >= op_prec = HsParTy noExtField . wrapXRec @a
+  paren ctxt_prec op_prec | ctxt_prec >= op_prec = HsParTy noAnn . wrapXRec @a
                           | otherwise            = id
 
 
 -- | Add parenthesis around the types in a 'HsType' (see 'reparenTypePrec')
-reparenType :: (XParTy a ~ NoExtField, MapXRec a, UnXRec a, WrapXRec a) => HsType a -> HsType a
+reparenType :: XRecCond a => HsType a -> HsType a
 reparenType = reparenTypePrec PREC_TOP
 
 -- | Add parenthesis around the types in a 'LHsType' (see 'reparenTypePrec')
-reparenLType :: forall a. (XParTy a ~ NoExtField, MapXRec a, UnXRec a, WrapXRec a) => LHsType a -> LHsType a
+reparenLType :: forall a. (XRecCond a) => LHsType a -> LHsType a
 reparenLType = mapXRec @a reparenType
 
 -- | Add parentheses around the types in an 'HsForAllTelescope' (see 'reparenTypePrec')
-reparenHsForAllTelescope :: forall a. (XParTy a ~ NoExtField, MapXRec a, UnXRec a, WrapXRec a)
+reparenHsForAllTelescope :: forall a. (XRecCond a)
                          => HsForAllTelescope a -> HsForAllTelescope a
 reparenHsForAllTelescope (HsForAllVis x bndrs) =
   HsForAllVis x (map (mapXRec @a reparenTyVar) bndrs)
@@ -314,13 +319,13 @@ reparenHsForAllTelescope (HsForAllInvis x bndrs) =
 reparenHsForAllTelescope v@XHsForAllTelescope{} = v
 
 -- | Add parenthesis around the types in a 'HsTyVarBndr' (see 'reparenTypePrec')
-reparenTyVar :: (XParTy a ~ NoExtField, MapXRec a, UnXRec a, WrapXRec a) => HsTyVarBndr flag a -> HsTyVarBndr flag a
+reparenTyVar :: (XRecCond a) => HsTyVarBndr flag a -> HsTyVarBndr flag a
 reparenTyVar (UserTyVar x flag n) = UserTyVar x flag n
 reparenTyVar (KindedTyVar x flag n kind) = KindedTyVar x flag n (reparenLType kind)
 reparenTyVar v@XTyVarBndr{} = v
 
 -- | Add parenthesis around the types in a 'ConDeclField' (see 'reparenTypePrec')
-reparenConDeclField :: (XParTy a ~ NoExtField, MapXRec a, UnXRec a, WrapXRec a) => ConDeclField a -> ConDeclField a
+reparenConDeclField :: (XRecCond a) => ConDeclField a -> ConDeclField a
 reparenConDeclField (ConDeclField x n t d) = ConDeclField x n (reparenLType t) d
 reparenConDeclField c@XConDeclField{} = c
 
@@ -330,12 +335,14 @@ reparenConDeclField c@XConDeclField{} = c
 -------------------------------------------------------------------------------
 
 
-unL :: Located a -> a
+unL :: GenLocated l a -> a
 unL (L _ x) = x
 
-
-reL :: a -> Located a
+reL :: a -> GenLocated l a
 reL = L undefined
+
+mapMA :: Monad m => (a -> m b) -> LocatedAn an a -> m (Located b)
+mapMA f (L al a) = L (locA al) <$> f a
 
 -------------------------------------------------------------------------------
 -- * NamedThing instances
@@ -344,6 +351,12 @@ reL = L undefined
 
 instance NamedThing (TyClDecl GhcRn) where
   getName = tcdName
+
+instance (NamedThing a) => NamedThing (LocatedA a) where
+  getName (L _ a) = getName a
+
+instance (NamedThing a) => NamedThing (LocatedN a) where
+  getName (L _ a) = getName a
 
 -------------------------------------------------------------------------------
 -- * Subordinates
@@ -652,4 +665,3 @@ defaultRuntimeRepVars = go emptyVarEnv
 
     go _ ty@(LitTy {}) = ty
     go _ ty@(CoercionTy {}) = ty
-
