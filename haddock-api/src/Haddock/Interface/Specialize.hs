@@ -18,7 +18,6 @@ import GHC
 import GHC.Types.Name
 import GHC.Data.FastString
 import GHC.Builtin.Types ( listTyConName, unrestrictedFunTyConName )
-import GHC.Parser.Annotation (IsUnicodeSyntax(..))
 
 import Control.Monad
 import Control.Monad.Trans.State
@@ -78,7 +77,7 @@ specializeSig :: LHsQTyVars GhcRn -> [HsType GhcRn]
               -> Sig GhcRn
               -> Sig GhcRn
 specializeSig bndrs typs (TypeSig _ lnames typ) =
-  TypeSig noExtField lnames (typ {hswc_body = noLoc typ'})
+  TypeSig noAnn lnames (typ {hswc_body = noLocA typ'})
   where
     true_type :: HsSigType GhcRn
     true_type = unLoc (dropWildCards typ)
@@ -114,7 +113,7 @@ sugar = sugarOperators . sugarTuples . sugarLists
 
 sugarLists :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
 sugarLists (HsAppTy _ (L _ (HsTyVar _ _ (L _ name))) ltyp)
-    | getName name == listTyConName = HsListTy noExtField ltyp
+    | getName name == listTyConName = HsListTy noAnn ltyp
 sugarLists typ = typ
 
 
@@ -125,7 +124,7 @@ sugarTuples typ =
     aux apps (HsAppTy _ (L _ ftyp) atyp) = aux (atyp:apps) ftyp
     aux apps (HsParTy _ (L _ typ')) = aux apps typ'
     aux apps (HsTyVar _ _ (L _ name))
-        | isBuiltInSyntax name' && suitable = HsTupleTy noExtField HsBoxedOrConstraintTuple apps
+        | isBuiltInSyntax name' && suitable = HsTupleTy noAnn HsBoxedOrConstraintTuple apps
       where
         name' = getName name
         strName = getOccString name
@@ -135,10 +134,10 @@ sugarTuples typ =
     aux _ _ = typ
 
 
-sugarOperators :: NamedThing (IdP (GhcPass p)) => HsType (GhcPass p) -> HsType (GhcPass p)
+sugarOperators :: HsType GhcRn -> HsType GhcRn
 sugarOperators (HsAppTy _ (L _ (HsAppTy _ (L _ (HsTyVar _ _ (L l name))) la)) lb)
     | isSymOcc $ getOccName name' = mkHsOpTy la (L l name) lb
-    | unrestrictedFunTyConName == name' = HsFunTy noExtField (HsUnrestrictedArrow NormalSyntax) la lb
+    | unrestrictedFunTyConName == name' = HsFunTy noAnn (HsUnrestrictedArrow NormalSyntax) la lb
   where
     name' = getName name
 sugarOperators typ = typ
@@ -287,9 +286,9 @@ renameType (HsForAllTy x tele lt) =
         <*> renameLType lt
 renameType (HsQualTy x lctxt lt) =
     HsQualTy x
-        <$> located renameContext lctxt
+        <$> renameMContext lctxt
         <*> renameLType lt
-renameType (HsTyVar x ip name) = HsTyVar x ip <$> located renameName name
+renameType (HsTyVar x ip name) = HsTyVar x ip <$> locatedN renameName name
 renameType t@(HsStarTy _ _) = pure t
 renameType (HsAppTy x lf la) = HsAppTy x <$> renameLType lf <*> renameLType la
 renameType (HsAppKindTy x lt lk) = HsAppKindTy x <$> renameLType lt <*> renameLKind lk
@@ -298,7 +297,7 @@ renameType (HsListTy x lt) = HsListTy x <$> renameLType lt
 renameType (HsTupleTy x srt lt) = HsTupleTy x srt <$> mapM renameLType lt
 renameType (HsSumTy x lt) = HsSumTy x <$> mapM renameLType lt
 renameType (HsOpTy x la lop lb) =
-    HsOpTy x <$> renameLType la <*> located renameName lop <*> renameLType lb
+    HsOpTy x <$> renameLType la <*> locatedN renameName lop <*> renameLType lb
 renameType (HsParTy x lt) = HsParTy x <$> renameLType lt
 renameType (HsIParamTy x ip lt) = HsIParamTy x ip <$> renameLType lt
 renameType (HsKindSig x lt lk) = HsKindSig x <$> renameLType lt <*> pure lk
@@ -315,7 +314,7 @@ renameType t@(HsTyLit _ _) = pure t
 renameType (HsWildCardTy wc) = pure (HsWildCardTy wc)
 
 renameHsArrow :: HsArrow GhcRn -> Rename (IdP GhcRn) (HsArrow GhcRn)
-renameHsArrow (HsExplicitMult u p) = HsExplicitMult u <$> renameLType p
+renameHsArrow (HsExplicitMult u a p) = HsExplicitMult u a <$> renameLType p
 renameHsArrow mult = pure mult
 
 
@@ -328,6 +327,11 @@ renameLKind = renameLType
 renameLTypes :: [LHsType GhcRn] -> Rename (IdP GhcRn) [LHsType GhcRn]
 renameLTypes = mapM renameLType
 
+renameMContext :: Maybe (LHsContext GhcRn) -> Rename (IdP GhcRn) (Maybe (LHsContext GhcRn))
+renameMContext Nothing = return Nothing
+renameMContext (Just (L l ctxt)) = do
+  ctxt' <- renameContext ctxt
+  return (Just (L l ctxt'))
 
 renameContext :: HsContext GhcRn -> Rename (IdP GhcRn) (HsContext GhcRn)
 renameContext = renameLTypes
@@ -340,9 +344,9 @@ renameForAllTelescope (HsForAllInvis x bndrs) =
   HsForAllInvis x <$> mapM renameLBinder bndrs
 
 renameBinder :: HsTyVarBndr flag GhcRn -> Rename (IdP GhcRn) (HsTyVarBndr flag GhcRn)
-renameBinder (UserTyVar x fl lname) = UserTyVar x fl <$> located renameName lname
+renameBinder (UserTyVar x fl lname) = UserTyVar x fl <$> locatedN renameName lname
 renameBinder (KindedTyVar x fl lname lkind) =
-  KindedTyVar x fl <$> located renameName lname <*> located renameType lkind
+  KindedTyVar x fl <$> locatedN renameName lname <*> located renameType lkind
 
 renameLBinder :: LHsTyVarBndr flag GhcRn -> Rename (IdP GhcRn) (LHsTyVarBndr flag GhcRn)
 renameLBinder = located renameBinder
@@ -395,8 +399,11 @@ alternativeNames name =
     str = nameRepString name
 
 
-located :: Functor f => (a -> f b) -> Located a -> f (Located b)
+located :: Functor f => (a -> f b) -> GenLocated l a -> f (GenLocated l b)
 located f (L loc e) = L loc <$> f e
+
+locatedN :: Functor f => (a -> f b) -> LocatedN a -> f (LocatedN b)
+locatedN f (L loc e) = L loc <$> f e
 
 
 tyVarName :: HsTyVarBndr flag GhcRn -> IdP GhcRn

@@ -61,6 +61,7 @@ library
                , exceptions
                , filepath
                , ghc-boot
+               , ghc-boot-th
                , transformers
 
   hs-source-dirs: src
@@ -188,6 +189,7 @@ test-suite spec
                , directory
                , filepath
                , ghc-boot
+               , ghc-boot-th
                , transformers
 
   build-tool-depends:

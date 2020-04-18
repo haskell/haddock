@@ -190,9 +190,9 @@ processModule verbosity modsum flags modMap instIfaceMap = do
           header = case ifaceDoc interface of
             Documentation Nothing _ -> False
             _ -> True
-          undocumentedExports = [ formatName s n | ExportDecl { expItemDecl = L s n
-                                                              , expItemMbDoc = (Documentation Nothing _, _)
-                                                              } <- ifaceExportItems interface ]
+          undocumentedExports = [ formatName (locA s) n | ExportDecl { expItemDecl = L s n
+                                                                     , expItemMbDoc = (Documentation Nothing _, _)
+                                                                     } <- ifaceExportItems interface ]
             where
               formatName :: SrcSpan -> HsDecl GhcRn -> String
               formatName loc n = p (getMainDeclBinder n) ++ case loc of
