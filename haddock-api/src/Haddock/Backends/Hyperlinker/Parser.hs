@@ -24,7 +24,6 @@ import GHC.Utils.Panic      ( panic )
 import GHC.Driver.Ppr       ( showSDoc )
 import GHC.Types.SrcLoc
 import GHC.Data.StringBuffer ( StringBuffer, atEnd )
-import GHC.Unit              ( homeUnitId )
 
 import Haddock.Backends.Hyperlinker.Types as T
 import Haddock.GhcUtils
@@ -360,7 +359,7 @@ classify tok =
     -- the GHC lexer for more), so we have to manually reverse this. The
     -- following is a hammer: it smashes _all_ pragma-like block comments into
     -- pragmas.
-    ITblockComment c
+    ITblockComment c _
       | isPrefixOf "{-#" c
       , isSuffixOf "#-}" c -> TkPragma
       | otherwise          -> TkComment
