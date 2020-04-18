@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+=======
+>>>>>>> 4df3dbf1... Removes `haddock-test`s dependency on `xml`/`xhtml` (#1027)
 module Test.Haddock.Xhtml
     ( Xml
     , parseXml, dumpXml
@@ -8,6 +15,7 @@ module Test.Haddock.Xhtml
 This module used to actually parse the HTML (using the `xml` parsing library)
 which made it was possible to do more proper normalization of things like ids or
 names.
+<<<<<<< HEAD
 
 However, in the interests of being able to run this from within the GHC
 testsuite (where non-bootlib dependencies are a liability), this was swapped
@@ -21,6 +29,25 @@ import Data.Char ( isSpace )
 
 -- | Simple wrapper around the pretty-printed HTML source
 newtype Xml = Xml { unXml :: String }
+
+deriving instance Eq Element
+deriving instance Eq Content
+deriving instance Eq CData
+=======
+
+However, in the interests of being able to run this from within the GHC
+testsuite (where non-bootlib dependencies are a liability), this was swapped
+out for some simple string manipulation. Since the test cases aren't very
+and since the `xhtml` library already handles the pretty-printing aspect,
+this would appear to be a reasonable compromise for now.
+-}
+
+import Data.List ( stripPrefix, isPrefixOf )
+import Data.Char ( isSpace )
+
+-- | Simple wrapper around the pretty-printed HTML source
+newtype Xml = Xml { unXml :: String }
+>>>>>>> 4df3dbf1... Removes `haddock-test`s dependency on `xml`/`xhtml` (#1027)
 
 -- | Part of parsing involves dropping the @DOCTYPE@ line
 parseXml :: String -> Maybe Xml
