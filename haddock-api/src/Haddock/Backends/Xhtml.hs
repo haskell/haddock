@@ -50,7 +50,7 @@ import qualified Data.Set as Set hiding ( Set )
 import Data.Ord              ( comparing )
 
 import GHC.Driver.Session (Language(..))
-import GHC hiding ( NoLink, moduleInfo,LexicalFixity(..) )
+import GHC hiding ( NoLink, moduleInfo,LexicalFixity(..), anchor )
 import GHC.Types.Name
 import GHC.Unit.State
 
