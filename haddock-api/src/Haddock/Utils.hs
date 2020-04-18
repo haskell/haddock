@@ -136,27 +136,30 @@ mkEmptySigWcType ty = mkEmptyWildCardBndrs (mkEmptyImplicitBndrs ty)
 addClassContext :: Name -> LHsQTyVars GhcRn -> LSig GhcRn -> LSig GhcRn
 -- Add the class context to a class-op signature
 addClassContext cls tvs0 (L pos (ClassOpSig _ _ lname ltype))
-  = L pos (TypeSig noExtField lname (mkEmptySigWcType (go (hsSigType ltype))))
+  = L pos (TypeSig noAnn lname (mkEmptySigWcType (go (hsSigType ltype))))
           -- The mkEmptySigWcType is suspicious
   where
     go (L loc (HsForAllTy { hst_tele = tele, hst_body = ty }))
-       = L loc (HsForAllTy { hst_xforall = noExtField
+       = L loc (HsForAllTy { hst_xforall = noAnn
                            , hst_tele = tele, hst_body = go ty })
     go (L loc (HsQualTy { hst_ctxt = ctxt, hst_body = ty }))
-       = L loc (HsQualTy { hst_xqual = noExtField
+       = L loc (HsQualTy { hst_xqual = noAnn
                          , hst_ctxt = add_ctxt ctxt, hst_body = ty })
     go (L loc ty)
-       = L loc (HsQualTy { hst_xqual = noExtField
-                         , hst_ctxt = add_ctxt (L loc []), hst_body = L loc ty })
+       = L loc (HsQualTy { hst_xqual = noAnn
+                         , hst_ctxt = add_ctxt (Just $ L (l2l loc) []), hst_body = L loc ty })
 
     extra_pred = nlHsTyConApp Prefix cls (lHsQTyVarsToTypes tvs0)
-    add_ctxt (L loc preds) = L loc (extra_pred : preds)
+
+    add_ctxt :: Maybe (LHsContext GhcRn) -> Maybe (LHsContext GhcRn) -- AZ
+    add_ctxt Nothing = Just $ noLocA [extra_pred]
+    add_ctxt (Just (L loc preds)) = Just (L loc (extra_pred : preds))
 
 addClassContext _ _ sig = sig   -- E.g. a MinimalSig is fine
 
 lHsQTyVarsToTypes :: LHsQTyVars GhcRn -> [LHsTypeArg GhcRn]
 lHsQTyVarsToTypes tvs
-  = [ HsValArg $ noLoc (HsTyVar noExtField NotPromoted (noLoc (hsLTyVarName tv)))
+  = [ HsValArg $ noLocA (HsTyVar noAnn NotPromoted (noLocA (hsLTyVarName tv)))
     | tv <- hsQTvExplicit tvs ]
 
 --------------------------------------------------------------------------------

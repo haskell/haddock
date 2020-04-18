@@ -127,7 +127,7 @@ createInterface tm flags modMap instIfaceMap = do
                         $  map getName instances
                         ++ map getName fam_instances
       -- Locations of all TH splices
-      splices = [ l | L l (SpliceD _ _) <- hsmodDecls hsm ]
+      splices = [ locA l | L l (SpliceD _ _) <- hsmodDecls hsm ]
 
   warningMap <- liftErrMsg (mkWarningMap dflags warnings gre exportedNames)
 
@@ -375,7 +375,7 @@ mkMaps dflags pkgName gre instances decls = do
                         , [(Name, Map Int (MDoc Name))]
                         , [(Name,  [LHsDecl GhcRn])]
                         )
-    mappings (ldecl@(L (RealSrcSpan l _) decl), docStrs) = do
+    mappings (ldecl@(L (SrcSpanAnn _ (RealSrcSpan l _)) decl), docStrs) = do
       let declDoc :: [HsDocString] -> Map Int HsDocString
                   -> ErrMsgM (Maybe (MDoc Name), Map Int (MDoc Name))
           declDoc strs m = do
@@ -404,7 +404,7 @@ mkMaps dflags pkgName gre instances decls = do
         seqList subDocs `seq`
         seqList subArgs `seq`
         pure (dm, am, cm)
-    mappings (L (UnhelpfulSpan _) _, _) = pure ([], [], [])
+    mappings (L (SrcSpanAnn _ (UnhelpfulSpan _)) _, _) = pure ([], [], [])
 
     instanceMap :: Map RealSrcSpan Name
     instanceMap = M.fromList [(l, n) | n <- instances, RealSrcSpan l _ <- [getSrcSpan n] ]
@@ -415,7 +415,7 @@ mkMaps dflags pkgName gre instances decls = do
               -- The CoAx's loc is the whole line, but only for TFs. The
               -- workaround is to dig into the family instance declaration and
               -- get the identifier with the right location.
-              TyFamInstD _ (TyFamInstDecl d') -> getLoc (feqn_tycon (hsib_body d'))
+              TyFamInstD _ (TyFamInstDecl d') -> getLocA (feqn_tycon (hsib_body d'))
               _ -> getInstLoc d
     names l (DerivD {}) = maybeToList (M.lookup l instanceMap) -- See note [2].
     names _ decl = getMainDeclBinder decl
@@ -530,7 +530,8 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
       let t = availName avail
       r    <- findDecl avail
       case r of
-        ([L l (ValD _ _)], (doc, _)) -> do
+        ([L l' (ValD _ _)], (doc, _)) -> do
+          let l = locA l'
           -- Top-level binding without type signature
           export <- hiValExportItem dflags t l doc (l `elem` splices) $ M.lookup t fixMap
           return [export]
@@ -563,7 +564,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
 
                   L loc (TyClD _ cl@ClassDecl{}) -> do
                     mdef <- liftGhcToErrMsgGhc $ minimalDef t
-                    let sig = maybeToList $ fmap (noLoc . MinimalSig noExtField NoSourceText . noLoc . fmap noLoc) mdef
+                    let sig = maybeToList $ fmap (noLocA . MinimalSig noAnn NoSourceText . noLocA . fmap noLocA) mdef
                     availExportDecl avail
                       (L loc $ TyClD noExtField cl { tcdSigs = sig ++ tcdSigs cl }) docs_
 
@@ -717,7 +718,7 @@ hiDecl dflags t = do
     Just x -> case tyThingToLHsDecl ShowRuntimeRep x of
       Left m -> liftErrMsg (tell [bugWarn m]) >> return Nothing
       Right (m, t') -> liftErrMsg (tell $ map bugWarn m)
-                      >> return (Just $ noLoc t')
+                      >> return (Just $ noLocA t')
     where
       warnLine x = O.text "haddock-bug:" O.<+> O.text x O.<>
                    O.comma O.<+> O.quotes (O.ppr t) O.<+>
@@ -736,7 +737,7 @@ hiValExportItem dflags name nLoc doc splice fixity = do
     Nothing -> return (ExportNoDecl name [])
     Just decl -> return (ExportDecl (fixSpan decl) [] doc [] [] fixities splice)
   where
-    fixSpan (L l t) = L (SrcLoc.combineSrcSpans l nLoc) t
+    fixSpan (L (SrcSpanAnn a l) t) = L (SrcSpanAnn a (SrcLoc.combineSrcSpans l nLoc)) t
     fixities = case fixity of
       Just f  -> [(name, f)]
       Nothing -> []
@@ -913,7 +914,7 @@ extractDecl declMap name decl
                                , name `elem` map unLoc (concatMap (getConNames . unLoc) (dd_cons dd))
                                ]
             in case matches of
-                [d0] -> extractDecl declMap name (noLoc (InstD noExtField (DataFamInstD noExtField d0)))
+                [d0] -> extractDecl declMap name (noLocA (InstD noExtField (DataFamInstD noExtField d0)))
                 _    -> error "internal: extractDecl (ClsInstD)"
         | otherwise ->
             let matches = [ d' | L _ d'@(DataFamInstDecl (HsIB { hsib_body = d }))
@@ -925,7 +926,7 @@ extractDecl declMap name decl
                                , extFieldOcc n == name
                           ]
             in case matches of
-              [d0] -> extractDecl declMap name (noLoc . InstD noExtField $ DataFamInstD noExtField d0)
+              [d0] -> extractDecl declMap name (noLocA . InstD noExtField $ DataFamInstD noExtField d0)
               _ -> error "internal: extractDecl (ClsInstD)"
       _ -> O.pprPanic "extractDecl" $
         O.text "Unhandled decl for" O.<+> O.ppr name O.<> O.text ":"
@@ -949,21 +950,21 @@ extractPatternSyn nm t tvs cons =
         typ = longArrow args (data_ty con)
         typ' =
           case con of
-            ConDeclH98 { con_mb_cxt = Just cxt } -> noLoc (HsQualTy noExtField cxt typ)
+            ConDeclH98 { con_mb_cxt = Just cxt } -> noLocA (HsQualTy noAnn (Just cxt) typ)
             _ -> typ
-        typ'' = noLoc (HsQualTy noExtField (noLoc []) typ')
-    in PatSynSig noExtField [noLoc nm] (mkEmptyImplicitBndrs typ'')
+        typ'' = noLocA (HsQualTy noAnn Nothing typ')
+    in PatSynSig noAnn [noLocA nm] (mkEmptyImplicitBndrs typ'')
 
   longArrow :: [LHsType GhcRn] -> LHsType GhcRn -> LHsType GhcRn
-  longArrow inputs output = foldr (\x y -> noLoc (HsFunTy noExtField HsUnrestrictedArrow x y)) output inputs
+  longArrow inputs output = foldr (\x y -> noLocA (HsFunTy noAnn HsUnrestrictedArrow x y)) output inputs
 
   data_ty con
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLoc (mkAppTyArg x y)) (noLoc (HsTyVar noExtField NotPromoted (noLoc t))) tvs
+    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noLocA t))) tvs
                     where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
                           mkAppTyArg f (HsValArg ty) = HsAppTy noExtField f ty
                           mkAppTyArg f (HsTypeArg l ki) = HsAppKindTy l f ki
-                          mkAppTyArg f (HsArgPar _) = HsParTy noExtField f
+                          mkAppTyArg f (HsArgPar _) = HsParTy noAnn f
 
 extractRecSel :: Name -> Name -> [LHsTypeArg GhcRn] -> [LConDecl GhcRn]
               -> LSig GhcRn
@@ -972,7 +973,8 @@ extractRecSel _ _ _ [] = error "extractRecSel: selector not found"
 extractRecSel nm t tvs (L _ con : rest) =
   case getConArgs con of
     RecCon (L _ fields) | ((l,L _ (ConDeclField _ _nn ty _)) : _) <- matching_fields fields ->
-      L l (TypeSig noExtField [noLoc nm] (mkEmptySigWcType (noLoc (HsFunTy noExtField HsUnrestrictedArrow data_ty (getBangType ty)))))
+      L (noAnnSrcSpan l) (TypeSig noAnn [noLocA nm]
+                          (mkEmptySigWcType (noLocA (HsFunTy noAnn HsUnrestrictedArrow data_ty (getBangType ty)))))
     _ -> extractRecSel nm t tvs rest
  where
   matching_fields :: [LConDeclField GhcRn] -> [(SrcSpan, LConDeclField GhcRn)]
@@ -981,11 +983,11 @@ extractRecSel nm t tvs (L _ con : rest) =
   data_ty
     -- ResTyGADT _ ty <- con_res con = ty
     | ConDeclGADT{} <- con = con_res_ty con
-    | otherwise = foldl' (\x y -> noLoc (mkAppTyArg x y)) (noLoc (HsTyVar noExtField NotPromoted (noLoc t))) tvs
+    | otherwise = foldl' (\x y -> noLocA (mkAppTyArg x y)) (noLocA (HsTyVar noAnn NotPromoted (noLocA t))) tvs
                    where mkAppTyArg :: LHsType GhcRn -> LHsTypeArg GhcRn -> HsType GhcRn
                          mkAppTyArg f (HsValArg ty) = HsAppTy noExtField f ty
                          mkAppTyArg f (HsTypeArg l ki) = HsAppKindTy l f ki
-                         mkAppTyArg f (HsArgPar _) = HsParTy noExtField f
+                         mkAppTyArg f (HsArgPar _) = HsParTy noAnn f
 
 -- | Keep export items with docs.
 pruneExportItems :: [ExportItem GhcRn] -> [ExportItem GhcRn]
