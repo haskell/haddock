@@ -103,7 +103,7 @@ attachToExportItem index expInfo getInstDoc getFixity export =
             fam_instances = maybeToList mb_instances >>= snd
             fam_insts = [ ( synFamInst
                           , getInstDoc n
-                          , spanNameE n synFamInst (L eSpan (tcdName d))
+                          , spanNameE n synFamInst (L (locA eSpan) (tcdName d))
                           , nameModule_maybe n
                           )
                         | i <- sortBy (comparing instFam) fam_instances
@@ -115,7 +115,7 @@ attachToExportItem index expInfo getInstDoc getFixity export =
                         ]
             cls_insts = [ ( synClsInst
                           , getInstDoc n
-                          , spanName n synClsInst (L eSpan (tcdName d))
+                          , spanName n synClsInst (L (locA eSpan) (tcdName d))
                           , nameModule_maybe n
                           )
                         | let is = [ (instanceSig i, getName i) | i <- cls_instances ]
