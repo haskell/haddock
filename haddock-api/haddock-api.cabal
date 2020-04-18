@@ -192,6 +192,7 @@ test-suite spec
                , directory
                , filepath
                , ghc-boot
+               , ghc-boot-th
                , transformers
 
   build-tool-depends:

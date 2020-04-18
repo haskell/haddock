@@ -359,7 +359,7 @@ classify tok =
     -- the GHC lexer for more), so we have to manually reverse this. The
     -- following is a hammer: it smashes _all_ pragma-like block comments into
     -- pragmas.
-    ITblockComment c
+    ITblockComment c _
       | isPrefixOf "{-#" c
       , isSuffixOf "#-}" c -> TkPragma
       | otherwise          -> TkComment
