@@ -29,14 +29,11 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import GHC.Core.Class
-import GHC.Driver.Session
 import GHC.Core (isOrphan)
-import GHC.Utils.Error
 import GHC.Core.FamInstEnv
 import GHC
 import GHC.Core.InstEnv
 import GHC.Unit.Module.Env ( ModuleSet, moduleSetElts )
-import GHC.Utils.Monad (liftIO)
 import GHC.Types.Name
 import GHC.Types.Name.Env
 import GHC.Utils.Outputable (text, sep, (<+>))
@@ -103,7 +100,7 @@ attachToExportItem index expInfo getInstDoc getFixity export =
             fam_instances = maybeToList mb_instances >>= snd
             fam_insts = [ ( synFamInst
                           , getInstDoc n
-                          , spanNameE n synFamInst (L eSpan (tcdName d))
+                          , spanNameE n synFamInst (L (locA eSpan) (tcdName d))
                           , nameModule_maybe n
                           )
                         | i <- sortBy (comparing instFam) fam_instances
@@ -115,7 +112,7 @@ attachToExportItem index expInfo getInstDoc getFixity export =
                         ]
             cls_insts = [ ( synClsInst
                           , getInstDoc n
-                          , spanName n synClsInst (L eSpan (tcdName d))
+                          , spanName n synClsInst (L (locA eSpan) (tcdName d))
                           , nameModule_maybe n
                           )
                         | let is = [ (instanceSig i, getName i) | i <- cls_instances ]
