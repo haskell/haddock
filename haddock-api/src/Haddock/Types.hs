@@ -366,26 +366,26 @@ instance (OutputableBndrId p)
 -- 'PseudoFamilyDecl' type is introduced.
 data PseudoFamilyDecl name = PseudoFamilyDecl
     { pfdInfo :: FamilyInfo name
-    , pfdLName :: Located (IdP name)
+    , pfdLName :: LocatedN (IdP name)
     , pfdTyVars :: [LHsType name]
     , pfdKindSig :: LFamilyResultSig name
     }
 
 
-mkPseudoFamilyDecl :: FamilyDecl (GhcPass p) -> PseudoFamilyDecl (GhcPass p)
+mkPseudoFamilyDecl :: FamilyDecl GhcRn -> PseudoFamilyDecl GhcRn
 mkPseudoFamilyDecl (FamilyDecl { .. }) = PseudoFamilyDecl
     { pfdInfo = fdInfo
     , pfdLName = fdLName
-    , pfdTyVars = [ L loc (mkType bndr) | L loc bndr <- hsq_explicit fdTyVars ]
+    , pfdTyVars = [ L (noAnnSrcSpan loc) (mkType bndr) | L loc bndr <- hsq_explicit fdTyVars ]
     , pfdKindSig = fdResultSig
     }
   where
     mkType :: HsTyVarBndr flag (GhcPass p) -> HsType (GhcPass p)
     mkType (KindedTyVar _ _ (L loc name) lkind) =
-        HsKindSig noExtField tvar lkind
+        HsKindSig noAnn tvar lkind
       where
-        tvar = L loc (HsTyVar noExtField NotPromoted (L loc name))
-    mkType (UserTyVar _ _ name) = HsTyVar noExtField NotPromoted name
+        tvar = L (na2la loc) (HsTyVar noAnn NotPromoted (L loc name))
+    mkType (UserTyVar _ _ name) = HsTyVar noAnn NotPromoted name
 
 
 -- | An instance head that may have documentation and a source location.
@@ -669,30 +669,31 @@ instance MonadIO ErrMsgGhc where
 -- * Pass sensitive types
 -----------------------------------------------------------------------------
 
-type instance XRec DocNameI f = Located (f DocNameI)
+-- For LPat
+type instance XRec DocNameI f = LocatedA (f DocNameI)
 
-type instance XForAllTy        DocNameI = NoExtField
-type instance XQualTy          DocNameI = NoExtField
-type instance XTyVar           DocNameI = NoExtField
-type instance XStarTy          DocNameI = NoExtField
-type instance XAppTy           DocNameI = NoExtField
-type instance XAppKindTy       DocNameI = NoExtField
-type instance XFunTy           DocNameI = NoExtField
-type instance XListTy          DocNameI = NoExtField
-type instance XTupleTy         DocNameI = NoExtField
-type instance XSumTy           DocNameI = NoExtField
-type instance XOpTy            DocNameI = NoExtField
-type instance XParTy           DocNameI = NoExtField
-type instance XIParamTy        DocNameI = NoExtField
-type instance XKindSig         DocNameI = NoExtField
-type instance XSpliceTy        DocNameI = NoExtField
-type instance XDocTy           DocNameI = NoExtField
-type instance XBangTy          DocNameI = NoExtField
-type instance XRecTy           DocNameI = NoExtField
-type instance XExplicitListTy  DocNameI = NoExtField
-type instance XExplicitTupleTy DocNameI = NoExtField
-type instance XTyLit           DocNameI = NoExtField
-type instance XWildCardTy      DocNameI = NoExtField
+type instance XForAllTy        DocNameI = ApiAnn
+type instance XQualTy          DocNameI = ApiAnn
+type instance XTyVar           DocNameI = ApiAnn
+type instance XStarTy          DocNameI = ApiAnn
+type instance XAppTy           DocNameI = ApiAnn
+type instance XAppKindTy       DocNameI = ApiAnn
+type instance XFunTy           DocNameI = ApiAnn
+type instance XListTy          DocNameI = ApiAnn' AnnParen
+type instance XTupleTy         DocNameI = ApiAnn' AnnParen
+type instance XSumTy           DocNameI = ApiAnn' AnnParen
+type instance XOpTy            DocNameI = ApiAnn
+type instance XParTy           DocNameI = ApiAnn' AnnParen
+type instance XIParamTy        DocNameI = ApiAnn
+type instance XKindSig         DocNameI = ApiAnn
+type instance XSpliceTy        DocNameI = ApiAnn
+type instance XDocTy           DocNameI = ApiAnn
+type instance XBangTy          DocNameI = ApiAnn
+type instance XRecTy           DocNameI = ApiAnn
+type instance XExplicitListTy  DocNameI = ApiAnn
+type instance XExplicitTupleTy DocNameI = ApiAnn
+type instance XTyLit           DocNameI = ApiAnn
+type instance XWildCardTy      DocNameI = ApiAnn
 type instance XXType           DocNameI = NewHsTypeX
 
 type instance XHsForAllVis        DocNameI = NoExtField
@@ -735,6 +736,9 @@ type instance XXFamEqn       DocNameI _ = NoExtCon
 
 type instance XCClsInstDecl DocNameI = NoExtField
 type instance XCDerivDecl   DocNameI = NoExtField
+type instance XStockStrategy    DocNameI = NoExtField
+type instance XAnyClassStrategy DocNameI = NoExtField
+type instance XNewtypeStrategy  DocNameI = NoExtField
 type instance XViaStrategy  DocNameI = LHsSigType DocNameI
 type instance XDataFamInstD DocNameI = NoExtField
 type instance XTyFamInstD   DocNameI = NoExtField
@@ -757,3 +761,7 @@ type instance XConDeclField  DocNameI = NoExtField
 type instance XXConDeclField DocNameI = NoExtCon
 
 type instance XXPat DocNameI = NoExtCon
+
+type instance XCInjectivityAnn DocNameI = NoExtField
+
+type instance XCFunDep DocNameI = NoExtField
