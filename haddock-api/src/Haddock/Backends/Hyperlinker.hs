@@ -19,6 +19,7 @@ import System.Directory
 import System.FilePath
 
 import GHC.Iface.Ext.Types  ( HieFile(..), HieASTs(..) )
+import GHC.Iface.Ext.Utils  ( generateReferencesMap    )
 import GHC.Iface.Ext.Binary ( readHieFile, hie_file_result, NameCacheUpdater(..))
 import Data.Map as M
 import GHC.Data.FastString     ( mkFastString )
@@ -74,7 +75,8 @@ ppHyperlinkedModuleSource srcdir pretty srcs iface = case ifaceHieFile iface of
         case mast of
           Just ast ->
               let fullAst = recoverFullIfaceTypes df types ast
-              in writeUtf8File path . renderToString pretty . render' fullAst $ tokens
+                  refmap = generateReferencesMap (Just fullAst)
+              in writeUtf8File path . renderToString pretty . render' fullAst refmap $ tokens
           Nothing
             | M.size asts == 0 -> return ()
             | otherwise -> error $ unwords [ "couldn't find ast for"

@@ -13,17 +13,20 @@ import Haddock.Backends.Hyperlinker.Utils
 import qualified Data.ByteString as BS
 
 import GHC.Iface.Ext.Types
-import GHC.Iface.Ext.Utils ( isEvidenceContext , emptyNodeInfo )
+import GHC.Iface.Ext.Utils (RefMap, EvidenceInfo(..), findEvidenceUse, getEvidenceTree, emptyNodeInfo, isEvidenceContext)
 import GHC.Unit.Module ( ModuleName, moduleNameString )
-import GHC.Types.Name   ( getOccString, isInternalName, Name, nameModule, nameUnique )
+import GHC.Types.Name   ( getOccString, isInternalName, Name, nameModule, nameUnique, nameSrcSpan )
 import GHC.Types.SrcLoc
 import GHC.Types.Unique ( getKey )
 import GHC.Utils.Encoding ( utf8DecodeByteString )
 
 import System.FilePath.Posix ((</>))
 
+import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Foldable
+import Data.Tree (flatten)
 
 import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
@@ -37,14 +40,15 @@ render
   -> Maybe FilePath    -- ^ path to the JS file
   -> SrcMaps            -- ^ Paths to sources
   -> HieAST PrintedType  -- ^ ASTs from @.hie@ files
+  -> RefMap PrintedType
   -> [Token]       -- ^ tokens to render
   -> Html
-render mcss mjs srcs ast tokens = header mcss mjs <> body srcs ast tokens
+render mcss mjs srcs ast refmap tokens = header mcss mjs <> body srcs ast refmap tokens
 
-body :: SrcMaps -> HieAST PrintedType -> [Token] -> Html
-body srcs ast tokens = Html.body . Html.pre $ hypsrc
+body :: SrcMaps -> HieAST PrintedType -> RefMap PrintedType -> [Token] -> Html
+body srcs ast refmap tokens = Html.body . Html.pre $ hypsrc
   where
-    hypsrc = renderWithAst srcs ast tokens
+    hypsrc = renderWithAst srcs ast refmap tokens
 
 header :: Maybe FilePath -> Maybe FilePath -> Html
 header Nothing Nothing = Html.noHtml
@@ -74,10 +78,10 @@ splitTokens ast toks = (before,during,after)
 
 -- | Turn a list of tokens into hyperlinked sources, threading in relevant link
 -- information from the 'HieAST'.
-renderWithAst :: SrcMaps -> HieAST PrintedType -> [Token] -> Html
-renderWithAst srcs Node{..} toks = anchored $ case toks of
+renderWithAst :: SrcMaps -> HieAST PrintedType -> RefMap PrintedType -> [Token] -> Html
+renderWithAst srcs Node{..} refmap toks = anchored $ case toks of
 
-    [tok] | nodeSpan == tkSpan tok -> richToken srcs nodeInfo tok
+    [tok] | nodeSpan == tkSpan tok -> richToken srcs nodeInfo refmap tok
 
     -- NB: the GHC lexer lexes backquoted identifiers and parenthesized operators
     -- as multiple tokens.
@@ -92,14 +96,14 @@ renderWithAst srcs Node{..} toks = anchored $ case toks of
     [BacktickTok s1, tok@Token{ tkType = TkIdentifier }, BacktickTok s2]
           | realSrcSpanStart s1 == realSrcSpanStart nodeSpan
           , realSrcSpanEnd s2   == realSrcSpanEnd nodeSpan
-          -> richToken srcs nodeInfo
+          -> richToken srcs nodeInfo refmap
                        (Token{ tkValue = "`" <> tkValue tok <> "`"
                              , tkType = TkOperator
                              , tkSpan = nodeSpan })
     [OpenParenTok s1, tok@Token{ tkType = TkOperator }, CloseParenTok s2]
           | realSrcSpanStart s1 == realSrcSpanStart nodeSpan
           , realSrcSpanEnd s2   == realSrcSpanEnd nodeSpan
-          -> richToken srcs nodeInfo
+          -> richToken srcs nodeInfo refmap
                        (Token{ tkValue = "(" <> tkValue tok <> ")"
                              , tkType = TkOperator
                              , tkSpan = nodeSpan })
@@ -110,7 +114,7 @@ renderWithAst srcs Node{..} toks = anchored $ case toks of
     go _ [] = mempty
     go [] xs = foldMap renderToken xs
     go (cur:rest) xs =
-        foldMap renderToken before <> renderWithAst srcs cur during <> go rest after
+        foldMap renderToken before <> renderWithAst srcs cur refmap during <> go rest after
       where
         (before,during,after) = splitTokens cur xs
     anchored c = Map.foldrWithKey anchorOne c (nodeIdentifiers nodeInfo)
@@ -129,10 +133,10 @@ renderToken Token{..}
 
 
 -- | Given information about the source position of definitions, render a token
-richToken :: SrcMaps -> NodeInfo PrintedType -> Token -> Html
-richToken srcs details Token{..}
+richToken :: SrcMaps -> NodeInfo PrintedType -> RefMap PrintedType -> Token -> Html
+richToken srcs details refmap Token{..}
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
-    | otherwise = annotate details $ linked content
+    | otherwise = annotate srcs details refmap $ linked content
   where
     tkValue' = filterCRLF $ utf8DecodeByteString tkValue
     content = tokenSpan ! [ multiclass style ]
@@ -156,13 +160,13 @@ filterCRLF ('\r':'\n':cs) = '\n' : filterCRLF cs
 filterCRLF (c:cs) = c : filterCRLF cs
 filterCRLF [] = []
 
-annotate :: NodeInfo PrintedType -> Html -> Html
-annotate  ni content =
+annotate :: SrcMaps -> NodeInfo PrintedType -> RefMap PrintedType -> Html -> Html
+annotate srcs ni refmap content =
     Html.thespan (annot <> content) ! [ Html.theclass "annot" ]
   where
     annot
       | not (null annotation) =
-          Html.thespan (Html.toHtml annotation) ! [ Html.theclass "annottext" ]
+          Html.thespan (Html.toHtml annotation <> fold evs) ! [ Html.theclass "annottext" ]
       | otherwise = mempty
     annotation = typ ++ identTyps
     typ = unlines (nodeType ni)
@@ -173,8 +177,37 @@ annotate  ni content =
           = concatMap (\(n,t) -> printName n ++ " :: " ++ t ++ "\n") typedIdents
       | otherwise = ""
 
+    evidenceVars = findEvidenceUse $ nodeIdentifiers ni
+    evTrees = mapMaybe (getEvidenceTree refmap) evidenceVars
+    evs = mapMaybe (renderEvidence srcs) $ concatMap flatten evTrees
+
     printName :: Either ModuleName Name -> String
     printName = either moduleNameString getOccString
+
+renderEvidence :: SrcMaps -> EvidenceInfo PrintedType -> Maybe Html
+renderEvidence srcs EvidenceInfo{..} =
+  case varDesc of
+    Nothing -> Nothing
+    Just d -> Just $ d <> (Html.toHtml $ " of the constraint type " <> evidenceType <> "\n")
+  where
+    linkInst :: String -> Maybe Html
+    linkInst c = case nameSrcSpan evidenceVar of
+      _ -> Just $ hyperlink srcs (Right evidenceVar) (Html.toHtml c)
+
+    linkOther :: Maybe RealSrcSpan -> String -> Maybe Html
+    linkOther Nothing c = linkInst c
+    linkOther (Just spn) c =
+        Just $ Html.anchor (Html.toHtml c) ! [ Html.href $ "#" ++ hypSrcLineUrl (srcLocLine $ realSrcSpanStart spn)]
+    varDesc = case evidenceDetails of
+      Just (src,_,spn) -> case src of
+        EvPatternBind -> linkOther spn "Evidence bound by a pattern"
+        EvSigBind -> linkOther spn "Evidence bound by a type signature"
+        EvWrapperBind -> linkOther spn "Evidence bound by a HsWrapper"
+        EvImplicitBind -> linkOther spn ("Implicit variable " ++ getOccString evidenceVar)
+        EvInstBind False cls -> linkInst $ "Instance of class: " ++ getOccString cls
+        EvInstBind True cls -> linkInst $ "Evidence bound by a superclass of: " ++ getOccString cls
+        EvLetBind{} -> Nothing -- linkOther spn "Evidence bound by a let"
+      Nothing -> linkInst "External instance"
 
 richTokenStyle
   :: Bool         -- ^ are we lacking a type annotation?
@@ -226,6 +259,8 @@ isBinding Decl{} = True
 isBinding (RecField RecFieldDecl _) = True
 isBinding TyVarBind{} = True
 isBinding ClassTyDecl{} = True
+isBinding (EvidenceVarBind EvLetBind{} _ _) = False -- Don't want to add useless anchors for let binds
+isBinding EvidenceVarBind{} = True
 isBinding _ = False
 
 internalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
