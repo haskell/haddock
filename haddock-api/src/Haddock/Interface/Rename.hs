@@ -429,6 +429,7 @@ renameFamilyDecl :: FamilyDecl GhcRn -> RnM (FamilyDecl DocNameI)
 renameFamilyDecl (FamilyDecl { fdInfo = info, fdLName = lname
                              , fdTyVars = ltyvars
                              , fdFixity = fixity
+                             , fdTopLevel = top_level
                              , fdResultSig = result
                              , fdInjectivityAnn = injectivity }) = do
     info'        <- renameFamilyInfo info
@@ -439,6 +440,7 @@ renameFamilyDecl (FamilyDecl { fdInfo = info, fdLName = lname
     return (FamilyDecl { fdExt = noExtField, fdInfo = info', fdLName = lname'
                        , fdTyVars = ltyvars'
                        , fdFixity = fixity
+                       , fdTopLevel = top_level
                        , fdResultSig = result'
                        , fdInjectivityAnn = injectivity' })
 

@@ -257,6 +257,7 @@ synifyTyCon _prr _coax tc
                  , fdLName = synifyName tc
                  , fdTyVars = synifyTyVars (tyConVisibleTyVars tc)
                  , fdFixity = synifyFixity tc
+                 , fdTopLevel = TopLevel
                  , fdResultSig =
                        synifyFamilyResultSig resultVar (tyConResKind tc)
                  , fdInjectivityAnn =
