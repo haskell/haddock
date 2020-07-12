@@ -539,7 +539,7 @@ line is also supported. e.g.: ::
 
 When not using an export list, you may insert section headers in the
 module body. Such section headers associate with all entities
-declaried up until the next section header. For example: ::
+declared up until the next section header. For example: ::
 
     module Foo where
 
