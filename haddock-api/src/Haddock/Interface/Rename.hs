@@ -377,7 +377,7 @@ renameDecl decl = case decl of
     return (DerivD noExtField d')
   _ -> error "renameDecl"
 
-renameLThing :: (a GhcRn -> RnM (a DocNameI)) -> Located (a GhcRn) -> RnM (Located (a DocNameI))
+renameLThing :: (a GhcRn -> RnM (a DocNameI)) -> GenLocated l (a GhcRn) -> RnM (GenLocated l (a DocNameI))
 renameLThing fn (L loc x) = return . L loc =<< fn x
 
 renameTyClD :: TyClDecl GhcRn -> RnM (TyClDecl DocNameI)

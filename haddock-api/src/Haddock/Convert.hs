@@ -120,7 +120,7 @@ tyThingToLHsDecl prr t = case t of
              tyDecl <- synifyTyCon prr Nothing at_tc
              famDecl <- extractFamilyDecl tyDecl
              let defEqnTy = fmap (noLoc . extractFamDefDecl famDecl . fst) def
-             pure (noLoc famDecl, defEqnTy)
+             pure (noLocA famDecl, defEqnTy)
 
            atTyClDecls = map extractAtItem (classATItems cl)
            (atFamDecls, atDefFamDecls) = unzip (rights atTyClDecls)
@@ -252,7 +252,7 @@ synifyTyCon _prr _coax tc
   where
     resultVar = famTcResVar tc
     mkFamDecl i = return $ FamDecl noExtField $
-      FamilyDecl { fdExt = noExtField
+      FamilyDecl { fdExt = noAnn
                  , fdInfo = i
                  , fdLName = synifyNameN tc
                  , fdTyVars = synifyTyVars (tyConVisibleTyVars tc)

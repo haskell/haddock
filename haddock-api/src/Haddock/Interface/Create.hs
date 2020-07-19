@@ -884,7 +884,7 @@ extractDecl declMap name decl
           ([s0], _) -> let (n, tyvar_names) = (tcdName d, tyClDeclTyVars d)
                            L pos sig = addClassContext n tyvar_names s0
                        in L (noAnnSrcSpan pos) (SigD noExtField sig)
-          (_, [L pos fam_decl]) -> L (noAnnSrcSpan pos) (TyClD noExtField (FamDecl noExtField fam_decl))
+          (_, [L pos fam_decl]) -> L pos (TyClD noExtField (FamDecl noExtField fam_decl))
 
           ([], [])
             | Just (famInstDecl:_) <- M.lookup name declMap

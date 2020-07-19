@@ -405,7 +405,7 @@ ppAssocType :: Bool -> LinksInfo -> DocForDecl DocName -> LFamilyDecl DocNameI
             -> [(DocName, Fixity)] -> Splice -> Unicode -> Maybe Package
             -> Qualification -> Html
 ppAssocType summ links doc (L loc decl) fixities splice unicode pkg qual =
-   ppFamDecl summ True links [] fixities loc (fst doc) decl splice unicode pkg qual
+   ppFamDecl summ True links [] fixities (locA loc) (fst doc) decl splice unicode pkg qual
 
 
 --------------------------------------------------------------------------------
