@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PartialTypeSignatures #-}
