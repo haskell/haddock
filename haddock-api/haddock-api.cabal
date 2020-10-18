@@ -173,8 +173,8 @@ test-suite spec
                , ghc-paths       ^>= 0.1.0.9
                , haddock-library ^>= 1.7.0
                , xhtml           ^>= 3000.2.2
-               , hspec           >= 2.4.4 && < 2.7
-               , QuickCheck      >= 2.11  && < 2.13
+               , hspec           >= 2.4.4 && < 2.8
+               , QuickCheck      >= 2.11  && < 2.14
 
   -- Versions for the dependencies below are transitively pinned by
   -- the non-reinstallable `ghc` package and hence need no version
