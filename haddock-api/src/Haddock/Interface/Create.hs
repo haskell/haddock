@@ -692,16 +692,8 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
         constructor_names =
           filter isDataConName (availSubordinates avail)
 
--- this heavily depends on the invariants stated in Avail
-availExportsDecl :: AvailInfo -> Bool
-availExportsDecl (AvailTC ty_name names _)
-  | n : _ <- names = ty_name == n
-  | otherwise      = False
-availExportsDecl _ = True
-
 availSubordinates :: AvailInfo -> [Name]
-availSubordinates avail =
-  filter (/= availName avail) (availNamesWithSelectors avail)
+availSubordinates = map childName . availSubordinateChildren
 
 availNoDocs :: AvailInfo -> [(Name, DocForDecl Name)]
 availNoDocs avail =
