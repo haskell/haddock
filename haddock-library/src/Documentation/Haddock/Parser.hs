@@ -227,7 +227,7 @@ takeWhile1_ = mfilter (not . T.null) . takeWhile_
 -- DocAName "Hello world"
 anchor :: Parser (DocH mod a)
 anchor = DocAName . T.unpack <$>
-         disallowNewline ("#" *> takeWhile1_ (/= '#') <* "#")
+         ("#" *> takeWhile1_ (\x -> x /= '#' && not (isSpace x)) <* "#")
 
 -- | Monospaced strings.
 --
@@ -242,12 +242,18 @@ monospace = DocMonospaced . parseParagraph
 -- Note that we allow '#' and '\' to support anchors (old style anchors are of
 -- the form "SomeModule\#anchor").
 moduleName :: Parser (DocH mod a)
-moduleName = DocModule <$> ("\"" *> modid <* "\"")
+moduleName = DocModule <$> ("\"" *> (modid `maybeFollowedBy` anchor_) <* "\"")
   where
     modid = intercalate "." <$> conid `Parsec.sepBy1` "."
+    anchor_ = (++)
+      <$> (Parsec.string "#" <|> Parsec.string "\\#")
+      <*> many (Parsec.satisfy (\c -> c /= '"' && not (isSpace c)))
+
+    maybeFollowedBy pre suf = (\x -> maybe x (x ++)) <$> pre <*> optional suf
+
     conid = (:)
       <$> Parsec.satisfy (\c -> isAlpha c && isUpper c)
-      <*> many (conChar <|> Parsec.oneOf "\\#")
+      <*> many conChar
 
     conChar = Parsec.alphaNum <|> Parsec.char '_'
 
