@@ -15,22 +15,12 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         cabal: ["3.2"]
         ghc:
-          - "8.6.5"
-          - "8.8.3"
           - "8.10.1"
-        exclude:
-          - os: macOS-latest
-            ghc: 8.8.3
-          - os: macOS-latest
-            ghc: 8.6.5
-          - os: windows-latest
-            ghc: 8.8.3
-          - os: windows-latest
-            ghc: 8.6.5
+          - "8.10.2"
 
     steps:
     - uses: actions/checkout@v2
-      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
+      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/ghc-8.10'
 
     - uses: actions/setup-haskell@v1.1.1
       id: setup-haskell-cabal
@@ -64,11 +54,11 @@ jobs:
     strategy:
       matrix:
         stack: ["2.3.1"]
-        ghc: ["8.8.3"]
+        ghc: ["8.10.2"]
 
     steps:
     - uses: actions/checkout@v2
-      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
+      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/ghc-8.10'
 
     - uses: actions/setup-haskell@v1.1
       name: Setup Haskell Stack
