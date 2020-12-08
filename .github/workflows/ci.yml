@@ -4,7 +4,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: ["ghc-8.10"]
 
 jobs:
   cabal:
