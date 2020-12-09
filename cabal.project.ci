@@ -4,7 +4,8 @@ packages: ./
           ./haddock-test
 
 allow-older: base
-          
+           , ghc
+
 -- Make head.hackage the primary repository
 active-repositories: :rest, head.hackage
 
