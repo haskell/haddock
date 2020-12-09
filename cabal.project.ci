@@ -3,4 +3,11 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
-index-state: 2020-12-08T20:13:44Z
+-- Make head.hackage the primary repository
+active-repositories: :rest, head.hackage
+
+-- Pin repository state to help determinism
+index-state:
+  , hackage.haskell.org 2020-12-08T20:13:44Z
+  , head.hackage 2020-12-08T20:13:44Z
+
