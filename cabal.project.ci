@@ -4,6 +4,8 @@ packages: ./
           ./haddock-test
 
 allow-newer: Cabal:time
+           , ghc-paths:Cabal
+
 allow-older: haddock-api:base
            , haddock-api:ghc
 
