@@ -4,6 +4,7 @@ packages: ./
           ./haddock-test
 
 allow-newer: Cabal:time
+allow-older: haddock-api:base
 
 -- Make head.hackage the primary repository
 active-repositories: :rest, head.hackage
