@@ -30,7 +30,7 @@ jobs:
 
     - name: Freeze
       run: |
-        cabal freeze
+        cabal freeze --project-file cabal.project.ci
 
     - uses: actions/cache@v1
       name: Cache ~/.cabal/store
@@ -40,9 +40,9 @@ jobs:
 
     - name: Build
       run: |
-        cabal configure --enable-tests --enable-benchmarks --test-show-details=direct
-        cabal build all
+        cabal configure --project-file cabal.project.ci --enable-tests --enable-benchmarks --test-show-details=direct
+        cabal build all --project-file cabal.project.ci
 
     - name: Test
       run: |
-        cabal test all
+        cabal test all --project-file cabal.project.ci

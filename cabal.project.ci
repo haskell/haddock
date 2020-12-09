@@ -1,0 +1,6 @@
+packages: ./
+          ./haddock-api
+          ./haddock-library
+          ./haddock-test
+
+index-state: 2020-12-08T20:13:44Z
