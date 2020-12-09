@@ -3,8 +3,7 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
-allow-older: base
-           , ghc
+allow-newer: Cabal:time
 
 -- Make head.hackage the primary repository
 active-repositories: :rest, head.hackage
