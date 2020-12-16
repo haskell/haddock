@@ -292,7 +292,7 @@ mkWarningMap dflags warnings gre exps = case warnings of
     let ws' = [ (n, w)
               | (occ, w) <- ws
               , elt <- lookupGlobalRdrEnv gre occ
-              , let n = gre_name elt, n `elem` exps ]
+              , let n = greInternalName elt, n `elem` exps ]
     in M.fromList <$> traverse (bitraverse pure (parseWarning dflags gre)) ws'
 
 moduleWarning :: DynFlags -> GlobalRdrEnv -> Warnings -> ErrMsgM (Maybe (Doc Name))
@@ -693,7 +693,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
           filter isDataConName (availSubordinates avail)
 
 availSubordinates :: AvailInfo -> [Name]
-availSubordinates = map childName . availSubordinateChildren
+availSubordinates = map greNameInternal . availSubordinateGreNames
 
 availNoDocs :: AvailInfo -> [(Name, DocForDecl Name)]
 availNoDocs avail =
