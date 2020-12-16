@@ -61,7 +61,7 @@ import GHC.Data.FastString (unpackFS)
 import GHC.Tc.Types (tcg_rdr_env)
 import GHC.Types.Name (nameIsFromExternalPackage, nameOccName)
 import GHC.Types.Name.Occurrence (isTcOcc)
-import GHC.Types.Name.Reader (unQualOK, greInternalName, globalRdrEnvElts)
+import GHC.Types.Name.Reader (unQualOK, greMangledName, globalRdrEnvElts)
 import GHC.Utils.Error (withTimingD)
 import GHC.HsToCore.Docs
 
@@ -173,7 +173,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
           home_unit = mkHomeUnitFromFlags (hsc_dflags hsc_env)
           !mods = mkModuleSet [ nameModule name
                               | gre <- globalRdrEnvElts new_rdr_env
-                              , let name = greInternalName gre
+                              , let name = greMangledName gre
                               , nameIsFromExternalPackage home_unit name
                               , isTcOcc (nameOccName name)   -- Types and classes only
                               , unQualOK gre ]               -- In scope unqualified
