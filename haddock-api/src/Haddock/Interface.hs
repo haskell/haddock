@@ -165,9 +165,15 @@ processModule verbosity modsum flags modMap instIfaceMap = do
       return Nothing
     NotBoot -> do
       out verbosity verbose "Creating interface..."
+
+      let
+        mod_summary = pm_mod_summary (tm_parsed_module tm)
+        tcg_gbl_env = fst (tm_internals_ tm)
+
       (interface, msgs) <- {-# SCC createIterface #-}
                           withTimingD "createInterface" (const ()) $ do
-                            runWriterGhc $ createInterface tm flags modMap instIfaceMap
+                            runWriterGhc $ createInterface1 flags mod_summary
+                              tcg_gbl_env modMap instIfaceMap
 
       -- We need to keep track of which modules were somehow in scope so that when
       -- Haddock later looks for instances, it also looks in these modules too.
