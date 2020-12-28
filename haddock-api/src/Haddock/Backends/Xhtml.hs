@@ -102,9 +102,9 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
       themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
-    when withQuickjump $
-      ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
-        visible_ifaces []
+  when withQuickjump $
+    ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
+      visible_ifaces []
 
   mapM_ (ppHtmlModule odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url
