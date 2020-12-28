@@ -11,10 +11,11 @@
 -- Stability   :  experimental
 -- Portability :  portable
 -----------------------------------------------------------------------------
-{-# LANGUAGE CPP, NamedFieldPuns #-}
+{-# LANGUAGE CPP, NamedFieldPuns, TupleSections, TypeApplications #-}
 module Haddock.Backends.Xhtml (
   ppHtml, copyHtmlBits,
   ppHtmlIndex, ppHtmlContents,
+  ppJsonIndex
 ) where
 
 
@@ -38,12 +39,16 @@ import Haddock.GhcUtils
 
 import Control.Monad         ( when, unless )
 import qualified Data.ByteString.Builder as Builder
+import Data.Bifunctor        ( bimap )
 import Data.Char             ( toUpper, isSpace )
+import Data.Either           ( partitionEithers )
+import Data.Foldable         ( traverse_)
 import Data.List             ( sortBy, isPrefixOf, intersperse )
 import Data.Maybe
 import System.Directory
 import System.FilePath hiding ( (</>) )
 import qualified System.IO as IO
+import qualified System.FilePath as FilePath
 import Data.Map              ( Map )
 import qualified Data.Map as Map hiding ( Map )
 import qualified Data.Set as Set hiding ( Set )
@@ -99,7 +104,7 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
 
     when withQuickjump $
       ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
-        visible_ifaces
+        visible_ifaces []
 
   mapM_ (ppHtmlModule odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url
@@ -361,6 +366,35 @@ mkNode pkg qual ss p (Node s leaf _pkg srcPkg short ts) =
 -- * Generate the index
 --------------------------------------------------------------------------------
 
+data JsonIndexEntry = JsonIndexEntry {
+      jieHtmlFragment :: String,
+      jieName         :: String,
+      jieModule       :: String,
+      jieLink         :: String
+    }
+  deriving Show
+
+instance ToJSON JsonIndexEntry where
+    toJSON JsonIndexEntry
+        { jieHtmlFragment
+        , jieName
+        , jieModule
+        , jieLink } =
+      Object
+        [ "display_html" .= String jieHtmlFragment
+        , "name"         .= String jieName
+        , "module"       .= String jieModule
+        , "link"         .= String jieLink
+        ]
+
+instance FromJSON JsonIndexEntry where
+    parseJSON = withObject "JsonIndexEntry" $ \v ->
+      JsonIndexEntry
+        <$> v .: "display_html"
+        <*> v .: "name"
+        <*> v .: "module"
+        <*> v .: "link"
+
 ppJsonIndex :: FilePath
            -> SourceURLs                   -- ^ The source URL (--source)
            -> WikiURLs                     -- ^ The wiki URL (--wiki)
@@ -368,34 +402,50 @@ ppJsonIndex :: FilePath
            -> Maybe Package
            -> QualOption
            -> [Interface]
+           -> [FilePath]                   -- ^ file paths to interface files
+                                           -- (--read-interface)
            -> IO ()
-ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = do
+ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces installedIfacesPaths = do
   createDirectoryIfMissing True odir
-  IO.withBinaryFile (joinPath [odir, indexJsonFile]) IO.WriteMode $ \h -> do
-    Builder.hPutBuilder h (encodeToBuilder modules)
+  (errors, installedIndexes) <-
+    partitionEithers
+      <$> traverse
+            (\ifaceFile ->
+              let indexFile = takeDirectory ifaceFile
+                    FilePath.</> "doc-index.json" in
+                  bimap (indexFile,) (map (fixLink ifaceFile))
+              <$> eitherDecodeFile @[JsonIndexEntry] indexFile)
+            installedIfacesPaths
+  traverse_ (\(indexFile, err) -> putStrLn $ "haddock: Coudn't parse " ++ indexFile ++ ": " ++ err)
+            errors
+  IO.withBinaryFile (joinPath [odir, indexJsonFile]) IO.WriteMode $ \h ->
+      Builder.hPutBuilder
+        h (encodeToBuilder (encodeIndexes (concat installedIndexes)))
   where
-    modules :: Value
-    modules = Array (concatMap goInterface ifaces)
+    encodeIndexes :: [JsonIndexEntry] -> Value
+    encodeIndexes installedIndexes =
+      toJSON
+        (concatMap fromInterface ifaces
+         ++ installedIndexes)
 
-    goInterface :: Interface -> [Value]
-    goInterface iface =
-        concatMap (goExport mdl qual) (ifaceRnExportItems iface)
+    fromInterface :: Interface -> [JsonIndexEntry]
+    fromInterface iface =
+        mkIndex mdl qual `mapMaybe` ifaceRnExportItems iface
       where
         aliases = ifaceModuleAliases iface
         qual    = makeModuleQual qual_opt aliases mdl
         mdl     = ifaceMod iface
 
-    goExport :: Module -> Qualification -> ExportItem DocNameI -> [Value]
-    goExport mdl qual item
+    mkIndex :: Module -> Qualification -> ExportItem DocNameI -> Maybe JsonIndexEntry
+    mkIndex mdl qual item
       | Just item_html <- processExport True links_info unicode pkg qual item
-      = [ Object
-            [ "display_html" .= String (showHtmlFragment item_html)
-            , "name"         .= String (unwords (map getOccString names))
-            , "module"       .= String (moduleString mdl)
-            , "link"         .= String (fromMaybe "" (listToMaybe (map (nameLink mdl) names)))
-            ]
-        ]
-      | otherwise = []
+      = Just JsonIndexEntry
+          { jieHtmlFragment = showHtmlFragment item_html
+          , jieName         = unwords (map getOccString names)
+          , jieModule       = moduleString mdl
+          , jieLink         = fromMaybe "" (listToMaybe (map (nameLink mdl) names))
+          }
+      | otherwise = Nothing
       where
         names = exportName item ++ exportSubs item
 
@@ -412,6 +462,14 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
     nameLink mdl = moduleNameUrl' (moduleName mdl) . nameOccName . getName
 
     links_info = (maybe_source_url, maybe_wiki_url)
+
+    -- update link using relative path to output directory
+    fixLink :: FilePath
+            -> JsonIndexEntry -> JsonIndexEntry
+    fixLink ifaceFile jie = 
+      jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
+                        FilePath.</> jieLink jie }
+
 
 ppHtmlIndex :: FilePath
             -> String
