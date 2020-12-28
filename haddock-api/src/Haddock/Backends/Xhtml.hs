@@ -128,7 +128,8 @@ copyHtmlBits odir libdir themes withQuickjump = do
 
 headHtml :: String -> Themes -> Maybe String -> Maybe String -> Html
 headHtml docTitle themes mathjax_url base_url =
-  header <<
+      header ! (maybe [] (\url -> [identifier "head", strAttr "data-base-url" url ]) base_url)
+    <<
     [ meta ! [ httpequiv "Content-Type", content "text/html; charset=UTF-8"]
     , meta ! [ XHtml.name "viewport", content "width=device-width, initial-scale=1"]
     , thetitle << docTitle
