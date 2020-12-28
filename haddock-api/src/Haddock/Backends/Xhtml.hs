@@ -73,6 +73,7 @@ ppHtml :: UnitState
        -> Maybe String                 -- ^ The mathjax URL (--mathjax)
        -> SourceURLs                   -- ^ The source URL (--source)
        -> WikiURLs                     -- ^ The wiki URL (--wiki)
+       -> BaseURL                      -- ^ The base URL (--base-url)
        -> Maybe String                 -- ^ The contents URL (--use-contents)
        -> Maybe String                 -- ^ The index URL (--use-index)
        -> Bool                         -- ^ Whether to use unicode in output (--use-unicode)
@@ -84,7 +85,7 @@ ppHtml :: UnitState
 
 ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
         themes maybe_mathjax_url maybe_source_url maybe_wiki_url
-        maybe_contents_url maybe_index_url unicode
+        maybe_base_url maybe_contents_url maybe_index_url unicode
         pkg qual debug withQuickjump = do
   let
     visible_ifaces = filter visible ifaces
@@ -107,7 +108,7 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
       visible_ifaces []
 
   mapM_ (ppHtmlModule odir doctitle themes
-           maybe_mathjax_url maybe_source_url maybe_wiki_url
+           maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
            maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
 
 
@@ -124,16 +125,22 @@ copyHtmlBits odir libdir themes withQuickjump = do
   return ()
 
 
-headHtml :: String -> Themes -> Maybe String -> Html
-headHtml docTitle themes mathjax_url =
+headHtml :: String -> Themes -> Maybe String -> Maybe String -> Html
+headHtml docTitle themes mathjax_url base_url =
   header <<
     [ meta ! [ httpequiv "Content-Type", content "text/html; charset=UTF-8"]
     , meta ! [ XHtml.name "viewport", content "width=device-width, initial-scale=1"]
     , thetitle << docTitle
-    , styleSheet themes
-    , thelink ! [ rel "stylesheet", thetype "text/css", href quickJumpCssFile] << noHtml
+    , styleSheet base_url themes
+    , thelink ! [ rel "stylesheet"
+                , thetype "text/css"
+                , href (withBaseURL base_url quickJumpCssFile) ]
+             << noHtml
     , thelink ! [ rel "stylesheet", thetype "text/css", href fontUrl] << noHtml
-    , script ! [src haddockJsFile, emptyAttr "async", thetype "text/javascript"] << noHtml
+    , script ! [ src (withBaseURL base_url haddockJsFile)
+               , emptyAttr "async"
+               , thetype "text/javascript" ]
+            << noHtml
     , script ! [thetype "text/x-mathjax-config"] << primHtml mjConf
     , script ! [src mjUrl, thetype "text/javascript"] << noHtml
     ]
@@ -286,7 +293,7 @@ ppHtmlContents state odir doctitle _maybe_package
          | iface <- ifaces
          , instIsSig iface]
       html =
-        headHtml doctitle themes mathjax_url +++
+        headHtml doctitle themes mathjax_url Nothing +++
         bodyHtml doctitle Nothing
           maybe_source_url maybe_wiki_url
           Nothing maybe_index_url << [
@@ -499,7 +506,7 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
   where
     indexPage showLetters ch items =
-      headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes maybe_mathjax_url +++
+      headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes maybe_mathjax_url Nothing +++
       bodyHtml doctitle Nothing
         maybe_source_url maybe_wiki_url
         maybe_contents_url Nothing << [
@@ -599,11 +606,11 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
 ppHtmlModule
         :: FilePath -> String -> Themes
-        -> Maybe String -> SourceURLs -> WikiURLs
+        -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
         -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
 ppHtmlModule odir doctitle themes
-  maybe_mathjax_url maybe_source_url maybe_wiki_url
+  maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
   maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
   let
       mdl = ifaceMod iface
@@ -621,7 +628,7 @@ ppHtmlModule odir doctitle themes
         = toHtml mdl_str
       real_qual = makeModuleQual qual aliases mdl
       html =
-        headHtml mdl_str_annot themes maybe_mathjax_url +++
+        headHtml mdl_str_annot themes maybe_mathjax_url maybe_base_url +++
         bodyHtml doctitle (Just iface)
           maybe_source_url maybe_wiki_url
           maybe_contents_url maybe_index_url << [

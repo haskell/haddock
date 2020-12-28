@@ -47,7 +47,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import Data.Bifunctor (second)
 import Data.Foldable (forM_, foldl')
 import Data.Traversable (for)
-import Data.List (isPrefixOf, nub)
+import Data.List (find, isPrefixOf, nub)
 import Control.Exception
 import Data.Maybe
 import Data.IORef
@@ -295,6 +295,7 @@ render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrc
     unicode              = Flag_UseUnicode `elem` flags
     pretty               = Flag_PrettyHtml `elem` flags
     opt_wiki_urls        = wikiUrls          flags
+    opt_base_url         = baseUrl           flags
     opt_contents_url     = optContentsUrl    flags
     opt_index_url        = optIndexUrl       flags
     odir                 = outputDir         flags
@@ -377,6 +378,13 @@ render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrc
   themes   <- getThemes libDir flags >>= either bye return
 
   let withQuickjump = Flag_QuickJumpIndex `elem` flags
+      withBaseURL = isJust
+                  . find (\flag -> case flag of
+                           Flag_BaseURL base_url ->
+                             base_url /= "." && base_url /= "./"
+                           _ -> False
+                         )
+                  $ flags
 
   when (Flag_GenIndex `elem` flags) $ do
     withTiming logger "ppHtmlIndex" (const ()) $ do
@@ -386,7 +394,8 @@ render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrc
                   allVisibleIfaces pretty
       return ()
 
-    copyHtmlBits odir libDir themes withQuickjump
+    unless withBaseURL $
+      copyHtmlBits odir libDir themes withQuickjump
 
   when (Flag_GenContents `elem` flags) $ do
     withTiming logger "ppHtmlContents" (const ()) $ do
@@ -409,12 +418,13 @@ render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrc
       _ <- {-# SCC ppHtml #-}
            ppHtml unit_state title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
-                  themes opt_mathjax sourceUrls' opt_wiki_urls
+                  themes opt_mathjax sourceUrls' opt_wiki_urls opt_base_url
                   opt_contents_url opt_index_url unicode sincePkg qual
                   pretty withQuickjump
       return ()
-    copyHtmlBits odir libDir themes withQuickjump
-    writeHaddockMeta odir withQuickjump
+    unless withBaseURL $ do
+      copyHtmlBits odir libDir themes withQuickjump
+      writeHaddockMeta odir withQuickjump
 
   -- TODO: we throw away Meta for both Hoogle and LaTeX right now,
   -- might want to fix that if/when these two get some work on them
