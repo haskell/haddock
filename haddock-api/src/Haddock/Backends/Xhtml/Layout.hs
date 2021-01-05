@@ -153,16 +153,16 @@ subTable pkg qual decls = Just $ table << aboves (concatMap subRow decls)
 
 -- | Sub table with source information (optional).
 subTableSrc :: Maybe Package -> Qualification -> LinksInfo -> Bool
-            -> [(SubDecl, Maybe Module, Located DocName)] -> Maybe Html
+            -> [(String, SubDecl, Maybe Module, Located DocName)] -> Maybe Html
 subTableSrc _ _ _ _ [] = Nothing
 subTableSrc pkg qual lnks splice decls = Just $ table << aboves (concatMap subRow decls)
   where
-    subRow ((decl, mdoc, subs), mdl, L loc dn) =
+    subRow (instanchor, (decl, mdoc, subs), mdl, L loc dn) =
       (td ! [theclass "src clearfix"] <<
         (thespan ! [theclass "inst-left"] << decl)
         <+> linkHtml loc mdl dn
       <->
-      docElement td << fmap (docToHtml Nothing pkg qual) mdoc
+      docElement td << fmap (docToHtml (Just instanchor) pkg qual) mdoc
       )
       : map (cell . (td <<)) subs
 
@@ -201,7 +201,7 @@ subEquations pkg qual = divSubDecls "equations" "Equations" . subTable pkg qual
 subInstances :: Maybe Package -> Qualification
              -> String -- ^ Class name, used for anchor generation
              -> LinksInfo -> Bool
-             -> [(SubDecl, Maybe Module, Located DocName)] -> Html
+             -> [(String, SubDecl, Maybe Module, Located DocName)] -> Html
 subInstances pkg qual nm lnks splice = maybe noHtml wrap . instTable
   where
     wrap contents = subSection (hdr +++ collapseDetails id_ DetailsOpen (summary +++ contents))
@@ -214,7 +214,7 @@ subInstances pkg qual nm lnks splice = maybe noHtml wrap . instTable
 
 subOrphanInstances :: Maybe Package -> Qualification
                    -> LinksInfo -> Bool
-                   -> [(SubDecl, Maybe Module, Located DocName)] -> Html
+                   -> [(String, SubDecl, Maybe Module, Located DocName)] -> Html
 subOrphanInstances pkg qual lnks splice  = maybe noHtml wrap . instTable
   where
     wrap = ((h1 << "Orphan instances") +++)
