@@ -47,9 +47,10 @@ import           Data.Version
 import           Control.Applicative
 import           GHC.Data.FastString
 import           GHC ( DynFlags, Module, moduleUnit, unitState )
+import           GHC.Unit.Info ( PackageName(..), unitPackageName, unitPackageVersion )
+import           GHC.Unit.State ( lookupUnit  )
 import           Haddock.Types
 import           Haddock.Utils
-import           GHC.Unit.State
 import           System.Console.GetOpt
 import qualified Text.ParserCombinators.ReadP as RP
 

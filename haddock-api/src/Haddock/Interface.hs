@@ -55,10 +55,11 @@ import GHC hiding (verbosity)
 import GHC.Data.Graph.Directed
 import GHC.Driver.Session hiding (verbosity)
 import GHC.Driver.Types (isBootSummary)
-import GHC.Driver.Monad (Session(..), modifySession, reflectGhc)
+import GHC.Driver.Monad (modifySession)
 import GHC.Data.FastString (unpackFS)
-import GHC.Tc.Types (TcGblEnv(..))
-import GHC.Tc.Utils.Monad (getTopEnv)
+import GHC.Tc.Types (TcM, TcGblEnv(..))
+import GHC.Tc.Utils.Monad (setGblEnv)
+import GHC.Tc.Utils.Env (tcLookupGlobal)
 import GHC.Types.Name (nameIsFromExternalPackage, nameOccName)
 import GHC.Types.Name.Occurrence (isTcOcc)
 import GHC.Types.Name.Reader (unQualOK, gre_name, globalRdrEnvElts)
@@ -200,7 +201,7 @@ plugin verbosity flags instIfaceMap = liftIO $ do
   moduleSetRef <- newIORef emptyModuleSet
 
   let
-    processTypeCheckedResult :: ModSummary -> TcGblEnv -> Ghc ()
+    processTypeCheckedResult :: ModSummary -> TcGblEnv -> TcM ()
     processTypeCheckedResult mod_summary tc_gbl_env
       -- Don't do anything for hs-boot modules
       | IsBoot <- isBootSummary mod_summary =
@@ -225,11 +226,8 @@ plugin verbosity flags instIfaceMap = liftIO $ do
           paPlugin = defaultPlugin
           {
             renamedResultAction = keepRenamedSource
-          , typeCheckResultAction = \_ mod_summary tc_gbl_env -> do
-              session <- getTopEnv >>= liftIO . newIORef
-              liftIO $ reflectGhc
-                (processTypeCheckedResult mod_summary tc_gbl_env)
-                (Session session)
+          , typeCheckResultAction = \_ mod_summary tc_gbl_env -> setGblEnv tc_gbl_env $ do
+              processTypeCheckedResult mod_summary tc_gbl_env
               pure tc_gbl_env
 
           }
@@ -244,7 +242,6 @@ plugin verbosity flags instIfaceMap = liftIO $ do
     )
 
 
-
 processModule1
   :: Verbosity
   -> [Flag]
@@ -252,7 +249,7 @@ processModule1
   -> InstIfaceMap
   -> ModSummary
   -> TcGblEnv
-  -> Ghc (Interface, ModuleSet)
+  -> TcM (Interface, ModuleSet)
 processModule1 verbosity flags ifaces inst_ifaces mod_summary tc_gbl_env = do
   out verbosity verbose "Creating interface..."
 
@@ -260,15 +257,13 @@ processModule1 verbosity flags ifaces inst_ifaces mod_summary tc_gbl_env = do
     TcGblEnv { tcg_rdr_env } = tc_gbl_env
 
   (!interface, messages) <- {-# SCC createInterface #-}
-    withTimingD "createInterface" (const ()) $
-      runWriterGhc $ createInterface1 flags mod_summary
-        tc_gbl_env ifaces inst_ifaces
+    withTimingD "createInterface" (const ()) $ runIfM (fmap Just . tcLookupGlobal) $
+      createInterface1 flags mod_summary tc_gbl_env ifaces inst_ifaces
 
   -- We need to keep track of which modules were somehow in scope so that when
   -- Haddock later looks for instances, it also looks in these modules too.
   --
   -- See https://github.com/haskell/haddock/issues/469.
-
   dflags <- getDynFlags
   let
     mods :: ModuleSet
