@@ -228,7 +228,7 @@ takeWhile1_ = mfilter (not . T.null) . takeWhile_
 -- DocAName "Hello world"
 anchor :: Parser (DocH mod a)
 anchor = DocAName . T.unpack <$>
-         disallowNewline ("#" *> takeWhile1_ (/= '#') <* "#")
+         ("#" *> takeWhile1_ (\x -> x /= '#' && not (isSpace x)) <* "#")
 
 -- | Monospaced strings.
 --
@@ -243,7 +243,24 @@ monospace = DocMonospaced . parseParagraph
 -- Note that we allow '#' and '\' to support anchors (old style anchors are of
 -- the form "SomeModule\#anchor").
 moduleName :: Parser (DocH mod a)
-moduleName = DocModule . flip ModLink Nothing <$> ("\"" *> moduleNameWithAnchor <* "\"")
+moduleName = DocModule . flip ModLink Nothing <$> ("\"" *> moduleNameString <* "\"")
+
+-- | A module name, not including the enclosing quotation marks.
+moduleNameString :: Parser String
+moduleNameString = modid `maybeFollowedBy` anchor_
+  where
+    modid = intercalate "." <$> conid `Parsec.sepBy1` "."
+    anchor_ = (++)
+      <$> (Parsec.string "#" <|> Parsec.string "\\#")
+      <*> many (Parsec.satisfy (\c -> c /= '"' && not (isSpace c)))
+
+    maybeFollowedBy pre suf = (\x -> maybe x (x ++)) <$> pre <*> optional suf
+
+    conid = (:)
+      <$> Parsec.satisfy (\c -> isAlpha c && isUpper c)
+      <*> many conChar
+
+    conChar = Parsec.alphaNum <|> Parsec.char '_'
 
 -- | A labeled link to an indentifier, module or url using markdown
 -- syntax.
@@ -254,36 +271,13 @@ markdownLink = do
   where
     markdownModuleName lbl = do
       mn <- "(" *> skipHorizontalSpace *>
-            "\"" *> moduleNameWithAnchor <* "\""
+            "\"" *> moduleNameString <* "\""
             <* skipHorizontalSpace <* ")"
       pure $ DocModule (ModLink mn (Just lbl))
 
     markdownURL lbl = do
       target <- markdownLinkTarget
       pure $ DocHyperlink $ Hyperlink target (Just lbl)
-
--- | A module name, optionally with an anchor
---
-moduleNameWithAnchor :: Parser String
-moduleNameWithAnchor = do
-  m <- modName
-  maybeAnchor <- Parsec.optionMaybe $ try $ do
-    hash <- string "#" <|> string "\\#"
-    an <- Parsec.many1 (conChar <|> Parsec.char ':')
-    return $ T.unpack hash ++ an
-  return $ case maybeAnchor of
-             Nothing -> m
-             Just l -> m ++ l
-  where
-    modName :: Parser String
-    modName = intercalate "." <$> conid `Parsec.sepBy1` "."
-
-    conid :: Parser String
-    conid = (:)
-      <$> Parsec.satisfy (\c -> isAlpha c && isUpper c)
-      <*> many conChar
-
-    conChar = Parsec.alphaNum <|> Parsec.char '_'
 
 -- | Picture parser, surrounded by \<\< and \>\>. It's possible to specify
 -- a title for the picture.

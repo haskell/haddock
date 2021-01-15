@@ -307,6 +307,7 @@ ppPrologue pkg qual title (Just doc) =
 
 
 ppSignatureTree :: Maybe Package -> Qualification -> [ModuleTree] -> Html
+ppSignatureTree _ _ [] = mempty
 ppSignatureTree pkg qual ts =
   divModuleList << (sectionName << "Signatures" +++ mkNodeList pkg qual [] "n" ts)
 
@@ -406,7 +407,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces = d
     exportSubs _ = []
 
     exportName :: ExportItem DocNameI -> [IdP DocNameI]
-    exportName ExportDecl { expItemDecl } = getMainDeclBinder (unLoc expItemDecl)
+    exportName ExportDecl { expItemDecl } = getMainDeclBinderI (unLoc expItemDecl)
     exportName ExportNoDecl { expItemName } = [expItemName]
     exportName _ = []
 

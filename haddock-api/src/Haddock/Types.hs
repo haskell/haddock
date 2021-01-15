@@ -39,6 +39,7 @@ import Data.Void (Void)
 import Documentation.Haddock.Types
 import BasicTypes (Fixity(..), PromotionFlag(..))
 
+import Exception (ExceptionMonad(..), ghandle)
 import GHC
 import DynFlags (Language)
 import qualified GHC.LanguageExtensions as LangExt
@@ -652,17 +653,28 @@ tell w = Writer ((), w)
 
 
 -- | Haddock's own exception type.
-data HaddockException = HaddockException String deriving Typeable
+data HaddockException
+  = HaddockException String
+  | WithContext [String] SomeException
+  deriving Typeable
 
 
 instance Show HaddockException where
   show (HaddockException str) = str
-
+  show (WithContext ctxts se)  = unlines $ ["While " ++ ctxt ++ ":\n" | ctxt <- reverse ctxts] ++ [show se]
 
 throwE :: String -> a
 instance Exception HaddockException
 throwE str = throw (HaddockException str)
 
+withExceptionContext :: ExceptionMonad m => String -> m a -> m a
+withExceptionContext ctxt =
+  ghandle (\ex ->
+      case ex of
+        HaddockException e -> throw $ WithContext [ctxt] (toException ex)
+        WithContext ctxts se -> throw $ WithContext (ctxt:ctxts) se
+          ) .
+  ghandle (throw . WithContext [ctxt])
 
 -- In "Haddock.Interface.Create", we need to gather
 -- @Haddock.Types.ErrMsg@s a lot, like @ErrMsgM@ does,
@@ -696,6 +708,12 @@ instance Monad ErrMsgGhc where
 
 instance MonadIO ErrMsgGhc where
   liftIO m = WriterGhc (fmap (\x -> (x, [])) (liftIO m))
+
+instance ExceptionMonad ErrMsgGhc where
+  gcatch act hand = WriterGhc $
+    runWriterGhc act `gcatch` (runWriterGhc . hand)
+  gmask act = WriterGhc $ gmask $ \mask ->
+    runWriterGhc $ act (WriterGhc . mask . runWriterGhc)
 
 -----------------------------------------------------------------------------
 -- * Pass sensitive types
@@ -774,6 +792,7 @@ type instance XDataDecl     DocNameI = NoExtField
 type instance XSynDecl      DocNameI = NoExtField
 type instance XFamDecl      DocNameI = NoExtField
 type instance XXFamilyDecl  DocNameI = NoExtCon
+type instance XXTyClDecl    DocNameI = NoExtCon
 
 type instance XHsIB             DocNameI _ = NoExtField
 type instance XHsWC             DocNameI _ = NoExtField

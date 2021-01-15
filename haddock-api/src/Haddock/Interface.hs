@@ -111,7 +111,7 @@ processModules verbosity modules flags extIfaces = do
   let warnings = Flag_NoWarnings `notElem` flags
   dflags <- getDynFlags
   let (interfaces'', msgs) =
-         runWriter $ mapM (renameInterface dflags links warnings) interfaces'
+         runWriter $ mapM (renameInterface dflags (ignoredSymbols flags) links warnings) interfaces'
   liftIO $ mapM_ putStrLn msgs
 
   return (interfaces'', homeLinks)
@@ -182,7 +182,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
     liftIO $ mapM_ putStrLn (nub msgs)
     dflags <- getDynFlags
     let (haddockable, haddocked) = ifaceHaddockCoverage interface
-        percentage = round (fromIntegral haddocked * 100 / fromIntegral haddockable :: Double) :: Int
+        percentage = div (haddocked * 100) haddockable
         modString = moduleString (ifaceMod interface)
         coverageMsg = printf " %3d%% (%3d /%3d) in '%s'" percentage haddocked haddockable modString
         header = case ifaceDoc interface of
