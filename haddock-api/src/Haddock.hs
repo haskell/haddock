@@ -1,7 +1,10 @@
-{-# OPTIONS_GHC -Wwarn #-}
-{-# LANGUAGE CPP, ScopedTypeVariables, OverloadedStrings, Rank2Types #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE Rank2Types          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
+{-# OPTIONS_GHC -Wwarn           #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock
