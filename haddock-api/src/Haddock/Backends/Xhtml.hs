@@ -54,7 +54,6 @@ import qualified Data.Map as Map hiding ( Map )
 import qualified Data.Set as Set hiding ( Set )
 import Data.Ord              ( comparing )
 
-import GHC.Driver.Session (Language(..))
 import GHC hiding ( NoLink, moduleInfo,LexicalFixity(..) )
 import GHC.Types.Name
 import GHC.Unit.State
@@ -478,7 +477,6 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
     fixLink ifaceFile jie = 
       jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
                         FilePath.</> jieLink jie }
-
 
 ppHtmlIndex :: FilePath
             -> String
