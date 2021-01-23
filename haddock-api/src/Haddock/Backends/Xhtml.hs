@@ -478,7 +478,6 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
       jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
                         FilePath.</> jieLink jie }
 
-
 ppHtmlIndex :: FilePath
             -> String
             -> Maybe String
