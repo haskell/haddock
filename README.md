@@ -46,7 +46,7 @@ The `cabal v2-build` takes care of this automatically.
 Requires cabal `>= 3.4` and GHC `== 9.0`:
 
 ```bash
-cabal build all --enable-tests --enable-benchmarks
+cabal build all --enable-tests
 cabal test all
 ```
 
