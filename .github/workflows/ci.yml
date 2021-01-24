@@ -14,6 +14,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]  # TODO: add macOS/Windows
     steps:
+    - uses: actions/checkout@v2
     - name: Install GHC/Cabal
       run: |
         mkdir -p $HOME/.ghcup/bin
@@ -31,11 +32,6 @@ jobs:
         key: ${{ runner.os }}
     - name: Install dependencies
       run: |
-        echo $(pwd)
-        ls
-        cd ..
-        ls
-        cabal --version
         cabal update
         cabal build --only-dependencies --enable-tests --enable-benchmarks --allow-newer="Cabal"
     - name: Build
