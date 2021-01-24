@@ -31,8 +31,10 @@ jobs:
         key: ${{ runner.os }}
     - name: Install dependencies
       run: |
-        cd "$GITHUB_WORKSPACE" # wtf?
         echo $(pwd)
+        ls
+        cd ..
+        ls
         cabal --version
         cabal update
         cabal build --only-dependencies --enable-tests --enable-benchmarks --allow-newer="Cabal"
