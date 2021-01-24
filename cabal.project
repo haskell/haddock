@@ -3,6 +3,8 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
+with-compiler: ghc-9.0
+
 allow-newer:
   ghc-paths:Cabal,
   *:base,
