@@ -18,6 +18,7 @@ jobs:
       run: |
         mkdir -p $HOME/.ghcup/bin
         curl -Lf "https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup" > $HOME/.ghcup/bin/ghcup
+        chmod u+x $HOME/.ghcup/bin/ghcup
         export PATH="$HOME/.cabal/bin:$HOME/.ghcup/bin:$PATH"
         ghcup install ghc 9.0.0.20201227
         ghcup install cabal 3.4.0.0-rc4
