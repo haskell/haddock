@@ -15,12 +15,18 @@ jobs:
         os: [ubuntu-latest]  # TODO: add macOS/Windows
     steps:
     - uses: actions/checkout@v2
-    - uses: haskell/actions/setup@v1
-      id: setup-haskell-cabal
-      name: Setup Haskell
-      with:
-        ghc-version: "9.0.0.20201227"
-        cabal-version: "3.4"
+    - name: Install GHC/Cabal
+      run: |
+        mkdir -p $HOME/.ghcup/bin
+        curl -Lf "https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup" > $HOME/.ghcup/bin/ghcup
+        chmod u+x $HOME/.ghcup/bin/ghcup
+        export PATH="$HOME/.cabal/bin:$HOME/.ghcup/bin:$PATH"
+        echo "$HOME/.cabal/bin" >> $GITHUB_PATH
+        echo "$HOME/.ghcup/bin" >> $GITHUB_PATH
+        ghcup install ghc 9.0.0.20201227
+        ghcup install cabal 3.4.0.0-rc4
+        ghcup set ghc 9.0.0.20201227
+        ghcup set cabal 3.4.0.0-rc4
     - name: Cache
       uses: actions/cache@v1
       with:
