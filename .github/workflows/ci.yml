@@ -31,6 +31,8 @@ jobs:
         key: ${{ runner.os }}
     - name: Install dependencies
       run: |
+        echo $(pwd)
+        cabal --version
         cabal update
         cabal build --only-dependencies --enable-tests --enable-benchmarks --allow-newer="Cabal"
     - name: Build
