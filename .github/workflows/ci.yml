@@ -16,7 +16,9 @@ jobs:
     steps:
     - name: Install GHC/Cabal
       run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+        mkdir -p $HOME/.ghcup/bin
+        curl -Lf "https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup" > $HOME/.ghcup/bin/ghcup
+        export PATH="$HOME/.cabal/bin:$HOME/.ghcup/bin:$PATH"
         ghcup install ghc 9.0.0.20201227
         ghcup install cabal 3.4.0.0-rc4
         ghcup set ghc 9.0.0.20201227
