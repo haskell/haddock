@@ -76,6 +76,7 @@ import GHC.Settings.Config
 import GHC.Driver.Session hiding (projectVersion, verbosity)
 import GHC.Driver.Env
 import GHC.Utils.Error
+import GHC.Types.Name.Cache
 import GHC.Unit
 import GHC.Unit.State (lookupUnit)
 import GHC.Utils.Panic (handleGhcException)
@@ -194,8 +195,9 @@ haddockWithGhc ghc args = handleTopExceptions $ do
     unit_state <- hsc_units <$> getSession
 
     forM_ (optShowInterfaceFile flags) $ \path -> liftIO $ do
-      mIfaceFile <- readInterfaceFiles freshNameCache [(("", Nothing), Visible, path)] noChecks
-      forM_ mIfaceFile $ \(_,_,_, ifaceFile) -> do
+      name_cache <- freshNameCache
+      mIfaceFile <- readInterfaceFiles name_cache [(("", Nothing), path)] noChecks
+      forM_ mIfaceFile $ \(_, ifaceFile) -> do
         putMsg logger dflags $ renderJson (jsonInterfaceFile ifaceFile)
 
     if not (null files) then do
@@ -222,7 +224,8 @@ haddockWithGhc ghc args = handleTopExceptions $ do
         throwE "No input file(s)."
 
       -- Get packages supplied with --read-interface.
-      packages <- liftIO $ readInterfaceFiles freshNameCache (readIfaceArgs flags) noChecks
+      name_cache <- liftIO $ freshNameCache
+      packages <- liftIO $ readInterfaceFiles name_cache (readIfaceArgs flags) noChecks
 
       -- Render even though there are no input files (usually contents/index).
       liftIO $ renderStep logger dflags unit_state flags sinceQual qual packages []
@@ -265,7 +268,8 @@ readPackagesAndProcessModules :: [Flag] -> [String]
 readPackagesAndProcessModules flags files = do
     -- Get packages supplied with --read-interface.
     let noChecks = Flag_BypassInterfaceVersonCheck `elem` flags
-    packages <- readInterfaceFiles nameCacheFromGhc (readIfaceArgs flags) noChecks
+    name_cache <- hsc_NC <$> getSession
+    packages <- liftIO $ readInterfaceFiles name_cache (readIfaceArgs flags) noChecks
 
     -- Create the interfaces -- this is the core part of Haddock.
     let ifaceFiles = map (\(_, _, _, ifaceFile) -> ifaceFile) packages
@@ -516,26 +520,22 @@ render logger dflags unit_state flags sinceQual qual ifaces packages extSrcMap =
 -- * Reading and dumping interface files
 -------------------------------------------------------------------------------
 
-
-readInterfaceFiles :: MonadIO m
-                   => NameCacheAccessor m
-                   -> [(DocPaths, Visibility, FilePath)]
+readInterfaceFiles :: NameCache
+                   -> [(DocPaths, FilePath)]
                    -> Bool
-                   -> m [(DocPaths, Visibility, FilePath, InterfaceFile)]
-readInterfaceFiles name_cache_accessor pairs bypass_version_check = do
+                   -> IO [(DocPaths, FilePath, InterfaceFile)]
+readInterfaceFiles name_cache pairs bypass_version_check = do
   catMaybes `liftM` mapM ({-# SCC readInterfaceFile #-} tryReadIface) pairs
   where
     -- try to read an interface, warn if we can't
-    tryReadIface (paths, showModules, file) =
-      readInterfaceFile name_cache_accessor file bypass_version_check >>= \case
-        Left err -> liftIO $ do
+    tryReadIface (paths, file) =
+      readInterfaceFile name_cache file bypass_version_check >>= \case
+        Left err -> do
           putStrLn ("Warning: Cannot read " ++ file ++ ":")
           putStrLn ("   " ++ err)
           putStrLn "Skipping this interface."
           return Nothing
-        Right f ->
-          return (Just (paths, showModules, file, f ))
-
+        Right f -> return (Just (paths, file, f))
 
 -------------------------------------------------------------------------------
 -- * Creating a GHC session
