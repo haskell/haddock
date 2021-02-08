@@ -47,7 +47,6 @@ import GHC.Data.FastString
 import GHC hiding (NoLink)
 import GHC.Types.Name.Cache
 import GHC.Types.Unique.FM
-import GHC.Types.Unique.Supply
 import GHC.Types.Unique
 
 import Haddock.Options (Visibility (..))
@@ -203,10 +202,8 @@ writeInterfaceFile filename iface = do
 
 
 freshNameCache :: IO NameCache
-freshNameCache = do
-  u  <- mkSplitUniqSupply 'a' -- ??
-  pure $ initNameCache u []
-
+freshNameCache = initNameCache 'a' -- ??
+                               []
 -- | Read a Haddock (@.haddock@) interface file. Return either an
 -- 'InterfaceFile' or an error message.
 --
