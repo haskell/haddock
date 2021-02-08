@@ -45,21 +45,11 @@ import GHC.Tc.Utils.Monad (finalSafeMode)
 import GHC.Types.Avail hiding (avail)
 import qualified GHC.Types.Avail  as Avail
 import qualified GHC.Unit.Module as Module
--- <<<<<<< HEAD
 import qualified GHC.Types.SrcLoc as SrcLoc
 import GHC.Core.Class ( ClassMinimalDef, classMinimalDef )
 import GHC.Core.ConLike (ConLike(..))
 import GHC hiding ( lookupName )
 import GHC.Driver.Types
--- =======
--- import GHC.Unit.Module.ModSummary
--- import qualified GHC.Types.SrcLoc as SrcLoc
--- import GHC.Types.SourceFile
--- import GHC.Core.Class
--- import GHC.Core.ConLike (ConLike(..))
--- import GHC hiding (lookupName)
--- import GHC.Driver.Ppr
--- >>>>>>> 703e5f02... Abstract Monad for interface creation
 import GHC.Types.Name
 import GHC.Types.Name.Set
 import GHC.Types.Name.Env
