@@ -44,7 +44,7 @@ so that documentation built within GHC can benefit from it.
 
 #### Using `cabal`
 
-Requires cabal `>= 3.4` and GHC `== 9.0`:
+Building the `ghc-9.0` branch requires cabal `>= 3.4` and GHC `== 9.0`:
 
 ```bash
 cabal v2-build all --enable-tests
