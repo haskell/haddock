@@ -1,4 +1,4 @@
-# Haddock [![CI][CI badge]][CI page] [![Hackage][Hackage badge]][Hackage page]
+# Haddock ![CI][CI] [![Hackage][Hackage badge]][Hackage page]
 
 Haddock is the standard tool for generating documentation from Haskell code.
 Full documentation about Haddock itself can be found in the `doc/` subdirectory,
@@ -25,8 +25,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) to see how to make contributions to the
 project.
 
 
-[CI page]: https://travis-ci.org/haskell/haddock
-[CI badge]: https://travis-ci.org/haskell/haddock.svg?branch=ghc-8.10
+[CI]: https://github.com/haskell/haddock/workflows/CI/badge.svg?branch=ghc-9.0
 [Hackage page]: https://hackage.haskell.org/package/haddock
 [Hackage badge]: https://img.shields.io/hackage/v/haddock.svg
 [ReST]: http://www.sphinx-doc.org/en/stable/rest.html
