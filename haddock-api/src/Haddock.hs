@@ -158,7 +158,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
           Just "YES" -> return $ Flag_OptGhc "-dynamic-too" : flags
           _ -> return flags
 
-  flags' <- pure $ case optParCount flags'' of
+  let flags' = case optParCount flags'' of
     Nothing       -> flags''
     Just Nothing  -> Flag_OptGhc "-j" : flags''
     Just (Just n) -> Flag_OptGhc ("-j" ++ show n) : flags''
