@@ -437,7 +437,7 @@ synifyIdSig prr s vs i = TypeSig noExtField [synifyName i] (synifySigWcType s vs
 -- 'ClassOpSig'.
 synifyTcIdSig :: [TyVar] -> ClassOpItem -> [Sig GhcRn]
 synifyTcIdSig vs (i, dm) =
-  [ ClassOpSig noExtField False [synifyName i] (mainSig (varType i)) ] ++
+  ClassOpSig noExtField False [synifyName i] (mainSig (varType i)) :
   [ ClassOpSig noExtField True [noLoc dn] (defSig dt)
   | Just (dn, GenericDM dt) <- [dm] ]
   where

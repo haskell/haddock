@@ -538,7 +538,7 @@ getHaddockLibDir flags =
       -- under @data-files@ in the Cabal file) will have been copied to a
       -- special directory.
       data_dir <- getDataDir      -- Provided by Cabal
-      let res_dirs = [ data_dir ] ++
+      let res_dirs = data_dir :
 
 #endif
 
