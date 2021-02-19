@@ -106,7 +106,7 @@ processModules verbosity modules flags extIfaces = do
 
   let exportedNames =
         Set.unions $ map (Set.fromList . ifaceExports) $
-        filter (\i -> not $ OptHide `elem` ifaceOptions i) interfaces
+        filter (\i -> OptHide `notElem` ifaceOptions i) interfaces
       mods = Set.fromList $ map ifaceMod interfaces
   out verbosity verbose "Attaching instances..."
   interfaces' <- {-# SCC attachInstances #-}
