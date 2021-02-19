@@ -446,7 +446,7 @@ readInterfaceFiles :: MonadIO m
                    -> Bool
                    -> m [(DocPaths, InterfaceFile)]
 readInterfaceFiles name_cache_accessor pairs bypass_version_check = do
-  catMaybes `liftM` mapM ({-# SCC readInterfaceFile #-} tryReadIface) pairs
+  catMaybes <$> mapM ({-# SCC readInterfaceFile #-} tryReadIface) pairs
   where
     -- try to read an interface, warn if we can't
     tryReadIface (paths, file) =
