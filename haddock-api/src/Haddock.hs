@@ -141,7 +141,6 @@ haddock args = haddockWithGhc withGhc args
 
 haddockWithGhc :: (forall a. [Flag] -> Ghc a -> IO a) -> [String] -> IO ()
 haddockWithGhc ghc args = handleTopExceptions $ do
-
   -- Parse command-line flags and handle some of them initially.
   -- TODO: unify all of this (and some of what's in the 'render' function),
   -- into one function that returns a record with a field for each option,
@@ -159,9 +158,9 @@ haddockWithGhc ghc args = handleTopExceptions $ do
           _ -> return flags
 
   let flags' = case optParCount flags'' of
-    Nothing       -> flags''
-    Just Nothing  -> Flag_OptGhc "-j" : flags''
-    Just (Just n) -> Flag_OptGhc ("-j" ++ show n) : flags''
+                 Nothing       -> flags''
+                 Just Nothing  -> Flag_OptGhc "-j" : flags''
+                 Just (Just n) -> Flag_OptGhc ("-j" ++ show n) : flags''
 
   -- bypass the interface version check
   let noChecks = Flag_BypassInterfaceVersonCheck `elem` flags
