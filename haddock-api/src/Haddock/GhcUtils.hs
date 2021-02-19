@@ -149,7 +149,7 @@ mkHsForAllInvisTeleI invis_bndrs =
   HsForAllInvis { hsf_xinvis = noExtField, hsf_invis_bndrs = invis_bndrs }
 
 getConArgsI :: ConDecl DocNameI -> HsConDeclDetails DocNameI
-getConArgsI d = con_args d
+getConArgsI = con_args
 
 getGADTConType :: ConDecl DocNameI -> LHsType DocNameI
 -- The full type of a GADT data constructor We really only get this in

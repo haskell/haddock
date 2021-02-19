@@ -806,7 +806,7 @@ synifyTyLit (NumTyLit n) = HsNumTy NoSourceText n
 synifyTyLit (StrTyLit s) = HsStrTy NoSourceText s
 
 synifyKindSig :: Kind -> LHsKind GhcRn
-synifyKindSig k = synifyType WithinType [] k
+synifyKindSig = synifyType WithinType []
 
 stripKindSig :: LHsType GhcRn -> LHsType GhcRn
 stripKindSig (L _ (HsKindSig _ t _)) = t
