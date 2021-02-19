@@ -31,7 +31,7 @@ import GHC.Utils.Outputable as Outputable
 import GHC.Parser.Annotation (IsUnicodeSyntax(..))
 
 import Data.Char
-import Data.List
+import Data.List (intercalate, isPrefixOf)
 import Data.Maybe
 import Data.Version
 
@@ -325,7 +325,7 @@ markupTag dflags = Markup {
   markupAppend               = (++),
   markupIdentifier           = box (TagInline "a") . str . out dflags,
   markupIdentifierUnchecked  = box (TagInline "a") . str . showWrapped (out dflags . snd),
-  markupModule               = box (TagInline "a") . str,
+  markupModule               = \(ModLink m label) -> box (TagInline "a") (fromMaybe (str m) label),
   markupWarning              = box (TagInline "i"),
   markupEmphasis             = box (TagInline "i"),
   markupBold                 = box (TagInline "b"),

@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wwarn #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ViewPatterns #-}
   -----------------------------------------------------------------------------
 -- |
@@ -148,7 +149,7 @@ rename dflags gre = rn
       DocDefList list -> DocDefList <$> traverse (\(a, b) -> (,) <$> rn a <*> rn b) list
       DocCodeBlock doc -> DocCodeBlock <$> rn doc
       DocIdentifierUnchecked x -> pure (DocIdentifierUnchecked x)
-      DocModule str -> pure (DocModule str)
+      DocModule (ModLink m l) -> DocModule . ModLink m <$> traverse rn l
       DocHyperlink (Hyperlink u l) -> DocHyperlink . Hyperlink u <$> traverse rn l
       DocPic str -> pure (DocPic str)
       DocMathInline str -> pure (DocMathInline str)

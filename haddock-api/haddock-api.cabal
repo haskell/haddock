@@ -60,6 +60,7 @@ library
                , exceptions
                , filepath
                , ghc-boot
+               , mtl
                , transformers
 
   hs-source-dirs: src
@@ -67,6 +68,7 @@ library
   ghc-options: -funbox-strict-fields -O2
                -Wall
                -Wcompat
+               -Wcompat-unqualified-imports
                -Widentities
                -Wredundant-constraints
                -Wnoncanonical-monad-instances
@@ -189,8 +191,10 @@ test-suite spec
                , containers
                , deepseq
                , directory
+               , exceptions
                , filepath
                , ghc-boot
+               , mtl
                , transformers
 
   build-tool-depends:
