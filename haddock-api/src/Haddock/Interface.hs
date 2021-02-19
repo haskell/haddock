@@ -126,7 +126,7 @@ processModules verbosity modules flags extIfaces = do
 createIfaces :: Verbosity -> [String] -> [Flag] -> InstIfaceMap -> Ghc ([Interface], ModuleSet)
 createIfaces verbosity modules flags instIfaceMap = do
   -- Ask GHC to tell us what the module graph is
-  targets <- mapM (\filePath -> guessTarget filePath Nothing) modules
+  targets <- mapM (`guessTarget` Nothing) modules
   setTargets targets
   modGraph <- depanal [] False
 
