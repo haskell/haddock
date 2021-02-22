@@ -44,31 +44,31 @@ import Haddock.Types
 import Haddock.Utils
 
 import Control.Monad
-import Control.Monad.IO.Class ( MonadIO(liftIO) )
+import Control.Monad.IO.Class (MonadIO(liftIO))
 import Data.IORef
 import Data.List (foldl', isPrefixOf, nub)
+import Text.Printf
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Text.Printf
 
-import GHC                       hiding (verbosity)
-import GHC.Data.FastString       (unpackFS)
+import GHC hiding (verbosity)
+import GHC.Data.FastString (unpackFS)
 import GHC.Data.Graph.Directed
-import GHC.Driver.Monad          (modifySession)
-import GHC.Driver.Session        hiding (verbosity)
-import GHC.Driver.Types          (isBootSummary)
+import GHC.Driver.Monad (modifySession)
+import GHC.Driver.Session hiding (verbosity)
+import GHC.Driver.Types (isBootSummary)
 import GHC.HsToCore.Docs
-import GHC.Plugins               (HscEnv (..), Outputable, Plugin (..), PluginWithArgs (..), StaticPlugin (..),
-                                  defaultPlugin, keepRenamedSource)
-import GHC.Tc.Types              (TcGblEnv (..), TcM)
-import GHC.Tc.Utils.Env          (tcLookupGlobal)
-import GHC.Tc.Utils.Monad        (setGblEnv)
-import GHC.Types.Name            (nameIsFromExternalPackage, nameOccName)
+import GHC.Plugins (HscEnv (..), Outputable, Plugin (..), PluginWithArgs (..), StaticPlugin (..), defaultPlugin,
+                    keepRenamedSource)
+import GHC.Tc.Types (TcGblEnv (..), TcM)
+import GHC.Tc.Utils.Env (tcLookupGlobal)
+import GHC.Tc.Utils.Monad (setGblEnv)
+import GHC.Types.Name (nameIsFromExternalPackage, nameOccName)
 import GHC.Types.Name.Occurrence (isTcOcc)
-import GHC.Types.Name.Reader     (globalRdrEnvElts, gre_name, unQualOK)
-import GHC.Unit.Module.Env       (ModuleSet, emptyModuleSet, mkModuleSet, unionModuleSet)
-import GHC.Unit.Types            (IsBootInterface (..))
-import GHC.Utils.Error           (withTimingD)
+import GHC.Types.Name.Reader (globalRdrEnvElts, gre_name, unQualOK)
+import GHC.Unit.Module.Env (ModuleSet, emptyModuleSet, mkModuleSet, unionModuleSet)
+import GHC.Unit.Types (IsBootInterface (..))
+import GHC.Utils.Error (withTimingD)
 
 #if defined(mingw32_HOST_OS)
 import System.IO
