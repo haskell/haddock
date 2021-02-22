@@ -31,43 +31,44 @@
 module Haddock.Interface.Create (IfM, runIfM, createInterface1) where
 
 import Documentation.Haddock.Doc (metaDocAppend)
-import Haddock.Convert
-import Haddock.GhcUtils
+import Haddock.Convert (PrintRuntimeReps (..), tyThingToLHsDecl)
+import Haddock.GhcUtils (addClassContext, filterSigNames, lHsQTyVarsToTypes, mkEmptySigWcType, moduleString, parents,
+                         pretty, restrictTo, sigName)
 import Haddock.Interface.LexParseRn
-import Haddock.Options
+import Haddock.Options (Flag (..), modulePackageInfo)
 import Haddock.Types hiding (liftErrMsg)
-import Haddock.Utils
+import Haddock.Utils (replace)
 
-import Control.Monad.Catch
-import Control.Monad.Reader
+import Control.Monad.Catch (MonadCatch, MonadThrow)
+import Control.Monad.Reader (MonadReader (..), ReaderT (..), asks)
 import Control.Monad.Writer.Strict hiding (tell)
-import Data.Bitraversable
+import Data.Bitraversable (bitraverse)
 import Data.List (find, foldl')
 import Data.Map (Map)
-import Data.Maybe
-import Data.Traversable
-import GHC.Stack (HasCallStack)
 import qualified Data.Map as M
+import Data.Maybe (catMaybes, fromJust, isJust, mapMaybe, maybeToList)
+import Data.Traversable (for)
+import GHC.Stack (HasCallStack)
 
 import GHC hiding (lookupName)
 import GHC.Core.Class (ClassMinimalDef, classMinimalDef)
 import GHC.Core.ConLike (ConLike (..))
 import GHC.Data.FastString (bytesFS, unpackFS)
-import GHC.Driver.Types
+import GHC.Driver.Types (HscSource (..), WarningTxt (..), Warnings (..), msHsFilePath)
 import GHC.HsToCore.Docs hiding (mkMaps)
 import GHC.Parser.Annotation (IsUnicodeSyntax (..))
 import GHC.Tc.Types hiding (IfM)
 import GHC.Tc.Utils.Monad (finalSafeMode)
 import GHC.Types.Avail hiding (avail)
-import GHC.Types.Basic (PromotionFlag (..), SourceText (..), StringLiteral (..))
-import GHC.Types.Name
-import GHC.Types.Name.Env
-import GHC.Types.Name.Reader
-import GHC.Types.Name.Set
-import GHC.Unit.State
 import qualified GHC.Types.Avail as Avail
+import GHC.Types.Basic (PromotionFlag (..), SourceText (..), StringLiteral (..))
+import GHC.Types.Name (getOccString, getSrcSpan, isDataConName, isValName, nameIsLocalOrFrom, nameOccName)
+import GHC.Types.Name.Env (lookupNameEnv)
+import GHC.Types.Name.Reader (GlobalRdrEnv, globalRdrEnvElts, gre_name, gresToAvailInfo, isLocalGRE, lookupGlobalRdrEnv)
+import GHC.Types.Name.Set (elemNameSet, mkNameSet)
 import qualified GHC.Types.SrcLoc as SrcLoc
 import qualified GHC.Unit.Module as Module
+import GHC.Unit.State
 import qualified GHC.Utils.Outputable as O
 
 
