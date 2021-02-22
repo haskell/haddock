@@ -1,8 +1,16 @@
-{-# LANGUAGE StandaloneDeriving, FlexibleInstances, MultiParamTypeClasses, CPP, TupleSections, BangPatterns, LambdaCase, NamedFieldPuns, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -Wwarn #-}
 -----------------------------------------------------------------------------
 -- |
@@ -41,36 +49,26 @@ import Data.Maybe
 import Data.Traversable
 import GHC.Stack (HasCallStack)
 
-import GHC.Tc.Utils.Monad (finalSafeMode)
-import GHC.Types.Avail hiding (avail)
-import qualified GHC.Types.Avail  as Avail
-import qualified GHC.Unit.Module as Module
--- <<<<<<< HEAD
-import qualified GHC.Types.SrcLoc as SrcLoc
-import GHC.Core.Class ( ClassMinimalDef, classMinimalDef )
-import GHC.Core.ConLike (ConLike(..))
-import GHC hiding ( lookupName )
+import GHC                   hiding (lookupName)
+import GHC.Core.Class        (ClassMinimalDef, classMinimalDef)
+import GHC.Core.ConLike      (ConLike (..))
+import GHC.Data.FastString   (bytesFS, unpackFS)
 import GHC.Driver.Types
--- =======
--- import GHC.Unit.Module.ModSummary
--- import qualified GHC.Types.SrcLoc as SrcLoc
--- import GHC.Types.SourceFile
--- import GHC.Core.Class
--- import GHC.Core.ConLike (ConLike(..))
--- import GHC hiding (lookupName)
--- import GHC.Driver.Ppr
--- >>>>>>> 703e5f02... Abstract Monad for interface creation
+import GHC.HsToCore.Docs     hiding (mkMaps)
+import GHC.Parser.Annotation (IsUnicodeSyntax (..))
+import GHC.Tc.Types          hiding (IfM)
+import GHC.Tc.Utils.Monad    (finalSafeMode)
+import GHC.Types.Avail       hiding (avail)
+import qualified GHC.Types.Avail       as Avail
+import GHC.Types.Basic       (PromotionFlag (..), SourceText (..), StringLiteral (..))
 import GHC.Types.Name
-import GHC.Types.Name.Set
 import GHC.Types.Name.Env
-import GHC.Unit.State
 import GHC.Types.Name.Reader
-import GHC.Tc.Types hiding (IfM)
-import GHC.Data.FastString ( unpackFS, bytesFS )
-import GHC.Types.Basic ( StringLiteral(..), SourceText(..), PromotionFlag(..) )
-import qualified GHC.Utils.Outputable as O
-import GHC.HsToCore.Docs hiding (mkMaps)
-import GHC.Parser.Annotation (IsUnicodeSyntax(..))
+import GHC.Types.Name.Set
+import qualified GHC.Types.SrcLoc      as SrcLoc
+import qualified GHC.Unit.Module       as Module
+import GHC.Unit.State
+import qualified GHC.Utils.Outputable  as O
 
 
 mkExceptionContext :: ModSummary -> String
