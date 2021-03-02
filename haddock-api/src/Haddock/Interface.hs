@@ -34,46 +34,48 @@ module Haddock.Interface (
 ) where
 
 
-import Haddock.GhcUtils
-import Haddock.InterfaceFile
-import Haddock.Interface.Create
-import Haddock.Interface.AttachInstances
-import Haddock.Interface.Rename
+import Haddock.GhcUtils (moduleString, pretty)
+import Haddock.Interface.AttachInstances (attachInstances)
+import Haddock.Interface.Create (createInterface1, runIfM)
+import Haddock.Interface.Rename (renameInterface)
+import Haddock.InterfaceFile (InterfaceFile, ifInstalledIfaces, ifLinkEnv)
 import Haddock.Options hiding (verbosity)
-import Haddock.Types
-import Haddock.Utils
+import Haddock.Types (DocOption (..), Documentation (..), ExportItem (..), IfaceMap, InstIfaceMap, Interface, LinkEnv,
+                      expItemDecl, expItemMbDoc, ifaceDoc, ifaceExportItems, ifaceExports, ifaceHaddockCoverage,
+                      ifaceInstances, ifaceMod, ifaceOptions, ifaceVisibleExports, instMod, runWriter, throwE)
+import Haddock.Utils (Verbosity, normal, out, verbose)
 
-import Control.Monad
-import Control.Monad.IO.Class ( MonadIO(liftIO) )
-import Data.IORef
+import Control.Monad (unless, when)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.IORef (atomicModifyIORef', newIORef, readIORef)
 import Data.List (foldl', isPrefixOf, nub)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Text.Printf
+import Text.Printf (printf)
 
 import GHC hiding (verbosity)
+import GHC.Data.FastString (unpackFS)
 import GHC.Data.Graph.Directed
+import GHC.Driver.Monad (modifySession)
 import GHC.Driver.Session hiding (verbosity)
 import GHC.Driver.Types (isBootSummary)
-import GHC.Driver.Monad (modifySession)
-import GHC.Data.FastString (unpackFS)
-import GHC.Tc.Types (TcM, TcGblEnv(..))
-import GHC.Tc.Utils.Monad (setGblEnv)
+import GHC.HsToCore.Docs (getMainDeclBinder)
+import GHC.Plugins (HscEnv (..), Outputable, Plugin (..), PluginWithArgs (..), StaticPlugin (..), defaultPlugin,
+                    keepRenamedSource)
+import GHC.Tc.Types (TcGblEnv (..), TcM)
 import GHC.Tc.Utils.Env (tcLookupGlobal)
+import GHC.Tc.Utils.Monad (setGblEnv)
 import GHC.Types.Name (nameIsFromExternalPackage, nameOccName)
 import GHC.Types.Name.Occurrence (isTcOcc)
-import GHC.Types.Name.Reader (unQualOK, gre_name, globalRdrEnvElts)
-import GHC.Unit.Module.Env (mkModuleSet, emptyModuleSet, unionModuleSet, ModuleSet)
-import GHC.Unit.Types (IsBootInterface(..))
+import GHC.Types.Name.Reader (globalRdrEnvElts, gre_name, unQualOK)
+import GHC.Unit.Module.Env (ModuleSet, emptyModuleSet, mkModuleSet, unionModuleSet)
+import GHC.Unit.Types (IsBootInterface (..))
 import GHC.Utils.Error (withTimingD)
-import GHC.HsToCore.Docs
-import GHC.Plugins (HscEnv(..), Outputable, StaticPlugin(..), Plugin(..), PluginWithArgs(..),
-                     defaultPlugin, keepRenamedSource)
 
 #if defined(mingw32_HOST_OS)
-import System.IO
 import GHC.IO.Encoding.CodePage (mkLocaleEncoding)
-import GHC.IO.Encoding.Failure (CodingFailureMode(TransliterateCodingFailure))
+import GHC.IO.Encoding.Failure (CodingFailureMode (TransliterateCodingFailure))
+import System.IO
 #endif
 
 -- | Create 'Interface's and a link environment by typechecking the list of
