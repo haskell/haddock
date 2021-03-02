@@ -5,8 +5,5 @@ packages: ./
 
 with-compiler: ghc-9.0
 
-allow-newer:
-  ghc-paths:Cabal
-
 -- Pinning the index-state helps to make reasonably CI deterministic
-index-state: 2021-02-06T20:45:40Z
+index-state: 2021-03-02T19:46:27Z
