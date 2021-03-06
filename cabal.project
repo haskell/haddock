@@ -3,7 +3,9 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
-with-compiler: ghc-9.0
+with-compiler: ghc-9.0.1
+
+test-show-details: direct
 
 -- Pinning the index-state helps to make reasonably CI deterministic
 index-state: 2021-03-02T19:46:27Z
