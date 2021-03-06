@@ -5,11 +5,6 @@ packages: ./
 
 with-compiler: ghc-9.0.1
 
-allow-newer:
-  ghc-paths:Cabal,
-  *:base,
-  *:ghc-prim
-
 test-show-details: direct
 
 -- Pinning the index-state helps to make reasonably CI deterministic
