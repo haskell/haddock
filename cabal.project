@@ -10,7 +10,7 @@ allow-newer:
   *:base,
   *:ghc-prim
 
--- Pinning the index-state helps to make reasonably CI deterministic
-index-state: 2021-01-24T12:09:34Z
-
 test-show-details: direct
+
+-- Pinning the index-state helps to make reasonably CI deterministic
+index-state: 2021-03-02T19:46:27Z
