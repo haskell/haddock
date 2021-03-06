@@ -1,6 +1,6 @@
 cabal-version:        2.0
 name:                 haddock-api
-version:              2.24.0
+version:              2.25.0
 synopsis:             A documentation-generation tool for Haskell libraries
 description:          Haddock is a documentation-generation tool for Haskell
                       libraries
@@ -46,7 +46,7 @@ library
   build-depends: base            ^>= 4.15.0
                , ghc             ^>= 9.0
                , ghc-paths       ^>= 0.1.0.9
-               , haddock-library ^>= 1.9.0
+               , haddock-library ^>= 1.10.0
                , xhtml           ^>= 3000.2.2
 
   -- Versions for the dependencies below are transitively pinned by
@@ -177,7 +177,7 @@ test-suite spec
 
   build-depends: ghc             ^>= 9.0
                , ghc-paths       ^>= 0.1.0.12
-               , haddock-library ^>= 1.9.0
+               , haddock-library ^>= 1.10.0
                , xhtml           ^>= 3000.2.2
                , hspec           >= 2.4.4 && < 2.8
                , QuickCheck      >= 2.11  && ^>= 2.14
