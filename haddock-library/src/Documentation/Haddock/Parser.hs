@@ -245,7 +245,7 @@ monospace = DocMonospaced . parseParagraph
 moduleName :: Parser (DocH mod a)
 moduleName = DocModule . flip ModLink Nothing <$> ("\"" *> moduleNameString <* "\"")
 
--- | A module name, not including the enclosing quotation marks.
+-- | A module name, optionally with an anchor
 moduleNameString :: Parser String
 moduleNameString = modid `maybeFollowedBy` anchor_
   where
@@ -255,7 +255,7 @@ moduleNameString = modid `maybeFollowedBy` anchor_
       <*> many (Parsec.satisfy (\c -> c /= '"' && not (isSpace c)))
 
     maybeFollowedBy pre suf = (\x -> maybe x (x ++)) <$> pre <*> optional suf
-
+    conid :: Parser String
     conid = (:)
       <$> Parsec.satisfy (\c -> isAlpha c && isUpper c)
       <*> many conChar
