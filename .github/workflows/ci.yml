@@ -15,8 +15,8 @@ jobs:
         os: [ubuntu-latest]
         cabal: ["3.2"]
         ghc:
-          - "8.10.1"
-          - "8.10.2"
+          - "8.10.3"
+          - "8.10.4"
 
     steps:
     - uses: actions/checkout@v2
