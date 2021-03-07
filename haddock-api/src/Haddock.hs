@@ -78,6 +78,7 @@ import GHC.Utils.Error
 import GHC.Unit
 import GHC.Utils.Panic (handleGhcException)
 import GHC.Data.FastString
+import qualified Debug.Trace as Debug
 
 --------------------------------------------------------------------------------
 -- * Exception handling
@@ -267,7 +268,12 @@ readPackagesAndProcessModules flags files = do
 renderStep :: DynFlags -> [Flag] -> SinceQual -> QualOption
            -> [(DocPaths, FilePath, InterfaceFile)] -> [Interface] -> IO ()
 renderStep dflags flags sinceQual nameQual pkgs interfaces = do
-  updateHTMLXRefs (map (\(docPath, _ifaceFilePath, ifaceFile) -> (docPath, ifaceFile)) pkgs)
+  updateHTMLXRefs (map (\(docPath, _ifaceFilePath, ifaceFile) ->
+                          ( case baseUrl flags of
+                              Nothing  -> fst docPath
+                              Just url -> Debug.traceShowId $
+                                url </> packageName (unitState dflags) (ifUnitId ifaceFile)
+                          , ifaceFile)) pkgs)
   let
     installedIfaces =
       concatMap
@@ -279,6 +285,13 @@ renderStep dflags flags sinceQual nameQual pkgs interfaces = do
       iface <- ifInstalledIfaces ifile
       return (instMod iface, path)
   render dflags flags sinceQual nameQual interfaces installedIfaces extSrcMap
+  where
+    -- get package name from unit-id
+    packageName :: UnitState -> Unit -> String
+    packageName state unit =
+      case lookupUnit state unit of
+        Nothing  -> show unit
+        Just pkg -> unitPackageNameString pkg
 
 -- | Render the interfaces with whatever backend is specified in the flags.
 render :: DynFlags -> [Flag] -> SinceQual -> QualOption -> [Interface]
@@ -699,12 +712,12 @@ hypSrcWarnings flags = do
     isSourceCssFlag _ = False
 
 
-updateHTMLXRefs :: [(DocPaths, InterfaceFile)] -> IO ()
+updateHTMLXRefs :: [(FilePath, InterfaceFile)] -> IO ()
 updateHTMLXRefs packages = do
   writeIORef html_xrefs_ref (Map.fromList mapping)
   writeIORef html_xrefs_ref' (Map.fromList mapping')
   where
-    mapping = [ (instMod iface, html) | ((html, _), ifaces) <- packages
+    mapping = [ (instMod iface, html) | (html, ifaces) <- packages
               , iface <- ifInstalledIfaces ifaces ]
     mapping' = [ (moduleName m, html) | (m, html) <- mapping ]
 
