@@ -1,3 +1,7 @@
+## Changes in 2.24.1
+
+ * Add support for labeled module references (#1360)
+
 ## Changes in 2.24.0
 
  * Reify oversaturated data family instances correctly (#1103)
