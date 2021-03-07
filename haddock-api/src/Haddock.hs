@@ -76,6 +76,7 @@ import GHC.Driver.Session hiding (projectVersion, verbosity)
 import GHC.Driver.Env
 import GHC.Utils.Error
 import GHC.Unit
+import GHC.Unit.State (lookupUnit)
 import GHC.Utils.Panic (handleGhcException)
 import GHC.Data.FastString
 
@@ -269,7 +270,11 @@ readPackagesAndProcessModules flags files = do
 renderStep :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption
            -> [(DocPaths, FilePath, InterfaceFile)] -> [Interface] -> IO ()
 renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = do
-  updateHTMLXRefs (map (\(docPath, _ifaceFilePath, ifaceFile) -> (docPath, ifaceFile)) pkgs)
+  updateHTMLXRefs (map (\(docPath, _ifaceFilePath, ifaceFile) ->
+                          ( case baseUrl flags of
+                              Nothing  -> fst docPath
+                              Just url -> url </> packageName (ifUnitId ifaceFile)
+                          , ifaceFile)) pkgs)
   let
     installedIfaces =
       concatMap
@@ -281,6 +286,13 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
       iface <- ifInstalledIfaces ifile
       return (instMod iface, path)
   render logger dflags unit_state flags sinceQual nameQual interfaces installedIfaces extSrcMap
+  where
+    -- get package name from unit-id
+    packageName :: Unit -> String
+    packageName unit =
+      case lookupUnit unit_state unit of
+        Nothing  -> show unit
+        Just pkg -> unitPackageNameString pkg
 
 -- | Render the interfaces with whatever backend is specified in the flags.
 render :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption -> [Interface]
@@ -701,12 +713,12 @@ hypSrcWarnings flags = do
     isSourceCssFlag _ = False
 
 
-updateHTMLXRefs :: [(DocPaths, InterfaceFile)] -> IO ()
+updateHTMLXRefs :: [(FilePath, InterfaceFile)] -> IO ()
 updateHTMLXRefs packages = do
   writeIORef html_xrefs_ref (Map.fromList mapping)
   writeIORef html_xrefs_ref' (Map.fromList mapping')
   where
-    mapping = [ (instMod iface, html) | ((html, _), ifaces) <- packages
+    mapping = [ (instMod iface, html) | (html, ifaces) <- packages
               , iface <- ifInstalledIfaces ifaces ]
     mapping' = [ (moduleName m, html) | (m, html) <- mapping ]
 
