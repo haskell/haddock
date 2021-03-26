@@ -49,7 +49,6 @@ import qualified Data.Map as Map hiding ( Map )
 import qualified Data.Set as Set hiding ( Set )
 import Data.Ord              ( comparing )
 
-import DynFlags (Language(..))
 import GHC hiding ( NoLink, moduleInfo,LexicalFixity(..) )
 import Name
 

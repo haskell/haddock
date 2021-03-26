@@ -712,8 +712,8 @@ instance MonadIO ErrMsgGhc where
 instance ExceptionMonad ErrMsgGhc where
   gcatch act hand = WriterGhc $
     runWriterGhc act `gcatch` (runWriterGhc . hand)
-  gmask act = WriterGhc $ gmask $ \mask ->
-    runWriterGhc $ act (WriterGhc . mask . runWriterGhc)
+  gmask act = WriterGhc $ gmask $ \mask' ->
+    runWriterGhc $ act (WriterGhc . mask'  . runWriterGhc)
 
 -----------------------------------------------------------------------------
 -- * Pass sensitive types

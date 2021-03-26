@@ -517,7 +517,7 @@ ppClassDecl :: Bool -> LinksInfo -> [DocInstance DocNameI] -> [(DocName, Fixity)
             -> [(DocName, DocForDecl DocName)] -> TyClDecl DocNameI
             -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppClassDecl summary links instances fixities loc d subdocs
-        decl@(ClassDecl { tcdCtxt = lctxt, tcdLName = lname@(L _ nm)
+        decl@(ClassDecl { tcdCtxt = lctxt, tcdLName = lname
                         , tcdTyVars = ltyvars, tcdFDs = lfds, tcdSigs = lsigs
                         , tcdATs = ats, tcdATDefs = atsDefs })
             splice unicode pkg qual
