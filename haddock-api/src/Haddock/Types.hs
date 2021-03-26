@@ -671,7 +671,7 @@ withExceptionContext :: ExceptionMonad m => String -> m a -> m a
 withExceptionContext ctxt =
   ghandle (\ex ->
       case ex of
-        HaddockException e -> throw $ WithContext [ctxt] (toException ex)
+        HaddockException _ -> throw $ WithContext [ctxt] (toException ex)
         WithContext ctxts se -> throw $ WithContext (ctxt:ctxts) se
           ) .
   ghandle (throw . WithContext [ctxt])
