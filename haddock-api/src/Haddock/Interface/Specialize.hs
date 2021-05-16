@@ -283,7 +283,7 @@ renameType (HsForAllTy x tele lt) =
         <*> renameLType lt
 renameType (HsQualTy x lctxt lt) =
     HsQualTy x
-        <$> renameMContext lctxt
+        <$> renameLContext lctxt
         <*> renameLType lt
 renameType (HsTyVar x ip name) = HsTyVar x ip <$> locatedN renameName name
 renameType t@(HsStarTy _ _) = pure t
@@ -329,6 +329,11 @@ renameMContext Nothing = return Nothing
 renameMContext (Just (L l ctxt)) = do
   ctxt' <- renameContext ctxt
   return (Just (L l ctxt'))
+
+renameLContext :: LHsContext GhcRn -> Rename (IdP GhcRn) (LHsContext GhcRn)
+renameLContext (L l ctxt) = do
+  ctxt' <- renameContext ctxt
+  return (L l ctxt')
 
 renameContext :: HsContext GhcRn -> Rename (IdP GhcRn) (HsContext GhcRn)
 renameContext = renameLTypes
