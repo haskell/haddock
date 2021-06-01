@@ -73,8 +73,10 @@ import Text.ParserCombinators.ReadP (readP_to_S)
 import GHC hiding (verbosity)
 import GHC.Settings.Config
 import GHC.Driver.Session hiding (projectVersion, verbosity)
+import GHC.Driver.Config.Logger (initLogFlags)
 import GHC.Driver.Env
 import GHC.Utils.Error
+import GHC.Utils.Logger
 import GHC.Types.Name.Cache
 import GHC.Unit
 import GHC.Unit.State (lookupUnit)
@@ -197,7 +199,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
       name_cache <- freshNameCache
       mIfaceFile <- readInterfaceFiles name_cache [(("", Nothing), path)] noChecks
       forM_ mIfaceFile $ \(_, ifaceFile) -> do
-        putMsg logger dflags $ renderJson (jsonInterfaceFile ifaceFile)
+        putMsg logger $ renderJson (jsonInterfaceFile ifaceFile)
 
     if not (null files) then do
       (packages, ifaces, homeLinks) <- readPackagesAndProcessModules flags files
@@ -306,8 +308,8 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
 
 -- | Render the interfaces with whatever backend is specified in the flags.
 render :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption -> [Interface]
-       -> [(FilePath, PackageInterfaces)] -> Map Module FilePath -> IO ()
-render logger dflags unit_state flags sinceQual qual ifaces packages extSrcMap = do
+       -> [(FilePath, InstalledInterface)] -> Map Module FilePath -> IO ()
+render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrcMap = do
 
   let
     packageInfo = PackageInfo { piPackageName    = fromMaybe (PackageName mempty)
@@ -330,6 +332,7 @@ render logger dflags unit_state flags sinceQual qual ifaces packages extSrcMap =
     dflags'
       | unicode          = gopt_set dflags Opt_PrintUnicodeSyntax
       | otherwise        = dflags
+    logger               = setLogFlags log' (initLogFlags dflags')
 
     visibleIfaces    = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
 
@@ -434,7 +437,7 @@ render logger dflags unit_state flags sinceQual qual ifaces packages extSrcMap =
                   $ flags
 
   when (Flag_GenIndex `elem` flags) $ do
-    withTiming logger dflags' "ppHtmlIndex" (const ()) $ do
+    withTiming logger "ppHtmlIndex" (const ()) $ do
       _ <- {-# SCC ppHtmlIndex #-}
            ppHtmlIndex odir title pkgStr
                   themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
@@ -446,7 +449,7 @@ render logger dflags unit_state flags sinceQual qual ifaces packages extSrcMap =
       copyHtmlBits odir libDir themes withQuickjump
 
   when (Flag_GenContents `elem` flags) $ do
-    withTiming logger dflags' "ppHtmlContents" (const ()) $ do
+    withTiming logger "ppHtmlContents" (const ()) $ do
       _ <- {-# SCC ppHtmlContents #-}
            ppHtmlContents unit_state odir title pkgStr
                      themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
@@ -466,7 +469,7 @@ render logger dflags unit_state flags sinceQual qual ifaces packages extSrcMap =
                         $ packages)
 
   when (Flag_Html `elem` flags) $ do
-    withTiming logger dflags' "ppHtml" (const ()) $ do
+    withTiming logger "ppHtml" (const ()) $ do
       _ <- {-# SCC ppHtml #-}
            ppHtml unit_state title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
@@ -502,14 +505,14 @@ render logger dflags unit_state flags sinceQual qual ifaces packages extSrcMap =
           ]
 
   when (Flag_LaTeX `elem` flags) $ do
-    withTiming logger dflags' "ppLatex" (const ()) $ do
+    withTiming logger "ppLatex" (const ()) $ do
       _ <- {-# SCC ppLatex #-}
            ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
                    libDir
       return ()
 
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
-    withTiming logger dflags' "ppHyperlinkedSource" (const ()) $ do
+    withTiming logger "ppHyperlinkedSource" (const ()) $ do
       _ <- {-# SCC ppHyperlinkedSource #-}
            ppHyperlinkedSource (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
       return ()
