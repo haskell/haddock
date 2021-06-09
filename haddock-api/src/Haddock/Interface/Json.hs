@@ -130,8 +130,10 @@ jsonDoc (DocUnorderedList xs) = jsonObject
 
 jsonDoc (DocOrderedList xs) = jsonObject
     [ ("tag", jsonString "DocOrderedList")
-    , ("documents", jsonArray (fmap jsonDoc xs))
+    , ("items", jsonArray (fmap jsonItem xs))
     ]
+  where
+    jsonItem (x, y) = jsonObject [("document", jsonDoc y), ("seq", jsonInt x)]
 
 jsonDoc (DocDefList xys) = jsonObject
     [ ("tag", jsonString "DocDefList")
