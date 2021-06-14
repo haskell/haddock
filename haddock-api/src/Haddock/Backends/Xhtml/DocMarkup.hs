@@ -113,7 +113,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
         htmlExpression = (strong . thecode . toHtml $ expression ++ "\n") ! [theclass "userinput"]
 
     makeOrdList :: HTML a => [(Int, a)] -> Html
-    makeOrdList items = olist << map (\(n, a) -> li ! [intAttr "value" n] << a) items
+    makeOrdList items = olist << map (\(index, a) -> li ! [intAttr "value" index] << a) items
 
 -- | We use this intermediate type to transform the input 'Doc' tree
 -- in an arbitrary way before rendering, such as grouping some
@@ -280,5 +280,5 @@ cleanup = overDoc (markup fmtUnParagraphLists)
     fmtUnParagraphLists :: DocMarkup (Wrap a) (Doc a)
     fmtUnParagraphLists = idMarkup {
       markupUnorderedList = DocUnorderedList . map unParagraph,
-      markupOrderedList   = DocOrderedList   . map (\(x, a) -> (x, unParagraph a))
+      markupOrderedList   = DocOrderedList   . map (\(index, a) -> (index, unParagraph a))
       }

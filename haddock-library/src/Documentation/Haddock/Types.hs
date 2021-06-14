@@ -154,7 +154,7 @@ instance Bifunctor DocH where
   bimap f g (DocMonospaced doc) = DocMonospaced (bimap f g doc)
   bimap f g (DocBold doc) = DocBold (bimap f g doc)
   bimap f g (DocUnorderedList docs) = DocUnorderedList (map (bimap f g) docs)
-  bimap f g (DocOrderedList docs) = DocOrderedList (map (\(a, b) -> (a, bimap f g b)) docs)
+  bimap f g (DocOrderedList docs) = DocOrderedList (map (\(index, a) -> (index, bimap f g a)) docs)
   bimap f g (DocDefList docs) = DocDefList (map (bimap f g *** bimap f g) docs)
   bimap f g (DocCodeBlock doc) = DocCodeBlock (bimap f g doc)
   bimap f g (DocHyperlink (Hyperlink url lbl)) = DocHyperlink (Hyperlink url (fmap (bimap f g) lbl))
