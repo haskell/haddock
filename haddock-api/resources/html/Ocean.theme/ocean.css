@@ -19,6 +19,7 @@ body {
 
 p {
   margin: 0.8em 0;
+  max-width: 70em;
 }
 
 ul, ol {
