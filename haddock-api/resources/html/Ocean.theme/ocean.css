@@ -19,7 +19,6 @@ body {
 
 p {
   margin: 0.8em 0;
-  max-width: 70em;
 }
 
 ul, ol {
@@ -218,6 +217,7 @@ pre {
 #content {
   margin: 0 auto;
   padding: 0 2em 6em;
+  max-width: 70em;
 }
 
 #package-header {
