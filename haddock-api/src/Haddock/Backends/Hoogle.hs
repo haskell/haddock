@@ -205,7 +205,7 @@ ppFam dflags decl@(FamilyDecl { fdInfo = info })
 
 ppInstance :: DynFlags -> UnitState -> ClsInst -> [String]
 ppInstance dflags unit_state x =
-  [dropComment $ outWith (showSDocForUser dflags unit_state alwaysQualify) cls]
+  [dropComment $ outWith (showSDocForUser dflags (unitDB unit_state) alwaysQualify) cls]
   where
     -- As per #168, we don't want safety information about the class
     -- in Hoogle output. The easiest way to achieve this is to set the
