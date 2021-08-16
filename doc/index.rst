@@ -15,7 +15,6 @@ Contents:
    common-errors
    multi-components
 
-
 Indices and tables
 ==================
 
