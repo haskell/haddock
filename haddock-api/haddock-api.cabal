@@ -185,6 +185,7 @@ test-suite spec
                , haddock-library ^>= 1.10.0
                , xhtml           ^>= 3000.2.2
                , hspec           ^>= 2.9
+               , hspec           >= 2.4.4 && < 2.8
                , parsec          ^>= 3.1.13.0
                , QuickCheck      >= 2.11  && ^>= 2.14
 
