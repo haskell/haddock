@@ -31,7 +31,6 @@ jobs:
     - name: Prepare environment
       run: echo "$HOME/.ghcup/bin" >> $GITHUB_PATH
 
-
     - name: Freeze
       run: |
         cabal freeze
