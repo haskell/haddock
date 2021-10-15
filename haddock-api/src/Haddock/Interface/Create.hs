@@ -70,6 +70,7 @@ import GHC.Types.Name.Reader (GlobalRdrEnv, greMangledName, lookupGlobalRdrEnv)
 import GHC.Types.Name.Set (elemNameSet, mkNameSet)
 import GHC.Types.SourceFile (HscSource (..))
 import GHC.Types.SourceText (SourceText (..), sl_fs)
+import GHC.Unit.Types
 import qualified GHC.Types.SrcLoc as SrcLoc
 import qualified GHC.Unit.Module as Module
 import GHC.Unit.Module.ModSummary (msHsFilePath)
@@ -347,8 +348,7 @@ mkAliasMap state impDecls =
          -- them to the user.  We should reuse that information;
          -- or at least reuse the renamed imports, which know what
          -- they import!
-         (fmap Module.fsToUnit $
-          fmap sl_fs $ ideclPkgQual impDecl)
+         (ideclPkgQual impDecl)
          (case ideclName impDecl of SrcLoc.L _ name -> name),
        alias))
     impDecls
@@ -391,11 +391,11 @@ unrestrictedModuleImports idecls =
 -- Similar to GHC.lookupModule
 -- ezyang: Not really...
 lookupModuleDyn ::
-  UnitState -> Maybe Unit -> ModuleName -> Module
-lookupModuleDyn _ (Just pkgId) mdlName =
-  Module.mkModule pkgId mdlName
-lookupModuleDyn state Nothing mdlName =
-  case lookupModuleInAllUnits state mdlName of
+  UnitState -> PkgQual -> ModuleName -> Module
+lookupModuleDyn state pkg_qual mdlName = case pkg_qual of
+  OtherPkg uid -> Module.mkModule (RealUnit (Definite uid)) mdlName
+  ThisPkg uid  -> Module.mkModule (RealUnit (Definite uid)) mdlName
+  NoPkgQual    -> case lookupModuleInAllUnits state mdlName of
     (m,_):_ -> m
     [] -> Module.mkModule Module.mainUnit mdlName
 
