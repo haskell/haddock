@@ -1126,8 +1126,8 @@ that any inline link at the beginning of a line within a multi-line comment
 isn't rendered correctly: ::
    
     {-| Some multi-line comment that has a
-    [link](https://not-rendering.org) and a
-    [reference link]: https://not-rendering.org
+    [link](https://example.com) and a
+    [reference link]: https://example.com
     -}
     
 Adding a space or a word in front of such a link can be used as a workaround.   
