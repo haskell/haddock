@@ -1121,6 +1121,17 @@ followed by the URL enclosed in regular parentheses, for example: ::
 The link text is used as a description for the URL if the output
 format supports it.
 
+Hint: There's a `known issue <https://github.com/haskell/haddock/issues/774>`_ 
+that any inline link at the beginning of a line within a multi-line comment 
+isn't rendered correctly: ::
+   
+    {-| Some multi-line comment that has a
+    [link](https://not-rendering.org) and a
+    [reference link]: https://not-rendering.org
+    -}
+    
+Adding a space or a word in front of such a link can be used as a workaround.   
+   
 Images
 ~~~~~~
 
