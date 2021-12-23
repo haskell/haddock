@@ -1,3 +1,7 @@
+## Changes in 2.25.1
+
+  * Better support for multiple packages (#1277)
+
 ## Changes in 2.25.0
 
  * Fix crash in `haddock-library` on unicode space (#1144)
