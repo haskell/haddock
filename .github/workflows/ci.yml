@@ -49,4 +49,4 @@ jobs:
         cabal build all
 
     - name: Test
-      run: cabal test -w "/opt/ghc/9.0.1/bin/ghc" all
+      run: cabal test all
