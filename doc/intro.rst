@@ -25,7 +25,7 @@ in mind:
    The easier it is to write documentation, the more likely the
    programmer is to do it. Haddock therefore uses lightweight markup in
    its annotations, taking several ideas from
-   `IDoc <http://www.cse.unsw.edu.au/~chak/haskell/idoc/>`__. In fact,
+   `IDoc <https://web.archive.org/web/20180621053227/http://www.cse.unsw.edu.au/~chak/haskell/idoc/>`__. In fact,
    Haddock can understand IDoc-annotated source code.
 
 -  The documentation should not expose any of the structure of the
