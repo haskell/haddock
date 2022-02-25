@@ -45,6 +45,7 @@ jobs:
 
     - name: Build
       run: |
+        cabal --numeric-version
         cabal configure --enable-tests --enable-benchmarks --test-show-details=direct
         cabal build all
 
