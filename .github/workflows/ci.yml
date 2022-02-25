@@ -50,6 +50,6 @@ jobs:
         cabal build all
 
     - name: Test
-      run:
+      run: |
         cabal --numeric-version
         cabal test all
