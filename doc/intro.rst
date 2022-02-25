@@ -59,8 +59,8 @@ in mind:
 Obtaining Haddock
 -----------------
 
-Distributions (source & binary) of Haddock can be obtained from its `web
-site <http://www.haskell.org/haddock/>`__.
+Haddock is distributed with GHC distributions, and will automatically be provided if you use 
+`ghcup <https://www.haskell.org/ghcup>`__, for instance.
 
 Up-to-date sources can also be obtained from our public GitHub
 repository. The Haddock sources are at
@@ -101,48 +101,8 @@ code, except where otherwise indicated.
 Contributors
 ------------
 
-Haddock was originally written by Simon Marlow. Since it is an open
-source project, many people have contributed to its development over the
-years. Below is a list of contributors in alphabetical order that we
-hope is somewhat complete. If you think you are missing from this list,
-please contact us.
-
--  Ashley Yakeley
--  Benjamin Franksen
--  Brett Letner
--  Clemens Fruhwirth
--  Conal Elliott
--  David Waern
--  Duncan Coutts
--  George Pollard
--  George Russel
--  Hal Daume
--  Ian Lynagh
--  Isaac Dupree
--  Joachim Breitner
--  Krasimir Angelov
--  Lennart Augustsson
--  Luke Plant
--  Malcolm Wallace
--  Manuel Chakravarty
--  Marcin Szamotulski
--  Mark Lentczner
--  Mark Shields
--  Mateusz Kowalczyk
--  Mike Thomas
--  Neil Mitchell
--  Oliver Brown
--  Roman Cheplyaka
--  Ross Paterson
--  Sigbjorn Finne
--  Simon Hengel
--  Simon Marlow
--  Simon Peyton-Jones
--  Stefan O'Rear
--  Sven Panne
--  Thomas Schilling
--  Wolfgang Jeltsch
--  Yitzchak Gale
+A list of contributors to the project can be seen at
+``https://github.com/haskell/haddock/graphs/contributors``.
 
 Acknowledgements
 ----------------
