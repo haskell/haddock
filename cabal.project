@@ -7,18 +7,6 @@ with-compiler: ghc-9.2
 
 active-repositories: hackage.haskell.org, head.hackage.ghc.haskell.org:override
 
-allow-newer:
-  Cabal,
-  base,
-  binary,
-  bytestring,
-  ghc,
-  ghc-prim,
-  integer-gmp,
-  template-haskell,
-  text,
-  time
-
 repository head.hackage.ghc.haskell.org
    url: https://ghc.gitlab.haskell.org/head.hackage/
    secure: True
