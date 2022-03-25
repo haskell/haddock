@@ -28,9 +28,6 @@ jobs:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ matrix.cabal }}
 
-    - name: Prepare environment
-      run: echo "$HOME/.ghcup/bin" >> $GITHUB_PATH
-
     # GitHub preinstalls recent GHC versions, and haskell/actions/setup uses the
     # preinstalled version when possible. However, GitHub's preinstalled GHC does
     # not include documentation, and we need documentation to run Haddock tests.
