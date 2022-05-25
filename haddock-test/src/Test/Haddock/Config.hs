@@ -334,12 +334,11 @@ processFileArgs dcfg [] =
     srcDir = dcfgSrcDir dcfg
 processFileArgs dcfg args = processFileArgs' dcfg args
 
-
 processFileArgs' :: DirConfig -> [String] -> IO [TestPackage]
 processFileArgs' dcfg args = do
     (dirs, mdls) <- partitionM doesDirectoryExist' . map takeBaseName $ args
     rootPkg <- pure $ TestPackage
-        { tpkgName = ""
+        { tpkgName = "<stdin>"
         , tpkgFiles = map (srcDir </>) mdls
         }
     otherPkgs <- forM dirs $ \dir -> do
