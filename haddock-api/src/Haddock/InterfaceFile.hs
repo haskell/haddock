@@ -132,10 +132,10 @@ binaryInterfaceMagic = 0xD0Cface
 --
 binaryInterfaceVersion :: Word16
 #if MIN_VERSION_ghc(9,2,0) && !MIN_VERSION_ghc(9,3,0)
-binaryInterfaceVersion = 38
+binaryInterfaceVersion = 39
 
 binaryInterfaceVersionCompatibility :: [Word16]
-binaryInterfaceVersionCompatibility = [37, binaryInterfaceVersion]
+binaryInterfaceVersionCompatibility = [37, 38, binaryInterfaceVersion]
 #elif defined(__HLINT__)
 #else
 #error Unsupported GHC version
@@ -176,7 +176,7 @@ writeInterfaceFile filename iface = do
   let bh = setUserData bh0 $ newWriteState (putName bin_symtab)
                                            (putName bin_symtab)
                                            (putFastString bin_dict)
-  put_ bh iface
+  putInterfaceFile_ bh iface
 
   -- write the symtab pointer at the front of the file
   symtab_p <- tellBin bh
@@ -265,7 +265,7 @@ readInterfaceFile (get_name_cache, set_name_cache) filename bypass_checks = do
                                                   (getDictFastString dict)
 
       -- load the actual data
-      iface <- liftIO $ get bh1
+      iface <- liftIO $ getInterfaceFile bh1 version
       return (Right iface)
  where
    with_name_cache :: forall a.
@@ -422,14 +422,36 @@ instance Binary PackageInfo where
     return $ PackageInfo name version
 
 instance Binary InterfaceFile where
-  put_ bh (InterfaceFile env _ ifaces) = do
+  put_ bh (InterfaceFile env info ifaces) = do
     put_ bh env
+    put_ bh info
     put_ bh ifaces
 
   get bh = do
     env    <- get bh
+    info   <- get bh
     ifaces <- get bh
-    return (InterfaceFile env PackageInfo { piPackageName = PackageName (mkFastString ""), piPackageVersion = makeVersion [] } ifaces)
+    return (InterfaceFile env info ifaces)
+
+
+putInterfaceFile_ :: BinHandle -> InterfaceFile -> IO ()
+putInterfaceFile_ bh (InterfaceFile env info ifaces) = do
+  put_ bh env
+  put_ bh info
+  put_ bh ifaces
+
+getInterfaceFile :: BinHandle -> Word16 -> IO InterfaceFile
+getInterfaceFile bh v | v <= 38 = do
+  env    <- get bh
+  let info = PackageInfo (PackageName mempty) (makeVersion [])
+  ifaces <- get bh
+  return (InterfaceFile env info ifaces)
+getInterfaceFile bh _ = do
+  env    <- get bh
+  info   <- get bh
+  ifaces <- get bh
+  return (InterfaceFile env info ifaces)
+
 
 instance Binary InstalledInterface where
   put_ bh (InstalledInterface modu is_sig info docMap argMap
