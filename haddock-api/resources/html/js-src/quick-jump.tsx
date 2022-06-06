@@ -79,6 +79,9 @@ type QuickJumpState = {
   moduleResults: ResultsInModule[]
   failedLoading?: boolean
   fuse: Fuse<DocItem>
+  // The ID from setTimeout() after input to the search box.
+  // A number means there's a pending search, otherwise it's |undefined|.
+  searchTimeoutID: number | undefined
 }
 
 class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
@@ -98,7 +101,8 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
       isVisible: false,
       expanded: {},
       activeLinkIndex: -1,
-      moduleResults: []
+      moduleResults: [],
+      searchTimeoutID: undefined,
     });
     loadJSON(this.props.baseUrl + "/doc-index.json", (data) => {
       this.setState({
@@ -107,15 +111,15 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
           caseSensitive: true,
           includeScore: true,
           tokenize: true,
-          keys: [ {
-                    name: "name",
-                    weight: 0.7
-                  },
-                  {
-                    name: "module",
-                    weight: 0.3
-                  }
-                ]
+          keys: [{
+            name: "name",
+            weight: 0.7
+          },
+          {
+            name: "module",
+            weight: 0.3
+          }
+          ]
         }),
         moduleResults: []
       });
@@ -151,7 +155,12 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
   }
 
   hide() {
-    this.setState({ isVisible: false, searchString: '' });
+    this.setState(prevState => {
+      if (prevState.searchTimeoutID !== undefined) {
+        clearTimeout(prevState.searchTimeoutID);
+      }
+      return { isVisible: false, searchString: '', searchTimeoutID: undefined };
+    });
   }
 
   show() {
@@ -170,7 +179,7 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
   }
 
   navigateLinks(change: number) {
-    const newActiveLinkIndex = Math.max(-1, Math.min(this.linkIndex-1, this.state.activeLinkIndex + change));
+    const newActiveLinkIndex = Math.max(-1, Math.min(this.linkIndex - 1, this.state.activeLinkIndex + change));
     this.navigatedByKeyboard = true;
     this.setState({ activeLinkIndex: newActiveLinkIndex });
   }
@@ -180,7 +189,21 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
     this.activeLinkAction();
   }
 
+  // Sets a timeout to perform a seach in a little while.
+  // If there already is a pending timeout it's cancelled.
+  // When the timeout fires updateResults() is called.
+  handleInputChanged() {
+    this.setState(prevState => {
+      if (prevState.searchTimeoutID !== undefined) {
+        clearTimeout(prevState.searchTimeoutID);
+      }
+      return { searchTimeoutID: setTimeout(this.updateResults.bind(this), 150) };
+    });
+  }
+
   updateResults() {
+    this.setState({ searchTimeoutID: undefined });
+
     const searchString = (this.input && this.input.value) || '';
     const results: FuseResult<DocItem>[] = this.state.fuse.search(searchString) as any as FuseResult<DocItem>[];
 
@@ -196,8 +219,8 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
     for (const moduleName in resultsByModule) {
       const items = resultsByModule[moduleName];
       let sumOfInverseScores = 0;
-      items.forEach((item) => { sumOfInverseScores += 1/item.score; });
-      moduleResults.push({ module: moduleName, totalScore: 1/sumOfInverseScores, items: items });
+      items.forEach((item) => { sumOfInverseScores += 1 / item.score; });
+      moduleResults.push({ module: moduleName, totalScore: 1 / sumOfInverseScores, items: items });
     }
 
     moduleResults.sort((a, b) => a.totalScore - b.totalScore);
@@ -233,7 +256,7 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
         <div id="search-results">
           <p class="error">Failed to load file 'doc-index.json' containing definitions in this package.</p>
           {usingFileProtocol ? <p class="error">
-              To use quick jump, load this page with HTTP (from a local static file web server) instead of using the <code>file://</code> protocol.
+            To use quick jump, load this page with HTTP (from a local static file web server) instead of using the <code>file://</code> protocol.
               (For security reasons, it is not possible to fetch auxiliary files using JS in a HTML page opened with <code>file://</code>.)
             </p> : []
           }
@@ -267,7 +290,7 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
           ref={(input) => { this.input = input as undefined | HTMLInputElement; }}
           onFocus={this.show.bind(this)}
           onClick={this.show.bind(this)}
-          onInput={this.updateResults.bind(this)}
+          onInput={this.handleInputChanged.bind(this)}
         />
       </div>
       <div id="search-results" ref={(el) => { this.searchResults = el; }}
@@ -308,25 +331,25 @@ class QuickJump extends Component<QuickJumpProps, QuickJumpState> {
         {showAll
           ? []
           : <li class="more-results">
-              {this.actionLink(expand, {}, "show " + (items.length - visibleItems.length) + " more results from this module")}
-            </li>}
+            {this.actionLink(expand, {}, "show " + (items.length - visibleItems.length) + " more results from this module")}
+          </li>}
       </ul>
     </li>;
   }
 
-  navigationLink(href: string, attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, ...children: (JSX.Element|JSX.Element[]|string)[]) {
+  navigationLink(href: string, attrs: JSX.HTMLAttributes & JSX.SVGAttributes & { [propName: string]: any }, ...children: (JSX.Element | JSX.Element[] | string)[]) {
     const fullAttrs = Object.assign({ href: href, onClick: this.hide.bind(this) }, attrs);
     const action = () => { window.location.href = href; this.hide(); };
     return this.menuLink(fullAttrs, action, ...children);
   }
 
-  actionLink(callback: () => void, attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, ...children: (JSX.Element|JSX.Element[]|string)[]) {
+  actionLink(callback: () => void, attrs: JSX.HTMLAttributes & JSX.SVGAttributes & { [propName: string]: any }, ...children: (JSX.Element | JSX.Element[] | string)[]) {
     const onClick = (e: Event) => { e.preventDefault(); callback(); };
     const fullAttrs = Object.assign({ href: '#', onClick: onClick }, attrs);
     return this.menuLink(fullAttrs, callback, ...children);
   }
 
-  menuLink(attrs: JSX.HTMLAttributes&JSX.SVGAttributes&{[propName: string]: any}, action: () => void, ...children: (JSX.Element|JSX.Element[]|string)[]) {
+  menuLink(attrs: JSX.HTMLAttributes & JSX.SVGAttributes & { [propName: string]: any }, action: () => void, ...children: (JSX.Element | JSX.Element[] | string)[]) {
     const linkIndex = this.linkIndex;
     if (linkIndex === this.state.activeLinkIndex) {
       attrs['class'] = (attrs['class'] ? attrs['class'] + ' ' : '') + 'active-link';
@@ -347,7 +370,7 @@ class DocHtml extends Component<{ html: string }, {}> {
   }
 
   render(props: { html: string }) {
-    return <div dangerouslySetInnerHTML={{__html: props.html}} />;
+    return <div dangerouslySetInnerHTML={{ __html: props.html }} />;
   }
 
 };
