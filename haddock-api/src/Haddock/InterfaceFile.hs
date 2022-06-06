@@ -407,6 +407,8 @@ instance Binary DocOption where
             putByte bh 3
     put_ bh OptShowExtensions = do
             putByte bh 4
+    put_ bh OptHideHyperlinked = do
+            putByte bh 5
     get bh = do
             h <- getByte bh
             case h of
@@ -420,6 +422,8 @@ instance Binary DocOption where
                     return OptNotHome
               4 -> do
                     return OptShowExtensions
+              5 -> do
+                    return OptHideHyperlinked
               _ -> fail "invalid binary data found"
 
 

@@ -1,3 +1,7 @@
+## Changes in version 2.20.1
+
+ * `--hide-hyperlinked` allows module-level disabling of hyperlinked sources
+
 ## Changes in version 2.19.1
 
  * Show where instances are defined (#748)

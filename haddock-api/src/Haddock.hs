@@ -261,7 +261,8 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
       | unicode          = gopt_set dflags Opt_PrintUnicodeSyntax
       | otherwise        = dflags
 
-    visibleIfaces    = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
+    visibleIfaces        = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
+    visibleLinkedIfaces  = [ i | i <- ifaces, OptHideHyperlinked `notElem` ifaceOptions i ]
 
     -- /All/ visible interfaces including external package modules.
     allIfaces        = map toInstalledIface ifaces ++ installedIfaces
@@ -284,7 +285,7 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
 
     srcMap = Map.union
       (Map.map SrcExternal extSrcMap)
-      (Map.fromList [ (ifaceMod iface, SrcLocal) | iface <- ifaces ])
+      (Map.fromList [ (ifaceMod iface, SrcLocal) | iface <- visibleLinkedIfaces ])
 
     pkgSrcMap = Map.mapKeys moduleUnitId extSrcMap
     pkgSrcMap'
@@ -388,10 +389,10 @@ render dflags flags sinceQual qual ifaces installedIfaces extSrcMap = do
                    libDir
       return ()
 
-  when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
+  when (Flag_HyperlinkedSource `elem` flags && not (null visibleLinkedIfaces)) $ do
     withTiming (pure dflags') "ppHyperlinkedSource" (const ()) $ do
       _ <- {-# SCC ppHyperlinkedSource #-}
-           ppHyperlinkedSource odir libDir opt_source_css pretty srcMap ifaces
+           ppHyperlinkedSource odir libDir opt_source_css pretty srcMap visibleLinkedIfaces
       return ()
 
 
