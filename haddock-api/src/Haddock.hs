@@ -267,13 +267,7 @@ withGhc flags action = do
 
 
 readPackagesAndProcessModules :: [Flag] -> [String]
-<<<<<<< HEAD
-                              -> Ghc ([(DocPaths, Visibility, FilePath, InterfaceFile)], [Interface], LinkEnv)
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-                              -> Ghc ([(DocPaths, InterfaceFile)], [Interface], LinkEnv)
-=======
                               -> Ghc ([(DocPaths, FilePath, InterfaceFile)], [Interface], LinkEnv)
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
 readPackagesAndProcessModules flags files = do
     -- Get packages supplied with --read-interface.
     let noChecks = Flag_BypassInterfaceVersonCheck `elem` flags
@@ -281,67 +275,28 @@ readPackagesAndProcessModules flags files = do
     packages <- liftIO $ readInterfaceFiles name_cache (readIfaceArgs flags) noChecks
 
     -- Create the interfaces -- this is the core part of Haddock.
-<<<<<<< HEAD
-    let ifaceFiles = map (\(_, _, _, ifaceFile) -> ifaceFile) packages
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-    let ifaceFiles = map snd packages
-=======
     let ifaceFiles = map (\(_, _, ifaceFile) -> ifaceFile) packages
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
     (ifaces, homeLinks) <- processModules (verbosity flags) files flags ifaceFiles
 
     return (packages, ifaces, homeLinks)
 
 
 renderStep :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption
-<<<<<<< HEAD
-           -> [(DocPaths, Visibility, FilePath, InterfaceFile)] -> [Interface] -> IO ()
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-           -> [(DocPaths, InterfaceFile)] -> [Interface] -> IO ()
-=======
            -> [(DocPaths, FilePath, InterfaceFile)] -> [Interface] -> IO ()
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
 renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = do
-<<<<<<< HEAD
-  updateHTMLXRefs (map (\(docPath, _ifaceFilePath, _showModules, ifaceFile) ->
-                          ( case baseUrl flags of
-                              Nothing  -> fst docPath
-                              Just url -> url </> packageName (ifUnitId ifaceFile)
-                          , ifaceFile)) pkgs)
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-  updateHTMLXRefs pkgs
-=======
   updateHTMLXRefs (map (\(docPath, _ifaceFilePath, ifaceFile) ->
                           ( case baseUrl flags of
                               Nothing  -> fst docPath
                               Just url -> url </> packageName (ifUnitId ifaceFile)
                           , ifaceFile)) pkgs)
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
   let
-<<<<<<< HEAD
-    installedIfaces =
-      map
-        (\(_, showModules, ifaceFilePath, ifaceFile)
-          -> (ifaceFilePath, mkPackageInterfaces showModules ifaceFile))
-        pkgs
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-    ifaceFiles = map snd pkgs
-    installedIfaces = concatMap ifInstalledIfaces ifaceFiles
-=======
     installedIfaces =
       concatMap
         (\(_, ifaceFilePath, ifaceFile)
           -> (ifaceFilePath,) <$> ifInstalledIfaces ifaceFile)
         pkgs
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
     extSrcMap = Map.fromList $ do
-<<<<<<< HEAD
-      ((_, Just path), _, _, ifile) <- pkgs
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-      ((_, Just path), ifile) <- pkgs
-=======
       ((_, Just path), _, ifile) <- pkgs
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
       iface <- ifInstalledIfaces ifile
       return (instMod iface, path)
   render logger dflags unit_state flags sinceQual nameQual interfaces installedIfaces extSrcMap
@@ -383,42 +338,9 @@ render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrc
 
     visibleIfaces    = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
 
-<<<<<<< HEAD
-    -- /All/ interfaces including external package modules, grouped by
-    -- interface file (package).
-    allPackages      :: [PackageInterfaces]
-    allPackages      = [PackageInterfaces
-                         { piPackageInfo = packageInfo
-                         , piVisibility  = Visible
-                         , piInstalledInterfaces  = map toInstalledIface ifaces
-                         }]
-                    ++ map snd packages
-
-    -- /All/ visible interfaces including external package modules, grouped by
-    -- interface file (package).
-    allVisiblePackages :: [PackageInterfaces]
-    allVisiblePackages = [ pinfo { piInstalledInterfaces =
-                                     filter (\i -> OptHide `notElem` instOptions i)
-                                            piInstalledInterfaces
-                                 }
-                         | pinfo@PackageInterfaces
-                             { piVisibility = Visible
-                             , piInstalledInterfaces
-                             } <- allPackages
-                         ]
-
-    -- /All/ installed interfaces.
-    allInstalledIfaces :: [InstalledInterface]
-    allInstalledIfaces = concatMap (piInstalledInterfaces . snd) packages
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-    -- /All/ visible interfaces including external package modules.
-    allIfaces        = map toInstalledIface ifaces ++ installedIfaces
-    allVisibleIfaces = [ i | i <- allIfaces, OptHide `notElem` instOptions i ]
-=======
     -- /All/ visible interfaces including external package modules.
     allIfaces        = map toInstalledIface ifaces ++ map snd installedIfaces
     allVisibleIfaces = [ i | i <- allIfaces, OptHide `notElem` instOptions i ]
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
 
     pkgMod           = fmap ifaceMod (listToMaybe ifaces)
     pkgKey           = fmap moduleUnit pkgMod
@@ -462,13 +384,7 @@ render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrc
     sourceUrls' = (srcBase, srcModule', pkgSrcMap', pkgSrcLMap')
 
     installedMap :: Map Module InstalledInterface
-<<<<<<< HEAD
-    installedMap = Map.fromList [ (unwire (instMod iface), iface) | iface <- allInstalledIfaces ]
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-    installedMap = Map.fromList [ (unwire (instMod iface), iface) | iface <- installedIfaces ]
-=======
     installedMap = Map.fromList [ (unwire (instMod iface), iface) | (_, iface) <- installedIfaces ]
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
 
     -- The user gives use base-4.9.0.0, but the InstalledInterface
     -- records the *wired in* identity base.  So untranslate it
@@ -522,43 +438,20 @@ render log' dflags unit_state flags sinceQual qual ifaces installedIfaces extSrc
       return ()
     copyHtmlBits odir libDir themes withQuickjump
 
-<<<<<<< HEAD
-  when withQuickjump $ void $
-            ppJsonIndex odir sourceUrls' opt_wiki_urls
-                        unicode Nothing qual
-                        ifaces
-                        ( nub
-                        . map fst
-                        . filter ((== Visible) . piVisibility . snd)
-                        $ packages)
-
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-=======
   when withQuickjump $ void $
             ppJsonIndex odir sourceUrls' opt_wiki_urls
                         unicode Nothing qual
                         ifaces
                         (nub $ map fst installedIfaces)
 
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
   when (Flag_Html `elem` flags) $ do
     withTiming logger "ppHtml" (const ()) $ do
       _ <- {-# SCC ppHtml #-}
            ppHtml unit_state title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
-<<<<<<< HEAD
-                  themes opt_mathjax sourceUrls' opt_wiki_urls opt_base_url
-                  opt_contents_url opt_index_url unicode sincePkg packageInfo
-                  qual pretty withQuickjump
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-                  themes opt_mathjax sourceUrls' opt_wiki_urls
-                  opt_contents_url opt_index_url unicode sincePkg qual
-                  pretty withQuickjump
-=======
                   themes opt_mathjax sourceUrls' opt_wiki_urls opt_base_url
                   opt_contents_url opt_index_url unicode sincePkg qual
                   pretty withQuickjump
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
       return ()
     unless withBaseURL $ do
       copyHtmlBits odir libDir themes withQuickjump
@@ -620,15 +513,7 @@ readInterfaceFiles name_cache pairs bypass_version_check = do
           putStrLn ("   " ++ err)
           putStrLn "Skipping this interface."
           return Nothing
-<<<<<<< HEAD
         Right f -> return (Just (paths, file, f))
-||||||| parent of 1b63771d (coot/multiple package (ghc-head) (#1419))
-        Right f -> return $ Just (paths, f)
-
-=======
-        Right f -> return (Just (paths, file, f))
-
->>>>>>> 1b63771d (coot/multiple package (ghc-head) (#1419))
 
 -------------------------------------------------------------------------------
 -- * Creating a GHC session
