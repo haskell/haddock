@@ -120,7 +120,6 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
   mapM_ (ppHtmlModule odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
            maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
-           unicode pkg qual debug) visible_ifaces
 
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> Bool -> IO ()
@@ -672,7 +671,6 @@ ppHtmlModule
 ppHtmlModule odir doctitle themes
   maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
   maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
-  unicode pkg qual debug iface = do
   let
       mdl = ifaceMod iface
       aliases = ifaceModuleAliases iface
