@@ -23,6 +23,7 @@
 /doc/config.status
 /doc/configure
 tags
+tags.mtime
 TAGS
 
 /haddock-api/resources/html/node_modules
@@ -37,3 +38,9 @@ cabal.project.local~
 .stack-work/
 
 .hspec-failures
+
+# ignore interface files
+*.hi
+*.dyn_hi
+
+
