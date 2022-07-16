@@ -1,5 +1,4 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 -- Used by QuasiQuote. Example taken from the GHC documentation.
 module QuasiExpr where

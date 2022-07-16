@@ -20,7 +20,6 @@
 - ignore: {name: "Redundant return"} # 1 hint
 - ignore: {name: "Replace case with fromMaybe"} # 2 hints
 - ignore: {name: "Replace case with maybe"} # 4 hints
-- ignore: {name: "Unused LANGUAGE pragma"} # 11 hints
 - ignore: {name: "Use $>"} # 4 hints
 - ignore: {name: "Use ++"} # 3 hints
 - ignore: {name: "Use :"} # 4 hints
