@@ -57,6 +57,9 @@
 - ignore: {name: "Use tuple-section"} # 3 hints
 - ignore: {name: "Use unless"} # 1 hint
 - ignore: {name: "Use void"} # 1 hint
+# Ignore within modules where following hlint or adding an HLint annotation
+# would alter the expected test output.
+- ignore: {name: "Unused LANGUAGE pragma", within: [QuasiExpr, TH, Ticket112]}
 # Module names (not all unique) where CPP can be used
 - extensions:
   - name: CPP

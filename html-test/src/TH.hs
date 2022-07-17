@@ -1,4 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module TH where
 
