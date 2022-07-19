@@ -15,7 +15,7 @@ bug-reports:        https://github.com/haskell/haddock/issues
 copyright:          (c) Simon Marlow, David Waern
 category:           Documentation
 build-type:         Simple
-tested-with:        GHC ==9.4
+tested-with:        GHC ==9.2
 extra-source-files: CHANGES.md
 data-dir:           resources
 data-files:
@@ -42,8 +42,8 @@ library
 
   -- this package typically supports only single major versions
   build-depends:
-    , base             ^>=4.17
-    , ghc              ^>=9.4
+    , base             ^>=4.16
+    , ghc              ^>=9.2
     , ghc-paths        ^>=0.1.0.9
     , haddock-library  ^>=2.27
     , parsec           ^>=3.1.13.0

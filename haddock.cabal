@@ -36,7 +36,7 @@ bug-reports:        https://github.com/haskell/haddock/issues
 copyright:          (c) Simon Marlow, David Waern
 category:           Documentation
 build-type:         Simple
-tested-with:        GHC ==9.2.*
+tested-with:        GHC ==9.2
 extra-source-files:
   CHANGES.md
   doc/*.rst
@@ -70,7 +70,7 @@ executable haddock
 
   -- haddock typically only supports a single GHC major version
   build-depends:
-    base ^>=4.13.0.0 || ^>=4.14.0.0 || ^>=4.15.0.0 || ^>=4.16.0.0 || ^>=4.17.0.0
+    base ^>=4.13.0.0 || ^>=4.14.0.0 || ^>=4.15.0.0 || ^>=4.16.0.0
 
   if flag(in-ghc-tree)
     hs-source-dirs:  haddock-api/src haddock-library/src
@@ -83,7 +83,7 @@ executable haddock
       , directory
       , exceptions
       , filepath
-      , ghc           ^>=9.4
+      , ghc           ^>=9.2
       , ghc-boot
       , ghc-boot-th
       , mtl

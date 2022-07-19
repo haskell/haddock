@@ -1,9 +1,12 @@
-with-compiler: ghc-9.4
+with-compiler: ghc-9.2
 
 packages: ./
           ./haddock-api
           ./haddock-library
           ./haddock-test
+
+allow-newer: all
+
 
 active-repositories: hackage.haskell.org, head.hackage.ghc.haskell.org:override
 

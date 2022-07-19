@@ -8,17 +8,22 @@ on:
 
 jobs:
   cabal:
-    name: ${{ matrix.os }} / ghc ${{ matrix.ghc }}
+    name: ${{ matrix.os }} / ghc ${{ matrix.ghc }} / cabal ${{ matrix.cabal }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
-        cabal: ["3.6"]
+        cabal:
+          - "3.6.2.0"
         ghc:
           - "9.2.2"
 
     steps:
     - uses: actions/checkout@v3
+
+    - name: "Configure ghcup"
+      run: |
+        ghcup upgrade
 
     - uses: haskell/actions/setup@v2
       id: setup-haskell-cabal
