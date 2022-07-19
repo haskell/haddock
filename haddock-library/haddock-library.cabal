@@ -13,7 +13,7 @@ description:          Haddock is a documentation-generation tool for Haskell
 
 license:              BSD-2-Clause
 license-file:         LICENSE
-maintainer:           Alec Theriault <alec.theriault@gmail.com>, Alex Biehl <alexbiehl@gmail.com>, Simon Hengel <sol@typeful.net>, Mateusz Kowalczyk <fuuzetsu@fuuzetsu.co.uk>
+maintainer:           Hécate Moonlight <hecate+github@glitchbra.in>
 homepage:             http://www.haskell.org/haddock/
 bug-reports:          https://github.com/haskell/haddock/issues
 category:             Documentation
@@ -26,9 +26,9 @@ tested-with:          GHC == 7.4.2
                     , GHC == 8.4.4
                     , GHC == 8.6.5
                     , GHC == 8.8.3
-                    , GHC == 8.10.1
-                    , GHC == 9.0.1
-                    , GHC == 9.2.0
+                    , GHC == 8.10.7
+                    , GHC == 9.0.2
+                    , GHC == 9.2.3
 
 extra-source-files:
   CHANGES.md

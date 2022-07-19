@@ -2,9 +2,9 @@ cabal-version:        3.4
 name:                 haddock-test
 version:              0.0.1
 synopsis:             Test utilities for Haddock
-license:              BSD2
+license:              BSD-2-Clause
 author:               Simon Marlow, David Waern
-maintainer:           Simon Hengel <sol@typeful.net>, Mateusz Kowalczyk <fuuzetsu@fuuzetsu.co.uk>
+maintainer:           Hécate Moonlight <hecate+github@glitchbra.in>
 homepage:             http://www.haskell.org/haddock/
 bug-reports:          https://github.com/haskell/haddock/issues
 copyright:            (c) Simon Marlow, David Waern
