@@ -4,7 +4,7 @@ version:              2.27.0
 synopsis:             A documentation-generation tool for Haskell libraries
 description:          Haddock is a documentation-generation tool for Haskell
                       libraries
-license:              BSD2
+license:              BSD-2-Clause
 license-file:         LICENSE
 author:               Simon Marlow, David Waern
 maintainer:           Hécate Moonlight <hecate+github@glitchbra.in>
@@ -66,7 +66,7 @@ library
 
   hs-source-dirs: src
 
-  ghc-options: -funbox-strict-fields -O2
+  ghc-options: -funbox-strict-fields
                -Wall
                -Wcompat
                -Wcompat-unqualified-imports
