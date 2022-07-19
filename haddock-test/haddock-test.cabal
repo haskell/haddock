@@ -1,4 +1,4 @@
-cabal-version:        >= 1.10
+cabal-version:        3.4
 name:                 haddock-test
 version:              0.0.1
 synopsis:             Test utilities for Haddock
@@ -10,7 +10,7 @@ bug-reports:          https://github.com/haskell/haddock/issues
 copyright:            (c) Simon Marlow, David Waern
 category:             Documentation
 build-type:           Simple
-tested-with:          GHC==9.0.*
+tested-with:          GHC==9.2.*
 stability:            experimental
 
 library

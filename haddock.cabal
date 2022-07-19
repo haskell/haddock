@@ -1,6 +1,6 @@
-cabal-version:        2.4
+cabal-version:        3.4
 name:                 haddock
-version:              2.26.1
+version:              2.27.0
 synopsis:             A documentation-generation tool for Haskell libraries
 description:
   This is Haddock, a tool for automatically generating documentation
@@ -29,7 +29,7 @@ description:
 license:              BSD-3-Clause
 license-file:         LICENSE
 author:               Simon Marlow, David Waern
-maintainer:           Alec Theriault <alec.theriault@gmail.com>, Alex Biehl <alexbiehl@gmail.com>, Simon Hengel <sol@typeful.net>, Mateusz Kowalczyk <fuuzetsu@fuuzetsu.co.uk>
+maintainer:           Hécate Moonlight <hecate+github@glitchbra.in>
 homepage:             http://www.haskell.org/haddock/
 bug-reports:          https://github.com/haskell/haddock/issues
 copyright:            (c) Simon Marlow, David Waern
@@ -150,7 +150,7 @@ executable haddock
   else
     -- in order for haddock's advertised version number to have proper meaning,
     -- we pin down to a single haddock-api version.
-    build-depends:  haddock-api == 2.26.1
+    build-depends:  haddock-api == 2.27.0
 
 test-suite html-test
   type:             exitcode-stdio-1.0
