@@ -133,7 +133,6 @@ copyHtmlBits odir libdir themes withQuickjump = do
   copyLibFile haddockJsFile
   copyCssFile (joinPath [libhtmldir, quickJumpCssFile])
   when withQuickjump (copyLibFile jsQuickJumpFile)
-  return ()
 
 
 headHtml :: String -> Themes -> Maybe String -> Maybe String -> Html
