@@ -662,7 +662,7 @@ moreContent indent item = first . (:) <$> nonEmptyLine <*> more indent item
 -- The indentation is 4 spaces.
 indentedParagraphs :: Text -> Parser (DocH mod Identifier)
 indentedParagraphs indent =
-    (T.unpack . T.concat <$> dropFrontOfPara indent') >>= parseParagraphs
+    dropFrontOfPara indent' >>= parseParagraphs . T.unpack . T.concat
   where
     indent' = string $ indent <> "    "
 

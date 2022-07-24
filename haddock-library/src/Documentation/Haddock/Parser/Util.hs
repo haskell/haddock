@@ -61,7 +61,7 @@ removeEscapes = T.unfoldr go
 -- | Consume characters from the input up to and including the given pattern.
 -- Return everything consumed except for the end pattern itself.
 takeUntil :: Text -> Parser Text
-takeUntil end_ = T.dropEnd (T.length end_) <$> requireEnd (scan p (False, end)) >>= gotSome
+takeUntil end_ = requireEnd (scan p (False, end)) >>= gotSome . T.dropEnd (T.length end_)
   where
     end = T.unpack end_
 

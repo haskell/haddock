@@ -220,7 +220,7 @@ loadConfig ccfg dcfg flags files = do
 
     cfgDiffTool <- if FlagNoDiff `elem` flags
         then pure Nothing
-        else (<|>) <$> pure (flagsDiffTool flags) <*> defaultDiffTool
+        else pure ((flagsDiffTool flags) <|>) <*> defaultDiffTool
 
     let cfgAccept = FlagAccept `elem` flags
 
