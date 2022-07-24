@@ -89,7 +89,7 @@ ppHtml :: UnitState
 ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
         themes maybe_mathjax_url maybe_source_url maybe_wiki_url
         maybe_base_url maybe_contents_url maybe_index_url unicode
-        pkg packageInfo qual debug withQuickjump = do
+        pkg qual debug withQuickjump = do
   let
     visible_ifaces = filter visible ifaces
     visible i = OptHide `notElem` ifaceOptions i
@@ -119,8 +119,7 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
 
   mapM_ (ppHtmlModule odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-           maybe_contents_url maybe_index_url withQuickjump
-           unicode pkg qual debug) visible_ifaces
+           maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
 
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> Bool -> IO ()
@@ -477,16 +476,11 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
   (errors, installedIndexes) <-
     partitionEithers
       <$> traverse
-            (\ifaceFile -> do
+            (\ifaceFile ->
               let indexFile = takeDirectory ifaceFile
-                    FilePath.</> "doc-index.json"
-              a <- doesFileExist indexFile
-              if a then
-                    bimap (indexFile,) (map (fixLink ifaceFile))
-                <$> eitherDecodeFile @[JsonIndexEntry] indexFile
-                   else
-                    return (Right [])
-            )
+                    FilePath.</> "doc-index.json" in
+                  bimap (indexFile,) (map (fixLink ifaceFile))
+              <$> eitherDecodeFile @[JsonIndexEntry] indexFile)
             installedIfacesPaths
   traverse_ (\(indexFile, err) -> putStrLn $ "haddock: Coudn't parse " ++ indexFile ++ ": " ++ err)
             errors
@@ -672,14 +666,11 @@ ppHtmlIndex odir doctitle _maybe_package themes
 ppHtmlModule
         :: FilePath -> String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
-        -> Maybe String -> Maybe String
-        -> Bool  -- ^ With Quick Jump?
-        -> Bool -> Maybe Package -> QualOption
+        -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
 ppHtmlModule odir doctitle themes
   maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-  maybe_contents_url maybe_index_url withQuickjump
-  unicode pkg qual debug iface = do
+  maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
   let
       mdl = ifaceMod iface
       aliases = ifaceModuleAliases iface

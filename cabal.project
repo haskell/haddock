@@ -5,6 +5,9 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
+allow-newer: all
+
+
 active-repositories: hackage.haskell.org, head.hackage.ghc.haskell.org:override
 
 repository head.hackage.ghc.haskell.org
