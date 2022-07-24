@@ -31,7 +31,6 @@
 - ignore: {name: "Use camelCase"} # 31 hints
 - ignore: {name: "Use concatMap"} # 1 hint
 - ignore: {name: "Use const"} # 4 hints
-- ignore: {name: "Use fewer LANGUAGE pragmas"} # 1 hint
 - ignore: {name: "Use find"} # 1 hint
 - ignore: {name: "Use fmap"} # 12 hints
 - ignore: {name: "Use foldr"} # 1 hint
