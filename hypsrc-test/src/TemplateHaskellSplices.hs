@@ -6,4 +6,4 @@ import TemplateHaskellQuasiquotes
 
 $(aDecl)
 
-foo = id $(anExpression2)
+foo = $(anExpression2)
