@@ -269,7 +269,7 @@ restrictCons names decls = [ L p d | L p (Just d) <- map (fmap keep) decls ]
   where
     keep :: ConDecl GhcRn -> Maybe (ConDecl GhcRn)
     keep d
-      | any (\n -> n `elem` names) (map unLoc $ getConNames d) =
+      | any ((\n -> n `elem` names) . unLoc) (getConNames d) =
         case d of
           ConDeclH98 { con_args = con_args' } -> case con_args' of
             PrefixCon {} -> Just d

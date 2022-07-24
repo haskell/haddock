@@ -831,15 +831,13 @@ ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
     constrBit = subConstructors pkg qual
       [ ppSideBySideConstr subdocs subfixs unicode pkg qual c
       | c <- cons
-      , let subfixs = filter (\(n,_) -> any (\cn -> cn == n)
-                                            (map unL (getConNamesI (unLoc c)))) fixities
+      , let subfixs = filter (\(n,_) -> any ((\cn -> cn == n) . unL) (getConNamesI (unLoc c))) fixities
       ]
 
     patternBit = subPatterns pkg qual
       [ ppSideBySidePat subfixs unicode qual lnames typ d
       | (SigD _ (PatSynSig _ lnames typ), d) <- pats
-      , let subfixs = filter (\(n,_) -> any (\cn -> cn == n)
-                                            (map unLoc lnames)) fixities
+      , let subfixs = filter (\(n,_) -> any ((\cn -> cn == n) . unLoc) lnames) fixities
       ]
 
     instancesBit = ppInstances links (OriginData docname) instances
