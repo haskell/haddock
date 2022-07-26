@@ -33,7 +33,6 @@
 - ignore: {name: "Use find"} # 1 hint
 - ignore: {name: "Use fmap"} # 12 hints
 - ignore: {name: "Use foldr"} # 1 hint
-- ignore: {name: "Use fromMaybe"} # 2 hints
 - ignore: {name: "Use infix"} # 3 hints
 - ignore: {name: "Use intercalate"} # 1 hint
 - ignore: {name: "Use isAsciiLower"} # 1 hint
