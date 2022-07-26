@@ -63,9 +63,7 @@ parse dflags fpath bs = case unP (go False []) initState of
       if not (atEnd b)
         then do
           mtok <- runMaybeT (parseCppLine <|> parsePlainTok inPrag)
-          (newToks, inPrag') <- case mtok of
-            Nothing -> unknownLine
-            Just a -> pure a
+          (newToks, inPrag') <- maybe unknownLine pure mtok
           go inPrag' (newToks ++ toks)
         else
           pure toks

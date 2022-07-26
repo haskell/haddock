@@ -190,9 +190,7 @@ createInterface1 flags unit_state mod_sum tc_gbl_env ifaces inst_ifaces = do
         fmap unpack pkg_name_fs
 
     fixities :: FixMap
-    fixities = case tcg_rn_decls of
-      Nothing -> mempty
-      Just dx -> mkFixMap dx
+    fixities = maybe mempty mkFixMap tcg_rn_decls
 
     -- Locations of all the TH splices
     loc_splices :: [SrcSpan]

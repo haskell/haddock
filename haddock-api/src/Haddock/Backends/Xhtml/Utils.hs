@@ -62,9 +62,7 @@ spliceURL' :: Maybe FilePath -> Maybe ModuleName -> Maybe GHC.Name ->
 spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
  where
   file = fromMaybe "" maybe_file
-  mdl = case maybe_mod of
-          Nothing           -> ""
-          Just m -> moduleNameString m
+  mdl = maybe "" moduleNameString maybe_mod
 
   (name, kind) =
     case maybe_name of

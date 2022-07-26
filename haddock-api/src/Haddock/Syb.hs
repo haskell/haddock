@@ -93,10 +93,7 @@ mkT f = fromMaybe id (cast f)
 --
 -- Another function stolen from SYB package.
 mkQ :: (Typeable a, Typeable b) => r -> (b -> r) -> a -> r
-(r `mkQ` br) a = case cast a of
-                        Just b  -> br b
-                        Nothing -> r
-
+(r `mkQ` br) a = maybe r br (cast a)
 
 -- | Extend a generic query by a type-specific case.
 --
