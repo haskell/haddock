@@ -38,7 +38,6 @@
 - ignore: {name: "Use fromMaybe"} # 2 hints
 - ignore: {name: "Use infix"} # 3 hints
 - ignore: {name: "Use intercalate"} # 1 hint
-- ignore: {name: "Use isAsciiLower"} # 1 hint
 - ignore: {name: "Use isAsciiUpper"} # 1 hint
 - ignore: {name: "Use isDigit"} # 1 hint
 - ignore: {name: "Use lambda-case"} # 4 hints
