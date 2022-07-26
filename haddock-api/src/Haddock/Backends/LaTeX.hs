@@ -705,9 +705,7 @@ ppInstDecl unicode (InstHead {..}) = case ihdInstType of
 
 lookupAnySubdoc :: (Eq name1) =>
                    name1 -> [(name1, DocForDecl name2)] -> DocForDecl name2
-lookupAnySubdoc n subdocs = case lookup n subdocs of
-  Nothing -> noDocForDecl
-  Just docs -> docs
+lookupAnySubdoc n subdocs = fromMaybe noDocForDecl (lookup n subdocs)
 
 
 -------------------------------------------------------------------------------

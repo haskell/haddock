@@ -87,9 +87,7 @@ everywhereButType = everywhereBut (isType @t)
 --
 -- Another function stolen from SYB package.
 mkT :: (Typeable a, Typeable b) => (b -> b) -> (a -> a)
-mkT f = case cast f of
-    Just f' -> f'
-    Nothing -> id
+mkT f = fromMaybe id (cast f)
 
 -- | Create generic query.
 --
