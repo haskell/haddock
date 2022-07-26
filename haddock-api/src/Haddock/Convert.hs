@@ -458,13 +458,12 @@ synifyIdSig prr s vs i = TypeSig noAnn [synifyNameN i] (synifySigWcType s vs t)
 -- to contain the synified 'ClassOpSig' as well (when appropriate) a default
 -- 'ClassOpSig'.
 synifyTcIdSig :: [TyVar] -> ClassOpItem -> [Sig GhcRn]
-synifyTcIdSig vs (i, dm) =
-  [ ClassOpSig noAnn False [synifyNameN i] (mainSig (varType i)) ] ++
-  [ ClassOpSig noAnn True [noLocA dn] (defSig dt)
-  | Just (dn, GenericDM dt) <- [dm] ]
-  where
-    mainSig t = synifySigType DeleteTopLevelQuantification vs t
-    defSig t = synifySigType ImplicitizeForAll vs t
+synifyTcIdSig vs (i, dm) = x : xs where
+  x  =   ClassOpSig noAnn False [synifyNameN i] (mainSig (varType i))
+  xs = [ ClassOpSig noAnn True [noLocA dn] (defSig dt)
+       | Just (dn, GenericDM dt) <- [dm] ]
+  mainSig t = synifySigType DeleteTopLevelQuantification vs t
+  defSig t = synifySigType ImplicitizeForAll vs t
 
 synifyCtx :: [PredType] -> Maybe (LHsContext GhcRn)
 synifyCtx ts = Just (noLocA ( map (synifyType WithinType []) ts))
