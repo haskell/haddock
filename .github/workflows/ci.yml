@@ -4,7 +4,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: ["ghc-head"]
+    branches: ["ghc-9.4"]
 
 jobs:
   cabal:
@@ -15,7 +15,7 @@ jobs:
         os: [ubuntu-latest]
         cabal: ["3.6"]
         ghc:
-          - "head"
+          - "9.4"
 
     steps:
     - uses: actions/checkout@v2
