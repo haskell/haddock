@@ -25,6 +25,9 @@ jobs:
       run: |
         sudo -- sh -c "apt-get update"
         sudo -- sh -c "apt-get -y install libgmp-dev libtinfo-dev"
+    - name: Configure ghcup
+      run: |
+        ghcup config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml
 
     - uses: haskell/actions/setup@main
       id: setup-haskell-cabal
