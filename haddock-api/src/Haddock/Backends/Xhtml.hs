@@ -97,7 +97,6 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
   when (isNothing maybe_contents_url) $
     ppHtmlContents state odir doctitle maybe_package
         themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
-        withQuickjump
         [PackageInterfaces
           { piPackageInfo = packageInfo
           , piVisibility  = Visible
@@ -110,7 +109,6 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
   when (isNothing maybe_index_url) $ do
     ppHtmlIndex odir doctitle maybe_package
       themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
-      withQuickjump
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
   when withQuickjump $
@@ -119,8 +117,7 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
 
   mapM_ (ppHtmlModule odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-           maybe_contents_url maybe_index_url withQuickjump
-           unicode pkg qual debug) visible_ifaces
+           maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
 
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> Bool -> IO ()
@@ -166,15 +163,6 @@ headHtml docTitle themes mathjax_url base_url =
                      ,   "}"
                      , "});" ]
 
-quickJumpButtonLi :: Bool  -- ^ With Quick Jump?
-                  -> Maybe Html
--- The TypeScript should replace this <li> element, given its id. However, in
--- case it does not, the element is given content here too.
-quickJumpButtonLi True = Just $ li ! [identifier "quick-jump-button"]
-  << anchor ! [href "#"] << "Quick Jump"
-
-quickJumpButtonLi False = Nothing
-
 srcButton :: SourceURLs -> Maybe Interface -> Maybe Html
 srcButton (Just src_base_url, _, _, _) Nothing =
   Just (anchor ! [href src_base_url] << "Source")
@@ -213,18 +201,20 @@ indexButton maybe_index_url
 bodyHtml :: String -> Maybe Interface
     -> SourceURLs -> WikiURLs
     -> Maybe String -> Maybe String
-    -> Bool  -- ^ With Quick Jump?
     -> Html -> Html
 bodyHtml doctitle iface
            maybe_source_url maybe_wiki_url
            maybe_contents_url maybe_index_url
-           withQuickjump
            pageContent =
   body << [
     divPackageHeader << [
       nonEmptySectionName << doctitle,
-      ulist ! [theclass "links", identifier "page-menu"]
-        << catMaybes (quickJumpButtonLi withQuickjump : otherButtonLis)
+      unordList (catMaybes [
+        srcButton maybe_source_url iface,
+        wikiButton maybe_wiki_url (ifaceMod <$> iface),
+        contentsButton maybe_contents_url,
+        indexButton maybe_index_url])
+            ! [theclass "links", identifier "page-menu"]
       ],
     divContent << pageContent,
     divFooter << paragraph << (
@@ -232,13 +222,6 @@ bodyHtml doctitle iface
       (anchor ! [href projectUrl] << toHtml projectName) +++
       (" version " ++ projectVersion)
       )
-    ]
- where
-  otherButtonLis = (fmap . fmap) (li <<)
-    [ srcButton maybe_source_url iface
-    , wikiButton maybe_wiki_url (ifaceMod <$> iface)
-    , contentsButton maybe_contents_url
-    , indexButton maybe_index_url
     ]
 
 moduleInfo :: Interface -> Html
@@ -302,7 +285,6 @@ ppHtmlContents
    -> Maybe String
    -> SourceURLs
    -> WikiURLs
-   -> Bool  -- ^ With Quick Jump?
    -> [PackageInterfaces] -> Bool -> Maybe (MDoc GHC.RdrName)
    -> Bool
    -> Maybe Package  -- ^ Current package
@@ -310,8 +292,7 @@ ppHtmlContents
    -> IO ()
 ppHtmlContents state odir doctitle _maybe_package
   themes mathjax_url maybe_index_url
-  maybe_source_url maybe_wiki_url withQuickjump
-  packages showPkgs prologue debug pkg qual = do
+  maybe_source_url maybe_wiki_url packages showPkgs prologue debug pkg qual = do
   let trees =
         [ ( piPackageInfo pinfo
           , mkModuleTree state showPkgs
@@ -336,7 +317,7 @@ ppHtmlContents state odir doctitle _maybe_package
         headHtml doctitle themes mathjax_url Nothing +++
         bodyHtml doctitle Nothing
           maybe_source_url maybe_wiki_url
-          Nothing maybe_index_url withQuickjump << [
+          Nothing maybe_index_url << [
             ppPrologue pkg qual doctitle prologue,
             ppSignatureTrees pkg qual sig_trees,
             ppModuleTrees pkg qual trees
@@ -550,12 +531,11 @@ ppHtmlIndex :: FilePath
             -> Maybe String
             -> SourceURLs
             -> WikiURLs
-            -> Bool  -- ^ With Quick Jump?
             -> [InstalledInterface]
             -> Bool
             -> IO ()
 ppHtmlIndex odir doctitle _maybe_package themes
-  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url withQuickjump ifaces debug = do
+  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = do
   let html = indexPage split_indices Nothing
               (if split_indices then [] else index)
 
@@ -574,7 +554,7 @@ ppHtmlIndex odir doctitle _maybe_package themes
       headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes maybe_mathjax_url Nothing +++
       bodyHtml doctitle Nothing
         maybe_source_url maybe_wiki_url
-        maybe_contents_url Nothing withQuickjump << [
+        maybe_contents_url Nothing << [
           if showLetters then indexInitialLetterLinks else noHtml,
           if null items then noHtml else
             divIndex << [sectionName << indexName ch, buildIndex items]
@@ -672,14 +652,11 @@ ppHtmlIndex odir doctitle _maybe_package themes
 ppHtmlModule
         :: FilePath -> String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
-        -> Maybe String -> Maybe String
-        -> Bool  -- ^ With Quick Jump?
-        -> Bool -> Maybe Package -> QualOption
+        -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
 ppHtmlModule odir doctitle themes
   maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-  maybe_contents_url maybe_index_url withQuickjump
-  unicode pkg qual debug iface = do
+  maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
   let
       mdl = ifaceMod iface
       aliases = ifaceModuleAliases iface
@@ -699,7 +676,7 @@ ppHtmlModule odir doctitle themes
         headHtml mdl_str_annot themes maybe_mathjax_url maybe_base_url +++
         bodyHtml doctitle (Just iface)
           maybe_source_url maybe_wiki_url
-          maybe_contents_url maybe_index_url withQuickjump << [
+          maybe_contents_url maybe_index_url << [
             divModuleHeader << (moduleInfo iface +++ (sectionName << mdl_str_linked)),
             ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
           ]
