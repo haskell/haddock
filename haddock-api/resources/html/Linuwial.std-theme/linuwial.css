@@ -568,7 +568,7 @@ table.info {
 }
 
 #interface td.src {
-  white-space: nowrap;
+  white-space: pre-wrap;
 }
 
 /* @end */
