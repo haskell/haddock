@@ -27,6 +27,7 @@ import GHC.Types.SrcLoc     ( realSrcLocSpan, mkRealSrcLoc, srcSpanFile )
 import Data.Map as M
 import GHC.Data.FastString     ( mkFastString )
 import GHC.Unit.Module         ( Module, moduleName )
+import qualified GHC.Data.Strict as Strict
 
 
 -- | Generate hyperlinked source for given interfaces.
@@ -95,7 +96,7 @@ ppHyperlinkedModuleSource verbosity srcdir pretty srcs iface = do
     path = srcdir </> hypSrcModuleFile (ifaceMod iface)
 
     emptyHieAst fileFs = Node
-      { nodeSpan = realSrcLocSpan (mkRealSrcLoc fileFs 1 0)
+      { nodeSpan = realSrcLocSpan (mkRealSrcLoc fileFs 1 0) Strict.Nothing
       , nodeChildren = []
       , sourcedNodeInfo = SourcedNodeInfo mempty
       }

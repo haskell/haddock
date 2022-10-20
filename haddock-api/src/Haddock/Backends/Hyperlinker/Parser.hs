@@ -27,6 +27,7 @@ import GHC.Utils.Panic      ( panic )
 import GHC.Driver.Ppr       ( showSDoc )
 import GHC.Types.SrcLoc
 import GHC.Data.StringBuffer ( StringBuffer, atEnd )
+import qualified GHC.Data.Strict as Strict
 
 import Haddock.Backends.Hyperlinker.Types as T
 import Haddock.GhcUtils
@@ -78,11 +79,11 @@ parse dflags fpath bs = case unP (go False []) initState of
     -- | Like 'Lexer.lexer', but slower, with a better API, and filtering out empty tokens
     wrappedLexer :: P (RealLocated Lexer.Token)
     wrappedLexer = Lexer.lexer False andThen
-      where andThen (L (RealSrcSpan s _) t)
+      where andThen (L (RealSrcSpan s) t)
               | srcSpanStartLine s /= srcSpanEndLine s ||
                 srcSpanStartCol s /= srcSpanEndCol s
               = pure (L s t)
-            andThen (L (RealSrcSpan s _) ITeof) = pure (L s ITeof)
+            andThen (L (RealSrcSpan s) ITeof) = pure (L s ITeof)
             andThen _ = wrappedLexer
 
     -- | Try to parse a CPP line (can fail)
@@ -93,7 +94,7 @@ parse dflags fpath bs = case unP (go False []) initState of
         Just (cppBStr, l', b')
              -> let cppTok = T.Token { tkType = TkCpp
                                      , tkValue = cppBStr
-                                     , tkSpan = mkRealSrcSpan l l' }
+                                     , tkSpan = mkRealSrcSpan l l' Strict.Nothing }
                 in setInput (b', l') *> pure (Just ([cppTok], False))
         _    -> return Nothing
 
@@ -105,7 +106,7 @@ parse dflags fpath bs = case unP (go False []) initState of
       (bEnd, _) <- lift getInput
       case sp of
         UnhelpfulSpan _ -> pure ([], False) -- pretend the token never existed
-        RealSrcSpan rsp _ -> do
+        RealSrcSpan rsp -> do
           let typ = if inPrag then TkPragma else classify tok
               RealSrcLoc lStart _ = srcSpanStart sp -- safe since @sp@ is real
               (spaceBStr, bStart) = spanPosition lInit lStart bInit
@@ -144,7 +145,7 @@ parse dflags fpath bs = case unP (go False []) initState of
                                  , tkSpan = rsp }
               spaceTok = T.Token { tkType = TkSpace
                                  , tkValue = spaceBStr
-                                 , tkSpan = mkRealSrcSpan lInit lStart }
+                                 , tkSpan = mkRealSrcSpan lInit lStart Strict.Nothing}
 
           pure (plainTok : [ spaceTok | not (BS.null spaceBStr) ], inPrag')
 
@@ -155,7 +156,7 @@ parse dflags fpath bs = case unP (go False []) initState of
       let (unkBStr, l', b') = spanLine l b
           unkTok = T.Token { tkType = TkUnknown
                            , tkValue = unkBStr
-                           , tkSpan = mkRealSrcSpan l l' }
+                           , tkSpan = mkRealSrcSpan l l' Strict.Nothing }
       setInput (b', l')
       pure ([unkTok], False)
 
@@ -411,4 +412,3 @@ inPragma False tok =
     ITctype             {} -> True
 
     _                      -> False
-
