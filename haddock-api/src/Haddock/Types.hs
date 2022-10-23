@@ -817,7 +817,7 @@ type instance Anno [LocatedA (HsType DocNameI)]      = SrcSpanAnnC
 type instance Anno (HsType DocNameI)                 = SrcSpanAnnA
 type instance Anno (DataFamInstDecl DocNameI)        = SrcSpanAnnA
 type instance Anno (DerivStrategy DocNameI)          = SrcAnn NoEpAnns
-type instance Anno (FieldOcc DocNameI)               = SrcAnn NoEpAnns
+type instance Anno (FieldOcc DocNameI)               = SrcSpanAnnA
 type instance Anno (ConDeclField DocNameI)           = SrcSpan
 type instance Anno (Located (ConDeclField DocNameI)) = SrcSpan
 type instance Anno [Located (ConDeclField DocNameI)] = SrcSpan
@@ -979,6 +979,9 @@ instance NFData Fixity where
 instance NFData ann => NFData (SrcSpanAnn' ann) where
   rnf (SrcSpanAnn a ss) = a `deepseq` ss `deepseq` ()
 
+instance NFData ann => NFData (EpAnnS ann) where
+  rnf (EpAnnS anc anns cs) = anc`deepseq` anns `deepseq` cs `deepseq` ()
+
 instance NFData (EpAnn NameAnn) where
   rnf EpAnnNotUsed = ()
   rnf (EpAnn en ann cs) = en `deepseq` ann `deepseq` cs `deepseq` ()
@@ -1034,7 +1037,7 @@ instance NFData NameAdornment where
   rnf NameSquare     = ()
 
 instance NFData EpaLocation where
-  rnf (EpaSpan ss bs)  = ss `seq` bs `deepseq` ()
+  rnf (EpaSpan ss)     = ss `deepseq` ()
   rnf (EpaDelta dp lc) = dp `seq` lc `deepseq` ()
 
 instance NFData EpAnnComments where
@@ -1049,8 +1052,6 @@ instance NFData EpaCommentTok where
   rnf (EpaDocOptions s)   = rnf s
   rnf (EpaLineComment s)  = rnf s
   rnf (EpaBlockComment s) = rnf s
-  rnf EpaEofComment       = ()
-
 
 instance NFData a => NFData (Strict.Maybe a) where
   rnf Strict.Nothing  = ()
@@ -1062,9 +1063,6 @@ instance NFData BufSpan where
 instance NFData BufPos where
   rnf (BufPos n) = rnf n
 
-instance NFData Anchor where
-  rnf (Anchor ss op) = ss `seq` op `deepseq` ()
-
 instance NFData AnchorOperation where
   rnf UnchangedAnchor  = ()
   rnf (MovedAnchor dp) = rnf dp
@@ -1072,4 +1070,3 @@ instance NFData AnchorOperation where
 instance NFData DeltaPos where
   rnf (SameLine n)        = rnf n
   rnf (DifferentLine n m) = n `deepseq` m `deepseq` ()
-

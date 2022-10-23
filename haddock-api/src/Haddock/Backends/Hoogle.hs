@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
+-- AZ temporary
+{-# LANGUAGE RankNTypes #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Hoogle
@@ -346,9 +349,9 @@ docWith dflags header d
     maybe [] (showTags . markup (markupTag dflags)) d
 
 mkSubdocN :: DynFlags -> LocatedN Name -> [(Name, DocForDecl Name)] -> [String] -> [String]
-mkSubdocN dflags n subdocs s = mkSubdoc dflags (n2l n) subdocs s
+mkSubdocN dflags n subdocs s = mkSubdoc dflags n subdocs s
 
-mkSubdoc :: DynFlags -> LocatedA Name -> [(Name, DocForDecl Name)] -> [String] -> [String]
+mkSubdoc :: DynFlags -> LocatedN Name -> [(Name, DocForDecl Name)] -> [String] -> [String]
 mkSubdoc dflags n subdocs s = concatMap (ppDocumentation dflags) getDoc ++ s
  where
    getDoc = maybe [] (return . fst) (lookup (unLoc n) subdocs)

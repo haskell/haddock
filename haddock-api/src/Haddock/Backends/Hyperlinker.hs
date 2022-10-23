@@ -96,7 +96,7 @@ ppHyperlinkedModuleSource verbosity srcdir pretty srcs iface = do
     path = srcdir </> hypSrcModuleFile (ifaceMod iface)
 
     emptyHieAst fileFs = Node
-      { nodeSpan = realSrcLocSpan (mkRealSrcLoc fileFs 1 0) Strict.Nothing
+      { nodeSpan = realSrcLocSpan (mkRealSrcLoc fileFs 1 0)
       , nodeChildren = []
       , sourcedNodeInfo = SourcedNodeInfo mempty
       }

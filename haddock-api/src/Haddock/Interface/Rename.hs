@@ -500,7 +500,7 @@ renameDecl decl = case decl of
     return (DerivD noExtField d')
   _ -> error "renameDecl"
 
-renameLThing :: (a GhcRn -> RnM (a DocNameI)) -> LocatedAn an (a GhcRn) -> RnM (Located (a DocNameI))
+renameLThing :: (a GhcRn -> RnM (a DocNameI)) -> LocatedAnS an (a GhcRn) -> RnM (Located (a DocNameI))
 renameLThing fn (L loc x) = return . L (locA loc) =<< fn x
 
 renameTyClD :: TyClDecl GhcRn -> RnM (TyClDecl DocNameI)
@@ -658,7 +658,7 @@ renameConDeclFieldField (L l (ConDeclField _ names t doc)) = do
 renameLFieldOcc :: LFieldOcc GhcRn -> RnM (LFieldOcc DocNameI)
 renameLFieldOcc (L l (FieldOcc sel lbl)) = do
   sel' <- renameName sel
-  return $ L l (FieldOcc sel' lbl)
+  return $ L (l2l l) (FieldOcc sel' lbl)
 
 renameSig :: Sig GhcRn -> RnM (Sig DocNameI)
 renameSig sig = case sig of

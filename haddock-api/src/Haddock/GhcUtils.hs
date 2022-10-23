@@ -460,7 +460,7 @@ unL (L _ x) = x
 reL :: a -> GenLocated l a
 reL = L undefined
 
-mapMA :: Monad m => (a -> m b) -> LocatedAn an a -> m (Located b)
+mapMA :: Monad m => (a -> m b) -> LocatedAnS an a -> m (Located b)
 mapMA f (L al a) = L (locA al) <$> f a
 
 -------------------------------------------------------------------------------
