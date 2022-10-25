@@ -66,7 +66,7 @@ import qualified GHC.Types.Avail as Avail
 import GHC.Types.Basic (PromotionFlag (..))
 import GHC.Types.Name (getOccString, getSrcSpan, isDataConName, isValName, nameIsLocalOrFrom, nameOccName, emptyOccEnv)
 import GHC.Types.Name.Env (lookupNameEnv)
-import GHC.Types.Name.Reader (GlobalRdrEnv, greMangledName, lookupGlobalRdrEnv)
+import GHC.Types.Name.Reader (GlobalRdrEnv, globalRdrEnvElts, greMangledName, gresToAvailInfo, isLocalGRE, lookupGlobalRdrEnv)
 import GHC.Types.Name.Set (elemNameSet, mkNameSet)
 import GHC.Types.SourceFile (HscSource (..))
 import GHC.Types.SourceText (SourceText (..), sl_fs)
@@ -224,9 +224,16 @@ createInterface1 flags unit_state mod_sum tc_gbl_env ifaces inst_ifaces = do
           Nothing
 
     -- All the exported Names of this module.
+    actual_exports :: [AvailInfo]
+    actual_exports
+      | OptIgnoreExports `elem` doc_opts  =
+          gresToAvailInfo $ filter isLocalGRE $ globalRdrEnvElts tcg_rdr_env
+      | otherwise =
+          tcg_exports
+
     exported_names :: [Name]
     exported_names =
-      concatMap availNamesWithSelectors tcg_exports
+      concatMap availNamesWithSelectors actual_exports
 
     -- Module imports of the form `import X`. Note that there is
     -- a) no qualification and
@@ -273,7 +280,7 @@ createInterface1 flags unit_state mod_sum tc_gbl_env ifaces inst_ifaces = do
 
   export_items <- mkExportItems is_sig ifaces pkg_name tcg_mod tcg_semantic_mod
     warnings tcg_rdr_env exported_names (map fst decls) maps fixities
-    imported_modules loc_splices export_list tcg_exports inst_ifaces dflags
+    imported_modules loc_splices export_list actual_exports inst_ifaces dflags
 
   let
     visible_names :: [Name]
