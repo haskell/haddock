@@ -1112,10 +1112,9 @@ Links
 ~~~~~
 
 Haddock supports Markdown syntax for inline links. A link consists of a
-link text and a URL. The link text is enclosed in square brackets and
-followed by the URL enclosed in regular parentheses, for example: ::
+link text and a URL. The link text follows the URL. For example: ::
 
-    [some link](http://example.com)
+    <http://example.com some link text>
 
 The link text is used as a description for the URL if the output
 format supports it.
