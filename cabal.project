@@ -11,7 +11,7 @@ allow-newer:
   ghc-paths:Cabal,
   *:base,
   *:ghc-prim,
-  tree-diff:time,
+  tree-diff:time
 
 package haddock-library
  tests: False
