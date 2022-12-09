@@ -204,7 +204,7 @@ test-suite spec
                , filepath
                , ghc-boot
                , ghc-boot-th
-               , mtl >= 2.3.1   
+               , mtl
                , transformers
 
   build-tool-depends:
