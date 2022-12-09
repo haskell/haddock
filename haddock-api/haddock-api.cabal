@@ -49,6 +49,10 @@ library
                , haddock-library ^>= 1.11
                , xhtml           ^>= 3000.2.2
                , parsec          ^>= 3.1.13.0
+               , writer-cps-mtl  ^>= 0.1.1.6
+               , dlist
+               , bytestring-strict-builder
+               , text
 
   -- Versions for the dependencies below are transitively pinned by
   -- the non-reinstallable `ghc` package and hence need no version
@@ -201,7 +205,7 @@ test-suite spec
                , filepath
                , ghc-boot
                , ghc-boot-th
-               , mtl
+               , mtl >= 2.3.1   
                , transformers
 
   build-tool-depends:

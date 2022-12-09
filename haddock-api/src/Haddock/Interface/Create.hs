@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -41,7 +42,7 @@ import Haddock.Utils (replace)
 
 import Control.Applicative ((<|>))
 import Control.Monad.Reader (MonadReader (..), ReaderT, asks, runReaderT)
-import Control.Monad.Writer.Strict hiding (tell)
+import Control.Monad.Writer.CPS hiding (tell)
 import Data.Bitraversable (bitraverse)
 import Data.List (find, foldl')
 import qualified Data.IntMap as IM
@@ -50,6 +51,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, isJust, mapMaybe, maybeToList)
 import Data.Traversable (for)
+import Data.Foldable (traverse_)
 
 import GHC hiding (lookupName)
 import GHC.Core.Class (ClassMinimalDef, classMinimalDef)
@@ -79,6 +81,9 @@ import qualified GHC.Utils.Outputable as O
 import GHC.Utils.Panic (pprPanic)
 import GHC.Unit.Module.Warnings
 import GHC.Types.Unique.Map
+import Data.DList (DList)
+import qualified Data.DList as DList
+import ByteString.StrictBuilder
 
 newtype IfEnv m = IfEnv
   {
@@ -93,22 +98,22 @@ newtype IfEnv m = IfEnv
 -- In the past `createInterface` was running in the `Ghc` monad but proved hard
 -- to sustain as soon as we moved over for Haddock to be a plugin. Also abstracting
 -- over the Ghc specific clarifies where side effects happen.
-newtype IfM m a = IfM { unIfM :: ReaderT (IfEnv m) (WriterT [ErrMsg] m) a }
-
+newtype IfM m a = IfM { unIfM :: ReaderT (IfEnv m) (WriterT ErrorMessages m) a }
 
 deriving newtype instance Functor m => Functor (IfM m)
-deriving newtype instance Applicative m => Applicative (IfM m)
+deriving newtype instance Monad m => Applicative (IfM m)
 deriving newtype instance Monad m => Monad (IfM m)
 deriving newtype instance MonadIO m => MonadIO (IfM m)
 deriving newtype instance Monad m => MonadReader (IfEnv m) (IfM m)
-deriving newtype instance Monad m => MonadWriter [ErrMsg] (IfM m)
-
+deriving newtype instance Monad m => MonadWriter ErrorMessages (IfM m)
+deriving newtype instance Monad m => ReportErrorMessage (IfM m)
 
 -- | Run an `IfM` action.
 runIfM
   -- | Lookup a global name in the current session. Used in cases
   -- where declarations don't
-  :: (Name -> m (Maybe TyThing))
+  :: Functor m
+  => (Name -> m (Maybe TyThing))
   -- | The action to run.
   -> IfM m a
   -- | Result and accumulated error/warning messages.
@@ -119,12 +124,12 @@ runIfM lookup_name action = do
       {
         ife_lookup_name = lookup_name
       }
-  runWriterT (runReaderT (unIfM action) if_env)
+  fmap errorMessagesToList <$> runWriterT (runReaderT (unIfM action) if_env)
 
 
 liftErrMsg :: Monad m => ErrMsgM a -> IfM m a
 liftErrMsg action = do
-  writer (runWriter action)
+  IfM (writer (runErrMsgM action))
 
 
 lookupName :: Monad m => Name -> IfM m (Maybe TyThing)
@@ -204,7 +209,7 @@ createInterface1 flags unit_state mod_sum tc_gbl_env ifaces inst_ifaces = do
 
   decls <- case tcg_rn_decls of
     Nothing -> do
-      tell [ "Warning: Renamed source is not available" ]
+      reportErrorMessage "Warning: Renamed source is not available"
       pure []
     Just dx ->
       pure (topDecls dx)
@@ -441,7 +446,7 @@ mkDocOpts :: Maybe String -> [Flag] -> Module -> ErrMsgM [DocOption]
 mkDocOpts mbOpts flags mdl = do
   opts <- case mbOpts of
     Just opts -> case words $ replace ',' ' ' opts of
-      [] -> tell ["No option supplied to DOC_OPTION/doc_option"] >> return []
+      [] -> reportErrorMessage "No option supplied to DOC_OPTION/doc_option" >> return []
       xs -> liftM catMaybes (mapM parseOption xs)
     Nothing -> return []
   pure (foldl go opts flags)
@@ -462,7 +467,7 @@ parseOption "prune"           = return (Just OptPrune)
 parseOption "ignore-exports"  = return (Just OptIgnoreExports)
 parseOption "not-home"        = return (Just OptNotHome)
 parseOption "show-extensions" = return (Just OptShowExtensions)
-parseOption other = tell ["Unrecognised option: " ++ other] >> return Nothing
+parseOption other = reportErrorMessage ("Unrecognised option: " <> errMsgFromString other) >> return Nothing
 
 
 --------------------------------------------------------------------------------
@@ -733,12 +738,12 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
               -- parents is also exported. See note [1].
               | t `notElem` declNames,
                 Just p <- find isExported (parents t $ unL decl) ->
-                do liftErrMsg $ tell [
-                     "Warning: " ++ moduleString thisMod ++ ": " ++
-                     pretty dflags (nameOccName t) ++ " is exported separately but " ++
-                     "will be documented under " ++ pretty dflags (nameOccName p) ++
-                     ". Consider exporting it together with its parent(s)" ++
-                     " for code clarity." ]
+                do reportErrorMessage $
+                     "Warning: " <> errMsgFromString (moduleString thisMod) <> ": " <>
+                     errMsgFromString (pretty dflags (nameOccName t)) <> " is exported separately but " <>
+                     "will be documented under " <> errMsgFromString (pretty dflags (nameOccName p)) <>
+                     ". Consider exporting it together with its parent(s)" <>
+                     " for code clarity."
                    return []
 
               -- normal case
@@ -772,8 +777,8 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
               -- with signature inheritance
               case M.lookup (nameModule t) instIfaceMap of
                 Nothing -> do
-                   liftErrMsg $ tell
-                      ["Warning: Couldn't find .haddock for export " ++ pretty dflags t]
+                   reportErrorMessage
+                      $ "Warning: Couldn't find .haddock for export " <> errMsgFromString (pretty dflags t)
                    let subs_ = availNoDocs avail
                    availExportDecl avail decl (noDocForDecl, subs_)
                 Just iface ->
@@ -790,7 +795,7 @@ availExportItem is_sig modMap thisMod semMod warnings exportedNames
           synifiedDeclOpt <- hiDecl dflags declName
           case synifiedDeclOpt of
             Just synifiedDecl -> pure synifiedDecl
-            Nothing -> pprPanic "availExportItem" (O.text err)
+            Nothing -> pprPanic "availExportItem" (O.text (show err))
 
     availExportDecl :: AvailInfo -> LHsDecl GhcRn
                     -> (DocForDecl Name, [(Name, DocForDecl Name)])
@@ -907,17 +912,20 @@ hiDecl dflags t = do
   mayTyThing <- lookupName t
   case mayTyThing of
     Nothing -> do
-      liftErrMsg $ tell ["Warning: Not found in environment: " ++ pretty dflags t]
+      reportErrorMessage ("Warning: Not found in environment: " <> errMsgFromString (pretty dflags t))
       return Nothing
     Just x -> case tyThingToLHsDecl ShowRuntimeRep x of
-      Left m -> liftErrMsg (tell [bugWarn m]) >> return Nothing
-      Right (m, t') -> liftErrMsg (tell $ map bugWarn m)
-                      >> return (Just $ noLocA t')
+      Left m -> do
+        reportErrorMessage (bugWarn m)
+        return Nothing
+      Right (m, t') -> do
+        traverse_ (reportErrorMessage . bugWarn) m
+        return (Just $ noLocA t')
     where
-      warnLine x = O.text "haddock-bug:" O.<+> O.text x O.<>
+      warnLine x = O.text "haddock-bug:" O.<+> O.text (errMsgToString x) O.<>
                    O.comma O.<+> O.quotes (O.ppr t) O.<+>
                    O.text "-- Please report this on Haddock issue tracker!"
-      bugWarn = showSDoc dflags . warnLine
+      bugWarn = errMsgFromString . showSDoc dflags . warnLine
 
 -- | This function is called for top-level bindings without type signatures.
 -- It gets the type signature from GHC and that means it's not going to
@@ -976,8 +984,8 @@ moduleExport thisMod dflags ifaceMap instIfaceMap expMod =
         case M.lookup expMod (M.mapKeys moduleName instIfaceMap) of
           Just iface -> return [ ExportModule (instMod iface) ]
           Nothing -> do
-            liftErrMsg $ tell ["Warning: " ++ pretty dflags thisMod ++ ": Could not find " ++
-                               "documentation for exported module: " ++ pretty dflags expMod]
+            reportErrorMessage ( "Warning: " <> fromString (pretty dflags thisMod) <> ": Could not find " <>
+                  "documentation for exported module: " <> fromString (pretty dflags expMod) )
             return []
   where
     m = mkModule (moduleUnit thisMod) expMod -- Identity module!
@@ -1093,8 +1101,8 @@ extractDecl declMap name decl
           ([], [])
             | Just (famInstDecl:_) <- M.lookup name declMap
             -> extractDecl declMap name famInstDecl
-          _ -> Left (concat [ "Ambiguous decl for ", getOccString name
-                            , " in class ", getOccString clsNm ])
+          _ -> Left (mconcat [ "Ambiguous decl for ", errMsgFromString (getOccString name)
+                            , " in class ", errMsgFromString (getOccString clsNm) ])
 
       TyClD _ d@DataDecl { tcdLName = L _ dataNm
                          , tcdDataDefn = HsDataDefn { dd_cons = dataCons } } -> do
@@ -1135,14 +1143,14 @@ extractDecl declMap name decl
             in case matches of
               [d0] -> extractDecl declMap name (noLocA . InstD noExtField $ DataFamInstD noExtField d0)
               _ -> Left "internal: extractDecl (ClsInstD)"
-      _ -> Left ("extractDecl: Unhandled decl for " ++ getOccString name)
+      _ -> Left ("extractDecl: Unhandled decl for " <> fromString (getOccString name))
 
 extractPatternSyn :: Name -> Name
                   -> [LHsTypeArg GhcRn] -> [LConDecl GhcRn]
                   -> Either ErrMsg (LSig GhcRn)
 extractPatternSyn nm t tvs cons =
   case filter matches cons of
-    [] -> Left . O.showSDocOneLine O.defaultSDocContext $
+    [] -> Left . errMsgFromString . O.showSDocOneLine O.defaultSDocContext $
           O.text "constructor pattern " O.<+> O.ppr nm O.<+> O.text "not found in type" O.<+> O.ppr t
     con:_ -> pure (extract <$> con)
  where
@@ -1233,7 +1241,7 @@ findNamedDoc :: String -> [HsDecl GhcRn] -> ErrMsgM (Maybe HsDocString)
 findNamedDoc name = search
   where
     search [] = do
-      tell ["Cannot find documentation for: $" ++ name]
+      reportErrorMessage ("Cannot find documentation for: $" <> errMsgFromString name)
       return Nothing
     search (DocD _ (DocCommentNamed name' doc) : rest)
       | name == name' = return (Just (hsDocString . unLoc $ doc))

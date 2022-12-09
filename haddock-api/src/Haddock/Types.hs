@@ -34,13 +34,18 @@ module Haddock.Types (
   -- $ Reexports
   , runWriter
   , tell
+  , fromString
  ) where
 
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import Data.String
 import Control.DeepSeq
 import Control.Exception (throw)
 import Control.Monad.Catch
 import Control.Monad.IO.Class (MonadIO(..))
-import Control.Monad.Writer.Strict (Writer, WriterT, MonadWriter(..), lift, runWriter, runWriterT)
+import Control.Monad.Writer.CPS (Writer, WriterT, MonadWriter(..), lift, runWriter, runWriterT)
+import Control.Monad.Reader (ReaderT(..))
 import Data.Typeable (Typeable)
 import Data.Map (Map)
 import Data.Data (Data)
@@ -49,12 +54,16 @@ import Documentation.Haddock.Types
 import GHC.Types.Basic (PromotionFlag(..))
 import GHC.Types.Fixity (Fixity(..))
 import GHC.Types.Var (Specificity)
+import ByteString.StrictBuilder
+import qualified Data.List  as List
+import Data.DList (DList)
+import qualified Data.DList as DList
 
 import GHC
 import GHC.Driver.Session (Language)
 import qualified GHC.LanguageExtensions as LangExt
 import GHC.Types.Name.Occurrence
-import GHC.Utils.Outputable
+import GHC.Utils.Outputable hiding ((<>))
 
 -----------------------------------------------------------------------------
 -- * Convenient synonyms
@@ -640,8 +649,40 @@ data SinceQual
 -- A monad which collects error messages, locally defined to avoid a dep on mtl
 
 
-type ErrMsg = String
-type ErrMsgM = Writer [ErrMsg]
+type ErrMsg = Builder
+
+errMsgFromString :: String -> ErrMsg
+errMsgFromString = fromString
+
+errMsgToString :: ErrMsg -> String
+errMsgToString = Text.unpack . Text.decodeUtf8 . builderBytes
+
+errMsgUnlines :: [ErrMsg] -> ErrMsg
+errMsgUnlines = List.foldl' (\acc x -> acc <> (x <> asciiChar '\n')) mempty
+
+class Monad m => ReportErrorMessage m where
+    reportErrorMessage :: Builder -> m ()
+
+instance ReportErrorMessage m => ReportErrorMessage (ReaderT r m) where
+    reportErrorMessage = lift . reportErrorMessage
+
+instance Monad m => ReportErrorMessage (WriterT ErrorMessages m) where
+    reportErrorMessage = tell . singleMessage
+
+newtype ErrMsgM a = ErrMsgM { unErrMsgM :: Writer ErrorMessages a }
+    deriving newtype (Functor, Applicative, Monad, ReportErrorMessage)
+
+newtype ErrorMessages = ErrorMessages { unErrorMessages :: DList Builder }
+    deriving newtype (Semigroup, Monoid)
+
+runErrMsgM :: ErrMsgM a -> (a, ErrorMessages)
+runErrMsgM = runWriter . unErrMsgM
+
+singleMessage :: Builder -> ErrorMessages
+singleMessage = ErrorMessages . pure
+
+errorMessagesToList :: ErrorMessages -> [Builder]
+errorMessagesToList = DList.toList . unErrorMessages
 
 
 -- Exceptions
@@ -675,24 +716,24 @@ withExceptionContext ctxt =
 -- @Haddock.Types.ErrMsg@s a lot, like @ErrMsgM@ does,
 -- but we can't just use @GhcT ErrMsgM@ because GhcT requires the
 -- transformed monad to be MonadIO.
-newtype ErrMsgGhc a = ErrMsgGhc { unErrMsgGhc :: WriterT [ErrMsg] Ghc a }
+newtype ErrMsgGhc a = ErrMsgGhc { unErrMsgGhc :: WriterT ErrorMessages Ghc a }
 
 
 deriving newtype instance Functor ErrMsgGhc
 deriving newtype instance Applicative ErrMsgGhc
 deriving newtype instance Monad ErrMsgGhc
-deriving newtype instance (MonadWriter [ErrMsg]) ErrMsgGhc
+deriving newtype instance ReportErrorMessage ErrMsgGhc
 deriving newtype instance MonadIO ErrMsgGhc
 
 
-runWriterGhc :: ErrMsgGhc a -> Ghc (a, [ErrMsg])
+runWriterGhc :: ErrMsgGhc a -> Ghc (a, ErrorMessages)
 runWriterGhc = runWriterT . unErrMsgGhc
 
 liftGhcToErrMsgGhc :: Ghc a -> ErrMsgGhc a
 liftGhcToErrMsgGhc = ErrMsgGhc . lift
 
 liftErrMsg :: ErrMsgM a -> ErrMsgGhc a
-liftErrMsg = writer . runWriter
+liftErrMsg = ErrMsgGhc . writer . runErrMsgM
 
 -----------------------------------------------------------------------------
 -- * Pass sensitive types

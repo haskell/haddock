@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wwarn #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ViewPatterns #-}
   -----------------------------------------------------------------------------
@@ -39,6 +40,7 @@ import GHC.Parser.PostProcess
 import GHC.Driver.Ppr ( showPpr, showSDoc )
 import GHC.Types.Name.Reader
 import GHC.Data.EnumSet as EnumSet
+import Data.Foldable (traverse_)
 
 processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDocString]
                   -> ErrMsgM (Maybe (MDoc Name))
@@ -195,8 +197,8 @@ outOfScope dflags ns x =
 
     warnAndMonospace a = do
       let a' = showWrapped (showPpr dflags) a
-      tell ["Warning: " ++ prefix ++ "'" ++ a' ++ "' is out of scope.\n" ++
-            "    If you qualify the identifier, haddock can try to link it anyway."]
+      reportErrorMessage $ "Warning: " <> prefix <> "'" <> fromString a' <> "' is out of scope.\n" <>
+              "    If you qualify the identifier, haddock can try to link it anyway."
       pure (monospaced a')
     monospaced = DocMonospaced . DocString
 
@@ -212,17 +214,21 @@ ambiguous :: DynFlags
 ambiguous dflags x gres = do
   let noChildren = map availName (gresToAvailInfo gres)
       dflt = maximumBy (comparing (isLocalName &&& isTyConName)) noChildren
-      msg = "Warning: " ++ showNsRdrName dflags x ++ " is ambiguous. It is defined\n" ++
-            concatMap (\n -> "    * " ++ defnLoc n ++ "\n") (map greMangledName gres) ++
-            "    You may be able to disambiguate the identifier by qualifying it or\n" ++
-            "    by specifying the type/value namespace explicitly.\n" ++
-            "    Defaulting to the one defined " ++ defnLoc dflt
+      msgs :: [ErrMsg]
+      msgs =
+          [ "Warning: " <> fromString (showNsRdrName dflags x) <> " is ambiguous. It is defined"
+          ] <>
+          map (\n -> "    * " <> fromString (defnLoc n)) (map greMangledName gres) <>
+          [ "    You may be able to disambiguate the identifier by qualifying it or"
+          , "    by specifying the type/value namespace explicitly."
+          , "    Defaulting to the one defined " <> fromString (defnLoc dflt)
+          ]
   -- TODO: Once we have a syntax for namespace qualification (#667) we may also
   -- want to emit a warning when an identifier is a data constructor for a type
   -- of the same name, but not the only constructor.
   -- For example, for @data D = C | D@, someone may want to reference the @D@
   -- constructor.
-  when (length noChildren > 1) $ tell [msg]
+  when (length noChildren > 1) $ traverse_ reportErrorMessage msgs
   pure (DocIdentifier (x $> dflt))
   where
     isLocalName (nameSrcLoc -> RealSrcLoc {}) = True
@@ -234,9 +240,9 @@ ambiguous dflags x gres = do
 -- Emits a warning that the value-namespace is invalid on a non-value identifier.
 invalidValue :: DynFlags -> Wrap NsRdrName -> ErrMsgM (Doc a)
 invalidValue dflags x = do
-  tell ["Warning: " ++ showNsRdrName dflags x ++ " cannot be value, yet it is\n" ++
-            "    namespaced as such. Did you mean to specify a type namespace\n" ++
-            "    instead?"]
+  reportErrorMessage $ "Warning: " <> fromString (showNsRdrName dflags x) <> " cannot be value, yet it is"
+  reportErrorMessage $ "    namespaced as such. Did you mean to specify a type namespace"
+  reportErrorMessage $ "    instead?"
   pure (DocMonospaced (DocString (showNsRdrName dflags x)))
 
 -- | Printable representation of a wrapped and namespaced name

@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
 ----------------------------------------------------------------------------
 -- |
@@ -26,6 +27,7 @@ import GHC.Types.Name
 import GHC.Types.Name.Reader (RdrName(Exact))
 import GHC.Builtin.Types (eqTyCon_RDR)
 
+import Data.Foldable (traverse_)
 import Control.Applicative
 import Control.Arrow ( first )
 import Control.Monad hiding (mapM)
@@ -85,7 +87,7 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface =
 
       ignoreSet = Set.fromList ignoredSymbols
 
-      strings = [ qualifiedName n
+      strings = [ errMsgFromString (qualifiedName n)
 
                 | n <- missingNames
                 , not (qualifiedName n `Set.member` ignoreSet)
@@ -97,10 +99,10 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface =
   in do
     -- report things that we couldn't link to. Only do this for non-hidden
     -- modules.
-    unless (OptHide `elem` ifaceOptions iface || null strings || not warnings) $
-      tell ["Warning: " ++ moduleString (ifaceMod iface) ++
-            ": could not find link destinations for:\n"++
-            intercalate "\n\t- "  ("" : strings) ]
+    unless (OptHide `elem` ifaceOptions iface || null strings || not warnings) $ do
+      reportErrorMessage $ "Warning: " <> fromString (moduleString (ifaceMod iface)) <>
+            ": could not find link destinations for: "
+      traverse_ (reportErrorMessage . mappend "\t- ") strings
 
     return $ iface { ifaceRnDoc         = finalModuleDoc,
                      ifaceRnDocMap      = rnDocMap,
