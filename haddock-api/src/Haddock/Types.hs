@@ -44,7 +44,9 @@ import Control.DeepSeq
 import Control.Exception (throw)
 import Control.Monad.Catch
 import Control.Monad.IO.Class (MonadIO(..))
-import Control.Monad.Writer.CPS (Writer, WriterT, MonadWriter(..), lift, runWriter, runWriterT)
+import qualified Control.Monad.Trans.Writer.CPS as CPS
+import Control.Monad.Trans.Writer.CPS (Writer, WriterT, runWriter, runWriterT)
+import Control.Monad.Writer.Class (MonadWriter(..))
 import Control.Monad.Reader (ReaderT(..))
 import Data.Typeable (Typeable)
 import Data.Map (Map)
@@ -54,10 +56,12 @@ import Documentation.Haddock.Types
 import GHC.Types.Basic (PromotionFlag(..))
 import GHC.Types.Fixity (Fixity(..))
 import GHC.Types.Var (Specificity)
-import ByteString.StrictBuilder
+import Data.ByteString.Builder
 import qualified Data.List  as List
-import Data.DList (DList)
-import qualified Data.DList as DList
+import qualified Haddock.Data.DList as DList
+import Haddock.Data.DList (DList)
+import Control.Monad.Trans (lift)
+import qualified Data.ByteString.Lazy as BSL
 
 import GHC
 import GHC.Driver.Session (Language)
@@ -655,16 +659,25 @@ errMsgFromString :: String -> ErrMsg
 errMsgFromString = fromString
 
 errMsgToString :: ErrMsg -> String
-errMsgToString = Text.unpack . Text.decodeUtf8 . builderBytes
+errMsgToString = Text.unpack . Text.decodeUtf8 . BSL.toStrict . toLazyByteString
 
 errMsgUnlines :: [ErrMsg] -> ErrMsg
-errMsgUnlines = List.foldl' (\acc x -> acc <> (x <> asciiChar '\n')) mempty
+errMsgUnlines = List.foldl' (\acc x -> acc <> (x <> charUtf8 '\n')) mempty
 
 class Monad m => ReportErrorMessage m where
     reportErrorMessage :: Builder -> m ()
 
 instance ReportErrorMessage m => ReportErrorMessage (ReaderT r m) where
     reportErrorMessage = lift . reportErrorMessage
+
+#if !MIN_VERSION_mtl(2,3,0)
+-- | @since 2.3
+instance (Monoid w, Monad m) => MonadWriter w (CPS.WriterT w m) where
+    writer = CPS.writer
+    tell   = CPS.tell
+    listen = CPS.listen
+    pass   = CPS.pass
+#endif
 
 instance Monad m => ReportErrorMessage (WriterT ErrorMessages m) where
     reportErrorMessage = tell . singleMessage

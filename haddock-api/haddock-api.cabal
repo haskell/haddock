@@ -49,10 +49,7 @@ library
                , haddock-library ^>= 1.11
                , xhtml           ^>= 3000.2.2
                , parsec          ^>= 3.1.13.0
-               , writer-cps-mtl  ^>= 0.1.1.6
-               , dlist
-               , bytestring-strict-builder
-               , text
+               , text            ^>= 2.0
 
   -- Versions for the dependencies below are transitively pinned by
   -- the non-reinstallable `ghc` package and hence need no version
@@ -62,10 +59,10 @@ library
                , containers
                , deepseq
                , directory
-               , exceptions
+               , exceptions 
                , filepath
                , ghc-boot
-               , mtl
+               , mtl 
                , transformers
 
   hs-source-dirs: src
@@ -87,6 +84,8 @@ library
 
   other-modules:
     Haddock
+    Haddock.Data.DList
+    Haddock.Data.DList.Internal
     Haddock.Interface
     Haddock.Interface.Rename
     Haddock.Interface.Create

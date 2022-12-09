@@ -34,7 +34,6 @@ module Haddock.Interface (
 ) where
 
 
-import qualified Data.ByteString.Char8 as BS
 import Haddock.GhcUtils (moduleString, pretty)
 import Haddock.Interface.AttachInstances (attachInstances)
 import Haddock.Interface.Create (createInterface1, runIfM)
@@ -53,8 +52,9 @@ import Data.List (foldl', isPrefixOf)
 import Text.Printf (printf)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.ByteString.Lazy.Char8 as BSL
 
-import ByteString.StrictBuilder
+import Data.ByteString.Builder
 import GHC hiding (verbosity)
 import GHC.Data.Graph.Directed
 import GHC.Driver.Env
@@ -123,7 +123,7 @@ processModules verbosity modules flags extIfaces = do
   dflags <- getDynFlags
   let (interfaces'', msgs) =
          runErrMsgM $ mapM (renameInterface dflags (ignoredSymbols flags) links warnings) interfaces'
-  liftIO $ mapM_ (BS.putStrLn . builderBytes) (errorMessagesToList msgs)
+  liftIO $ mapM_ (BSL.putStrLn . toLazyByteString) (errorMessagesToList msgs)
 
   return (interfaces'', homeLinks)
 
@@ -326,7 +326,7 @@ processModule1 verbosity flags ifaces inst_ifaces hsc_env mod_summary tc_gbl_env
       , unQualOK gre -- In scope unqualified
       ]
 
-  liftIO $ mapM_ BS.putStrLn (ordNub (map builderBytes messages))
+  liftIO $ mapM_ BSL.putStrLn (ordNub (map toLazyByteString messages))
   dflags <- getDynFlags
 
   let

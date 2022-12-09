@@ -40,9 +40,12 @@ import Haddock.Options (Flag (..), modulePackageInfo)
 import Haddock.Types hiding (liftErrMsg)
 import Haddock.Utils (replace)
 
+import Control.Monad (liftM)
 import Control.Applicative ((<|>))
 import Control.Monad.Reader (MonadReader (..), ReaderT, asks, runReaderT)
-import Control.Monad.Writer.CPS hiding (tell)
+import Control.Monad.Trans (lift)
+import Control.Monad.Writer (MonadWriter(..))
+import Control.Monad.Trans.Writer.CPS (WriterT, runWriterT)
 import Data.Bitraversable (bitraverse)
 import Data.List (find, foldl')
 import qualified Data.IntMap as IM
@@ -52,6 +55,7 @@ import qualified Data.Map as M
 import Data.Maybe (catMaybes, fromJust, isJust, mapMaybe, maybeToList)
 import Data.Traversable (for)
 import Data.Foldable (traverse_)
+import Control.Monad.IO.Class
 
 import GHC hiding (lookupName)
 import GHC.Core.Class (ClassMinimalDef, classMinimalDef)
@@ -81,9 +85,6 @@ import qualified GHC.Utils.Outputable as O
 import GHC.Utils.Panic (pprPanic)
 import GHC.Unit.Module.Warnings
 import GHC.Types.Unique.Map
-import Data.DList (DList)
-import qualified Data.DList as DList
-import ByteString.StrictBuilder
 
 newtype IfEnv m = IfEnv
   {
