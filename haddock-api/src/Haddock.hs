@@ -51,7 +51,7 @@ import Control.Monad.IO.Class (MonadIO(..))
 import Data.Bifunctor (second)
 import Data.Foldable (forM_, foldl')
 import Data.Traversable (for)
-import Data.List (find, isPrefixOf, nub)
+import Data.List (find, isPrefixOf)
 import Control.Exception
 import Data.Maybe
 import Data.IORef
@@ -461,7 +461,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
             ppJsonIndex odir sourceUrls' opt_wiki_urls
                         unicode Nothing qual
                         ifaces
-                        ( nub
+                        ( ordNub
                         . map fst
                         . filter ((== Visible) . piVisibility . snd)
                         $ packages)

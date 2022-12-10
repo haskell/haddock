@@ -41,6 +41,7 @@ module Haddock.Utils (
   -- * List utilities
   replace,
   spanWith,
+  ordNub,
 
   -- * Logging
   parseVerbosity, Verbosity(..), silent, normal, verbose, deafening,
@@ -51,6 +52,7 @@ module Haddock.Utils (
  ) where
 
 
+import qualified Data.Set as Set
 import Documentation.Haddock.Doc (emptyMetaDoc)
 import Haddock.Types
 
@@ -116,7 +118,8 @@ out progVerbosity msgVerbosity msg
 -- * Some Utilities
 --------------------------------------------------------------------------------
 
-
+ordNub :: Ord a => [a] -> [a]
+ordNub = Set.toList . Set.fromList
 
 mkMeta :: Doc a -> MDoc a
 mkMeta x = emptyMetaDoc { _doc = x }
