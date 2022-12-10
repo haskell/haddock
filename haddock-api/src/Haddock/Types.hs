@@ -58,8 +58,6 @@ import GHC.Types.Fixity (Fixity(..))
 import GHC.Types.Var (Specificity)
 import Data.ByteString.Builder
 import qualified Data.List  as List
-import qualified Haddock.Data.DList as DList
-import Haddock.Data.DList (DList)
 import Control.Monad.Trans (lift)
 import qualified Data.ByteString.Lazy as BSL
 
@@ -685,18 +683,17 @@ instance Monad m => ReportErrorMessage (WriterT ErrorMessages m) where
 newtype ErrMsgM a = ErrMsgM { unErrMsgM :: Writer ErrorMessages a }
     deriving newtype (Functor, Applicative, Monad, ReportErrorMessage)
 
-newtype ErrorMessages = ErrorMessages { unErrorMessages :: DList Builder }
+newtype ErrorMessages = ErrorMessages { unErrorMessages :: [Builder] -> [Builder] }
     deriving newtype (Semigroup, Monoid)
 
 runErrMsgM :: ErrMsgM a -> (a, ErrorMessages)
 runErrMsgM = runWriter . unErrMsgM
 
 singleMessage :: Builder -> ErrorMessages
-singleMessage = ErrorMessages . pure
+singleMessage m = ErrorMessages $ (m :)
 
 errorMessagesToList :: ErrorMessages -> [Builder]
-errorMessagesToList = DList.toList . unErrorMessages
-
+errorMessagesToList messages = unErrorMessages messages []
 
 -- Exceptions
 

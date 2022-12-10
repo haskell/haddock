@@ -84,8 +84,6 @@ library
 
   other-modules:
     Haddock
-    Haddock.Data.DList
-    Haddock.Data.DList.Internal
     Haddock.Interface
     Haddock.Interface.Rename
     Haddock.Interface.Create
