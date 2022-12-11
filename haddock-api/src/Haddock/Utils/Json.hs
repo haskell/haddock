@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
+{-# language FlexibleInstances #-}
 
 -- | Minimal JSON / RFC 7159 support
 --
@@ -40,9 +41,11 @@ import Control.Applicative (Alternative (..))
 import Control.Monad (MonadPlus (..), zipWithM, (>=>))
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Fail as Fail
+import qualified Data.Text as Text
+import Haddock.Utils
 
+import qualified Data.Map.Strict as Map
 import qualified Data.ByteString.Lazy as BSL
-import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BB
 import Data.Char
 import Data.Int
@@ -64,7 +67,7 @@ import Haddock.Utils.Json.Parser
 infixr 8 .=
 
 -- | A key-value pair for encoding a JSON object.
-(.=) :: ToJSON v => String -> v -> Pair
+(.=) :: ToJSON v => Text -> v -> Pair
 k .= v  = (k, toJSON v)
 
 
@@ -72,6 +75,9 @@ k .= v  = (k, toJSON v)
 class ToJSON a where
   -- | Convert a Haskell value to a JSON-friendly intermediate type.
   toJSON :: a -> Value
+
+instance ToJSON Text where
+  toJSON = String
 
 instance ToJSON () where
   toJSON () = Array []
@@ -123,6 +129,9 @@ instance ToJSON Word64 where  toJSON = Number . realToFrac
 -- | Possibly lossy due to conversion to 'Double'
 instance ToJSON Integer where toJSON = Number . fromInteger
 
+instance {-# OVERLAPPING #-} ToJSON [Char] where
+  toJSON = toJSON . Text.pack
+
 ------------------------------------------------------------------------------
 -- 'BB.Builder'-based encoding
 
@@ -136,68 +145,59 @@ encodeValueBB jv = case jv of
   Bool False -> "false"
   Null       -> "null"
   Number n
-    | isNaN n || isInfinite n   -> encodeValueBB Null
+    | isNaN n || isInfinite n   -> encodeValue Null
     | Just i <- doubleToInt64 n -> BB.int64Dec i
     | otherwise                 -> BB.doubleDec n
-  Array a  -> encodeArrayBB a
-  String s -> encodeStringBB s
-  Object o -> encodeObjectBB o
+  Array a  -> encodeArray a
+  String s -> encodeString s
+  Object o -> encodeObject o
 
-encodeArrayBB :: [Value] -> Builder
-encodeArrayBB [] = "[]"
-encodeArrayBB jvs = BB.char8 '[' <> go jvs <> BB.char8 ']'
-  where
-    go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encodeValueBB
+encodeObject :: Object -> Builder
+encodeObject obj
+  | Map.null obj =
+    "{}"
+  | otherwise =
+    BB.char8 '{' <> go jvs <> BB.char8 '}'
+    where
+      go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encPair
+      encPair (l,x) = encodeStringBB l <> BB.char8 ':' <> encodeValueBB x
+      jvs = Map.toList obj
 
-encodeObjectBB :: Object -> Builder
-encodeObjectBB [] = "{}"
-encodeObjectBB jvs = BB.char8 '{' <> go jvs <> BB.char8 '}'
-  where
-    go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encPair
-    encPair (l,x) = encodeStringBB l <> BB.char8 ':' <> encodeValueBB x
-
-encodeStringBB :: String -> Builder
+encodeStringBB :: Text -> Builder
 encodeStringBB str = BB.char8 '"' <> go str <> BB.char8 '"'
   where
-    go = BB.stringUtf8 . escapeString
+    go = textToBuilder . escapeString
 
 ------------------------------------------------------------------------------
 -- 'String'-based encoding
 
 -- | Serialise value as JSON-encoded Unicode 'String'
-encodeToString :: ToJSON a => a -> String
-encodeToString jv = encodeValue (toJSON jv) []
+encodeToString :: ToJSON a => a -> Builder
+encodeToString jv = encodeValue (toJSON jv)
 
-encodeValue :: Value -> ShowS
+encodeValue :: Value -> Builder
 encodeValue jv = case jv of
-  Bool b   -> showString (if b then "true" else "false")
-  Null     -> showString "null"
+  Bool b   -> BB.byteString (if b then "true" else "false")
+  Null     -> BB.byteString "null"
   Number n
     | isNaN n || isInfinite n    -> encodeValue Null
-    | Just i <- doubleToInt64 n -> shows i
-    | otherwise                 -> shows n
+    | Just i <- doubleToInt64 n -> BB.int64Dec i
+    | otherwise                 -> BB.doubleDec n
   Array a -> encodeArray a
   String s -> encodeString s
   Object o -> encodeObject o
 
-encodeArray :: [Value] -> ShowS
-encodeArray [] = showString "[]"
-encodeArray jvs = ('[':) . go jvs . (']':)
+encodeArray :: [Value] -> Builder
+encodeArray [] = textToBuilder "[]"
+encodeArray jvs = mconcat [BB.charUtf8 '[', go jvs, BB.charUtf8 ']']
   where
-    go []     = id
+    go []     = mempty
     go [x]    = encodeValue x
-    go (x:xs) = encodeValue x . (',':) . go xs
+    go (x:xs) = mconcat [encodeValue x, BB.charUtf8 ',', go xs]
 
-encodeObject :: Object -> ShowS
-encodeObject [] = showString "{}"
-encodeObject jvs = ('{':) . go jvs . ('}':)
-  where
-    go []          = id
-    go [(l,x)]     = encodeString l . (':':) . encodeValue x
-    go ((l,x):lxs) = encodeString l . (':':) . encodeValue x . (',':) . go lxs
-
-encodeString :: String -> ShowS
-encodeString str = ('"':) . showString (escapeString str) . ('"':)
+encodeString :: Text -> Builder
+encodeString str =
+  mconcat [BB.charUtf8 '"', textToBuilder (escapeString str),  BB.charUtf8 '"']
 
 ------------------------------------------------------------------------------
 -- helpers
@@ -215,10 +215,10 @@ doubleToInt64 x
     x' = round x
 
 -- | Minimally escape a 'String' in accordance with RFC 7159, "7. Strings"
-escapeString :: String -> String
+escapeString :: Text -> Text
 escapeString s
-  | not (any needsEscape s) = s
-  | otherwise               = escape s
+  | not (Text.any needsEscape s) = s
+  | otherwise               = Text.pack . escape . Text.unpack $ s
   where
     escape [] = []
     escape (x:xs) = case x of
@@ -336,7 +336,7 @@ withArray :: String -> ([Value] -> Parser a) -> Value -> Parser a
 withArray _    f (Array arr) = f arr
 withArray name _ v           = prependContext name (typeMismatch "Array" v)
 
-withString :: String -> (String -> Parser a) -> Value -> Parser a
+withString :: String -> (Text -> Parser a) -> Value -> Parser a
 withString _    f (String txt) = f txt
 withString name _ v            = prependContext name (typeMismatch "String" v)
 
@@ -368,13 +368,16 @@ instance FromJSON () where
 instance FromJSON Char where
     parseJSON = withString "Char" parseChar
 
-    parseJSONList (String s) = pure s
+    parseJSONList (String s) = pure (Text.unpack s)
     parseJSONList v = typeMismatch "String" v
 
-parseChar :: String -> Parser Char
+instance FromJSON Text where
+    parseJSON = withString "Text" pure
+
+parseChar :: Text -> Parser Char
 parseChar t =
-    if length t == 1
-      then pure $ head t
+    if Text.length t == 1
+      then pure $ Text.head t
       else prependContext "Char" $ fail "expected a string of length 1"
 
 parseRealFloat :: RealFloat a => String -> Value -> Parser a
@@ -491,22 +494,22 @@ formatRelativePath path = format "" path
     escapeChar '\\' = "\\\\"
     escapeChar c    = [c]
 
-explicitParseField :: (Value -> Parser a) -> Object -> String -> Parser a
+explicitParseField :: (Value -> Parser a) -> Object -> Text -> Parser a
 explicitParseField p obj key =
-    case key `lookup` obj of
-      Nothing -> fail $ "key " ++ key ++ " not found"
-      Just v  -> p v <?> Key key
+    case key `Map.lookup` obj of
+      Nothing -> fail $ "key " ++ Text.unpack key ++ " not found"
+      Just v  -> p v <?> Key (Text.unpack key)
 
-(.:) :: FromJSON a => Object -> String -> Parser a
+(.:) :: FromJSON a => Object -> Text -> Parser a
 (.:) = explicitParseField parseJSON
 
-explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> String -> Parser (Maybe a)
+explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Text -> Parser (Maybe a)
 explicitParseFieldMaybe p obj key =
-    case key `lookup` obj of
+    case key `Map.lookup` obj of
       Nothing -> pure Nothing
-      Just v  -> Just <$> p v <?> Key key
+      Just v  -> Just <$> p v <?> Key (Text.unpack key)
 
-(.:?) :: FromJSON a => Object -> String -> Parser (Maybe a)
+(.:?) :: FromJSON a => Object -> Text -> Parser (Maybe a)
 (.:?) = explicitParseFieldMaybe parseJSON
 
 
@@ -555,4 +558,3 @@ eitherDecodeFile filePath = do
           Success a -> return (Right a)
           Error err -> return (Left err)
       Left err -> return $ Left (show err)
-

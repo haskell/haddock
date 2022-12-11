@@ -35,6 +35,7 @@ module Haddock.Types (
   , runWriter
   , tell
   , fromString
+  , Builder
  ) where
 
 import qualified Data.Text as Text

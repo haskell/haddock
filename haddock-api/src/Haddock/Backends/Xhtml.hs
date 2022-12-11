@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html
@@ -21,6 +23,7 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
+import Haddock.Utils
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
 import Haddock.Backends.Xhtml.Layout
@@ -33,7 +36,6 @@ import Haddock.ModuleTree
 import Haddock.Options (Visibility (..))
 import Haddock.Types
 import Haddock.Version
-import Haddock.Utils
 import Haddock.Utils.Json
 import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
@@ -165,22 +167,22 @@ headHtml docTitle themes mathjax_url base_url =
 
 srcButton :: SourceURLs -> Maybe Interface -> Maybe Html
 srcButton (Just src_base_url, _, _, _) Nothing =
-  Just (anchor ! [href src_base_url] << "Source")
+  Just (anchor ! [href src_base_url] << asText "Source")
 srcButton (_, Just src_module_url, _, _) (Just iface) =
   let url = spliceURL (Just $ ifaceOrigFilename iface)
                       (Just $ ifaceMod iface) Nothing Nothing src_module_url
-   in Just (anchor ! [href url] << "Source")
+   in Just (anchor ! [href url] << asText "Source")
 srcButton _ _ =
   Nothing
 
 
 wikiButton :: WikiURLs -> Maybe Module -> Maybe Html
 wikiButton (Just wiki_base_url, _, _) Nothing =
-  Just (anchor ! [href wiki_base_url] << "User Comments")
+  Just (anchor ! [href wiki_base_url] << asText "User Comments")
 
 wikiButton (_, Just wiki_module_url, _) (Just mdl) =
   let url = spliceURL Nothing (Just mdl) Nothing Nothing wiki_module_url
-   in Just (anchor ! [href url] << "User Comments")
+   in Just (anchor ! [href url] << asText "User Comments")
 
 wikiButton _ _ =
   Nothing
@@ -188,13 +190,13 @@ wikiButton _ _ =
 
 contentsButton :: Maybe String -> Maybe Html
 contentsButton maybe_contents_url
-  = Just (anchor ! [href url] << "Contents")
+  = Just (anchor ! [href url] << asText "Contents")
   where url = fromMaybe contentsHtmlFile maybe_contents_url
 
 
 indexButton :: Maybe String -> Maybe Html
 indexButton maybe_index_url
-  = Just (anchor ! [href url] << "Index")
+  = Just (anchor ! [href url] << asText "Index")
   where url = fromMaybe indexHtmlFile maybe_index_url
 
 
@@ -218,7 +220,7 @@ bodyHtml doctitle iface
       ],
     divContent << pageContent,
     divFooter << paragraph << (
-      "Produced by " +++
+      asText "Produced by " +++
       (anchor ! [href projectUrl] << toHtml projectName) +++
       (" version " ++ projectVersion)
       )
@@ -262,7 +264,7 @@ moduleInfo iface =
                 xs -> extField $ unordList xs ! [theclass "extension-list"]
             | otherwise = []
             where
-              extField x = return $ th << "Extensions" <-> td << x
+              extField x = return $ th << asText "Extensions" <-> td << x
               dropOpt x = if "Opt_" `isPrefixOf` x then drop 4 x else x
    in
       case entries of
@@ -337,11 +339,11 @@ ppPrologue pkg qual title (Just doc) =
 
 ppSignatureTrees :: Maybe Package -> Qualification -> [(PackageInfo, [ModuleTree])] -> Html
 ppSignatureTrees _ _ tss | all (null . snd) tss = mempty
-ppSignatureTrees pkg qual [(info, ts)] = 
-  divPackageList << (sectionName << "Signatures" +++ ppSignatureTree pkg qual "n" info ts)
+ppSignatureTrees pkg qual [(info, ts)] =
+  divPackageList << (sectionName << asText "Signatures" +++ ppSignatureTree pkg qual "n" info ts)
 ppSignatureTrees pkg qual tss =
   divModuleList <<
-    (sectionName << "Signatures"
+    (sectionName << asText "Signatures"
      +++ concatHtml [ ppSignatureTree pkg qual("n."++show i++".") info ts
                     | (i, (info, ts)) <- zip [(1::Int)..] tss
                     ])
@@ -354,10 +356,10 @@ ppSignatureTree pkg qual p info ts =
 ppModuleTrees :: Maybe Package -> Qualification -> [(PackageInfo, [ModuleTree])] -> Html
 ppModuleTrees _ _ tss | all (null . snd) tss = mempty
 ppModuleTrees pkg qual [(info, ts)] =
-  divModuleList << (sectionName << "Modules" +++ ppModuleTree pkg qual "n" info ts)
+  divModuleList << (sectionName << asText "Modules" +++ ppModuleTree pkg qual "n" info ts)
 ppModuleTrees pkg qual tss =
   divPackageList <<
-    (sectionName << "Packages"
+    (sectionName << asText "Packages"
      +++ concatHtml [ppModuleTree pkg qual ("n."++show i++".") info ts
                     | (i, (info, ts)) <- zip [(1::Int)..] tss
                     ])
@@ -404,7 +406,7 @@ mkNode pkg qual ss p (Node s leaf _pkg srcPkg short ts) =
     subtree =
       if null ts then noHtml else
       collapseDetails p DetailsOpen (
-        thesummary ! [ theclass "hide-when-js-enabled" ] << "Submodules" +++
+        thesummary ! [ theclass "hide-when-js-enabled" ] << asText "Submodules" +++
         mkNodeList pkg qual (s:ss) p ts
       )
 
@@ -415,7 +417,7 @@ mkNode pkg qual ss p (Node s leaf _pkg srcPkg short ts) =
 --------------------------------------------------------------------------------
 
 data JsonIndexEntry = JsonIndexEntry {
-      jieHtmlFragment :: String,
+      jieHtmlFragment :: Text,
       jieName         :: String,
       jieModule       :: String,
       jieLink         :: String
@@ -428,11 +430,11 @@ instance ToJSON JsonIndexEntry where
         , jieName
         , jieModule
         , jieLink } =
-      Object
-        [ "display_html" .= String jieHtmlFragment
-        , "name"         .= String jieName
-        , "module"       .= String jieModule
-        , "link"         .= String jieLink
+      Object . Map.fromList $
+        [ "display_html" .= jieHtmlFragment
+        , "name"         .= jieName
+        , "module"       .= jieModule
+        , "link"         .= jieLink
         ]
 
 instance FromJSON JsonIndexEntry where
@@ -493,7 +495,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
     mkIndex mdl qual item
       | Just item_html <- processExport True links_info unicode pkg qual item
       = Just JsonIndexEntry
-          { jieHtmlFragment = showHtmlFragment item_html
+          { jieHtmlFragment = builderToText $ showHtmlFragment item_html
           , jieName         = unwords (map getOccString names)
           , jieModule       = moduleString mdl
           , jieLink         = fromMaybe "" (listToMaybe (map (nameLink mdl) names))
@@ -519,7 +521,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
     -- update link using relative path to output directory
     fixLink :: FilePath
             -> JsonIndexEntry -> JsonIndexEntry
-    fixLink ifaceFile jie = 
+    fixLink ifaceFile jie =
       jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
                         FilePath.</> jieLink jie }
 
@@ -630,9 +632,9 @@ ppHtmlIndex odir doctitle _maybe_package themes
                   toHtml (show j) <+> parens (ppAnnot (nameOccName nm)) <->
                    indexLinks nm entries
 
-    ppAnnot n | not (isValOcc n) = toHtml "Type/Class"
-              | isDataOcc n      = toHtml "Data Constructor"
-              | otherwise        = toHtml "Function"
+    ppAnnot n | not (isValOcc n) = toHtml @Text "Type/Class"
+              | isDataOcc n      = toHtml @Text "Data Constructor"
+              | otherwise        = toHtml @Text "Function"
 
     indexLinks nm entries =
        td ! [ theclass "module" ] <<
@@ -666,9 +668,9 @@ ppHtmlModule odir doctitle themes
                                     else ""
       mdl_str_linked
         | ifaceIsSig iface
-        = mdl_str +++ " (signature" +++
-                       sup << ("[" +++ anchor ! [href signatureDocURL] << "?" +++ "]" ) +++
-                       ")"
+        = mdl_str +++ asText " (signature" +++
+                       sup << (asText "[" +++ anchor ! [href signatureDocURL] << asText "?" +++ asText "]" ) +++
+                       asText ")"
         | otherwise
         = toHtml mdl_str
       real_qual = makeModuleQual qual aliases mdl
@@ -707,7 +709,7 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
     no_doc_at_all = not (any has_doc exports)
 
     description | isNoHtml doc = doc
-                | otherwise    = divDescription $ sectionName << "Description" +++ doc
+                | otherwise    = divDescription $ sectionName << asText "Description" +++ doc
                 where doc = docSection Nothing pkg qual (ifaceRnDoc iface)
 
         -- omit the synopsis if there are no documentation annotations at all
@@ -716,7 +718,7 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
       | otherwise
       = divSynopsis $
             collapseDetails "syn" DetailsClosed (
-              thesummary << "Synopsis" +++
+              thesummary << asText "Synopsis" +++
               shortDeclList (
                   mapMaybe (processExport True linksInfo unicode pkg qual) exports
               ) ! collapseToggle "syn" ""
@@ -728,7 +730,7 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
       = case exports of
           [] -> noHtml
           ExportGroup {} : _ -> noHtml
-          _ -> h1 << "Documentation"
+          _ -> h1 << asText "Documentation"
 
     bdy =
       foldr (+++) noHtml $
@@ -750,12 +752,12 @@ ppModuleContents pkg qual exports orphan
   | otherwise                    = contentsDiv
  where
   contentsDiv = divTableOfContents << (divContentsList << (
-    (sectionName << "Contents") ! [ strAttr "onclick" "window.scrollTo(0,0)" ] +++
+    (sectionName << asText "Contents") ! [ strAttr "onclick" "window.scrollTo(0,0)" ] +++
     unordList (sections ++ orphanSection)))
 
   (sections, _leftovers{-should be []-}) = process 0 exports
   orphanSection
-    | orphan =  [ linkedAnchor "section.orphans" << "Orphan instances" ]
+    | orphan =  [ linkedAnchor "section.orphans" << asText "Orphan instances" ]
     | otherwise = []
 
   process :: Int -> [ExportItem DocNameI] -> ([Html],[ExportItem DocNameI])
@@ -807,7 +809,7 @@ processExport summary _ _ _ qual (ExportNoDecl y subs)
 processExport summary _ _ pkg qual (ExportDoc doc)
   = nothingIf summary $ docSection_ Nothing pkg qual doc
 processExport summary _ _ _ _ (ExportModule mdl)
-  = processDeclOneLiner summary $ toHtml "module" <+> ppModule mdl
+  = processDeclOneLiner summary $ toHtml @Text "module" <+> ppModule mdl
 
 
 nothingIf :: Bool -> a -> Maybe a

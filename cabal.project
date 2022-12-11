@@ -5,6 +5,12 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
+source-repository-package
+    type: git
+    location: https://github.com/parsonsmatt/xhtml
+    tag: 09f663657045bf85353d9e281a037638b15ef4f8
+
+
 with-compiler: ghc-9.4
 
 allow-newer:
