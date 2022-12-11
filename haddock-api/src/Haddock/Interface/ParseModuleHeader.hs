@@ -15,6 +15,7 @@ module Haddock.Interface.ParseModuleHeader (parseModuleHeader) where
 
 import Control.Applicative (Alternative (..))
 import Control.Monad (ap)
+import Data.Maybe (fromMaybe)
 import Data.Char
 import GHC.Driver.Session
 import Haddock.Parser
@@ -32,7 +33,7 @@ parseModuleHeader dflags pkgName str0 =
       kvs :: [(String, String)]
       str1 :: String
 
-      (kvs, str1) = maybe ([], str0) id $ runP fields str0
+      (kvs, str1) = fromMaybe ([], str0) $ runP fields str0
 
       -- trim whitespaces
       trim :: String -> String

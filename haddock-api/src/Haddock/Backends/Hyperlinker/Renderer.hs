@@ -21,6 +21,7 @@ import GHC.Utils.Encoding ( utf8DecodeByteString )
 
 import System.FilePath.Posix ((</>))
 
+import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
@@ -106,7 +107,7 @@ renderWithAst srcs Node{..} toks = anchored $ case toks of
 
     _ -> go nodeChildren toks
   where
-    nodeInfo = maybe emptyNodeInfo id (Map.lookup SourceInfo $ getSourcedNodeInfo sourcedNodeInfo)
+    nodeInfo = fromMaybe emptyNodeInfo (Map.lookup SourceInfo $ getSourcedNodeInfo sourcedNodeInfo)
     go _ [] = mempty
     go [] xs = foldMap renderToken xs
     go (cur:rest) xs =
