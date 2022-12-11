@@ -660,7 +660,7 @@ errMsgToString :: ErrMsg -> String
 errMsgToString = Text.unpack . Text.decodeUtf8 . BSL.toStrict . toLazyByteString
 
 errMsgUnlines :: [ErrMsg] -> ErrMsg
-errMsgUnlines = List.foldl' (\acc x -> acc <> (x <> charUtf8 '\n')) mempty
+errMsgUnlines = mconcat . List.intersperse (charUtf8 '\n')
 
 class Monad m => ReportErrorMessage m where
     reportErrorMessage :: Builder -> m ()
