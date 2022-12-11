@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE BangPatterns      #-}
 {-# language FlexibleInstances #-}
 
 -- | Minimal JSON / RFC 7159 support
@@ -376,9 +377,11 @@ instance FromJSON Text where
 
 parseChar :: Text -> Parser Char
 parseChar t =
-    if Text.length t == 1
-      then pure $ Text.head t
-      else prependContext "Char" $ fail "expected a string of length 1"
+  case Text.uncons t of
+    Just (!c, rest) | Text.null rest ->
+      pure c
+    _ ->
+      prependContext "Char" $ fail "expected a string of length 1"
 
 parseRealFloat :: RealFloat a => String -> Value -> Parser a
 parseRealFloat _    (Number s) = pure $ realToFrac s

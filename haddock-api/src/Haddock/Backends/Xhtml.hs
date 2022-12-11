@@ -632,9 +632,9 @@ ppHtmlIndex odir doctitle _maybe_package themes
                   toHtml (show j) <+> parens (ppAnnot (nameOccName nm)) <->
                    indexLinks nm entries
 
-    ppAnnot n | not (isValOcc n) = toHtml @Text "Type/Class"
-              | isDataOcc n      = toHtml @Text "Data Constructor"
-              | otherwise        = toHtml @Text "Function"
+    ppAnnot n | not (isValOcc n) = toHtml @String "Type/Class"
+              | isDataOcc n      = toHtml @String "Data Constructor"
+              | otherwise        = toHtml @String "Function"
 
     indexLinks nm entries =
        td ! [ theclass "module" ] <<
@@ -809,7 +809,7 @@ processExport summary _ _ _ qual (ExportNoDecl y subs)
 processExport summary _ _ pkg qual (ExportDoc doc)
   = nothingIf summary $ docSection_ Nothing pkg qual doc
 processExport summary _ _ _ _ (ExportModule mdl)
-  = processDeclOneLiner summary $ toHtml @Text "module" <+> ppModule mdl
+  = processDeclOneLiner summary $ toHtml @String "module" <+> ppModule mdl
 
 
 nothingIf :: Bool -> a -> Maybe a
