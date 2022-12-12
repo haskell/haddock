@@ -334,7 +334,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       | otherwise        = dflags
     logger               = setLogFlags log' (initLogFlags dflags')
 
-    visibleIfaces    = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
+    visibleIfaces    = filterVisibleInterfaces ifaces
 
     -- /All/ interfaces including external package modules, grouped by
     -- interface file (package).
@@ -491,7 +491,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
             pkgVer =
               fromMaybe (makeVersion []) mpkgVer
           in ppHoogle dflags' unit_state pkgNameStr pkgVer title (fmap _doc prologue)
-               visibleIfaces odir
+               (getVisibleInterfaces visibleIfaces) odir
       _ -> putStrLn . unlines $
           [ "haddock: Unable to find a package providing module "
             ++ maybe "<no-mod>" (moduleNameString . moduleName) pkgMod
@@ -505,7 +505,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
   when (Flag_LaTeX `elem` flags) $ do
     withTiming logger "ppLatex" (const ()) $ do
       _ <- {-# SCC ppLatex #-}
-           ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
+           ppLaTeX title pkgStr (getVisibleInterfaces visibleIfaces) odir (fmap _doc prologue) opt_latex_style
                    libDir
       return ()
 

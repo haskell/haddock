@@ -83,6 +83,13 @@ type InstMap       = Map RealSrcSpan Name
 type FixMap        = Map Name Fixity
 type DocPaths      = (FilePath, Maybe FilePath) -- paths to HTML and sources
 
+newtype VisibleInterfaces = VisibleInterfaces [Interface]
+
+filterVisibleInterfaces :: [Interface] -> VisibleInterfaces
+filterVisibleInterfaces = VisibleInterfaces . filter (\i -> OptHide `notElem` ifaceOptions i)
+
+getVisibleInterfaces :: VisibleInterfaces -> [Interface]
+getVisibleInterfaces (VisibleInterfaces xs) = xs
 
 -----------------------------------------------------------------------------
 -- * Interface

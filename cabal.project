@@ -8,7 +8,7 @@ packages: ./
 source-repository-package
     type: git
     location: https://github.com/parsonsmatt/xhtml
-    tag: 62396e1bbe54f4589e0f22ba0263dfcb8972bdc1
+    tag: 03df93164917b33217168dc6eb90880163d34fe8
 
 with-compiler: ghc-9.4
 
