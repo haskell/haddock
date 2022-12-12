@@ -42,17 +42,19 @@ import Haddock.InterfaceFile (InterfaceFile, ifInstalledIfaces, ifLinkEnv)
 import Haddock.Options hiding (verbosity)
 import Haddock.Types (DocOption (..), Documentation (..), ExportItem (..), IfaceMap, InstIfaceMap, Interface, LinkEnv,
                       expItemDecl, expItemMbDoc, ifaceDoc, ifaceExportItems, ifaceExports, ifaceHaddockCoverage,
-                      ifaceInstances, ifaceMod, ifaceOptions, ifaceVisibleExports, instMod, runWriter, throwE)
+                      ifaceInstances, ifaceMod, ifaceOptions, ifaceVisibleExports, instMod, throwE, runErrMsgM, errorMessagesToList)
 import Haddock.Utils (Verbosity (..), normal, out, verbose)
 
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (atomicModifyIORef', newIORef, readIORef)
-import Data.List (foldl', isPrefixOf, nub)
+import Data.List (foldl', isPrefixOf)
 import Text.Printf (printf)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.ByteString.Lazy.Char8 as BSL
 
+import Data.ByteString.Builder
 import GHC hiding (verbosity)
 import GHC.Data.Graph.Directed
 import GHC.Driver.Env
@@ -120,8 +122,8 @@ processModules verbosity modules flags extIfaces = do
   let warnings = Flag_NoWarnings `notElem` flags
   dflags <- getDynFlags
   let (interfaces'', msgs) =
-         runWriter $ mapM (renameInterface dflags (ignoredSymbols flags) links warnings) interfaces'
-  liftIO $ mapM_ putStrLn msgs
+         runErrMsgM $ mapM (renameInterface dflags (ignoredSymbols flags) links warnings) interfaces'
+  liftIO $ mapM_ (BSL.putStrLn . toLazyByteString) (errorMessagesToList msgs)
 
   return (interfaces'', homeLinks)
 
@@ -324,7 +326,7 @@ processModule1 verbosity flags ifaces inst_ifaces hsc_env mod_summary tc_gbl_env
       , unQualOK gre -- In scope unqualified
       ]
 
-  liftIO $ mapM_ putStrLn (nub messages)
+  liftIO $ mapM_ BSL.putStrLn (ordNub (map toLazyByteString messages))
   dflags <- getDynFlags
 
   let

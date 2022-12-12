@@ -34,13 +34,20 @@ module Haddock.Types (
   -- $ Reexports
   , runWriter
   , tell
+  , fromString
  ) where
 
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import Data.String
 import Control.DeepSeq
 import Control.Exception (throw)
 import Control.Monad.Catch
 import Control.Monad.IO.Class (MonadIO(..))
-import Control.Monad.Writer.Strict (Writer, WriterT, MonadWriter(..), lift, runWriter, runWriterT)
+import qualified Control.Monad.Trans.Writer.CPS as CPS
+import Control.Monad.Trans.Writer.CPS (Writer, WriterT, runWriter, runWriterT)
+import Control.Monad.Writer.Class (MonadWriter(..))
+import Control.Monad.Reader (ReaderT(..))
 import Data.Typeable (Typeable)
 import Data.Map (Map)
 import Data.Data (Data)
@@ -49,12 +56,16 @@ import Documentation.Haddock.Types
 import GHC.Types.Basic (PromotionFlag(..))
 import GHC.Types.Fixity (Fixity(..))
 import GHC.Types.Var (Specificity)
+import Data.ByteString.Builder
+import qualified Data.List  as List
+import Control.Monad.Trans (lift)
+import qualified Data.ByteString.Lazy as BSL
 
 import GHC
 import GHC.Driver.Session (Language)
 import qualified GHC.LanguageExtensions as LangExt
 import GHC.Types.Name.Occurrence
-import GHC.Utils.Outputable
+import GHC.Utils.Outputable hiding ((<>))
 
 -----------------------------------------------------------------------------
 -- * Convenient synonyms
@@ -640,9 +651,49 @@ data SinceQual
 -- A monad which collects error messages, locally defined to avoid a dep on mtl
 
 
-type ErrMsg = String
-type ErrMsgM = Writer [ErrMsg]
+type ErrMsg = Builder
 
+errMsgFromString :: String -> ErrMsg
+errMsgFromString = fromString
+
+errMsgToString :: ErrMsg -> String
+errMsgToString = Text.unpack . Text.decodeUtf8 . BSL.toStrict . toLazyByteString
+
+errMsgUnlines :: [ErrMsg] -> ErrMsg
+errMsgUnlines = mconcat . List.intersperse (charUtf8 '\n')
+
+class Monad m => ReportErrorMessage m where
+    reportErrorMessage :: Builder -> m ()
+
+instance ReportErrorMessage m => ReportErrorMessage (ReaderT r m) where
+    reportErrorMessage = lift . reportErrorMessage
+
+#if !MIN_VERSION_mtl(2,3,0)
+-- | @since 2.3
+instance (Monoid w, Monad m) => MonadWriter w (CPS.WriterT w m) where
+    writer = CPS.writer
+    tell   = CPS.tell
+    listen = CPS.listen
+    pass   = CPS.pass
+#endif
+
+instance Monad m => ReportErrorMessage (WriterT ErrorMessages m) where
+    reportErrorMessage = tell . singleMessage
+
+newtype ErrMsgM a = ErrMsgM { unErrMsgM :: Writer ErrorMessages a }
+    deriving newtype (Functor, Applicative, Monad, ReportErrorMessage)
+
+newtype ErrorMessages = ErrorMessages { unErrorMessages :: [Builder] -> [Builder] }
+    deriving newtype (Semigroup, Monoid)
+
+runErrMsgM :: ErrMsgM a -> (a, ErrorMessages)
+runErrMsgM = runWriter . unErrMsgM
+
+singleMessage :: Builder -> ErrorMessages
+singleMessage m = ErrorMessages $ (m :)
+
+errorMessagesToList :: ErrorMessages -> [Builder]
+errorMessagesToList messages = unErrorMessages messages []
 
 -- Exceptions
 
@@ -675,24 +726,24 @@ withExceptionContext ctxt =
 -- @Haddock.Types.ErrMsg@s a lot, like @ErrMsgM@ does,
 -- but we can't just use @GhcT ErrMsgM@ because GhcT requires the
 -- transformed monad to be MonadIO.
-newtype ErrMsgGhc a = ErrMsgGhc { unErrMsgGhc :: WriterT [ErrMsg] Ghc a }
+newtype ErrMsgGhc a = ErrMsgGhc { unErrMsgGhc :: WriterT ErrorMessages Ghc a }
 
 
 deriving newtype instance Functor ErrMsgGhc
 deriving newtype instance Applicative ErrMsgGhc
 deriving newtype instance Monad ErrMsgGhc
-deriving newtype instance (MonadWriter [ErrMsg]) ErrMsgGhc
+deriving newtype instance ReportErrorMessage ErrMsgGhc
 deriving newtype instance MonadIO ErrMsgGhc
 
 
-runWriterGhc :: ErrMsgGhc a -> Ghc (a, [ErrMsg])
+runWriterGhc :: ErrMsgGhc a -> Ghc (a, ErrorMessages)
 runWriterGhc = runWriterT . unErrMsgGhc
 
 liftGhcToErrMsgGhc :: Ghc a -> ErrMsgGhc a
 liftGhcToErrMsgGhc = ErrMsgGhc . lift
 
 liftErrMsg :: ErrMsgM a -> ErrMsgGhc a
-liftErrMsg = writer . runWriter
+liftErrMsg = ErrMsgGhc . writer . runErrMsgM
 
 -----------------------------------------------------------------------------
 -- * Pass sensitive types

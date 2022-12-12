@@ -17,12 +17,12 @@ module Haddock.Backends.Xhtml.Themes (
     where
 
 import Haddock.Options
+import Haddock.Utils (ordNub)
 import Haddock.Backends.Xhtml.Types ( BaseURL, withBaseURL )
 
 import Control.Monad (liftM)
 import Data.Char (toLower)
 import Data.Either (lefts, rights)
-import Data.List (nub)
 import Data.Maybe (isJust, listToMaybe)
 
 import System.Directory
@@ -174,7 +174,7 @@ isCssFilePath path = takeExtension path == ".css"
 --------------------------------------------------------------------------------
 
 cssFiles :: Themes -> [String]
-cssFiles ts = nub $ concatMap themeFiles ts
+cssFiles ts = ordNub $ concatMap themeFiles ts
 
 
 styleSheet :: BaseURL -> Themes -> Html

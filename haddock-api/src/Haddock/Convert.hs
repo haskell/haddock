@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, TypeFamilies #-}
+{-# LANGUAGE CPP, OverloadedStrings, PatternGuards, TypeFamilies #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Convert
@@ -313,7 +313,7 @@ synifyTyCon _prr coax tc
                  , tcdFixity = synifyFixity name
                  , tcdDataDefn = defn
                  , tcdDExt = DataDeclRn False emptyNameSet }
-  dataConErrs -> Left $ unlines dataConErrs
+  dataConErrs -> Left $ errMsgUnlines dataConErrs
 
 -- | In this module, every TyCon being considered has come from an interface
 -- file. This means that when considering a data type constructor such as:
