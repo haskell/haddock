@@ -70,7 +70,7 @@ import GHC.Unit.State
 ppHtml :: UnitState
        -> String                       -- ^ Title
        -> Maybe String                 -- ^ Package
-       -> VisibleInterfaces
+       -> [Interface]
        -> [InstalledInterface]         -- ^ Reexported interfaces
        -> FilePath                     -- ^ Destination directory
        -> Maybe (MDoc GHC.RdrName)     -- ^ Prologue text, maybe
@@ -89,11 +89,11 @@ ppHtml :: UnitState
        -> Bool                         -- ^ Also write Quickjump index
        -> IO ()
 
-ppHtml state doctitle maybe_package visibleInterfaces reexported_ifaces odir prologue
+ppHtml state doctitle maybe_package interfaces reexported_ifaces odir prologue
         themes maybe_mathjax_url maybe_source_url maybe_wiki_url
         maybe_base_url maybe_contents_url maybe_index_url unicode
         pkg packageInfo qual debug withQuickjump = do
-  let visible_ifaces = getVisibleInterfaces visibleInterfaces
+  let visible_ifaces = filter (\i -> OptHide `notElem` ifaceOptions i) interfaces
   when (isNothing maybe_contents_url) $
     ppHtmlContents state odir doctitle maybe_package
         themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
