@@ -22,7 +22,7 @@ writeHaddockMeta odir withQuickjump = do
   let
     meta_json :: Value
     meta_json = object (concat [
-        [ "haddock_version"   .= projectVersion ]
+        [ "haddock_version"   .= String projectVersion ]
       , [ "quickjump_version" .= quickjumpVersion | withQuickjump ]
       ])
 
