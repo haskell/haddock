@@ -334,7 +334,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       | otherwise        = dflags
     logger               = setLogFlags log' (initLogFlags dflags')
 
-    visibleIfaces    = filter (\i -> OptHide `notElem` ifaceOptions i) ifaces
+    visibleIfaces    = [i | i <- ifaces, OptHide `notElem` ifaceOptions i]
 
     -- /All/ interfaces including external package modules, grouped by
     -- interface file (package).
