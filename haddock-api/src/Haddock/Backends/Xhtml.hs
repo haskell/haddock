@@ -23,7 +23,6 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
-import Haddock.Utils
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
 import Haddock.Backends.Xhtml.Layout
@@ -36,11 +35,11 @@ import Haddock.ModuleTree
 import Haddock.Options (Visibility (..))
 import Haddock.Types
 import Haddock.Version
+import Haddock.Utils
 import Haddock.Utils.Json
 import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 import Haddock.GhcUtils
-import qualified Data.Text as Text
 
 import Control.Monad         ( when, unless )
 import qualified Data.ByteString.Builder as Builder
@@ -89,11 +88,13 @@ ppHtml :: UnitState
        -> Bool                         -- ^ Also write Quickjump index
        -> IO ()
 
-ppHtml state doctitle maybe_package interfaces reexported_ifaces odir prologue
+ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
         themes maybe_mathjax_url maybe_source_url maybe_wiki_url
         maybe_base_url maybe_contents_url maybe_index_url unicode
         pkg packageInfo qual debug withQuickjump = do
-  let visible_ifaces = filter (\i -> OptHide `notElem` ifaceOptions i) interfaces
+  let
+    visible_ifaces = filter visible ifaces
+    visible i = OptHide `notElem` ifaceOptions i
   when (isNothing maybe_contents_url) $
     ppHtmlContents state odir doctitle maybe_package
         themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
@@ -415,7 +416,7 @@ mkNode pkg qual ss p (Node s leaf _pkg srcPkg short ts) =
 --------------------------------------------------------------------------------
 
 data JsonIndexEntry = JsonIndexEntry {
-      jieHtmlFragment :: Text,
+      jieHtmlFragment :: String,
       jieName         :: String,
       jieModule       :: String,
       jieLink         :: String
@@ -429,7 +430,7 @@ instance ToJSON JsonIndexEntry where
         , jieModule
         , jieLink } =
       Object
-        [ "display_html" .= String (Text.unpack jieHtmlFragment)
+        [ "display_html" .= String jieHtmlFragment
         , "name"         .= String jieName
         , "module"       .= String jieModule
         , "link"         .= String jieLink
@@ -438,7 +439,7 @@ instance ToJSON JsonIndexEntry where
 instance FromJSON JsonIndexEntry where
     parseJSON = withObject "JsonIndexEntry" $ \v ->
       JsonIndexEntry
-        <$> (Text.pack <$> v .: "display_html")
+        <$> v .: "display_html"
         <*> v .: "name"
         <*> v .: "module"
         <*> v .: "link"
@@ -493,7 +494,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
     mkIndex mdl qual item
       | Just item_html <- processExport True links_info unicode pkg qual item
       = Just JsonIndexEntry
-          { jieHtmlFragment = builderToText $ showHtmlFragment item_html
+          { jieHtmlFragment = builderToString $ showHtmlFragment item_html
           , jieName         = unwords (map getOccString names)
           , jieModule       = moduleString mdl
           , jieLink         = fromMaybe "" (listToMaybe (map (nameLink mdl) names))
