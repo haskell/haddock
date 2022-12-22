@@ -40,7 +40,7 @@ import Haddock.Interface.Create (createInterface1, runIfM)
 import Haddock.Interface.Rename (renameInterface)
 import Haddock.InterfaceFile (InterfaceFile, ifInstalledIfaces, ifLinkEnv)
 import Haddock.Options hiding (verbosity)
-import Haddock.Types (DocOption (..), Documentation (..), ExportItem (..), IfaceMap, InstIfaceMap, Interface, LinkEnv,
+import Haddock.Types (fromString, DocOption (..), Documentation (..), ExportItem (..), IfaceMap, InstIfaceMap, Interface, LinkEnv,
                       expItemDecl, expItemMbDoc, ifaceDoc, ifaceExportItems, ifaceExports, ifaceHaddockCoverage,
                       ifaceInstances, ifaceMod, ifaceOptions, ifaceVisibleExports, instMod, throwE)
 import Haddock.Utils (Verbosity (..), normal, out, verbose)
@@ -127,7 +127,7 @@ processModules verbosity modules flags extIfaces = do
   interfaces'' <-
     withTimingM "renaming all interfaces" (const ()) $
     for interfaces' $ \i -> do
-      withTimingM ("renameInterface" <+> pprModule (ifaceMod i)) (const ()) $
+      withTimingM (fromString $ "renameInterface" <> moduleString (ifaceMod i)) (const ()) $
         renameInterface dflags ignoredSymbolSet links warnings i
 
   return (interfaces'', homeLinks)
@@ -234,7 +234,7 @@ createIfaces verbosity modules flags instIfaceMap = do
 -- interfaces. Due to the plugin nature we benefit from GHC's capabilities to
 -- parallelize the compilation process.
 plugin
-  :: (HasCallStack, MonadIO m)
+  :: MonadIO m
   => Verbosity
   -> [Flag]
   -> InstIfaceMap
@@ -293,8 +293,7 @@ plugin verbosity flags instIfaceMap = liftIO $ do
 
 
 processModule1
-  :: HasCallStack
-  => Verbosity
+  :: Verbosity
   -> [Flag]
   -> IfaceMap
   -> InstIfaceMap
@@ -317,6 +316,8 @@ processModule1 verbosity flags ifaces inst_ifaces hsc_env mod_summary tc_gbl_env
       createInterface1 flags unit_state mod_summary tc_gbl_env
         ifaces inst_ifaces
 
+  liftIO $ mapM_ BSL.putStrLn (ordNub (map toLazyByteString messages))
+
   -- We need to keep track of which modules were somehow in scope so that when
   -- Haddock later looks for instances, it also looks in these modules too.
   --
@@ -332,7 +333,6 @@ processModule1 verbosity flags ifaces inst_ifaces hsc_env mod_summary tc_gbl_env
       , unQualOK gre -- In scope unqualified
       ]
 
-  liftIO $ mapM_ BSL.putStrLn (ordNub (map toLazyByteString messages))
   dflags <- getDynFlags
 
   let

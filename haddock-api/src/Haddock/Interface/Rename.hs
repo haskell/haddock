@@ -23,12 +23,8 @@ import Haddock.Types
 import GHC.Data.Bag (emptyBag)
 import GHC hiding (NoLink)
 import GHC.Types.Name
-import GHC.Unit.Module.Name
 import GHC.Types.Name.Reader (RdrName(Exact))
 import GHC.Builtin.Types (eqTyCon_RDR)
-import GHC.Data.FastString (FastString, NonDetFastString(..))
-import qualified GHC.Data.FastString as FastString
-import GHC.Stack
 
 import Data.ByteString.Builder
 import Data.Foldable (traverse_)
@@ -50,7 +46,7 @@ import GHC.Types.Basic ( TopLevelFlag(..) )
 --
 -- The renamed output gets written into fields in the Haddock interface record
 -- that were previously left empty.
-renameInterface :: (HasCallStack, ReportErrorMessage m) => DynFlags -> Set String -> LinkEnv -> Bool -> Interface -> m Interface
+renameInterface :: ReportErrorMessage m => DynFlags -> Set String -> LinkEnv -> Bool -> Interface -> m Interface
 renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
   let
     -- first create the local env, where every name exported by this module
