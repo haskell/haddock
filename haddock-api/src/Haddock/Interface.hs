@@ -122,7 +122,7 @@ processModules verbosity modules flags extIfaces = do
   out verbosity verbose "Renaming interfaces..."
   let warnings = Flag_NoWarnings `notElem` flags
   dflags <- getDynFlags
-  let !ignoredSymbolSet = Set.fromList (ignoredSymbols flags)
+  let !ignoredSymbolSet = Set.fromList (map (NonDetFastString . mkFastString) (ignoredSymbols flags))
   interfaces'' <-
     for interfaces' $ renameInterface dflags ignoredSymbolSet links warnings
 

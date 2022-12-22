@@ -23,9 +23,13 @@ import Haddock.Types
 import GHC.Data.Bag (emptyBag)
 import GHC hiding (NoLink)
 import GHC.Types.Name
+import GHC.Unit.Module.Name
 import GHC.Types.Name.Reader (RdrName(Exact))
 import GHC.Builtin.Types (eqTyCon_RDR)
+import GHC.Data.FastString (FastString, NonDetFastString(..))
+import qualified GHC.Data.FastString as FastString
 
+import Data.ByteString.Builder
 import Data.Foldable (traverse_)
 import Control.Applicative
 import Control.Monad
@@ -45,34 +49,34 @@ import GHC.Types.Basic ( TopLevelFlag(..) )
 --
 -- The renamed output gets written into fields in the Haddock interface record
 -- that were previously left empty.
-renameInterface :: ReportErrorMessage m => DynFlags -> Set String -> LinkEnv -> Bool -> Interface -> m Interface
+renameInterface :: ReportErrorMessage m => DynFlags -> Set NonDetFastString -> LinkEnv -> Bool -> Interface -> m Interface
 renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
+  let
+    -- first create the local env, where every name exported by this module
+    -- is mapped to itself, and everything else comes from the global renaming
+    -- env
+    localEnv =
+      Map.union
+        (Map.fromList (map (\name -> (name, ifaceMod iface)) (ifaceVisibleExports iface)))
+        renamingEnv
 
-  -- first create the local env, where every name exported by this module
-  -- is mapped to itself, and everything else comes from the global renaming
-  -- env
-  let localEnv =
-        Map.union
-          renamingEnv
-          (Map.fromList (map (\name -> (name, ifaceMod iface)) (ifaceVisibleExports iface)))
+    -- rename names in the exported declarations to point to things that
+    -- are closer to, or maybe even exported by, the current module.
+    (renamedIface, missingNames) =
+      runRnFM localEnv warnings $ renameInterfaceRn iface
 
-
-      -- rename names in the exported declarations to point to things that
-      -- are closer to, or maybe even exported by, the current module.
-      (renamedIface, missingNames) = runRnFM localEnv warnings $ renameInterfaceRn iface
-
-      strings =
-        map errMsgFromString
-        -- while this could be a `Set.difference`, it would require mapping
-        -- over the `Set` with the qualification, which would reconstruct it.
-        -- this is probably more wasteful than converting to a list, qualifying
-        -- the names, and then filtering them. the name isn't filtered at the
-        -- initial filter since we'd need to call qualifiedName twice for each
-        -- name, which is a wasteful string concatenation.
-        . filter (\name -> name `Set.member` ignoredSymbols)
-        . map mkQualifiedName
-        . Set.toList
-        $ missingNames
+    strings =
+      map (byteString . FastString.bytesFS)
+      -- while this could be a `Set.difference`, it would require mapping
+      -- over the `Set` with the qualification, which would reconstruct it.
+      -- this is probably more wasteful than converting to a list, qualifying
+      -- the names, and then filtering them. the name isn't filtered at the
+      -- initial filter since we'd need to call qualifiedName twice for each
+      -- name, which is a wasteful string concatenation.
+      . filter (\name -> NonDetFastString name `Set.member` ignoredSymbols)
+      . map mkQualifiedName
+      . Set.toList
+      $ missingNames
 
   -- report things that we couldn't link to. Only do this for non-hidden
   -- modules.
@@ -83,9 +87,9 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
 
   return $! renamedIface
 
-mkQualifiedName :: Name -> String
+mkQualifiedName :: Name -> FastString
 mkQualifiedName n =
-  (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
+  ((moduleNameFS $ moduleName $ nameModule n) <> "." <> getOccFS n)
 
 --------------------------------------------------------------------------------
 -- Monad for renaming
