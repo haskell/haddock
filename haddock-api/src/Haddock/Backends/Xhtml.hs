@@ -21,6 +21,7 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
+import GHC.Utils.Error
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
 import Haddock.Backends.Xhtml.Layout
@@ -64,7 +65,8 @@ import GHC.Unit.State
 -- * Generating HTML documentation
 --------------------------------------------------------------------------------
 
-ppHtml :: UnitState
+ppHtml :: Logger
+       -> UnitState
        -> String                       -- ^ Title
        -> Maybe String                 -- ^ Package
        -> [Interface]
@@ -86,16 +88,16 @@ ppHtml :: UnitState
        -> Bool                         -- ^ Also write Quickjump index
        -> IO ()
 
-ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
+ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologue
         themes maybe_mathjax_url maybe_source_url maybe_wiki_url
         maybe_base_url maybe_contents_url maybe_index_url unicode
-        pkg packageInfo qual debug withQuickjump = do
+        pkg packageInfo qual debug withQuickjump = withTiming logger (fromString "ppHtml") (const ()) $ do
   let
     visible_ifaces = filter visible ifaces
     visible i = OptHide `notElem` ifaceOptions i
 
   when (isNothing maybe_contents_url) $
-    ppHtmlContents state odir doctitle maybe_package
+    ppHtmlContents logger state odir doctitle maybe_package
         themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
         [PackageInterfaces
           { piPackageInfo = packageInfo
@@ -112,12 +114,13 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
   when withQuickjump $
-    ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
+    ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual
       visible_ifaces []
 
-  mapM_ (ppHtmlModule odir doctitle themes
-           maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-           maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
+  withTiming logger (fromString "ppHtmlModules") (const ()) $ do
+    mapM_ (ppHtmlModule logger odir doctitle themes
+             maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
+             maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
 
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> Bool -> IO ()
@@ -276,7 +279,8 @@ moduleInfo iface =
 
 
 ppHtmlContents
-   :: UnitState
+   :: Logger
+   -> UnitState
    -> FilePath
    -> String
    -> Maybe String
@@ -290,9 +294,9 @@ ppHtmlContents
    -> Maybe Package  -- ^ Current package
    -> Qualification  -- ^ How to qualify names
    -> IO ()
-ppHtmlContents state odir doctitle _maybe_package
+ppHtmlContents logger state odir doctitle _maybe_package
   themes mathjax_url maybe_index_url
-  maybe_source_url maybe_wiki_url packages showPkgs prologue debug pkg qual = do
+  maybe_source_url maybe_wiki_url packages showPkgs prologue debug pkg qual = withTiming logger (fromString "ppHtmlContents") (const ()) $ do
   let trees =
         [ ( piPackageInfo pinfo
           , mkModuleTree state showPkgs
@@ -337,7 +341,7 @@ ppPrologue pkg qual title (Just doc) =
 
 ppSignatureTrees :: Maybe Package -> Qualification -> [(PackageInfo, [ModuleTree])] -> Html
 ppSignatureTrees _ _ tss | all (null . snd) tss = mempty
-ppSignatureTrees pkg qual [(info, ts)] = 
+ppSignatureTrees pkg qual [(info, ts)] =
   divPackageList << (sectionName << "Signatures" +++ ppSignatureTree pkg qual "n" info ts)
 ppSignatureTrees pkg qual tss =
   divModuleList <<
@@ -443,17 +447,22 @@ instance FromJSON JsonIndexEntry where
         <*> v .: "module"
         <*> v .: "link"
 
-ppJsonIndex :: FilePath
-           -> SourceURLs                   -- ^ The source URL (--source)
-           -> WikiURLs                     -- ^ The wiki URL (--wiki)
-           -> Bool
-           -> Maybe Package
-           -> QualOption
-           -> [Interface]
-           -> [FilePath]                   -- ^ file paths to interface files
-                                           -- (--read-interface)
+ppJsonIndex
+  :: Logger
+  -> FilePath
+  -> SourceURLs
+  -- ^ The source URL (--source)
+  -> WikiURLs
+  -- ^ The wiki URL (--wiki)
+  -> Bool
+  -> Maybe Package
+  -> QualOption
+  -> [Interface]
+  -> [FilePath]
+  -- ^ file paths to interface files
+  -- (--read-interface)
            -> IO ()
-ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces installedIfacesPaths = do
+ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces installedIfacesPaths = withTiming logger (fromString "ppJsonIndex") (const ()) $ do
   createDirectoryIfMissing True odir
   (errors, installedIndexes) <-
     partitionEithers
@@ -519,7 +528,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
     -- update link using relative path to output directory
     fixLink :: FilePath
             -> JsonIndexEntry -> JsonIndexEntry
-    fixLink ifaceFile jie = 
+    fixLink ifaceFile jie =
       jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
                         FilePath.</> jieLink jie }
 
@@ -650,13 +659,13 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
 
 ppHtmlModule
-        :: FilePath -> String -> Themes
+        :: Logger -> FilePath -> String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
         -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
-ppHtmlModule odir doctitle themes
+ppHtmlModule logger odir doctitle themes
   maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-  maybe_contents_url maybe_index_url unicode pkg qual debug iface = do
+  maybe_contents_url maybe_index_url unicode pkg qual debug iface = timed $ do
   let
       mdl = ifaceMod iface
       aliases = ifaceModuleAliases iface
@@ -683,6 +692,8 @@ ppHtmlModule odir doctitle themes
 
   createDirectoryIfMissing True odir
   writeUtf8File (joinPath [odir, moduleHtmlFile mdl]) (renderToString debug html)
+  where
+    timed = withTiming logger (fromString ("ppHtmlModule " <> moduleString (ifaceMod iface))) (const ())
 
 signatureDocURL :: String
 signatureDocURL = "https://wiki.haskell.org/Module_signature"
