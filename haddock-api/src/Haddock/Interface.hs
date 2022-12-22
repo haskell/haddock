@@ -128,7 +128,7 @@ processModules verbosity modules flags extIfaces = do
   interfaces'' <-
     withTimingM "renameAllInterfaces" (const ()) $
       for interfaces' $ \i -> do
-        withTimingM ("renaming interface: " <+> pprModuleName (moduleName (ifaceMod i))) (const ()) $
+        withTimingM ("renameInterface: " <+> pprModuleName (moduleName (ifaceMod i))) (const ()) $
           renameInterface dflags ignoredSymbolSet links warnings i
 
   return (interfaces'', homeLinks)

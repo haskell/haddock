@@ -109,7 +109,7 @@ ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologu
         prologue debug pkg (makeContentsQual qual)
 
   when (isNothing maybe_index_url) $ do
-    ppHtmlIndex odir doctitle maybe_package
+    ppHtmlIndex logger odir doctitle maybe_package
       themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
@@ -532,19 +532,21 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
       jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
                         FilePath.</> jieLink jie }
 
-ppHtmlIndex :: FilePath
-            -> String
-            -> Maybe String
-            -> Themes
-            -> Maybe String
-            -> Maybe String
-            -> SourceURLs
-            -> WikiURLs
-            -> [InstalledInterface]
-            -> Bool
-            -> IO ()
-ppHtmlIndex odir doctitle _maybe_package themes
-  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = do
+ppHtmlIndex
+  :: Logger
+  -> FilePath
+  -> String
+  -> Maybe String
+  -> Themes
+  -> Maybe String
+  -> Maybe String
+  -> SourceURLs
+  -> WikiURLs
+  -> [InstalledInterface]
+  -> Bool
+  -> IO ()
+ppHtmlIndex logger odir doctitle _maybe_package themes
+  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = timed $ do
   let html = indexPage split_indices Nothing
               (if split_indices then [] else index)
 
@@ -559,6 +561,7 @@ ppHtmlIndex odir doctitle _maybe_package themes
   writeUtf8File (joinPath [odir, indexHtmlFile]) (renderToString debug html)
 
   where
+    timed = withTiming logger (fromString "ppHtmlIndex") (const ())
     indexPage showLetters ch items =
       headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes maybe_mathjax_url Nothing +++
       bodyHtml doctitle Nothing
