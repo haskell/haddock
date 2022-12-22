@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.DocMarkup
@@ -67,7 +69,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
                                   else fromMaybe (toHtml url) mLabel,
   markupAName                = \aname
                                -> if insertAnchors
-                                  then namedAnchor aname << ""
+                                  then namedAnchor aname << asText ""
                                   else noHtml,
   markupPic                  = \(Picture uri t) -> image ! ([src uri] ++ fromMaybe [] (return . title <$> t)),
   markupMathInline           = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\(" ++ mathjax ++ "\\)"),
@@ -109,7 +111,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
     exampleToHtml (Example expression result) = htmlExample
       where
         htmlExample = htmlPrompt +++ htmlExpression +++ toHtml (unlines result)
-        htmlPrompt = (thecode . toHtml $ ">>> ") ! [theclass "prompt"]
+        htmlPrompt = (thecode . toHtml $ asText ">>> ") ! [theclass "prompt"]
         htmlExpression = (strong . thecode . toHtml $ expression ++ "\n") ! [theclass "userinput"]
 
     makeOrdList :: HTML a => [(Int, a)] -> Html
@@ -187,7 +189,7 @@ hackMarkup fmt' currPkg h' =
       CollapsingHeader (Header lvl titl) par n nm ->
         let id_ = makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
             col' = collapseControl id_ "subheading"
-            summary = thesummary ! [ theclass "hide-when-js-enabled" ] << "Expand"
+            summary = thesummary ! [ theclass "hide-when-js-enabled" ] << asText "Expand"
             instTable contents = collapseDetails id_ DetailsClosed (summary +++ contents)
             lvs = zip [1 .. ] [h1, h2, h3, h4, h5, h6]
             getHeader = fromMaybe caption (lookup lvl lvs)

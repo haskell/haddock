@@ -48,7 +48,10 @@ module Haddock.Utils (
   out,
 
   -- * System tools
-  getProcessID
+  getProcessID,
+
+  Text, asText, builderToText, textToBuilder, builderToString,
+  Builder, stringUtf8
  ) where
 
 
@@ -59,6 +62,7 @@ import Haddock.Types
 import GHC
 import GHC.Types.Name
 
+import Data.Text (Text)
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
 import Data.Char ( isAlpha, isAlphaNum, isAscii, ord, chr )
@@ -70,13 +74,29 @@ import Data.List ( isSuffixOf )
 import System.Environment ( getProgName )
 import System.Exit
 import System.Directory ( createDirectory, removeDirectoryRecursive )
-import System.IO ( hPutStr, hSetEncoding, IOMode(..), utf8, withFile )
+import System.IO ( hSetEncoding, IOMode(..), utf8, withFile )
 import System.IO.Unsafe ( unsafePerformIO )
 import qualified System.FilePath.Posix as HtmlPath
+import Data.ByteString.Builder
+import qualified Data.ByteString  as BS
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Internals
 #endif
+
+asText :: Text -> Text
+asText = id
+
+builderToText :: Builder -> Text
+builderToText = Text.decodeUtf8 . BS.toStrict . toLazyByteString
+
+builderToString :: Builder -> String
+builderToString = Text.unpack . builderToText
+
+textToBuilder :: Text -> Builder
+textToBuilder = byteString . Text.encodeUtf8
 
 --------------------------------------------------------------------------------
 -- * Logging
@@ -283,10 +303,10 @@ isAlphaNumChar c = isAlphaChar c || isDigitChar c
 -- The problem with 'writeFile' is that it picks up its 'TextEncoding' from
 -- 'getLocaleEncoding', and on some platforms (like Windows) this default
 -- encoding isn't enough for the characters we want to write.
-writeUtf8File :: FilePath -> String -> IO ()
+writeUtf8File :: FilePath -> Builder -> IO ()
 writeUtf8File filepath contents = withFile filepath WriteMode $ \h -> do
     hSetEncoding h utf8
-    hPutStr h contents
+    hPutBuilder h contents
 
 withTempDir :: (MonadIO m, MonadMask m) => FilePath -> m a -> m a
 withTempDir dir = bracket_ (liftIO $ createDirectory dir)

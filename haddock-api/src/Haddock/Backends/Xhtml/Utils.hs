@@ -1,3 +1,6 @@
+{-# language OverloadedStrings #-}
+{-# language TypeApplications #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Util
@@ -104,7 +107,7 @@ spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
   run (c:rest) = c : run rest
 
 
-renderToString :: Bool -> Html -> String
+renderToString :: Bool -> Html -> Builder
 renderToString debug html
   | debug = renderHtml html
   | otherwise = showHtml html
@@ -124,7 +127,7 @@ infixr 8 <+>
 (<+>) :: Html -> Html -> Html
 a <+> b = a +++ sep +++ b
   where
-    sep = if isNoHtml a || isNoHtml b then noHtml else toHtml " "
+    sep = if isNoHtml a || isNoHtml b then noHtml else toHtml (asText " ")
 
 -- | Join two 'Html' values together with a linebreak in between.
 --   Has 'noHtml' as left identity.
@@ -135,7 +138,7 @@ a <=> b = a +++ sep +++ b
     sep = if isNoHtml a then noHtml else br
 
 
-keyword :: String -> Html
+keyword :: Text -> Html
 keyword s = thespan ! [theclass "keyword"] << toHtml s
 
 
@@ -160,7 +163,7 @@ promoQuote h = char '\'' +++ h
 parens, brackets, pabrackets, braces :: Html -> Html
 parens h        = char '(' +++ h +++ char ')'
 brackets h      = char '[' +++ h +++ char ']'
-pabrackets h    = toHtml "[:" +++ h +++ toHtml ":]"
+pabrackets h    = toHtml @String "[:" +++ h +++ toHtml @String ":]"
 braces h        = char '{' +++ h +++ char '}'
 
 
@@ -181,26 +184,26 @@ ubxParenList = ubxparens . hsep . punctuate comma
 
 
 ubxSumList :: [Html]  -> Html
-ubxSumList = ubxparens . hsep . punctuate (toHtml " | ")
+ubxSumList = ubxparens . hsep . punctuate (toHtml @String " | ")
 
 
 ubxparens :: Html -> Html
-ubxparens h = toHtml "(#" <+> h <+> toHtml "#)"
+ubxparens h = toHtml @String "(#" <+> h <+> toHtml @String "#)"
 
 
 dcolon, arrow, lollipop, darrow, forallSymbol, atSign :: Bool -> Html
-dcolon unicode = toHtml (if unicode then "∷" else "::")
-arrow  unicode = toHtml (if unicode then "→" else "->")
-lollipop unicode = toHtml (if unicode then "⊸" else "%1 ->")
-darrow unicode = toHtml (if unicode then "⇒" else "=>")
-forallSymbol unicode = if unicode then toHtml "∀" else keyword "forall"
-atSign unicode = toHtml (if unicode then "@" else "@")
+dcolon unicode = toHtml @String (if unicode then "∷" else "::")
+arrow  unicode = toHtml @String (if unicode then "→" else "->")
+lollipop unicode = toHtml @String (if unicode then "⊸" else "%1 ->")
+darrow unicode = toHtml @String (if unicode then "⇒" else "=>")
+forallSymbol unicode = if unicode then toHtml @String "∀" else keyword "forall"
+atSign unicode = toHtml @String (if unicode then "@" else "@")
 
 multAnnotation :: Html
-multAnnotation = toHtml "%"
+multAnnotation = toHtml @String "%"
 
 dot :: Html
-dot = toHtml "."
+dot = toHtml @String "."
 
 
 -- | Generate a named anchor

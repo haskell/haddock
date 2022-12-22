@@ -60,7 +60,7 @@ ppHoogle logger dflags unit_state package version synopsis prologue ifaces odir 
                    | not (null (versionBranch version)) ] ++
                    concat [ppModule dflags' unit_state i | i <- ifaces, OptHide `notElem` ifaceOptions i]
     createDirectoryIfMissing True odir
-    writeUtf8File (odir </> filename) (unlines contents)
+    writeUtf8File (odir </> filename) (stringUtf8 $ unlines contents)
 
 ppModule :: DynFlags -> UnitState -> Interface -> [String]
 ppModule dflags unit_state iface =

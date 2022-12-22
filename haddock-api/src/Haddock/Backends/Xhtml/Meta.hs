@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+
 module Haddock.Backends.Xhtml.Meta where
 
 import Haddock.Utils.Json

@@ -5,6 +5,11 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
+source-repository-package
+    type: git
+    location: https://github.com/parsonsmatt/xhtml
+    tag: 0c9a8ae2c88d0804c2fc22306a8656d1e6828614
+
 allow-newer:
   ghc-paths:Cabal,
   *:base,
