@@ -5,8 +5,6 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
-with-compiler: ghc-9.4
-
 allow-newer:
   ghc-paths:Cabal,
   *:base,
@@ -20,4 +18,4 @@ package haddock-api
   tests: False
 
 -- Pinning the index-state helps to make reasonably CI deterministic
-index-state: 2022-08-05T20:43:48Z
+index-state: 2022-12-22T21:33:40Z
