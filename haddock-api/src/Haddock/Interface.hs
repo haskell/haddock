@@ -124,7 +124,10 @@ processModules verbosity modules flags extIfaces = do
   dflags <- getDynFlags
   let !ignoredSymbolSet = Set.fromList (ignoredSymbols flags)
   interfaces'' <-
-    for interfaces' $ renameInterface dflags ignoredSymbolSet links warnings
+    withTimingM "renaming all interfaces" (const ()) $
+      for interfaces' $ \i -> do
+        withTimingM ("renaming interface: " <+> pprModuleName (moduleName (ifaceMod i))) (const ()) $
+          renameInterface dflags ignoredSymbolSet links warnings i
 
   return (interfaces'', homeLinks)
 

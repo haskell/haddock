@@ -74,19 +74,7 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
       -- rename names in the exported declarations to point to things that
       -- are closer to, or maybe even exported by, the current module.
       (renamedIface, missingNames) =
-        runRnFM localEnv filterName $ do
-          exportItems <- renameExportItems (ifaceExportItems iface)
-          docMap <- mapM renameDoc (ifaceDocMap iface)
-          argMap <- mapM (mapM renameDoc) (ifaceArgMap iface)
-          orphans <- mapM renameDocInstance (ifaceOrphanInstances iface)
-          finalModDoc <- renameDocumentation (ifaceDoc iface)
-          pure $! iface
-            { ifaceRnDoc         = finalModDoc
-            , ifaceRnDocMap      = docMap
-            , ifaceRnArgMap      = argMap
-            , ifaceRnExportItems = exportItems
-            , ifaceRnOrphanInstances = orphans
-            }
+        runRnFM localEnv filterName $ renameInterfaceRn iface
 
       qualifiedName n = (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
 
@@ -141,7 +129,7 @@ lookupRn :: Name -> RnM DocName
 lookupRn name = do
   (isFound, mapsTo) <- lookupNameEnv name
   shouldRecord <- asks $ \env -> rnShouldRecordName env name
-  unless (isFound && shouldRecord) $ do
+  when (not isFound && shouldRecord) $ do
     modify' (Set.insert name)
   pure mapsTo
 
@@ -173,6 +161,20 @@ runRnFM env shouldRecord rn = runState (runReaderT (unRn rn) (RnMEnv lkp shouldR
 -- Renaming
 --------------------------------------------------------------------------------
 
+renameInterfaceRn :: Interface -> RnM Interface
+renameInterfaceRn iface = do
+  exportItems <- renameExportItems (ifaceExportItems iface)
+  docMap <- mapM renameDoc (ifaceDocMap iface)
+  argMap <- mapM (mapM renameDoc) (ifaceArgMap iface)
+  orphans <- mapM renameDocInstance (ifaceOrphanInstances iface)
+  finalModDoc <- renameDocumentation (ifaceDoc iface)
+  pure $! iface
+    { ifaceRnDoc         = finalModDoc
+    , ifaceRnDocMap      = docMap
+    , ifaceRnArgMap      = argMap
+    , ifaceRnExportItems = exportItems
+    , ifaceRnOrphanInstances = orphans
+    }
 
 rename :: Name -> RnM DocName
 rename = lookupRn
