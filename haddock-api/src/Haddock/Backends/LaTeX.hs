@@ -24,6 +24,7 @@ import Haddock.GhcUtils
 import GHC.Utils.Ppr hiding (Doc, quote)
 import qualified GHC.Utils.Ppr as Pretty
 
+import GHC.Utils.Error
 import GHC.Types.Basic        ( PromotionFlag(..), isPromoted )
 import GHC hiding (fromMaybeContext )
 import GHC.Types.Name.Occurrence
@@ -81,22 +82,29 @@ Extract the last element of a list, which must be finite and non-empty.
  * don't forget fixity!!
 -}
 
-ppLaTeX :: String                       -- Title
-        -> Maybe String                 -- Package name
-        -> [Interface]
-        -> FilePath                     -- destination directory
-        -> Maybe (Doc GHC.RdrName)      -- prologue text, maybe
-        -> Maybe String                 -- style file
-        -> FilePath
-        -> IO ()
+ppLaTeX
+  :: Logger
+  -> String
+  -- ^ Title
+  -> Maybe String
+  -- ^ Package name
+  -> [Interface]
+  -> FilePath
+  -- ^ destination directory
+  -> Maybe (Doc GHC.RdrName)
+  -- ^ prologue text, maybe
+  -> Maybe String
+  -- ^ style file
+  -> FilePath
+  -> IO ()
 
-ppLaTeX title packageStr visible_ifaces odir prologue maybe_style libdir
- = do
+ppLaTeX logger title packageStr visible_ifaces odir prologue maybe_style libdir
+ = withTiming logger (fromString "ppLatex") (const ()) $ do
    createDirectoryIfMissing True odir
    when (isNothing maybe_style) $
      copyFile (libdir </> "latex" </> haddockSty) (odir </> haddockSty)
    ppLaTeXTop title packageStr odir prologue maybe_style visible_ifaces
-   mapM_ (ppLaTeXModule title odir) visible_ifaces
+   mapM_ (ppLaTeXModule logger title odir) visible_ifaces
 
 
 haddockSty :: FilePath
@@ -147,8 +155,8 @@ ppLaTeXTop doctitle packageStr odir prologue maybe_style ifaces = do
   writeUtf8File filename (show tex)
 
 
-ppLaTeXModule :: String -> FilePath -> Interface -> IO ()
-ppLaTeXModule _title odir iface = do
+ppLaTeXModule :: Logger -> String -> FilePath -> Interface -> IO ()
+ppLaTeXModule logger _title odir iface = timed $ do
   createDirectoryIfMissing True odir
   let
       mdl = ifaceMod iface
@@ -178,6 +186,9 @@ ppLaTeXModule _title odir iface = do
       body = processExports exports
   --
   writeUtf8File (odir </> moduleLaTeXFile mdl) (fullRender (PageMode True) 80 1 txtPrinter "" tex)
+  where
+    timed =
+      withTiming logger (fromString ("ppLatexModule " ++ moduleString (ifaceMod iface))) (const ())
 
 -- | Prints out an entry in a module export list.
 exportListItem :: ExportItem DocNameI -> LaTeX
