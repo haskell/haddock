@@ -27,6 +27,7 @@ import GHC.Types.Name.Reader (RdrName(Exact))
 import GHC.Builtin.Types (eqTyCon_RDR)
 
 import Data.ByteString.Builder
+
 import Data.Foldable (traverse_)
 import Control.Applicative
 import Control.Monad
