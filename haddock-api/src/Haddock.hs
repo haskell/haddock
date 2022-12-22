@@ -501,17 +501,15 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
           ]
 
   when (Flag_LaTeX `elem` flags) $ do
-    withTiming logger "ppLatex" (const ()) $ do
-      _ <- {-# SCC ppLatex #-}
-           ppLaTeX title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
-                   libDir
-      return ()
+    _ <- {-# SCC ppLatex #-}
+         ppLaTeX logger title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
+                 libDir
+    return ()
 
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
-    withTiming logger "ppHyperlinkedSource" (const ()) $ do
-      _ <- {-# SCC ppHyperlinkedSource #-}
-           ppHyperlinkedSource logger (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
-      return ()
+    _ <- {-# SCC ppHyperlinkedSource #-}
+         ppHyperlinkedSource logger (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
+    return ()
 
 
 -------------------------------------------------------------------------------
