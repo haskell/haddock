@@ -1,4 +1,4 @@
--- with-compiler: ghc-9.4
+with-compiler: ghc-9.4
 
 packages: ./
           ./haddock-api
