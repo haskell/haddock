@@ -61,8 +61,6 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
       -- are closer to, or maybe even exported by, the current module.
       (renamedIface, missingNames) = runRnFM localEnv warnings $ renameInterfaceRn iface
 
-      qualifiedName n = (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
-
       strings =
         map errMsgFromString
         -- while this could be a `Set.difference`, it would require mapping
@@ -72,7 +70,7 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
         -- initial filter since we'd need to call qualifiedName twice for each
         -- name, which is a wasteful string concatenation.
         . filter (\name -> name `Set.member` ignoredSymbols)
-        . map qualifiedName
+        . map mkQualifiedName
         . Set.toList
         $ missingNames
 
@@ -85,6 +83,9 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
 
   return $! renamedIface
 
+mkQualifiedName :: Name -> String
+mkQualifiedName n =
+  (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
 
 --------------------------------------------------------------------------------
 -- Monad for renaming
