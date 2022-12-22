@@ -119,7 +119,13 @@ out progVerbosity msgVerbosity msg
 --------------------------------------------------------------------------------
 
 ordNub :: Ord a => [a] -> [a]
-ordNub = Set.toList . Set.fromList
+ordNub = go mempty
+  where
+    go _ [] = []
+    go seen (x:xs)
+      | x `Set.member` seen = go seen xs
+      | otherwise = x : go (Set.insert x seen) xs
+
 
 mkMeta :: Doc a -> MDoc a
 mkMeta x = emptyMetaDoc { _doc = x }

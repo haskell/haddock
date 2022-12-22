@@ -109,7 +109,7 @@ ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologu
         prologue debug pkg (makeContentsQual qual)
 
   when (isNothing maybe_index_url) $ do
-    ppHtmlIndex odir doctitle maybe_package
+    ppHtmlIndex logger odir doctitle maybe_package
       themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
@@ -532,26 +532,28 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
       jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
                         FilePath.</> jieLink jie }
 
-ppHtmlIndex :: FilePath
-            -> String
-            -> Maybe String
-            -> Themes
-            -> Maybe String
-            -> Maybe String
-            -> SourceURLs
-            -> WikiURLs
-            -> [InstalledInterface]
-            -> Bool
-            -> IO ()
-ppHtmlIndex odir doctitle _maybe_package themes
-  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = do
+ppHtmlIndex
+  :: Logger
+  -> FilePath
+  -> String
+  -> Maybe String
+  -> Themes
+  -> Maybe String
+  -> Maybe String
+  -> SourceURLs
+  -> WikiURLs
+  -> [InstalledInterface]
+  -> Bool
+  -> IO ()
+ppHtmlIndex logger odir doctitle _maybe_package themes
+  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = timed $ do
   let html = indexPage split_indices Nothing
               (if split_indices then [] else index)
 
   createDirectoryIfMissing True odir
 
   when split_indices $ do
-    mapM_ (do_sub_index index) initialChars
+    mapM_ do_sub_index initialChars
     -- Let's add a single large index as well for those who don't know exactly what they're looking for:
     let mergedhtml = indexPage False Nothing index
     writeUtf8File (joinPath [odir, subIndexHtmlFile merged_name]) (renderToString debug mergedhtml)
@@ -559,6 +561,7 @@ ppHtmlIndex odir doctitle _maybe_package themes
   writeUtf8File (joinPath [odir, indexHtmlFile]) (renderToString debug html)
 
   where
+    timed = withTiming logger (fromString "ppHtmlIndex") (const ())
     indexPage showLetters ch items =
       headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes maybe_mathjax_url Nothing +++
       bodyHtml doctitle Nothing
@@ -595,12 +598,12 @@ ppHtmlIndex odir doctitle _maybe_package themes
     -- with non-split index!
     initialChars = [ 'A'..'Z' ] ++ ":!#$%&*+./<=>?@\\^|-~" ++ "_"
 
-    do_sub_index this_ix c
-      = unless (null index_part) $
+    do_sub_index c
+      = withTiming logger (fromString ("do_sub_index: " <> [c])) (const ()) $ unless (null index_part) $
           writeUtf8File (joinPath [odir, subIndexHtmlFile [c]]) (renderToString debug html)
       where
         html = indexPage True (Just c) index_part
-        index_part = [(n,stuff) | (n,stuff) <- this_ix, toUpper (head n) == c]
+        index_part = [(n,stuff) | (n,stuff) <- index, toUpper (head n) == c]
 
 
     index :: [(String, Map GHC.Name [(Module,Bool)])]
