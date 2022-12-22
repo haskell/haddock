@@ -56,31 +56,10 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
           renamingEnv
           (Map.fromList (map (\name -> (name, ifaceMod iface)) (ifaceVisibleExports iface)))
 
-      -- Filter out certain built in type constructors using their string
-      -- representation.
-      --
-      -- Note that since the renamed AST represents equality constraints as
-      -- @HasOpTy t1 eqTyCon_RDR t2@ (and _not_ as @HsEqTy t1 t2@), we need to
-      -- manually filter out 'eqTyCon_RDR' (aka @~@).
-      filterName name
-        | not warnings
-          = False
-        | otherwise
-          = isExternalName name
-          && not (isSystemName name)
-          && not (isBuiltInSyntax name)
-          && Exact name /= eqTyCon_RDR
 
       -- rename names in the exported declarations to point to things that
       -- are closer to, or maybe even exported by, the current module.
-      ((renamedExportItems, rnDocMap, rnArgMap, renamedOrphanInstances, finalModuleDoc), missingNames) =
-        runRnFM localEnv filterName $ do
-          exportItems <- renameExportItems (ifaceExportItems iface)
-          docMap <- mapM renameDoc (ifaceDocMap iface)
-          argMap <- mapM (mapM renameDoc) (ifaceArgMap iface)
-          orphans <- mapM renameDocInstance (ifaceOrphanInstances iface)
-          finalModDoc <- renameDocumentation (ifaceDoc iface)
-          pure (exportItems, docMap, argMap, orphans, finalModDoc)
+      (renamedIface, missingNames) = runRnFM localEnv warnings $ renameInterfaceRn iface
 
       qualifiedName n = (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
 
@@ -104,11 +83,7 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
           ": could not find link destinations for: "
     traverse_ (reportErrorMessage . mappend "\t- ") strings
 
-  return $! iface { ifaceRnDoc         = finalModuleDoc,
-                   ifaceRnDocMap      = rnDocMap,
-                   ifaceRnArgMap      = rnArgMap,
-                   ifaceRnExportItems = renamedExportItems,
-                   ifaceRnOrphanInstances = renamedOrphanInstances}
+  return $! renamedIface
 
 
 --------------------------------------------------------------------------------
@@ -130,15 +105,28 @@ data RnMEnv = RnMEnv
   { rnMLookup :: Name -> (Bool, DocName)
   -- ^ Lookup a name in the environment. Returns whether or not the 'Name' was
   -- present in the environment, as well as the 'DocName' that corresponds to it.
-  , rnShouldRecordName :: Name -> Bool
-  -- ^ Whether we should record the given 'Name' in the set.
+  , rnMWarningsEnabled :: Bool
+  -- ^ Whether we should record names at all
   }
+
+-- | Filter out certain built in type constructors using their string
+-- representation.
+--
+-- Note that since the renamed AST represents equality constraints as
+-- @HasOpTy t1 eqTyCon_RDR t2@ (and _not_ as @HsEqTy t1 t2@), we need to
+-- manually filter out 'eqTyCon_RDR' (aka @~@).
+shouldRecordNameRn :: Name -> Bool
+shouldRecordNameRn name =
+  isExternalName name
+  && not (isSystemName name)
+  && not (isBuiltInSyntax name)
+  && Exact name /= eqTyCon_RDR
 
 -- | Look up a 'Name' in the renaming environment.
 lookupRn :: Name -> RnM DocName
 lookupRn name = do
   (isFound, mapsTo) <- lookupNameEnv name
-  shouldRecord <- asks $ \env -> rnShouldRecordName env name
+  shouldRecord <- asks $ \env -> rnMWarningsEnabled env && shouldRecordNameRn name
   unless (isFound && shouldRecord) $ do
     modify' (Set.insert name)
   pure mapsTo
@@ -158,8 +146,8 @@ lookupRnNoWarn name = do
 -- | Run the renamer action using lookup in a 'LinkEnv' as the lookup function.
 -- Returns the renamed value along with a list of `Name`'s that could not be
 -- renamed because they weren't in the environment.
-runRnFM :: LinkEnv -> (Name -> Bool) -> RnM a -> (a, Set Name)
-runRnFM env shouldRecord rn = runState (runReaderT (unRn rn) (RnMEnv lkp shouldRecord)) mempty
+runRnFM :: LinkEnv -> Bool -> RnM a -> (a, Set Name)
+runRnFM env warningsEnabled rn = runState (runReaderT (unRn rn) (RnMEnv lkp warningsEnabled)) mempty
   where
     lkp n | isTyVarName n = (True, Undocumented n)
           | otherwise = case Map.lookup n env of
@@ -742,3 +730,16 @@ renameSub (n,doc) = do
   n' <- rename n
   doc' <- renameDocForDecl doc
   return (n', doc')
+
+renameInterfaceRn :: Interface -> RnM Interface
+renameInterfaceRn iface =  do
+  renamedExportItems <- renameExportItems (ifaceExportItems iface)
+  rnDocMap <- mapM renameDoc (ifaceDocMap iface)
+  rnArgMap <- mapM (mapM renameDoc) (ifaceArgMap iface)
+  renamedOrphanInstances <- mapM renameDocInstance (ifaceOrphanInstances iface)
+  finalModuleDoc <- renameDocumentation (ifaceDoc iface)
+  pure $! iface { ifaceRnDoc = finalModuleDoc,
+                   ifaceRnDocMap      = rnDocMap,
+                   ifaceRnArgMap      = rnArgMap,
+                   ifaceRnExportItems = renamedExportItems,
+                   ifaceRnOrphanInstances = renamedOrphanInstances}
