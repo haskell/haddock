@@ -63,10 +63,13 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
       -- @HasOpTy t1 eqTyCon_RDR t2@ (and _not_ as @HsEqTy t1 t2@), we need to
       -- manually filter out 'eqTyCon_RDR' (aka @~@).
       filterName name
-        = isExternalName name
-        && not (isSystemName name)
-        && not (isBuiltInSyntax name)
-        && Exact name /= eqTyCon_RDR
+        | not warnings
+          = False
+        | otherwise
+          = isExternalName name
+          && not (isSystemName name)
+          && not (isBuiltInSyntax name)
+          && Exact name /= eqTyCon_RDR
 
       -- rename names in the exported declarations to point to things that
       -- are closer to, or maybe even exported by, the current module.
