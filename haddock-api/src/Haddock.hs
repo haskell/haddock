@@ -448,17 +448,16 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       copyHtmlBits odir libDir themes withQuickjump
 
   when (Flag_GenContents `elem` flags) $ do
-    withTiming logger "ppHtmlContents" (const ()) $ do
-      _ <- {-# SCC ppHtmlContents #-}
-           ppHtmlContents unit_state odir title pkgStr
-                     themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
-                     allVisiblePackages True prologue pretty
-                     sincePkg (makeContentsQual qual)
-      return ()
+    _ <- {-# SCC ppHtmlContents #-}
+         ppHtmlContents logger unit_state odir title pkgStr
+                   themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
+                   allVisiblePackages True prologue pretty
+                   sincePkg (makeContentsQual qual)
+    return ()
     copyHtmlBits odir libDir themes withQuickjump
 
   when withQuickjump $ void $
-            ppJsonIndex odir sourceUrls' opt_wiki_urls
+            ppJsonIndex logger odir sourceUrls' opt_wiki_urls
                         unicode Nothing qual
                         ifaces
                         ( ordNub
@@ -467,14 +466,13 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
                         $ packages)
 
   when (Flag_Html `elem` flags) $ do
-    withTiming logger "ppHtml" (const ()) $ do
-      _ <- {-# SCC ppHtml #-}
-           ppHtml unit_state title pkgStr visibleIfaces reexportedIfaces odir
-                  prologue
-                  themes opt_mathjax sourceUrls' opt_wiki_urls opt_base_url
-                  opt_contents_url opt_index_url unicode sincePkg packageInfo
-                  qual pretty withQuickjump
-      return ()
+    _ <- {-# SCC ppHtml #-}
+         ppHtml logger unit_state title pkgStr visibleIfaces reexportedIfaces odir
+                prologue
+                themes opt_mathjax sourceUrls' opt_wiki_urls opt_base_url
+                opt_contents_url opt_index_url unicode sincePkg packageInfo
+                qual pretty withQuickjump
+    return ()
     unless withBaseURL $ do
       copyHtmlBits odir libDir themes withQuickjump
       writeHaddockMeta odir withQuickjump
@@ -490,7 +488,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
 
             pkgVer =
               fromMaybe (makeVersion []) mpkgVer
-          in ppHoogle dflags' unit_state pkgNameStr pkgVer title (fmap _doc prologue)
+          in ppHoogle logger dflags' unit_state pkgNameStr pkgVer title (fmap _doc prologue)
                visibleIfaces odir
       _ -> putStrLn . unlines $
           [ "haddock: Unable to find a package providing module "
@@ -512,7 +510,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
     withTiming logger "ppHyperlinkedSource" (const ()) $ do
       _ <- {-# SCC ppHyperlinkedSource #-}
-           ppHyperlinkedSource (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
+           ppHyperlinkedSource logger (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
       return ()
 
 

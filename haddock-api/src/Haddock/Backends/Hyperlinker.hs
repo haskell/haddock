@@ -20,6 +20,9 @@ import Data.Maybe
 import System.Directory
 import System.FilePath
 
+import GHC.Utils.Error
+import Haddock.GhcUtils (moduleString)
+import GHC (Logger)
 import GHC.Iface.Ext.Types  ( pattern HiePath, HieFile(..), HieASTs(..), HieAST(..), SourcedNodeInfo(..) )
 import GHC.Iface.Ext.Binary ( readHieFile, hie_file_result )
 import GHC.Types.SrcLoc     ( realSrcLocSpan, mkRealSrcLoc, srcSpanFile )
@@ -33,7 +36,8 @@ import GHC.Unit.Module         ( Module, moduleName )
 -- Note that list of interfaces should also contain interfaces normally hidden
 -- when generating documentation. Otherwise this could lead to dead links in
 -- produced source.
-ppHyperlinkedSource :: Verbosity
+ppHyperlinkedSource :: Logger
+                    -> Verbosity
                     -> FilePath -- ^ Output directory
                     -> FilePath -- ^ Resource directory
                     -> Maybe FilePath -- ^ Custom CSS file path
@@ -41,20 +45,23 @@ ppHyperlinkedSource :: Verbosity
                     -> M.Map Module SrcPath -- ^ Paths to sources
                     -> [Interface] -- ^ Interfaces for which we create source
                     -> IO ()
-ppHyperlinkedSource verbosity outdir libdir mstyle pretty srcs' ifaces = do
+ppHyperlinkedSource logger verbosity outdir libdir mstyle pretty srcs' ifaces = do
+  withTiming logger (fromString "ppHyperlinkedSource") (const ()) $ do
     createDirectoryIfMissing True srcdir
     let cssFile = fromMaybe (defaultCssFile libdir) mstyle
     copyFile cssFile $ srcdir </> srcCssFile
     copyFile (libdir </> "html" </> highlightScript) $
         srcdir </> highlightScript
-    mapM_ (ppHyperlinkedModuleSource verbosity srcdir pretty srcs) ifaces
+    mapM_ (ppHyperlinkedModuleSource logger verbosity srcdir pretty srcs) ifaces
   where
     srcdir = outdir </> hypSrcDir
     srcs = (srcs', M.mapKeys moduleName srcs')
 
 -- | Generate hyperlinked source for particular interface.
-ppHyperlinkedModuleSource :: Verbosity -> FilePath -> Bool -> SrcMaps -> Interface -> IO ()
-ppHyperlinkedModuleSource verbosity srcdir pretty srcs iface = case ifaceHieFile iface of
+ppHyperlinkedModuleSource :: Logger -> Verbosity -> FilePath -> Bool -> SrcMaps -> Interface -> IO ()
+ppHyperlinkedModuleSource logger verbosity srcdir pretty srcs iface =
+  withTiming logger (fromString ("ppHyperlinkedModuleSource " <> moduleString (ifaceMod iface))) (const ()) $
+  case ifaceHieFile iface of
     Just hfp -> do
         -- Parse the GHC-produced HIE file
         nc <- freshNameCache
