@@ -553,7 +553,7 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
   createDirectoryIfMissing True odir
 
   when split_indices $ do
-    mapM_ (do_sub_index index) initialChars
+    mapM_ do_sub_index initialChars
     -- Let's add a single large index as well for those who don't know exactly what they're looking for:
     let mergedhtml = indexPage False Nothing index
     writeUtf8File (joinPath [odir, subIndexHtmlFile merged_name]) (renderToString debug mergedhtml)
@@ -598,12 +598,12 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
     -- with non-split index!
     initialChars = [ 'A'..'Z' ] ++ ":!#$%&*+./<=>?@\\^|-~" ++ "_"
 
-    do_sub_index this_ix c
-      = withTiming logger (fromString ("do_sub_index" <> [c])) (const ()) $ unless (null index_part) $
+    do_sub_index c
+      = withTiming logger (fromString ("do_sub_index: " <> [c])) (const ()) $ unless (null index_part) $
           writeUtf8File (joinPath [odir, subIndexHtmlFile [c]]) (renderToString debug html)
       where
         html = indexPage True (Just c) index_part
-        index_part = [(n,stuff) | (n,stuff) <- this_ix, toUpper (head n) == c]
+        index_part = [(n,stuff) | (n,stuff) <- index, toUpper (head n) == c]
 
 
     index :: [(String, Map GHC.Name [(Module,Bool)])]
