@@ -42,8 +42,9 @@ import Haddock.InterfaceFile (InterfaceFile, ifInstalledIfaces, ifLinkEnv)
 import Haddock.Options hiding (verbosity)
 import Haddock.Types (DocOption (..), Documentation (..), ExportItem (..), IfaceMap, InstIfaceMap, Interface, LinkEnv,
                       expItemDecl, expItemMbDoc, ifaceDoc, ifaceExportItems, ifaceExports, ifaceHaddockCoverage,
-                      ifaceInstances, ifaceMod, ifaceOptions, ifaceVisibleExports, instMod, throwE, runErrMsgM, errorMessagesToList)
+                      ifaceInstances, ifaceMod, ifaceOptions, ifaceVisibleExports, instMod, throwE)
 import Haddock.Utils (Verbosity (..), normal, out, verbose)
+import Data.Traversable
 
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO)
@@ -121,9 +122,8 @@ processModules verbosity modules flags extIfaces = do
   out verbosity verbose "Renaming interfaces..."
   let warnings = Flag_NoWarnings `notElem` flags
   dflags <- getDynFlags
-  let (interfaces'', msgs) =
-         runErrMsgM $ mapM (renameInterface dflags (ignoredSymbols flags) links warnings) interfaces'
-  liftIO $ mapM_ (BSL.putStrLn . toLazyByteString) (errorMessagesToList msgs)
+  interfaces'' <-
+    for interfaces' $ renameInterface dflags (ignoredSymbols flags) links warnings
 
   return (interfaces'', homeLinks)
 

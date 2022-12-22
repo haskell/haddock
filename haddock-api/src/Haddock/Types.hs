@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-#  LANGUAGE CPP, DeriveDataTypeable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -35,6 +35,7 @@ module Haddock.Types (
   , runWriter
   , tell
   , fromString
+  , Builder
  ) where
 
 import qualified Data.Text as Text
@@ -81,7 +82,6 @@ type DeclMap       = Map Name [LHsDecl GhcRn]
 type InstMap       = Map RealSrcSpan Name
 type FixMap        = Map Name Fixity
 type DocPaths      = (FilePath, Maybe FilePath) -- paths to HTML and sources
-
 
 -----------------------------------------------------------------------------
 -- * Interface
@@ -664,6 +664,10 @@ errMsgUnlines = mconcat . List.intersperse (charUtf8 '\n')
 
 class Monad m => ReportErrorMessage m where
     reportErrorMessage :: Builder -> m ()
+
+instance ReportErrorMessage Ghc where
+    reportErrorMessage =
+        liftIO . BSL.putStr . toLazyByteString . (<> charUtf8 '\n')
 
 instance ReportErrorMessage m => ReportErrorMessage (ReaderT r m) where
     reportErrorMessage = lift . reportErrorMessage
