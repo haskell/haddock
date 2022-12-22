@@ -51,7 +51,7 @@ import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (atomicModifyIORef', newIORef, readIORef)
 import Data.List (foldl', isPrefixOf)
 import Text.Printf (printf)
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.ByteString.Lazy.Char8 as BSL
 
@@ -62,7 +62,7 @@ import GHC.Driver.Env
 import GHC.Driver.Monad (modifySession, withTimingM)
 import GHC.Driver.Session hiding (verbosity)
 import GHC.HsToCore.Docs (getMainDeclBinder)
-import GHC.Plugins
+import GHC.Plugins hiding ((<>))
 import GHC.Tc.Types (TcGblEnv (..), TcM)
 import GHC.Tc.Utils.Env (tcLookupGlobal)
 import GHC.Tc.Utils.Monad (getTopEnv, setGblEnv)
@@ -78,7 +78,8 @@ import GHC.IO.Encoding.Failure (CodingFailureMode(TransliterateCodingFailure))
 -- | Create 'Interface's and a link environment by typechecking the list of
 -- modules using the GHC API and processing the resulting syntax trees.
 processModules
-  :: Verbosity                  -- ^ Verbosity of logging to 'stdout'
+  :: HasCallStack
+  => Verbosity                  -- ^ Verbosity of logging to 'stdout'
   -> [String]                   -- ^ A list of file or module names sorted by
                                 -- module topology
   -> [Flag]                     -- ^ Command-line flags
@@ -122,9 +123,12 @@ processModules verbosity modules flags extIfaces = do
   out verbosity verbose "Renaming interfaces..."
   let warnings = Flag_NoWarnings `notElem` flags
   dflags <- getDynFlags
-  let !ignoredSymbolSet = Set.fromList (map (NonDetFastString . mkFastString) (ignoredSymbols flags))
+  let !ignoredSymbolSet = Set.fromList (ignoredSymbols flags)
   interfaces'' <-
-    for interfaces' $ renameInterface dflags ignoredSymbolSet links warnings
+    withTimingM "renaming all interfaces" (const ()) $
+    for interfaces' $ \i -> do
+      withTimingM ("renameInterface" <+> pprModule (ifaceMod i)) (const ()) $
+        renameInterface dflags ignoredSymbolSet links warnings i
 
   return (interfaces'', homeLinks)
 
@@ -134,7 +138,7 @@ processModules verbosity modules flags extIfaces = do
 --------------------------------------------------------------------------------
 
 
-createIfaces :: Verbosity -> [String] -> [Flag] -> InstIfaceMap -> Ghc ([Interface], ModuleSet)
+createIfaces :: HasCallStack => Verbosity -> [String] -> [Flag] -> InstIfaceMap -> Ghc ([Interface], ModuleSet)
 createIfaces verbosity modules flags instIfaceMap = do
   (haddockPlugin, getIfaces, getModules) <- liftIO $ plugin
     verbosity flags instIfaceMap
@@ -230,7 +234,7 @@ createIfaces verbosity modules flags instIfaceMap = do
 -- interfaces. Due to the plugin nature we benefit from GHC's capabilities to
 -- parallelize the compilation process.
 plugin
-  :: MonadIO m
+  :: (HasCallStack, MonadIO m)
   => Verbosity
   -> [Flag]
   -> InstIfaceMap
@@ -289,7 +293,8 @@ plugin verbosity flags instIfaceMap = liftIO $ do
 
 
 processModule1
-  :: Verbosity
+  :: HasCallStack
+  => Verbosity
   -> [Flag]
   -> IfaceMap
   -> InstIfaceMap

@@ -28,6 +28,7 @@ import GHC.Types.Name.Reader (RdrName(Exact))
 import GHC.Builtin.Types (eqTyCon_RDR)
 import GHC.Data.FastString (FastString, NonDetFastString(..))
 import qualified GHC.Data.FastString as FastString
+import GHC.Stack
 
 import Data.ByteString.Builder
 import Data.Foldable (traverse_)
@@ -49,7 +50,7 @@ import GHC.Types.Basic ( TopLevelFlag(..) )
 --
 -- The renamed output gets written into fields in the Haddock interface record
 -- that were previously left empty.
-renameInterface :: ReportErrorMessage m => DynFlags -> Set NonDetFastString -> LinkEnv -> Bool -> Interface -> m Interface
+renameInterface :: (HasCallStack, ReportErrorMessage m) => DynFlags -> Set String -> LinkEnv -> Bool -> Interface -> m Interface
 renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
   let
     -- first create the local env, where every name exported by this module
@@ -66,14 +67,14 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
       runRnFM localEnv warnings $ renameInterfaceRn iface
 
     strings =
-      map (byteString . FastString.bytesFS)
+      map stringUtf8
       -- while this could be a `Set.difference`, it would require mapping
       -- over the `Set` with the qualification, which would reconstruct it.
       -- this is probably more wasteful than converting to a list, qualifying
       -- the names, and then filtering them. the name isn't filtered at the
       -- initial filter since we'd need to call qualifiedName twice for each
       -- name, which is a wasteful string concatenation.
-      . filter (\name -> NonDetFastString name `Set.member` ignoredSymbols)
+      . filter (\name -> name `Set.member` ignoredSymbols)
       . map mkQualifiedName
       . Set.toList
       $ missingNames
@@ -87,9 +88,9 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
 
   return $! renamedIface
 
-mkQualifiedName :: Name -> FastString
+mkQualifiedName :: Name -> String
 mkQualifiedName n =
-  ((moduleNameFS $ moduleName $ nameModule n) <> "." <> getOccFS n)
+  ((moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n)
 
 --------------------------------------------------------------------------------
 -- Monad for renaming
