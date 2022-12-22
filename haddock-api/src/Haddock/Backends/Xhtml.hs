@@ -599,7 +599,7 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
     initialChars = [ 'A'..'Z' ] ++ ":!#$%&*+./<=>?@\\^|-~" ++ "_"
 
     do_sub_index this_ix c
-      = unless (null index_part) $
+      = withTiming logger (fromString ("do_sub_index" <> [c])) (const ()) $ unless (null index_part) $
           writeUtf8File (joinPath [odir, subIndexHtmlFile [c]]) (renderToString debug html)
       where
         html = indexPage True (Just c) index_part
