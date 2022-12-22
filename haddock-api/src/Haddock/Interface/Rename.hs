@@ -53,8 +53,8 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
   -- env
   let localEnv =
         Map.union
-          renamingEnv
           (Map.fromList (map (\name -> (name, ifaceMod iface)) (ifaceVisibleExports iface)))
+          renamingEnv
 
       -- Filter out certain built in type constructors using their string
       -- representation.
@@ -73,14 +73,20 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
 
       -- rename names in the exported declarations to point to things that
       -- are closer to, or maybe even exported by, the current module.
-      ((renamedExportItems, rnDocMap, rnArgMap, renamedOrphanInstances, finalModuleDoc), missingNames) =
+      (renamedIface, missingNames) =
         runRnFM localEnv filterName $ do
           exportItems <- renameExportItems (ifaceExportItems iface)
           docMap <- mapM renameDoc (ifaceDocMap iface)
           argMap <- mapM (mapM renameDoc) (ifaceArgMap iface)
           orphans <- mapM renameDocInstance (ifaceOrphanInstances iface)
           finalModDoc <- renameDocumentation (ifaceDoc iface)
-          pure (exportItems, docMap, argMap, orphans, finalModDoc)
+          pure $! iface
+            { ifaceRnDoc         = finalModDoc
+            , ifaceRnDocMap      = docMap
+            , ifaceRnArgMap      = argMap
+            , ifaceRnExportItems = exportItems
+            , ifaceRnOrphanInstances = orphans
+            }
 
       qualifiedName n = (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
 
@@ -104,11 +110,7 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
           ": could not find link destinations for: "
     traverse_ (reportErrorMessage . mappend "\t- ") strings
 
-  return $! iface { ifaceRnDoc         = finalModuleDoc,
-                   ifaceRnDocMap      = rnDocMap,
-                   ifaceRnArgMap      = rnArgMap,
-                   ifaceRnExportItems = renamedExportItems,
-                   ifaceRnOrphanInstances = renamedOrphanInstances}
+  return renamedIface
 
 
 --------------------------------------------------------------------------------
