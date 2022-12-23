@@ -233,16 +233,20 @@ nameAnchorId name = makeAnchorId (prefix <> occNameLText name)
 
 occNameLText :: OccName -> LText
 occNameLText = fastStringToLText . occNameFS
+{-# INLINE occNameLText #-}
 
 getOccLText :: NamedThing a => a -> LText
 getOccLText = fastStringToLText . getOccFS
+{-# INLINE getOccLText #-}
 
 fastStringToLText :: FastString -> LText
 fastStringToLText =
   LText.decodeUtf8 . BSL.fromStrict . bytesFS
+{-# INLINE fastStringToLText #-}
 
 moduleNameLText :: ModuleName -> LText
 moduleNameLText = fastStringToLText . moduleNameFS
+{-# INLINE moduleNameLText #-}
 
 
 -- | Takes an arbitrary string and makes it a valid anchor ID. The mapping is

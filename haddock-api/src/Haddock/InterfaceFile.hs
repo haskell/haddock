@@ -307,16 +307,13 @@ instance Binary InterfaceFile where
     return (InterfaceFile env info ifaces)
 
 instance Binary Text.Text where
-  put_ bh txt = put_ bh (Text.encodeUtf8 txt)
+  put_ bh txt = put_ bh (Text.unpack txt)
   get bh = do
-    bs <- get bh
-    case Text.decodeUtf8' bs of
-      Left err -> fail (show err)
-      Right a -> pure a
+    Text.pack <$> get bh
 
 instance Binary LText.Text where
-  put_ bh = put_ bh . LText.toStrict
-  get bh = LText.fromStrict <$> get bh
+  put_ bh = put_ bh . LText.unpack
+  get bh = LText.pack <$> get bh
 
 putInterfaceFile_ :: BinHandle -> InterfaceFile -> IO ()
 putInterfaceFile_ bh (InterfaceFile env info ifaces) = do

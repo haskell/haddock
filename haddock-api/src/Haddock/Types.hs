@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
@@ -43,6 +44,7 @@ import qualified Data.Text as Text
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Lazy.Encoding as LText
 import Data.String
 import Control.DeepSeq
 import Control.Exception (throw)
@@ -61,6 +63,7 @@ import GHC.Types.Basic (PromotionFlag(..))
 import GHC.Types.Fixity (Fixity(..))
 import GHC.Types.Var (Specificity)
 import Data.ByteString.Builder
+import qualified Data.ByteString.Builder.Prim as P
 import qualified Data.List  as List
 import Control.Monad.Trans (lift)
 import qualified Data.ByteString.Lazy as BSL
@@ -658,12 +661,18 @@ type ErrMsg = Builder
 
 errMsgFromString :: String -> ErrMsg
 errMsgFromString = fromString
+{-# INLINE errMsgFromString #-}
 
 errMsgToString :: ErrMsg -> String
-errMsgToString = Text.unpack . Text.decodeUtf8 . BSL.toStrict . toLazyByteString
+errMsgToString = LText.unpack . LText.decodeUtf8 . toLazyByteString
+{-# INLINE errMsgToString #-}
 
 errMsgUnlines :: [ErrMsg] -> ErrMsg
-errMsgUnlines = mconcat . List.intersperse (charUtf8 '\n')
+errMsgUnlines = go
+  where
+    go [] = mempty
+    go (x:xs) = x <> charUtf8 '\n' <> go xs
+{-# INLINE errMsgUnlines #-}
 
 class Monad m => ReportErrorMessage m where
     reportErrorMessage :: Builder -> m ()
@@ -671,20 +680,27 @@ class Monad m => ReportErrorMessage m where
 instance ReportErrorMessage Ghc where
     reportErrorMessage =
         liftIO . BSL.putStr . toLazyByteString . (<> charUtf8 '\n')
+    {-# INLINE reportErrorMessage #-}
 
 instance ReportErrorMessage m => ReportErrorMessage (ReaderT r m) where
     reportErrorMessage = lift . reportErrorMessage
+    {-# INLINE reportErrorMessage #-}
 
 #if !MIN_VERSION_mtl(2,3,0)
 -- | @since 2.3
 instance (Monoid w, Monad m) => MonadWriter w (CPS.WriterT w m) where
     writer = CPS.writer
+    {-# INLINE writer #-}
     tell   = CPS.tell
+    {-# INLINE tell #-}
     listen = CPS.listen
+    {-# INLINE listen #-}
     pass   = CPS.pass
+    {-# INLINE pass #-}
 #endif
 
 instance Monad m => ReportErrorMessage (WriterT ErrorMessages m) where
+    {-# INLINE reportErrorMessage #-}
     reportErrorMessage = tell . singleMessage
 
 newtype ErrMsgM a = ErrMsgM { unErrMsgM :: Writer ErrorMessages a }
@@ -698,6 +714,7 @@ runErrMsgM = runWriter . unErrMsgM
 
 singleMessage :: Builder -> ErrorMessages
 singleMessage m = ErrorMessages $ (m :)
+{-# INLINE singleMessage #-}
 
 errorMessagesToList :: ErrorMessages -> [Builder]
 errorMessagesToList messages = unErrorMessages messages []
