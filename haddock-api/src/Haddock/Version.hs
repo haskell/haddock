@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Version
@@ -19,11 +19,12 @@ import Paths_haddock ( version )
 import Paths_haddock_api ( version )
 #endif
 import Data.Version  ( showVersion )
+import Data.String (IsString(..))
 
-projectName :: String
+projectName :: IsString s => s
 projectName = "Haddock"
 
-projectUrl :: String
+projectUrl :: IsString s => s
 projectUrl  = "http://www.haskell.org/haddock/"
 
 projectVersion :: String

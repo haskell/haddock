@@ -45,6 +45,8 @@ import Haddock.InterfaceFile
 import Haddock.Options
 import Haddock.Utils
 import Haddock.GhcUtils (modifySessionDynFlags, setOutputDir)
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.IO as LText
 
 import Control.Monad hiding (forM_)
 import Control.Monad.IO.Class (MonadIO(..))
@@ -285,7 +287,7 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
   updateHTMLXRefs (map (\(docPath, _ifaceFilePath, _showModules, ifaceFile) ->
                           ( case baseUrl flags of
                               Nothing  -> fst docPath
-                              Just url -> url </> packageName (ifUnitId ifaceFile)
+                              Just url -> LText.unpack url </> packageName (ifUnitId ifaceFile)
                           , ifaceFile)) pkgs)
   let
     installedIfaces =
@@ -318,17 +320,17 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
                                                  $ optPackageVersion flags
                               }
 
-    title                = fromMaybe "" (optTitle flags)
+    title                = LText.pack $ fromMaybe "" (optTitle flags)
     unicode              = Flag_UseUnicode `elem` flags
     pretty               = Flag_PrettyHtml `elem` flags
     opt_wiki_urls        = wikiUrls          flags
     opt_base_url         = baseUrl           flags
-    opt_contents_url     = optContentsUrl    flags
-    opt_index_url        = optIndexUrl       flags
+    opt_contents_url     = LText.pack <$> optContentsUrl    flags
+    opt_index_url        = LText.pack <$> optIndexUrl       flags
     odir                 = outputDir         flags
     opt_latex_style      = optLaTeXStyle     flags
     opt_source_css       = optSourceCssFile  flags
-    opt_mathjax          = optMathjax        flags
+    opt_mathjax          = LText.pack <$> optMathjax        flags
     dflags'
       | unicode          = gopt_set dflags Opt_PrintUnicodeSyntax
       | otherwise        = dflags
@@ -365,7 +367,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
 
     pkgMod           = fmap ifaceMod (listToMaybe ifaces)
     pkgKey           = fmap moduleUnit pkgMod
-    pkgStr           = fmap unitString pkgKey
+    pkgStr           = fmap (fastStringToLText . unitFS) pkgKey
     pkgNameVer       = modulePackageInfo unit_state flags pkgMod
     pkgName          = fmap (unpackFS . (\(PackageName n) -> n)) (fst pkgNameVer)
     sincePkg         = case sinceQual of
@@ -382,7 +384,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       (Map.map SrcExternal extSrcMap)
       (Map.fromList [ (ifaceMod iface, SrcLocal) | iface <- ifaces ])
 
-    pkgSrcMap = Map.mapKeys moduleUnit extSrcMap
+    pkgSrcMap = LText.pack <$> Map.mapKeys moduleUnit extSrcMap
     pkgSrcMap'
       | Flag_HyperlinkedSource `elem` flags
       , Just k <- pkgKey
@@ -482,8 +484,8 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     case pkgNameVer of
       (Just (PackageName pkgNameFS), mpkgVer) ->
           let
-            pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
-                       | otherwise = unpackFS pkgNameFS
+            pkgNameStr | pkgNameFS == "main" && title /= "" = title
+                       | otherwise = fastStringToLText pkgNameFS
 
             pkgVer =
               fromMaybe (makeVersion []) mpkgVer
@@ -501,7 +503,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
 
   when (Flag_LaTeX `elem` flags) $ do
     _ <- {-# SCC ppLatex #-}
-         ppLaTeX logger title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
+         ppLaTeX logger title (LText.unpack <$> pkgStr) visibleIfaces odir (fmap _doc prologue) opt_latex_style
                  libDir
     return ()
 
@@ -769,7 +771,7 @@ getPrologue dflags flags =
     [filename] -> do
       h <- openFile filename ReadMode
       hSetEncoding h utf8
-      str <- hGetContents h -- semi-closes the handle
+      str <- LText.hGetContents h -- semi-closes the handle
       return . Just $! second (fmap rdrName) $ parseParas dflags Nothing str
     _ -> throwE "multiple -p/--prologue options"
 

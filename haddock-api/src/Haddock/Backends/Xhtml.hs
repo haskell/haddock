@@ -41,7 +41,9 @@ import Haddock.Utils.Json
 import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 import Haddock.GhcUtils
+import Data.Text.Lazy (Text)
 
+import qualified Data.Text.Lazy as Text
 import Control.Monad         ( when, unless )
 import qualified Data.ByteString.Builder as Builder
 import Data.Bifunctor        ( bimap )
@@ -69,19 +71,19 @@ import GHC.Unit.State
 
 ppHtml :: Logger
        -> UnitState
-       -> String                       -- ^ Title
-       -> Maybe String                 -- ^ Package
+       -> LText                       -- ^ Title
+       -> Maybe LText                 -- ^ Package
        -> [Interface]
        -> [InstalledInterface]         -- ^ Reexported interfaces
        -> FilePath                     -- ^ Destination directory
        -> Maybe (MDoc GHC.RdrName)     -- ^ Prologue text, maybe
        -> Themes                       -- ^ Themes
-       -> Maybe String                 -- ^ The mathjax URL (--mathjax)
+       -> Maybe LText                 -- ^ The mathjax URL (--mathjax)
        -> SourceURLs                   -- ^ The source URL (--source)
        -> WikiURLs                     -- ^ The wiki URL (--wiki)
        -> BaseURL                      -- ^ The base URL (--base-url)
-       -> Maybe String                 -- ^ The contents URL (--use-contents)
-       -> Maybe String                 -- ^ The index URL (--use-index)
+       -> Maybe LText                 -- ^ The contents URL (--use-contents)
+       -> Maybe LText                 -- ^ The index URL (--use-index)
        -> Bool                         -- ^ Whether to use unicode in output (--use-unicode)
        -> Maybe String                 -- ^ Package name
        -> PackageInfo                  -- ^ Package info
@@ -137,7 +139,7 @@ copyHtmlBits odir libdir themes withQuickjump = do
   return ()
 
 
-headHtml :: String -> Themes -> Maybe String -> Maybe String -> Html
+headHtml :: LText -> Themes -> Maybe LText -> Maybe LText -> Html
 headHtml docTitle themes mathjax_url base_url =
       header ! (maybe [] (\url -> [identifier "head", strAttr "data-base-url" url ]) base_url)
     <<
@@ -190,21 +192,21 @@ wikiButton _ _ =
   Nothing
 
 
-contentsButton :: Maybe String -> Maybe Html
+contentsButton :: Maybe LText -> Maybe Html
 contentsButton maybe_contents_url
   = Just (anchor ! [href url] << asText "Contents")
   where url = fromMaybe contentsHtmlFile maybe_contents_url
 
 
-indexButton :: Maybe String -> Maybe Html
+indexButton :: Maybe LText -> Maybe Html
 indexButton maybe_index_url
   = Just (anchor ! [href url] << asText "Index")
   where url = fromMaybe indexHtmlFile maybe_index_url
 
 
-bodyHtml :: String -> Maybe Interface
+bodyHtml :: LText -> Maybe Interface
     -> SourceURLs -> WikiURLs
-    -> Maybe String -> Maybe String
+    -> Maybe LText -> Maybe LText
     -> Html -> Html
 bodyHtml doctitle iface
            maybe_source_url maybe_wiki_url
@@ -223,7 +225,7 @@ bodyHtml doctitle iface
     divContent << pageContent,
     divFooter << paragraph << (
       asText "Produced by " +++
-      (anchor ! [href projectUrl] << toHtml projectName) +++
+      (anchor ! [href projectUrl] << toHtml (asText projectName)) +++
       (" version " ++ projectVersion)
       )
     ]
@@ -283,11 +285,11 @@ ppHtmlContents
    :: Logger
    -> UnitState
    -> FilePath
-   -> String
-   -> Maybe String
+   -> LText
+   -> Maybe LText
    -> Themes
-   -> Maybe String
-   -> Maybe String
+   -> Maybe LText
+   -> Maybe LText
    -> SourceURLs
    -> WikiURLs
    -> [PackageInterfaces] -> Bool -> Maybe (MDoc GHC.RdrName)
@@ -335,7 +337,7 @@ ppHtmlContents logger state odir doctitle _maybe_package
     toInstalledDescription = fmap mkMeta . hmi_description . instInfo
 
 
-ppPrologue :: Maybe Package -> Qualification -> String -> Maybe (MDoc GHC.RdrName) -> Html
+ppPrologue :: Maybe Package -> Qualification -> LText -> Maybe (MDoc GHC.RdrName) -> Html
 ppPrologue _ _ _ Nothing = noHtml
 ppPrologue pkg qual title (Just doc) =
   divDescription << (h1 << title +++ docElement thediv (rdrDocToHtml pkg qual doc))
@@ -347,11 +349,11 @@ ppSignatureTrees pkg qual [(info, ts)] =
 ppSignatureTrees pkg qual tss =
   divModuleList <<
     (sectionName << asText "Signatures"
-     +++ concatHtml [ ppSignatureTree pkg qual("n."++show i++".") info ts
+     +++ concatHtml [ ppSignatureTree pkg qual("n." <> Text.pack (show i) <> ".") info ts
                     | (i, (info, ts)) <- zip [(1::Int)..] tss
                     ])
 
-ppSignatureTree :: Maybe Package -> Qualification -> String -> PackageInfo -> [ModuleTree] -> Html
+ppSignatureTree :: Maybe Package -> Qualification -> LText -> PackageInfo -> [ModuleTree] -> Html
 ppSignatureTree _ _ _ _ [] = mempty
 ppSignatureTree pkg qual p info ts =
   divModuleList << (sectionName << ppPackageInfo info +++ mkNodeList pkg qual [] p ts)
@@ -363,25 +365,25 @@ ppModuleTrees pkg qual [(info, ts)] =
 ppModuleTrees pkg qual tss =
   divPackageList <<
     (sectionName << asText "Packages"
-     +++ concatHtml [ppModuleTree pkg qual ("n."++show i++".") info ts
+     +++ concatHtml [ppModuleTree pkg qual ("n." <> Text.pack (show i) <> ".") info ts
                     | (i, (info, ts)) <- zip [(1::Int)..] tss
                     ])
 
-ppModuleTree :: Maybe Package -> Qualification -> String -> PackageInfo -> [ModuleTree] -> Html
+ppModuleTree :: Maybe Package -> Qualification -> LText -> PackageInfo -> [ModuleTree] -> Html
 ppModuleTree _ _ _ _ [] = mempty
 ppModuleTree pkg qual p info ts =
   divModuleList << (sectionName << ppPackageInfo info +++ mkNodeList pkg qual [] p ts)
 
 
-mkNodeList :: Maybe Package -> Qualification -> [String] -> String -> [ModuleTree] -> Html
+mkNodeList :: Maybe Package -> Qualification -> [String] -> LText -> [ModuleTree] -> Html
 mkNodeList pkg qual ss p ts = case ts of
   [] -> noHtml
   _ -> unordList (zipWith (mkNode pkg qual ss) ps ts)
   where
-    ps = [ p ++ '.' : show i | i <- [(1::Int)..]]
+    ps = [ p <> Text.pack ('.' : show i) | i <- [(1::Int)..]]
 
 
-mkNode :: Maybe Package -> Qualification -> [String] -> String -> ModuleTree -> Html
+mkNode :: Maybe Package -> Qualification -> [String] -> LText -> ModuleTree -> Html
 mkNode pkg qual ss p (Node s leaf _pkg srcPkg short ts) =
   htmlModule <+> shortDescr +++ htmlPkg +++ subtree
   where
@@ -506,7 +508,7 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
           { jieHtmlFragment = builderToString $ showHtmlFragment item_html
           , jieName         = unwords (map getOccString names)
           , jieModule       = moduleString mdl
-          , jieLink         = fromMaybe "" (listToMaybe (map (nameLink mdl) names))
+          , jieLink         = Text.unpack $ fromMaybe "" (listToMaybe (map (nameLink mdl) names))
           }
       | otherwise = Nothing
       where
@@ -521,7 +523,7 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
     exportName ExportNoDecl { expItemName } = [expItemName]
     exportName _ = []
 
-    nameLink :: NamedThing name => Module -> name -> String
+    nameLink :: NamedThing name => Module -> name -> LText
     nameLink mdl = moduleNameUrl' (moduleName mdl) . nameOccName . getName
 
     links_info = (maybe_source_url, maybe_wiki_url)
@@ -536,11 +538,11 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
 ppHtmlIndex
   :: Logger
   -> FilePath
-  -> String
-  -> Maybe String
+  -> LText
+  -> Maybe LText
   -> Themes
-  -> Maybe String
-  -> Maybe String
+  -> Maybe LText
+  -> Maybe LText
   -> SourceURLs
   -> WikiURLs
   -> [InstalledInterface]
@@ -557,14 +559,14 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
     mapM_ do_sub_index initialChars
     -- Let's add a single large index as well for those who don't know exactly what they're looking for:
     let mergedhtml = indexPage False Nothing index
-    writeUtf8File (joinPath [odir, subIndexHtmlFile merged_name]) (renderToString debug mergedhtml)
+    writeUtf8File (joinPath [odir, Text.unpack $ subIndexHtmlFile merged_name]) (renderToString debug mergedhtml)
 
   writeUtf8File (joinPath [odir, indexHtmlFile]) (renderToString debug html)
 
   where
     timed = withTiming logger (fromString "ppHtmlIndex") (const ())
     indexPage showLetters ch items =
-      headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes maybe_mathjax_url Nothing +++
+      headHtml (doctitle <> " (" <> indexName ch <> ")") themes maybe_mathjax_url Nothing +++
       bodyHtml doctitle Nothing
         maybe_source_url maybe_wiki_url
         maybe_contents_url Nothing << [
@@ -573,7 +575,7 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
             divIndex << [sectionName << indexName ch, buildIndex items]
           ]
 
-    indexName ch = "Index" ++ maybe "" (\c -> " - " ++ [c]) ch
+    indexName ch = "Index" <> maybe "" (\c -> " - " <> Text.singleton c) ch
     merged_name = "All"
 
     buildIndex items = table << aboves (map indexElt items)
@@ -588,7 +590,7 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
     indexInitialLetterLinks =
       divAlphabet <<
          unordList (map (\str -> anchor ! [href (subIndexHtmlFile str)] << str) $
-                        [ [c] | c <- initialChars
+                        [ Text.singleton c | c <- initialChars
                               , any ((==c) . toUpper . head . fst) index ] ++
                         [merged_name])
 
@@ -601,7 +603,7 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
 
     do_sub_index c
       = withTiming logger (fromString ("do_sub_index: " <> [c])) (const ()) $ unless (null index_part) $
-          writeUtf8File (joinPath [odir, subIndexHtmlFile [c]]) (renderToString debug html)
+          writeUtf8File (joinPath [odir, Text.unpack $ subIndexHtmlFile $ Text.singleton c]) (renderToString debug html)
       where
         html = indexPage True (Just c) index_part
         index_part = [(n,stuff) | (n,stuff) <- index, toUpper (head n) == c]
@@ -663,9 +665,9 @@ ppHtmlIndex logger odir doctitle _maybe_package themes
 
 
 ppHtmlModule
-        :: Logger -> FilePath -> String -> Themes
-        -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
-        -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
+        :: Logger -> FilePath -> LText -> Themes
+        -> Maybe LText -> SourceURLs -> WikiURLs -> BaseURL
+        -> Maybe LText -> Maybe LText -> Bool -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
 ppHtmlModule logger odir doctitle themes
   maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
@@ -673,8 +675,8 @@ ppHtmlModule logger odir doctitle themes
   let
       mdl = ifaceMod iface
       aliases = ifaceModuleAliases iface
-      mdl_str = moduleString mdl
-      mdl_str_annot = mdl_str ++ if ifaceIsSig iface
+      mdl_str = moduleLText mdl
+      mdl_str_annot = mdl_str <> if ifaceIsSig iface
                                     then " (signature)"
                                     else ""
       mdl_str_linked
@@ -695,11 +697,11 @@ ppHtmlModule logger odir doctitle themes
           ]
 
   createDirectoryIfMissing True odir
-  writeUtf8File (joinPath [odir, moduleHtmlFile mdl]) (renderToString debug html)
+  writeUtf8File (joinPath [odir, Text.unpack $ moduleHtmlFile mdl]) (renderToString debug html)
   where
     timed = withTiming logger (fromString ("ppHtmlModule " <> moduleString (ifaceMod iface))) (const ())
 
-signatureDocURL :: String
+signatureDocURL :: LText
 signatureDocURL = "https://wiki.haskell.org/Module_signature"
 
 
@@ -796,12 +798,12 @@ numberSectionHeadings = go 1
         go _ [] = []
         go n (ExportGroup lev _ doc : es)
           = case collectAnchors doc of
-              [] -> ExportGroup lev (show n) doc : go (n+1) es
+              [] -> ExportGroup lev (Text.pack $ show n) doc : go (n+1) es
               (a:_) -> ExportGroup lev a doc : go (n+1) es
         go n (other:es)
           = other : go n es
 
-        collectAnchors :: DocH (Wrap (ModuleName, OccName)) (Wrap DocName) -> [String]
+        collectAnchors :: DocH (Wrap (ModuleName, OccName)) (Wrap DocName) -> [Text]
         collectAnchors (DocAppend a b) = collectAnchors a ++ collectAnchors b
         collectAnchors (DocAName a) = [a]
         collectAnchors _ = []
@@ -842,7 +844,7 @@ processDeclOneLiner :: Bool -> Html -> Maybe Html
 processDeclOneLiner True = Just
 processDeclOneLiner False = Just . divTopDecl . declElem
 
-groupHeading :: Int -> String -> Html -> Html
+groupHeading :: Int -> LText -> Html -> Html
 groupHeading lev id0 = linkedAnchor grpId . groupTag lev ! [identifier grpId]
   where grpId = groupId id0
 

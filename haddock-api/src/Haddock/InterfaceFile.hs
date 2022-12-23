@@ -32,6 +32,10 @@ import Data.Map (Map)
 import Data.Version
 import Data.Word
 import Text.ParserCombinators.ReadP (readP_to_S)
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.Encoding as LText
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 
 import GHC.Iface.Binary (getWithUserData, putSymbolTable)
 import GHC.Unit.State
@@ -75,7 +79,7 @@ mkPackageInterfaces :: Visibility -> InterfaceFile -> PackageInterfaces
 mkPackageInterfaces piVisibility
                     InterfaceFile { ifPackageInfo
                                   , ifInstalledIfaces
-                                  } = 
+                                  } =
   PackageInterfaces { piPackageInfo = ifPackageInfo
                     , piVisibility
                     , piInstalledInterfaces = ifInstalledIfaces
@@ -302,6 +306,17 @@ instance Binary InterfaceFile where
     ifaces <- get bh
     return (InterfaceFile env info ifaces)
 
+instance Binary Text.Text where
+  put_ bh txt = put_ bh (Text.encodeUtf8 txt)
+  get bh = do
+    bs <- get bh
+    case Text.decodeUtf8' bs of
+      Left err -> fail (show err)
+      Right a -> pure a
+
+instance Binary LText.Text where
+  put_ bh = put_ bh . LText.toStrict
+  get bh = LText.fromStrict <$> get bh
 
 putInterfaceFile_ :: BinHandle -> InterfaceFile -> IO ()
 putInterfaceFile_ bh (InterfaceFile env info ifaces) = do

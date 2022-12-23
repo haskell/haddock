@@ -23,6 +23,7 @@ import Haddock.Utils
 import Haddock.GhcUtils
 import GHC.Utils.Ppr hiding (Doc, quote)
 import qualified GHC.Utils.Ppr as Pretty
+import qualified Data.Text.Lazy as Text
 
 import GHC.Utils.Error
 import GHC.Types.Basic        ( PromotionFlag(..), isPromoted )
@@ -84,7 +85,7 @@ Extract the last element of a list, which must be finite and non-empty.
 
 ppLaTeX
   :: Logger
-  -> String
+  -> LText
   -- ^ Title
   -> Maybe String
   -- ^ Package name
@@ -103,8 +104,8 @@ ppLaTeX logger title packageStr visible_ifaces odir prologue maybe_style libdir
    createDirectoryIfMissing True odir
    when (isNothing maybe_style) $
      copyFile (libdir </> "latex" </> haddockSty) (odir </> haddockSty)
-   ppLaTeXTop title packageStr odir prologue maybe_style visible_ifaces
-   mapM_ (ppLaTeXModule logger title odir) visible_ifaces
+   ppLaTeXTop (Text.unpack title) packageStr odir prologue maybe_style visible_ifaces
+   mapM_ (ppLaTeXModule logger (Text.unpack title) odir) visible_ifaces
 
 
 haddockSty :: FilePath
@@ -1258,7 +1259,7 @@ latexMarkup :: HasOccName a => DocMarkup (Wrap a) (StringContext -> LaTeX -> LaT
 latexMarkup = Markup
   { markupParagraph            = \p v -> blockElem (p v (text "\\par"))
   , markupEmpty                = \_ -> id
-  , markupString               = \s v -> inlineElem (text (fixString v s))
+  , markupString               = \s v -> inlineElem (text (fixString v (Text.unpack s)))
   , markupAppend               = \l r v -> l v . r v
   , markupIdentifier           = \i v -> inlineElem (markupId v (fmap occName i))
   , markupIdentifierUnchecked  = \i v -> inlineElem (markupId v (fmap snd i))
@@ -1266,7 +1267,7 @@ latexMarkup = Markup
       \(ModLink m mLabel) v ->
         case mLabel of
           Just lbl -> inlineElem . tt $ lbl v empty
-          Nothing -> inlineElem (let (mdl,_ref) = break (=='#') m
+          Nothing -> inlineElem (let (mdl,_ref) = break (=='#') (Text.unpack m)
                                  in (tt (text mdl)))
   , markupWarning              = \p v -> p v
   , markupEmphasis             = \p v -> inlineElem (emph (p v empty))
@@ -1274,15 +1275,15 @@ latexMarkup = Markup
   , markupMonospaced           = \p v -> inlineElem (markupMonospace p v)
   , markupUnorderedList        = \p v -> blockElem (itemizedList (map (\p' -> p' v empty) p))
   , markupPic                  = \p _ -> inlineElem (markupPic p)
-  , markupMathInline           = \p _ -> inlineElem (markupMathInline p)
-  , markupMathDisplay          = \p _ -> blockElem (markupMathDisplay p)
+  , markupMathInline           = \p _ -> inlineElem (markupMathInline (Text.unpack p))
+  , markupMathDisplay          = \p _ -> blockElem (markupMathDisplay (Text.unpack p))
   , markupOrderedList          = \p v -> blockElem (enumeratedList (map (\(_, p') -> p' v empty) p))
   , markupDefList              = \l v -> blockElem (descriptionList (map (\(a,b) -> (a v empty, b v empty)) l))
   , markupCodeBlock            = \p _ -> blockElem (quote (verb (p Verb empty)))
-  , markupHyperlink            = \(Hyperlink u l) v -> inlineElem (markupLink u (fmap (\x -> x v empty) l))
+  , markupHyperlink            = \(Hyperlink u l) v -> inlineElem (markupLink (Text.unpack u) (fmap (\x -> x v empty) l))
   , markupAName                = \_ _ -> id -- TODO
-  , markupProperty             = \p _ -> blockElem (quote (verb (text p)))
-  , markupExample              = \e _ -> blockElem (quote (verb (text $ unlines $ map exampleToString e)))
+  , markupProperty             = \p _ -> blockElem (quote (verb (text (Text.unpack p))))
+  , markupExample              = \e _ -> blockElem (quote (verb (text $ unlines $ map (Text.unpack . exampleToString) e)))
   , markupHeader               = \(Header l h) p -> blockElem (header l (h p empty))
   , markupTable                = \(Table h b) p -> blockElem (table h b p)
   }
@@ -1313,12 +1314,12 @@ latexMarkup = Markup
       Nothing    -> text "\\url"  <> braces (text url)
 
     -- Is there a better way of doing this? Just a space is an arbitrary choice.
-    markupPic (Picture uri title) = parens (imageText title)
+    markupPic (Picture uri title) = parens (imageText (Text.unpack <$> title))
       where
         imageText Nothing = beg
         imageText (Just t) = beg <> text " " <> text t
 
-        beg = text "image: " <> text uri
+        beg = text "image: " <> text (Text.unpack uri)
 
     markupMathInline mathjax = text "\\(" <> text mathjax <> text "\\)"
 
@@ -1326,10 +1327,10 @@ latexMarkup = Markup
 
     markupId v wrappedOcc =
       case v of
-        Verb  -> text i
-        Mono  -> text "\\haddockid" <> braces (text . latexMonoFilter $ i)
-        Plain -> text "\\haddockid" <> braces (text . latexFilter $ i)
-      where i = showWrapped occNameString wrappedOcc
+        Verb  -> text $ Text.unpack i
+        Mono  -> text "\\haddockid" <> braces (text . latexMonoFilter . Text.unpack $ i)
+        Plain -> text "\\haddockid" <> braces (text . latexFilter . Text.unpack $ i)
+      where i = showWrapped occNameLText wrappedOcc
 
 docToLaTeX :: Doc DocName -> LaTeX
 docToLaTeX doc = markup latexMarkup doc Plain empty
@@ -1350,9 +1351,9 @@ data StringContext
 
 latexStripTrailingWhitespace :: Doc a -> Doc a
 latexStripTrailingWhitespace (DocString s)
-  | null s'   = DocEmpty
+  | Text.null s'   = DocEmpty
   | otherwise = DocString s
-  where s' = reverse (dropWhile isSpace (reverse s))
+  where s' = Text.dropWhileEnd isSpace s
 latexStripTrailingWhitespace (DocAppend l r)
   | DocEmpty <- r' = latexStripTrailingWhitespace l
   | otherwise      = DocAppend l r'

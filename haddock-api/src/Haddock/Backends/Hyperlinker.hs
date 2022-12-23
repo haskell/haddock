@@ -15,10 +15,12 @@ import Haddock.Backends.Hyperlinker.Parser
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
 import Haddock.Backends.Xhtml.Utils ( renderToString )
+import Data.String (IsString(..))
 
 import Data.Maybe
 import System.Directory
 import System.FilePath
+import qualified Data.Text.Lazy as LText
 
 import GHC.Utils.Error
 import Haddock.GhcUtils (moduleString)
@@ -100,7 +102,7 @@ ppHyperlinkedModuleSource logger verbosity srcdir pretty srcs iface =
   where
     df = ifaceDynFlags iface
     render' = render (Just srcCssFile) (Just highlightScript) srcs
-    path = srcdir </> hypSrcModuleFile (ifaceMod iface)
+    path = srcdir </> LText.unpack (hypSrcModuleFile (ifaceMod iface))
 
     emptyHieAst fileFs = Node
       { nodeSpan = realSrcLocSpan (mkRealSrcLoc fileFs 1 0)
@@ -109,11 +111,11 @@ ppHyperlinkedModuleSource logger verbosity srcdir pretty srcs iface =
       }
 
 -- | Name of CSS file in output directory.
-srcCssFile :: FilePath
+srcCssFile :: IsString s => s
 srcCssFile = "style.css"
 
 -- | Name of highlight script in output and resource directory.
-highlightScript :: FilePath
+highlightScript :: IsString s => s
 highlightScript = "highlight.js"
 
 -- | Path to default CSS file.

@@ -31,6 +31,7 @@ import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Doc (combineDocumentation)
 import Haddock.Utils
+import qualified Data.Text.Lazy as LText
 
 import           Data.List             ( intersperse, sort )
 import qualified Data.Map as Map
@@ -210,7 +211,7 @@ ppFixities fs qual = foldr1 (+++) (map ppFix uniq_fs) +++ rightEdge
     ppFix (ns, p, d) = thespan ! [theclass "fixity"] <<
                          (toHtml d <+> toHtml (show p) <+> ppNames ns)
 
-    ppDir :: FixityDirection -> Text
+    ppDir :: FixityDirection -> LText.Text
     ppDir InfixR = "infixr"
     ppDir InfixL = "infixl"
     ppDir InfixN = "infix"
@@ -655,7 +656,7 @@ ppInstances links origin instances splice unicode pkg qual
   = subInstances pkg qual instName links True (zipWith instDecl [1..] instances)
   -- force Splice = True to use line URLs
   where
-    instName = getOccString origin
+    instName = getOccLText origin
     instDecl :: Int -> DocInstance DocNameI -> (SubDecl, Maybe Module, Located DocName)
     instDecl no (inst, mdoc, loc, mdl) =
         ((ppInstHead links splice unicode qual mdoc origin False no inst mdl), mdl, loc)
@@ -741,13 +742,13 @@ lookupAnySubdoc :: Eq id1 => id1 -> [(id1, DocForDecl id2)] -> DocForDecl id2
 lookupAnySubdoc n = fromMaybe noDocForDecl . lookup n
 
 
-instanceId :: InstOrigin DocName -> Int -> Bool -> InstHead DocNameI -> String
-instanceId origin no orphan ihd = concat $
-    [ "o:" | orphan ] ++
+instanceId :: InstOrigin DocName -> Int -> Bool -> InstHead DocNameI -> LText
+instanceId origin no orphan ihd = LText.concat $
+    [ "o:" | orphan ] <>
     [ qual origin
-    , ":" ++ getOccString origin
-    , ":" ++ getOccString (ihdClsName ihd)
-    , ":" ++ show no
+    , ":" <> getOccLText origin
+    , ":" <> getOccLText (ihdClsName ihd)
+    , ":" <> LText.pack (show no)
     ]
   where
     qual (OriginClass _) = "ic"

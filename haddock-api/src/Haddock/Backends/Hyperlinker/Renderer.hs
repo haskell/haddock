@@ -8,8 +8,10 @@ module Haddock.Backends.Hyperlinker.Renderer (render) where
 
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
+import Haddock.Utils
 
 import qualified Data.ByteString as BS
+import qualified Data.Text.Lazy as LText
 
 import GHC.Iface.Ext.Types
 import GHC.Iface.Ext.Utils ( isEvidenceContext , emptyNodeInfo )
@@ -29,12 +31,12 @@ import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
 
 
-type StyleClass = String
+type StyleClass = LText
 
 -- | Produce the HTML corresponding to a hyperlinked Haskell source
 render
-  :: Maybe FilePath    -- ^ path to the CSS file
-  -> Maybe FilePath    -- ^ path to the JS file
+  :: Maybe LText    -- ^ path to the CSS file
+  -> Maybe LText    -- ^ path to the JS file
   -> SrcMaps            -- ^ Paths to sources
   -> HieAST PrintedType  -- ^ ASTs from @.hie@ files
   -> [Token]       -- ^ tokens to render
@@ -46,7 +48,7 @@ body srcs ast tokens = Html.body . Html.pre $ hypsrc
   where
     hypsrc = renderWithAst srcs ast tokens
 
-header :: Maybe FilePath -> Maybe FilePath -> Html
+header :: Maybe LText -> Maybe LText -> Html
 header Nothing Nothing = Html.noHtml
 header mcss mjs = Html.header $ css mcss <> js mjs
   where
@@ -210,7 +212,7 @@ tokenStyle TkPragma = ["hs-pragma"]
 tokenStyle TkUnknown = []
 
 multiclass :: [StyleClass] -> HtmlAttr
-multiclass = Html.theclass . unwords
+multiclass = Html.theclass . LText.unwords
 
 externalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
 externalAnchor (Right name) contexts content
@@ -235,11 +237,11 @@ internalAnchor (Right name) contexts content
   = Html.thespan content ! [ Html.identifier $ internalAnchorIdent name ]
 internalAnchor _ _ content = content
 
-externalAnchorIdent :: Name -> String
+externalAnchorIdent :: Name -> LText
 externalAnchorIdent = hypSrcNameUrl
 
-internalAnchorIdent :: Name -> String
-internalAnchorIdent = ("local-" ++) . show . getKey . nameUnique
+internalAnchorIdent :: Name -> LText
+internalAnchorIdent = ("local-" <>) . LText.pack . show . getKey . nameUnique
 
 -- | Generate the HTML hyperlink for an identifier
 hyperlink :: SrcMaps -> Identifier -> Html -> Html
@@ -250,17 +252,17 @@ hyperlink (srcs, srcs') ident = case ident of
 
   where
     -- In a Nix environment, we have file:// URLs with absolute paths
-    makeHyperlinkUrl url | List.isPrefixOf "file://" url = url
-    makeHyperlinkUrl url = ".." </> url
+    makeHyperlinkUrl url | List.isPrefixOf "file://" url = LText.pack url
+    makeHyperlinkUrl url = LText.pack $ ".." </> url
 
     internalHyperlink name content =
-        Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
+        Html.anchor content ! [ Html.href $ "#" <> internalAnchorIdent name ]
 
     externalNameHyperlink name content = case Map.lookup mdl srcs of
         Just SrcLocal -> Html.anchor content !
             [ Html.href $ hypSrcModuleNameUrl mdl name ]
         Just (SrcExternal path) ->
-          let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleNameUrl mdl name
+          let hyperlinkUrl = makeHyperlinkUrl path <> "/" <> hypSrcModuleNameUrl mdl name
            in Html.anchor content !
                 [ Html.href $ spliceURL Nothing (Just mdl) (Just name) Nothing hyperlinkUrl ]
         Nothing -> content
@@ -272,7 +274,7 @@ hyperlink (srcs, srcs') ident = case ident of
           Just SrcLocal -> Html.anchor content !
             [ Html.href $ hypSrcModuleUrl' moduleName ]
           Just (SrcExternal path) ->
-            let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleUrl' moduleName
+            let hyperlinkUrl = makeHyperlinkUrl path <> "/" <> hypSrcModuleUrl' moduleName
              in Html.anchor content !
                   [ Html.href $ spliceURL' Nothing (Just moduleName) Nothing Nothing hyperlinkUrl ]
           Nothing -> content

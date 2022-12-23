@@ -56,6 +56,7 @@ import Data.Maybe (catMaybes, fromJust, isJust, mapMaybe, maybeToList)
 import Data.Traversable (for)
 import Data.Foldable (traverse_)
 import Control.Monad.IO.Class
+import qualified Data.Text.Lazy as Text
 
 import GHC hiding (lookupName)
 import GHC.Core.Class (ClassMinimalDef, classMinimalDef)
@@ -436,8 +437,8 @@ moduleWarning dflags gre (WarnAll w) = Just <$> parseWarning dflags gre w
 
 parseWarning :: DynFlags -> GlobalRdrEnv -> WarningTxt a -> ErrMsgM (Doc Name)
 parseWarning dflags gre w = case w of
-  DeprecatedTxt _ msg -> format "Deprecated: " (foldMap (unpackFS . sl_fs . hsDocString . unLoc) msg)
-  WarningTxt    _ msg -> format "Warning: "    (foldMap (unpackFS . sl_fs . hsDocString . unLoc) msg)
+  DeprecatedTxt _ msg -> format "Deprecated: " (foldMap (Text.pack . unpackFS . sl_fs . hsDocString . unLoc) msg)
+  WarningTxt    _ msg -> format "Warning: "    (foldMap (Text.pack . unpackFS . sl_fs . hsDocString . unLoc) msg)
   where
     format x bs = DocWarning . DocParagraph . DocAppend (DocString x)
                   <$> processDocStringFromString dflags gre bs

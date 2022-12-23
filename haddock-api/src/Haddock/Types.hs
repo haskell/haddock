@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -39,6 +40,8 @@ module Haddock.Types (
  ) where
 
 import qualified Data.Text as Text
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Encoding as Text
 import Data.String
 import Control.DeepSeq
@@ -271,7 +274,7 @@ data ExportItem name
         expItemSectionLevel :: !Int
 
         -- | Section id (for hyperlinks).
-      , expItemSectionId :: !String
+      , expItemSectionId :: !Text
 
         -- | Section heading text.
       , expItemSectionText :: !(Doc (IdP name))
@@ -378,10 +381,10 @@ instance Outputable n => Outputable (Wrap n) where
   ppr (Parenthesized n) = hcat [ char '(', ppr n, char ')' ]
   ppr (Backticked n)    = hcat [ char '`', ppr n, char '`' ]
 
-showWrapped :: (a -> String) -> Wrap a -> String
+showWrapped :: (a -> Text) -> Wrap a -> Text
 showWrapped f (Unadorned n) = f n
-showWrapped f (Parenthesized n) = "(" ++ f n ++ ")"
-showWrapped f (Backticked n) = "`" ++ f n ++ "`"
+showWrapped f (Parenthesized n) = "(" <> f n <> ")"
+showWrapped f (Backticked n) = "`" <> f n <> "`"
 
 instance HasOccName DocName where
 
@@ -543,9 +546,9 @@ instance NFData id => NFData (TableRow id) where
 instance NFData id => NFData (TableCell id) where
     rnf (TableCell i j c) = i `deepseq` j `deepseq` c `deepseq` ()
 
-exampleToString :: Example -> String
+exampleToString :: Example -> Text
 exampleToString (Example expression result) =
-    ">>> " ++ expression ++ "\n" ++  unlines result
+    ">>> "  <>  expression  <>  "\n"  <>   LText.unlines result
 
 data HaddockModInfo name = HaddockModInfo
   { hmi_description :: Maybe (Doc name)

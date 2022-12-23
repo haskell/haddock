@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Themes
@@ -16,14 +18,15 @@ module Haddock.Backends.Xhtml.Themes (
     )
     where
 
+import qualified Data.List as List
 import Haddock.Options
 import Haddock.Utils (ordNub)
 import Haddock.Backends.Xhtml.Types ( BaseURL, withBaseURL )
 
 import Control.Monad (liftM)
-import Data.Char (toLower)
 import Data.Either (lefts, rights)
 import Data.Maybe (isJust, listToMaybe)
+import qualified Data.Text.Lazy as LText
 
 import System.Directory
 import System.FilePath
@@ -36,8 +39,8 @@ import qualified Text.XHtml as XHtml
 --------------------------------------------------------------------------------
 
 data Theme = Theme {
-  themeName :: String,
-  themeHref :: String,
+  themeName :: LText,
+  themeHref :: LText,
   themeFiles :: [FilePath]
   }
 
@@ -49,9 +52,9 @@ type PossibleThemes = Either String Themes
 
 -- | Find a theme by name (case insensitive match)
 findTheme :: String -> Themes -> Maybe Theme
-findTheme s = listToMaybe . filter ((== ls).lower.themeName)
-  where lower = map toLower
-        ls = lower s
+findTheme s = List.find ((== ls) . LText.toLower . themeName)
+  where
+    ls = LText.toLower (LText.pack s)
 
 
 -- | Standard theme used by default
@@ -82,8 +85,8 @@ singleFileTheme path =
       then retRight $ Theme name file [path]
       else errMessage "File extension isn't .css" path
   where
-    name = takeBaseName path
-    file = takeFileName path
+    name = LText.pack $ takeBaseName path
+    file = LText.pack $ takeFileName path
 
 
 -- | Build a theme from a directory
@@ -91,7 +94,7 @@ directoryTheme :: FilePath -> IO PossibleTheme
 directoryTheme path = do
   items <- getDirectoryItems path
   case filter isCssFilePath items of
-    [cf] -> retRight $ Theme (takeBaseName path) (takeFileName cf) items
+    [cf] -> retRight $ Theme (LText.pack $ takeBaseName path) (LText.pack $ takeFileName cf) items
     [] -> errMessage "No .css file in theme directory" path
     _ -> errMessage "More than one .css file in theme directory" path
 

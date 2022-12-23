@@ -16,6 +16,7 @@ module Haddock.Backends.Hyperlinker.Utils
 
 import Haddock.Utils
 import Haddock.Backends.Xhtml.Utils
+import Data.String (IsString(..))
 
 import GHC
 import GHC.Iface.Ext.Types ( HieAST(..), HieType(..), HieArgs(..), TypeIndex, HieTypeFlat )
@@ -27,58 +28,59 @@ import GHC.Types.Var       ( VarBndr(..) )
 import System.FilePath.Posix ((</>), (<.>))
 
 import qualified Data.Array as A
+import qualified Data.Text.Lazy as LText
 
 
 {-# INLINE hypSrcDir #-}
-hypSrcDir :: FilePath
+hypSrcDir :: IsString s => s
 hypSrcDir = "src"
 
 {-# INLINE hypSrcModuleFile #-}
-hypSrcModuleFile :: Module -> FilePath
-hypSrcModuleFile m = moduleNameString (moduleName m) <.> "html"
+hypSrcModuleFile :: Module -> LText
+hypSrcModuleFile m = LText.pack $ moduleNameString (moduleName m) <.> "html"
 
-hypSrcModuleFile' :: ModuleName -> FilePath
+hypSrcModuleFile' :: ModuleName -> LText
 hypSrcModuleFile' mdl = spliceURL'
     Nothing (Just mdl) Nothing Nothing moduleFormat
 
-hypSrcModuleUrl :: Module -> String
+hypSrcModuleUrl :: Module -> LText
 hypSrcModuleUrl = hypSrcModuleFile
 
-hypSrcModuleUrl' :: ModuleName -> String
+hypSrcModuleUrl' :: ModuleName -> LText
 hypSrcModuleUrl' = hypSrcModuleFile'
 
 {-# INLINE hypSrcNameUrl #-}
-hypSrcNameUrl :: Name -> String
-hypSrcNameUrl = escapeStr . getOccString
+hypSrcNameUrl :: Name -> LText
+hypSrcNameUrl = escapeStr . LText.pack . getOccString
 
 {-# INLINE hypSrcLineUrl #-}
-hypSrcLineUrl :: Int -> String
-hypSrcLineUrl line = "line-" ++ show line
+hypSrcLineUrl :: Int -> LText
+hypSrcLineUrl line = "line-" <> LText.pack (show line)
 
 {-# INLINE hypSrcModuleNameUrl #-}
-hypSrcModuleNameUrl :: Module -> Name -> String
-hypSrcModuleNameUrl mdl name = hypSrcModuleUrl mdl ++ "#" ++ hypSrcNameUrl name
+hypSrcModuleNameUrl :: Module -> Name -> LText
+hypSrcModuleNameUrl mdl name = hypSrcModuleUrl mdl <> "#" <> hypSrcNameUrl name
 
 {-# INLINE hypSrcModuleLineUrl #-}
-hypSrcModuleLineUrl :: Module -> Int -> String
-hypSrcModuleLineUrl mdl line = hypSrcModuleUrl mdl ++ "#" ++ hypSrcLineUrl line
+hypSrcModuleLineUrl :: Module -> Int -> LText
+hypSrcModuleLineUrl mdl line = hypSrcModuleUrl mdl <> "#" <> hypSrcLineUrl line
 
-hypSrcModuleUrlFormat :: String
-hypSrcModuleUrlFormat = hypSrcDir </> moduleFormat
+hypSrcModuleUrlFormat :: LText
+hypSrcModuleUrlFormat = hypSrcDir <> "/" <> moduleFormat
 
-hypSrcModuleNameUrlFormat :: String
-hypSrcModuleNameUrlFormat = hypSrcModuleUrlFormat ++ "#" ++ nameFormat
+hypSrcModuleNameUrlFormat :: LText
+hypSrcModuleNameUrlFormat = hypSrcModuleUrlFormat <> "#" <> nameFormat
 
-hypSrcModuleLineUrlFormat :: String
-hypSrcModuleLineUrlFormat = hypSrcModuleUrlFormat ++ "#" ++ lineFormat
+hypSrcModuleLineUrlFormat :: LText
+hypSrcModuleLineUrlFormat = hypSrcModuleUrlFormat <> "#" <> lineFormat
 
-moduleFormat :: String
+moduleFormat :: LText
 moduleFormat = "%{MODULE}.html"
 
-nameFormat :: String
+nameFormat :: LText
 nameFormat = "%{NAME}"
 
-lineFormat :: String
+lineFormat :: LText
 lineFormat = "line-%{LINE}"
 
 

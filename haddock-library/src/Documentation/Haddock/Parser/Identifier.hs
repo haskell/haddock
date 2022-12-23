@@ -15,6 +15,7 @@ module Documentation.Haddock.Parser.Identifier (
   parseValid,
 ) where
 
+import Data.Int (Int64)
 import Documentation.Haddock.Types           ( Namespace(..) )
 import Documentation.Haddock.Parser.Monad
 import qualified Text.Parsec as Parsec
@@ -22,8 +23,8 @@ import           Text.Parsec.Pos             ( updatePosChar )
 import           Text.Parsec                 ( State(..)
                                              , getParserState, setParserState )
 
-import Data.Text (Text)
-import qualified Data.Text as T
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as T
 
 import           Data.Char (isAlpha, isAlphaNum)
 import Control.Monad (guard)
@@ -31,7 +32,7 @@ import Data.Maybe
 import CompatPrelude
 
 -- | Identifier string surrounded with namespace, opening, and closing quotes/backticks.
-data Identifier = Identifier !Namespace !Char String !Char
+data Identifier = Identifier !Namespace !Char Text !Char
   deriving (Show, Eq)
 
 parseValid :: Parser Identifier
@@ -45,7 +46,7 @@ parseValid = do
           posIdent = T.foldl updatePosChar posOp ident
           posCl = updatePosChar posIdent cl
           s' = s{ stateInput = inp', statePos = posCl }
-      in setParserState s' $> Identifier ns op (T.unpack ident) cl
+      in setParserState s' $> Identifier ns op ident cl
 
 
 -- | Try to parse a delimited identifier off the front of the given input.
@@ -112,11 +113,17 @@ takeIdentifier input = listToMaybe $ do
                   return (T.take n t, t'')
 
     -- | Parse out a possibly qualified operator or identifier
-    general :: Bool           -- ^ refuse inputs starting with operators
-            -> Int            -- ^ total characters \"consumed\" so far
-            -> [(Int, Text)]  -- ^ accumulated results
-            -> Text           -- ^ current input
-            -> [(Int, Text)]  -- ^ total characters parsed & what remains
+    general
+      :: Bool
+      -- ^ refuse inputs starting with operators
+      -> Int64
+      -- ^ total characters \"consumed\" so far
+      -> [(Int64, Text)]
+      -- ^ accumulated results
+      -> Text
+      -- ^ current input
+      -> [(Int64, Text)]
+      -- ^ total characters parsed & what remains
     general !identOnly !i acc t
       -- Starts with an identifier (either just an identifier, or a module qual)
       | Just (n, rest) <- identLike t
@@ -150,7 +157,7 @@ takeIdentifier input = listToMaybe $ do
 
     -- | Parse all but the last quote off the front of the input
     -- PRECONDITION: T.head t `elem` ['\'', '`']
-    quotes :: Text -> (Int, Text)
+    quotes :: Text -> (Int64, Text)
     quotes t = let !n = T.length (T.takeWhile (`elem` ['\'', '`']) t) - 1
                in (n, T.drop n t)
 

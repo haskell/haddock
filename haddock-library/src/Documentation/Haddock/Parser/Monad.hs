@@ -24,8 +24,8 @@ import           Text.Parsec.Pos             ( updatePosChar )
 import           Text.Parsec                 ( State(..)
                                              , getParserState, setParserState )
 
-import qualified Data.Text as T
-import           Data.Text                   ( Text )
+import qualified Data.Text.Lazy as T
+import           Data.Text.Lazy              ( Text )
 
 import           Control.Monad               ( mfilter )
 import           Data.String                 ( IsString(..) )
@@ -118,7 +118,7 @@ takeWhile1 = mfilter (not . T.null) . takeWhile
 -- function returns true.
 scan :: (s -> Char -> Maybe s) -- ^ scan function
      -> s                      -- ^ initial state
-     -> Parser Text 
+     -> Parser Text
 scan f st = do
   s@State{ stateInput = inp, statePos = pos } <- getParserState
   go inp st pos 0 $ \inp' pos' n ->
@@ -141,7 +141,7 @@ decimal = foldl' step 0 `fmap` Parsec.many1 Parsec.digit
 
 -- | Parse a hexadecimal number.
 hexadecimal :: (Integral a, Bits a) => Parser a
-hexadecimal = foldl' step 0 `fmap` Parsec.many1 Parsec.hexDigit 
+hexadecimal = foldl' step 0 `fmap` Parsec.many1 Parsec.hexDigit
   where
   step a c | w >= 48 && w <= 57  = (a `shiftL` 4) .|. fromIntegral (w - 48)
            | w >= 97             = (a `shiftL` 4) .|. fromIntegral (w - 87)

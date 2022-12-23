@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
 -----------------------------------------------------------------------------
@@ -50,8 +51,11 @@ module Haddock.Utils (
   -- * System tools
   getProcessID,
 
-  Text, asText, builderToText, textToBuilder, builderToString,
-  Builder, stringUtf8
+  asText, builderToText, textToBuilder, builderToString,
+  Builder, stringUtf8, lazyTextToBuilder,
+  SText, LText,
+  occNameLText, moduleNameLText,
+  getOccLText, fastStringToLText,
  ) where
 
 
@@ -62,7 +66,9 @@ import Haddock.Types
 import GHC
 import GHC.Types.Name
 
-import Data.Text (Text)
+import Data.String (IsString(..))
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.Encoding as LText
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
 import Data.Char ( isAlpha, isAlphaNum, isAscii, ord, chr )
@@ -78,24 +84,33 @@ import System.IO.Unsafe ( unsafePerformIO )
 import qualified System.FilePath.Posix as HtmlPath
 import Data.ByteString.Builder as Builder
 import qualified Data.ByteString  as BS
+import qualified Data.ByteString.Lazy  as BSL
+import GHC.Data.FastString
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import Text.XHtml (LText)
+import GHC.Unit.Module.Name
 
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Internals
 #endif
 
-asText :: Text -> Text
+type SText = Text.Text
+
+asText :: LText.Text -> LText.Text
 asText = id
 
-builderToText :: Builder -> Text
+builderToText :: Builder -> Text.Text
 builderToText = Text.decodeUtf8 . BS.toStrict . toLazyByteString
 
 builderToString :: Builder -> String
 builderToString = Text.unpack . builderToText
 
-textToBuilder :: Text -> Builder
+textToBuilder :: Text.Text -> Builder
 textToBuilder = byteString . Text.encodeUtf8
+
+lazyTextToBuilder :: LText.Text -> Builder
+lazyTextToBuilder = lazyByteString . LText.encodeUtf8
 
 --------------------------------------------------------------------------------
 -- * Logging
@@ -157,8 +172,8 @@ baseName :: ModuleName -> FilePath
 baseName = map (\c -> if c == '.' then '-' else c) . moduleNameString
 
 
-moduleHtmlFile :: Module -> FilePath
-moduleHtmlFile mdl =
+moduleHtmlFile :: Module -> LText
+moduleHtmlFile mdl = LText.pack $
   case Map.lookup mdl html_xrefs of
     Nothing  -> baseName mdl' ++ ".html"
     Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl' ++ ".html"]
@@ -166,23 +181,23 @@ moduleHtmlFile mdl =
    mdl' = moduleName mdl
 
 
-moduleHtmlFile' :: ModuleName -> FilePath
-moduleHtmlFile' mdl =
+moduleHtmlFile' :: ModuleName -> LText
+moduleHtmlFile' mdl = LText.pack $
   case Map.lookup mdl html_xrefs' of
     Nothing  -> baseName mdl ++ ".html"
     Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl ++ ".html"]
 
 
-contentsHtmlFile, indexHtmlFile, indexJsonFile :: String
+contentsHtmlFile, indexHtmlFile, indexJsonFile :: IsString s => s
 contentsHtmlFile = "index.html"
 indexHtmlFile = "doc-index.html"
 indexJsonFile = "doc-index.json"
 
 
-subIndexHtmlFile :: String -> String
-subIndexHtmlFile ls = "doc-index-" ++ b ++ ".html"
-   where b | all isAlpha ls = ls
-           | otherwise = concatMap (show . ord) ls
+subIndexHtmlFile :: LText -> LText
+subIndexHtmlFile ls = "doc-index-" <> b <> ".html"
+   where b | LText.all isAlpha ls = ls
+           | otherwise = LText.concatMap (LText.pack . show . ord) ls
 
 
 -------------------------------------------------------------------------------
@@ -199,29 +214,46 @@ subIndexHtmlFile ls = "doc-index-" ++ b ++ ".html"
 -------------------------------------------------------------------------------
 
 
-moduleUrl :: Module -> String
+moduleUrl :: Module -> LText
 moduleUrl = moduleHtmlFile
 
 
-moduleNameUrl :: Module -> OccName -> String
-moduleNameUrl mdl n = moduleUrl mdl ++ '#' : nameAnchorId n
+moduleNameUrl :: Module -> OccName -> LText
+moduleNameUrl mdl n = moduleUrl mdl <> "#" <> nameAnchorId n
 
 
-moduleNameUrl' :: ModuleName -> OccName -> String
-moduleNameUrl' mdl n = moduleHtmlFile' mdl ++ '#' : nameAnchorId n
+moduleNameUrl' :: ModuleName -> OccName -> LText
+moduleNameUrl' mdl n = moduleHtmlFile' mdl <> "#" <> nameAnchorId n
 
 
-nameAnchorId :: OccName -> String
-nameAnchorId name = makeAnchorId (prefix : ':' : occNameString name)
- where prefix | isValOcc name = 'v'
-              | otherwise     = 't'
+nameAnchorId :: OccName -> LText
+nameAnchorId name = makeAnchorId (prefix <> occNameLText name)
+ where prefix | isValOcc name = "v:"
+              | otherwise     = "t:"
+
+occNameLText :: OccName -> LText
+occNameLText = fastStringToLText . occNameFS
+
+getOccLText :: NamedThing a => a -> LText
+getOccLText = fastStringToLText . getOccFS
+
+fastStringToLText :: FastString -> LText
+fastStringToLText =
+  LText.decodeUtf8 . BSL.fromStrict . bytesFS
+
+moduleNameLText :: ModuleName -> LText
+moduleNameLText = fastStringToLText . moduleNameFS
 
 
 -- | Takes an arbitrary string and makes it a valid anchor ID. The mapping is
 -- identity preserving.
-makeAnchorId :: String -> String
-makeAnchorId [] = []
-makeAnchorId (f:r) = escape isAlpha f ++ concatMap (escape isLegal) r
+makeAnchorId :: LText -> LText
+makeAnchorId txt =
+  case LText.uncons txt of
+    Just (f, r) ->
+      LText.pack (escape isAlpha f) <> LText.concatMap (LText.pack . escape isLegal) r
+    Nothing ->
+      txt
   where
     escape p c | p c = [c]
                | otherwise = '-' : show (ord c) ++ "-"
@@ -237,13 +269,13 @@ makeAnchorId (f:r) = escape isAlpha f ++ concatMap (escape isLegal) r
 -------------------------------------------------------------------------------
 
 
-haddockJsFile :: String
+haddockJsFile :: IsString s => s
 haddockJsFile = "haddock-bundle.min.js"
 
-jsQuickJumpFile :: String
+jsQuickJumpFile :: IsString s => s
 jsQuickJumpFile = "quick-jump.min.js"
 
-quickJumpCssFile :: String
+quickJumpCssFile :: IsString s => s
 quickJumpCssFile = "quick-jump.css"
 
 -------------------------------------------------------------------------------
@@ -261,7 +293,7 @@ getProgramName = fmap (`withoutSuffix` ".bin") getProgName
 bye :: String -> IO a
 bye s = putStr s >> exitSuccess
 
-escapeStr :: String -> String
+escapeStr :: LText -> LText
 escapeStr = escapeURIString isUnreserved
 
 
@@ -269,27 +301,27 @@ escapeStr = escapeURIString isUnreserved
 -- to avoid depending on the network lib, since doing so gives a
 -- circular build dependency between haddock and network
 -- (at least if you want to build network with haddock docs)
-escapeURIChar :: (Char -> Bool) -> Char -> String
+escapeURIChar :: (Char -> Bool) -> Char -> LText
 escapeURIChar p c
-    | p c       = [c]
-    | otherwise = '%' : myShowHex (ord c) ""
+    | p c       = LText.singleton c
+    | otherwise = "%" <> myShowHex (ord c)
     where
-        myShowHex :: Int -> ShowS
-        myShowHex n r =  case showIntAtBase 16 toChrHex n r of
+        myShowHex :: Int -> LText
+        myShowHex n =  case showIntAtBase 16 toChrHex n "" of
             []  -> "00"
-            [a] -> ['0',a]
-            cs  -> cs
+            [a] -> "0" <> LText.singleton a
+            cs  -> LText.pack cs
         toChrHex d
             | d < 10    = chr (ord '0' + fromIntegral d)
             | otherwise = chr (ord 'A' + fromIntegral (d - 10))
 
 
-escapeURIString :: (Char -> Bool) -> String -> String
-escapeURIString = concatMap . escapeURIChar
+escapeURIString :: (Char -> Bool) -> LText -> LText
+escapeURIString p = LText.foldr (\c acc -> escapeURIChar p c <> acc) mempty
 
 
 isUnreserved :: Char -> Bool
-isUnreserved c = isAlphaNumChar c || (c `elem` "-_.~")
+isUnreserved c = isAlphaNumChar c || (c `elem` ("-_.~" :: String))
 
 
 isAlphaChar, isDigitChar, isAlphaNumChar :: Char -> Bool

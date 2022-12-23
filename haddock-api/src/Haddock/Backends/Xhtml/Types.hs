@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Types
@@ -17,26 +19,28 @@ module Haddock.Backends.Xhtml.Types (
   LinksInfo,
   Splice,
   Unicode,
+  LText,
 ) where
 
 
 import Data.Map
 import GHC
 import qualified System.FilePath as FilePath
+import Text.XHtml (LText)
+import qualified Data.Text.Lazy as LText
 
 
 -- the base, module and entity URLs for the source code and wiki links.
-type SourceURLs = (Maybe FilePath, Maybe FilePath, Map Unit FilePath, Map Unit FilePath)
-type WikiURLs = (Maybe FilePath, Maybe FilePath, Maybe FilePath)
+type SourceURLs = (Maybe LText, Maybe LText, Map Unit LText, Map Unit LText)
+type WikiURLs = (Maybe LText, Maybe LText, Maybe LText)
 
 -- | base url for loading js, json, css resources.  The default is "."
 --
-type BaseURL = Maybe String
+type BaseURL = Maybe LText
 
--- TODO: we shouldn't use 'FilePath.</>'
-withBaseURL :: BaseURL -> String -> String
+withBaseURL :: BaseURL -> LText -> LText
 withBaseURL Nothing        uri = uri
-withBaseURL (Just baseUrl) uri = baseUrl FilePath.</> uri
+withBaseURL (Just baseUrl) uri = baseUrl <> "/" <> uri
 
 -- The URL for source and wiki links
 type LinksInfo = (SourceURLs, WikiURLs)
