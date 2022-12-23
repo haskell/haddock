@@ -238,6 +238,7 @@ occNameLText = fastStringToLText . occNameFS
 getOccLText :: NamedThing a => a -> LText
 getOccLText = fastStringToLText . getOccFS
 {-# INLINE getOccLText #-}
+{-# SPECIALIZE getOccLText :: Name -> LText #-}
 
 fastStringToLText :: FastString -> LText
 fastStringToLText =
@@ -299,6 +300,7 @@ bye s = putStr s >> exitSuccess
 
 escapeStr :: LText -> LText
 escapeStr = escapeURIString isUnreserved
+{-# INLINE escapeStr #-}
 
 
 -- Following few functions are copy'n'pasted from Network.URI module
@@ -318,10 +320,12 @@ escapeURIChar p c
         toChrHex d
             | d < 10    = chr (ord '0' + fromIntegral d)
             | otherwise = chr (ord 'A' + fromIntegral (d - 10))
+{-# INLINE escapeURIChar #-}
 
 
 escapeURIString :: (Char -> Bool) -> LText -> LText
 escapeURIString p = LText.foldr (\c acc -> escapeURIChar p c <> acc) mempty
+{-# INLINE escapeURIString #-}
 
 
 isUnreserved :: Char -> Bool
@@ -340,6 +344,7 @@ isAlphaNumChar c = isAlphaChar c || isDigitChar c
 -- encoding isn't enough for the characters we want to write.
 writeUtf8File :: FilePath -> Builder -> IO ()
 writeUtf8File = Builder.writeFile
+{-# INLINE writeUtf8File #-}
 
 withTempDir :: (MonadIO m, MonadMask m) => FilePath -> m a -> m a
 withTempDir dir = bracket_ (liftIO $ createDirectory dir)

@@ -73,8 +73,8 @@ spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
   (name, kind) =
     case maybe_name of
       Nothing             -> ("","")
-      Just n | isValOcc (nameOccName n) -> (escapeStr (LText.pack $ getOccString n), "v")
-             | otherwise -> (escapeStr (LText.pack $ getOccString n), "t")
+      Just n | isValOcc (nameOccName n) -> (escapeStr (getOccLText n), "v")
+             | otherwise -> (escapeStr (getOccLText n), "t")
 
   line = case maybe_loc of
     Nothing -> ""
