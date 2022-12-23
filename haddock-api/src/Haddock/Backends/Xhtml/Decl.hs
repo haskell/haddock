@@ -74,6 +74,8 @@ ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdoc
   DerivD _ _                     -> noHtml
   _                              -> error "declaration not supported by ppDecl"
 
+{-# INLINE ppDecl #-}
+
 
 ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
              [LocatedN DocName] -> LHsSigType DocNameI -> [(DocName, Fixity)] ->

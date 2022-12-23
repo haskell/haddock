@@ -112,6 +112,8 @@ renderToString debug html
   | debug = renderHtml html
   | otherwise = showHtml html
 
+{-# INLINE renderToString #-}
+
 
 hsep :: [Html] -> Html
 hsep [] = noHtml
@@ -122,12 +124,15 @@ vcat :: [Html] -> Html
 vcat [] = noHtml
 vcat htmls = foldr1 (\a b -> a+++br+++b) htmls
 
+{-# INLINE vcat #-}
 
 infixr 8 <+>
 (<+>) :: Html -> Html -> Html
 a <+> b = a +++ sep +++ b
   where
     sep = if isNoHtml a || isNoHtml b then noHtml else toHtml (asText " ")
+
+{-# INLINE (<+>) #-}
 
 -- | Join two 'Html' values together with a linebreak in between.
 --   Has 'noHtml' as left identity.
@@ -136,6 +141,8 @@ infixr 8 <=>
 a <=> b = a +++ sep +++ b
   where
     sep = if isNoHtml a then noHtml else br
+
+{-# INLINE (<=>) #-}
 
 
 keyword :: Text -> Html
@@ -166,6 +173,11 @@ brackets h      = char '[' +++ h +++ char ']'
 pabrackets h    = toHtml @String "[:" +++ h +++ toHtml @String ":]"
 braces h        = char '{' +++ h +++ char '}'
 
+{-# INLINE parens #-}
+{-# INLINE brackets #-}
+{-# INLINE pabrackets #-}
+{-# INLINE braces #-}
+
 
 punctuate :: Html -> [Html] -> [Html]
 punctuate _ []     = []
@@ -174,21 +186,29 @@ punctuate h (d0:ds) = go d0 ds
                      go d [] = [d]
                      go d (e:es) = (d +++ h) : go e es
 
+{-# INLINE punctuate #-}
 
 parenList :: [Html] -> Html
 parenList = parens . hsep . punctuate comma
+
+{-# INLINE parenList #-}
 
 
 ubxParenList :: [Html] -> Html
 ubxParenList = ubxparens . hsep . punctuate comma
 
+{-# INLINE ubxParenList #-}
+
 
 ubxSumList :: [Html]  -> Html
 ubxSumList = ubxparens . hsep . punctuate (toHtml @String " | ")
 
+{-# INLINE ubxSumList #-}
 
 ubxparens :: Html -> Html
 ubxparens h = toHtml @String "(#" <+> h <+> toHtml @String "#)"
+
+{-# INLINE ubxparens #-}
 
 
 dcolon, arrow, lollipop, darrow, forallSymbol, atSign :: Bool -> Html
@@ -199,25 +219,39 @@ darrow unicode = toHtml @String (if unicode then "⇒" else "=>")
 forallSymbol unicode = if unicode then toHtml @String "∀" else keyword "forall"
 atSign unicode = toHtml @String (if unicode then "@" else "@")
 
+{-# INLINE dcolon #-}
+{-# INLINE  arrow #-}
+{-# INLINE  lollipop #-}
+{-# INLINE  darrow #-}
+{-# INLINE  forallSymbol #-}
+{-# INLINE  atSign #-}
+
 multAnnotation :: Html
 multAnnotation = toHtml @String "%"
+
+{-# INLINE multAnnotation #-}
 
 dot :: Html
 dot = toHtml @String "."
 
+{-# INLINE dot #-}
 
 -- | Generate a named anchor
 namedAnchor :: String -> Html -> Html
 namedAnchor n = anchor ! [XHtml.identifier n]
 
+{-# INLINE namedAnchor #-}
 
 linkedAnchor :: String -> Html -> Html
 linkedAnchor n = anchor ! [href ('#':n)]
 
+{-# INLINE linkedAnchor #-}
 
 -- | generate an anchor identifier for a group
 groupId :: String -> String
 groupId g = makeAnchorId ("g:" ++ g)
+
+{-# INLINE groupId #-}
 
 --
 -- A section of HTML which is collapsible.
@@ -229,8 +263,12 @@ collapseDetails :: String -> DetailsState -> Html -> Html
 collapseDetails id_ state = tag "details" ! (identifier id_ : openAttrs)
   where openAttrs = case state of { DetailsOpen -> [emptyAttr "open"]; DetailsClosed -> [] }
 
+{-# INLINE collapseDetails #-}
+
 thesummary :: Html -> Html
 thesummary = tag "summary"
+
+{-# INLINE thesummary #-}
 
 -- | Attributes for an area that toggles a collapsed area
 collapseToggle :: String -> String -> [HtmlAttr]

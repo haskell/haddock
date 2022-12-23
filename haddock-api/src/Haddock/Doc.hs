@@ -16,6 +16,8 @@ combineDocumentation (Documentation mDoc mWarning)   =
         `metaDocAppend`
         fromMaybe emptyMetaDoc mDoc)
 
+{-# INLINE combineDocumentation #-}
+
 -- Drop trailing whitespace from @..@ code blocks.  Otherwise this:
 --
 --    -- @
@@ -32,3 +34,5 @@ docCodeBlock (DocString s)
 docCodeBlock (DocAppend l r)
   = DocAppend l (docCodeBlock r)
 docCodeBlock d = d
+
+{-# INLINE docCodeBlock #-}

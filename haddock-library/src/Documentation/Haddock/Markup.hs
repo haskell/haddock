@@ -35,6 +35,8 @@ markup m (DocExamples e)                = markupExample m e
 markup m (DocHeader (Header l t))       = markupHeader m (Header l (markup m t))
 markup m (DocTable (Table h b))         = markupTable m (Table (map (fmap (markup m)) h) (map (fmap (markup m)) b))
 
+{-# INLINE markup #-}
+
 markupPair :: DocMarkupH mod id a -> (DocH mod id, DocH mod id) -> (a, a)
 markupPair m (a,b) = (markup m a, markup m b)
 

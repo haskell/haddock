@@ -74,10 +74,9 @@ import Data.List ( isSuffixOf )
 import System.Environment ( getProgName )
 import System.Exit
 import System.Directory ( createDirectory, removeDirectoryRecursive )
-import System.IO ( hSetEncoding, IOMode(..), utf8, withFile )
 import System.IO.Unsafe ( unsafePerformIO )
 import qualified System.FilePath.Posix as HtmlPath
-import Data.ByteString.Builder
+import Data.ByteString.Builder as Builder
 import qualified Data.ByteString  as BS
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
@@ -304,9 +303,7 @@ isAlphaNumChar c = isAlphaChar c || isDigitChar c
 -- 'getLocaleEncoding', and on some platforms (like Windows) this default
 -- encoding isn't enough for the characters we want to write.
 writeUtf8File :: FilePath -> Builder -> IO ()
-writeUtf8File filepath contents = withFile filepath WriteMode $ \h -> do
-    hSetEncoding h utf8
-    hPutBuilder h contents
+writeUtf8File = Builder.writeFile
 
 withTempDir :: (MonadIO m, MonadMask m) => FilePath -> m a -> m a
 withTempDir dir = bracket_ (liftIO $ createDirectory dir)
