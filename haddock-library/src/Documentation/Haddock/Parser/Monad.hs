@@ -18,7 +18,7 @@
 
 module Documentation.Haddock.Parser.Monad where
 
-import qualified Text.Parsec.Char as Parsec
+import qualified Text.Parsec.Text as Parsec
 import qualified Text.Parsec as Parsec
 import           Text.Parsec.Pos             ( updatePosChar )
 import           Text.Parsec                 ( State(..)

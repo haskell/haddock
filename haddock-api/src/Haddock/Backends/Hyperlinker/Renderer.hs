@@ -252,8 +252,8 @@ hyperlink (srcs, srcs') ident = case ident of
 
   where
     -- In a Nix environment, we have file:// URLs with absolute paths
-    makeHyperlinkUrl url | List.isPrefixOf "file://" url = LText.pack url
-    makeHyperlinkUrl url = LText.pack $ ".." </> url
+    makeHyperlinkUrl url | LText.isPrefixOf "file://" url = url
+    makeHyperlinkUrl url = ".." <//> url
 
     internalHyperlink name content =
         Html.anchor content ! [ Html.href $ "#" <> internalAnchorIdent name ]
@@ -262,7 +262,7 @@ hyperlink (srcs, srcs') ident = case ident of
         Just SrcLocal -> Html.anchor content !
             [ Html.href $ hypSrcModuleNameUrl mdl name ]
         Just (SrcExternal path) ->
-          let hyperlinkUrl = makeHyperlinkUrl path <> "/" <> hypSrcModuleNameUrl mdl name
+          let hyperlinkUrl = makeHyperlinkUrl path <//> hypSrcModuleNameUrl mdl name
            in Html.anchor content !
                 [ Html.href $ spliceURL Nothing (Just mdl) (Just name) Nothing hyperlinkUrl ]
         Nothing -> content

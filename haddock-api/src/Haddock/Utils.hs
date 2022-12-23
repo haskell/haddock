@@ -29,6 +29,8 @@ module Haddock.Utils (
   nameAnchorId,
   makeAnchorId,
 
+  joinPathText, (<//>),
+
   -- * Miscellaneous utilities
   getProgramName, bye, die, escapeStr,
   writeUtf8File, withTempDir,
@@ -76,7 +78,7 @@ import Numeric ( showIntAtBase )
 import Data.Map ( Map )
 import qualified Data.Map as Map hiding ( Map )
 import Data.IORef ( IORef, newIORef, readIORef )
-import Data.List ( isSuffixOf )
+import Data.List ( isSuffixOf, intercalate )
 import System.Environment ( getProgName )
 import System.Exit
 import System.Directory ( createDirectory, removeDirectoryRecursive )
@@ -168,24 +170,29 @@ mkMeta x = emptyMetaDoc { _doc = x }
 -- * Filename mangling functions stolen from s main/DriverUtil.lhs.
 --------------------------------------------------------------------------------
 
-baseName :: ModuleName -> FilePath
-baseName = map (\c -> if c == '.' then '-' else c) . moduleNameString
+baseName :: ModuleName -> LText
+baseName = LText.map (\c -> if c == '.' then '-' else c) . moduleNameLText
 
 
 moduleHtmlFile :: Module -> LText
-moduleHtmlFile mdl = LText.pack $
+moduleHtmlFile mdl =
   case Map.lookup mdl html_xrefs of
-    Nothing  -> baseName mdl' ++ ".html"
-    Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl' ++ ".html"]
+    Nothing  -> baseName mdl' <> ".html"
+    Just fp0 -> joinPathText [fp0, baseName mdl' <> ".html"]
   where
    mdl' = moduleName mdl
 
+joinPathText :: [LText] -> LText
+joinPathText = foldr (<//>) mempty
+
+(<//>) :: LText -> LText -> LText
+l <//> r = l <> LText.singleton HtmlPath.pathSeparator <> r
 
 moduleHtmlFile' :: ModuleName -> LText
-moduleHtmlFile' mdl = LText.pack $
+moduleHtmlFile' mdl =
   case Map.lookup mdl html_xrefs' of
-    Nothing  -> baseName mdl ++ ".html"
-    Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl ++ ".html"]
+    Nothing  -> baseName mdl <> ".html"
+    Just fp0 -> joinPathText [fp0, baseName mdl <> ".html"]
 
 
 contentsHtmlFile, indexHtmlFile, indexJsonFile :: IsString s => s
@@ -363,22 +370,22 @@ withTempDir dir = bracket_ (liftIO $ createDirectory dir)
 
 
 {-# NOINLINE html_xrefs_ref #-}
-html_xrefs_ref :: IORef (Map Module FilePath)
+html_xrefs_ref :: IORef (Map Module LText)
 html_xrefs_ref = unsafePerformIO (newIORef (error "module_map"))
 
 
 {-# NOINLINE html_xrefs_ref' #-}
-html_xrefs_ref' :: IORef (Map ModuleName FilePath)
+html_xrefs_ref' :: IORef (Map ModuleName LText)
 html_xrefs_ref' = unsafePerformIO (newIORef (error "module_map"))
 
 
 {-# NOINLINE html_xrefs #-}
-html_xrefs :: Map Module FilePath
+html_xrefs :: Map Module LText
 html_xrefs = unsafePerformIO (readIORef html_xrefs_ref)
 
 
 {-# NOINLINE html_xrefs' #-}
-html_xrefs' :: Map ModuleName FilePath
+html_xrefs' :: Map ModuleName LText
 html_xrefs' = unsafePerformIO (readIORef html_xrefs_ref')
 
 

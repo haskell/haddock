@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Options
@@ -377,16 +379,16 @@ readIfaceArgs flags = [ parseIfaceOption s | Flag_ReadInterface s <- flags ]
             (src, ',':rest') ->
               let src' = case src of
                     "" -> Nothing
-                    _  -> Just src
+                    _  -> Just $ LText.pack src
               in
               case break (==',') rest' of
                 (visibility, ',':file) | visibility == "hidden" ->
-                  ((fpath, src'), Hidden, file)
+                  ((LText.pack fpath, src'), Hidden, file)
                                        | otherwise ->
-                  ((fpath, src'), Visible, file)
+                  ((LText.pack fpath, src'), Visible, file)
                 (file, _) ->
-                  ((fpath, src'), Visible, file)
-            (file, _) -> ((fpath, Nothing), Visible, file)
+                  ((LText.pack fpath, src'), Visible, file)
+            (file, _) -> ((LText.pack fpath, Nothing), Visible, file)
         (file, _) -> (("", Nothing), Visible, file)
 
 

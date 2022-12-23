@@ -87,7 +87,7 @@ type SubMap        = Map Name [Name]
 type DeclMap       = Map Name [LHsDecl GhcRn]
 type InstMap       = Map RealSrcSpan Name
 type FixMap        = Map Name Fixity
-type DocPaths      = (FilePath, Maybe FilePath) -- paths to HTML and sources
+type DocPaths      = (Text, Maybe Text) -- paths to HTML and sources
 
 -----------------------------------------------------------------------------
 -- * Interface

@@ -287,7 +287,7 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
   updateHTMLXRefs (map (\(docPath, _ifaceFilePath, _showModules, ifaceFile) ->
                           ( case baseUrl flags of
                               Nothing  -> fst docPath
-                              Just url -> LText.unpack url </> packageName (ifUnitId ifaceFile)
+                              Just url -> url <//> packageName (ifUnitId ifaceFile)
                           , ifaceFile)) pkgs)
   let
     installedIfaces =
@@ -302,15 +302,15 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
   render logger dflags unit_state flags sinceQual nameQual interfaces installedIfaces extSrcMap
   where
     -- get package name from unit-id
-    packageName :: Unit -> String
-    packageName unit =
+    packageName :: Unit -> LText
+    packageName unit = LText.pack $
       case lookupUnit unit_state unit of
         Nothing  -> show unit
         Just pkg -> unitPackageNameString pkg
 
 -- | Render the interfaces with whatever backend is specified in the flags.
 render :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption -> [Interface]
-       -> [(FilePath, PackageInterfaces)] -> Map Module FilePath -> IO ()
+       -> [(FilePath, PackageInterfaces)] -> Map Module LText -> IO ()
 render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = do
 
   let
@@ -384,7 +384,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       (Map.map SrcExternal extSrcMap)
       (Map.fromList [ (ifaceMod iface, SrcLocal) | iface <- ifaces ])
 
-    pkgSrcMap = LText.pack <$> Map.mapKeys moduleUnit extSrcMap
+    pkgSrcMap = Map.mapKeys moduleUnit extSrcMap
     pkgSrcMap'
       | Flag_HyperlinkedSource `elem` flags
       , Just k <- pkgKey
@@ -754,7 +754,7 @@ hypSrcWarnings flags = do
     isSourceCssFlag _ = False
 
 
-updateHTMLXRefs :: [(FilePath, InterfaceFile)] -> IO ()
+updateHTMLXRefs :: [(LText, InterfaceFile)] -> IO ()
 updateHTMLXRefs packages = do
   writeIORef html_xrefs_ref (Map.fromList mapping)
   writeIORef html_xrefs_ref' (Map.fromList mapping')
