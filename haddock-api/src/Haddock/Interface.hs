@@ -112,18 +112,22 @@ processModules verbosity modules flags extIfaces = do
                    attachInstances (exportedNames, mods) interfaces instIfaceMap ms
 
   out verbosity verbose "Building cross-linking environment..."
+  homeLinks <- withTimingM "buildHomeLinks" (const ()) $
+    -- Build the environment for the home package
+    pure $! buildHomeLinks interfaces'
+  --
   -- Combine the link envs of the external packages into one
   let extLinks  = Map.unions (map ifLinkEnv extIfaces)
-      homeLinks = buildHomeLinks interfaces' -- Build the environment for the home
-                                             -- package
       links     = homeLinks `Map.union` extLinks
 
   out verbosity verbose "Renaming interfaces..."
   let warnings = Flag_NoWarnings `notElem` flags
   dflags <- getDynFlags
-  let (interfaces'', msgs) =
-         runErrMsgM $ mapM (renameInterface dflags (ignoredSymbols flags) links warnings) interfaces'
-  liftIO $ mapM_ (BSL.putStrLn . toLazyByteString) (errorMessagesToList msgs)
+  interfaces'' <- withTimingM "renameAllInterfaces" (const ()) $ do
+    let (interfaces'', msgs) =
+           runErrMsgM $ mapM (renameInterface dflags (ignoredSymbols flags) links warnings) interfaces'
+    liftIO $ mapM_ (BSL.putStrLn . toLazyByteString) (errorMessagesToList msgs)
+    pure interfaces''
 
   return (interfaces'', homeLinks)
 
