@@ -4,12 +4,11 @@ packages: ./
           ./haddock-api
           ./haddock-library
           ./haddock-test
-          ../xhtml
 
--- source-repository-package
---     type: git
---     location: https://github.com/parsonsmatt/xhtml
---     tag: 0c9a8ae2c88d0804c2fc22306a8656d1e6828614
+source-repository-package
+    type: git
+    location: https://github.com/parsonsmatt/xhtml
+    tag: 4e7d46ed8010c9c1f6211ae6137b6546c4e544a3
 
 allow-newer:
   ghc-paths:Cabal,
