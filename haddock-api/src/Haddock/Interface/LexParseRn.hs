@@ -41,6 +41,8 @@ import GHC.Driver.Ppr ( showPpr, showSDoc )
 import GHC.Types.Name.Reader
 import GHC.Data.EnumSet as EnumSet
 import Data.Foldable (traverse_)
+import qualified Data.Text.Lazy as Text
+import Haddock.Utils
 
 processDocStrings :: DynFlags -> Maybe Package -> GlobalRdrEnv -> [HsDocString]
                   -> ErrMsgM (Maybe (MDoc Name))
@@ -55,13 +57,13 @@ processDocStrings dflags pkg gre strs = do
 
 processDocStringParas :: DynFlags -> Maybe Package -> GlobalRdrEnv -> HsDocString -> ErrMsgM (MDoc Name)
 processDocStringParas dflags pkg gre hds =
-  overDocF (rename dflags gre) $ parseParas dflags pkg (renderHsDocString hds)
+  overDocF (rename dflags gre) $ parseParas dflags pkg (Text.pack $ renderHsDocString hds)
 
 processDocString :: DynFlags -> GlobalRdrEnv -> HsDocString -> ErrMsgM (Doc Name)
 processDocString dflags gre hds =
-  processDocStringFromString dflags gre (renderHsDocString hds)
+  processDocStringFromString dflags gre (Text.pack $ renderHsDocString hds)
 
-processDocStringFromString :: DynFlags -> GlobalRdrEnv -> String -> ErrMsgM (Doc Name)
+processDocStringFromString :: DynFlags -> GlobalRdrEnv -> Text.Text -> ErrMsgM (Doc Name)
 processDocStringFromString dflags gre hds =
   rename dflags gre $ parseString dflags hds
 
@@ -196,8 +198,8 @@ outOfScope dflags ns x =
                None -> ""
 
     warnAndMonospace a = do
-      let a' = showWrapped (showPpr dflags) a
-      reportErrorMessage $ "Warning: " <> prefix <> "'" <> fromString a' <> "' is out of scope.\n" <>
+      let a' = showWrapped (Text.pack . showPpr dflags) a
+      reportErrorMessage $ "Warning: " <> prefix <> "'" <> lazyTextToBuilder a' <> "' is out of scope.\n" <>
               "    If you qualify the identifier, haddock can try to link it anyway."
       pure (monospaced a')
     monospaced = DocMonospaced . DocString
@@ -216,7 +218,7 @@ ambiguous dflags x gres = do
       dflt = maximumBy (comparing (isLocalName &&& isTyConName)) noChildren
       msgs :: [ErrMsg]
       msgs =
-          [ "Warning: " <> fromString (showNsRdrName dflags x) <> " is ambiguous. It is defined"
+          [ "Warning: " <> lazyTextToBuilder (showNsRdrName dflags x) <> " is ambiguous. It is defined"
           ] <>
           map (\n -> "    * " <> fromString (defnLoc n)) (map greMangledName gres) <>
           [ "    You may be able to disambiguate the identifier by qualifying it or"
@@ -240,14 +242,14 @@ ambiguous dflags x gres = do
 -- Emits a warning that the value-namespace is invalid on a non-value identifier.
 invalidValue :: DynFlags -> Wrap NsRdrName -> ErrMsgM (Doc a)
 invalidValue dflags x = do
-  reportErrorMessage $ "Warning: " <> fromString (showNsRdrName dflags x) <> " cannot be value, yet it is"
+  reportErrorMessage $ "Warning: " <> lazyTextToBuilder (showNsRdrName dflags x) <> " cannot be value, yet it is"
   reportErrorMessage $ "    namespaced as such. Did you mean to specify a type namespace"
   reportErrorMessage $ "    instead?"
   pure (DocMonospaced (DocString (showNsRdrName dflags x)))
 
 -- | Printable representation of a wrapped and namespaced name
-showNsRdrName :: DynFlags -> Wrap NsRdrName -> String
-showNsRdrName dflags = (\p i -> p ++ "'" ++ i ++ "'") <$> prefix <*> ident
+showNsRdrName :: DynFlags -> Wrap NsRdrName -> Text.Text
+showNsRdrName dflags = (\p i -> p <> "'" <> i <> "'") <$> prefix <*> ident
   where
-    ident = showWrapped (showPpr dflags . rdrName)
+    ident = showWrapped (Text.pack . showPpr dflags . rdrName)
     prefix = renderNs . namespace . unwrap

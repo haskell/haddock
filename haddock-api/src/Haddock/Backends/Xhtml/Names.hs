@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Names
@@ -23,6 +25,8 @@ import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Utils
 
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as Text
 import Text.XHtml hiding ( name, p, quote )
 import qualified Data.Map as M
 import Data.List ( stripPrefix )
@@ -54,7 +58,7 @@ ppUncheckedLink :: Qualification -> Wrap (ModuleName, OccName) -> Html
 ppUncheckedLink _ x = linkIdOcc' mdl (Just occ) << occHtml
   where
     (mdl, occ) = unwrap x
-    occHtml = toHtml (showWrapped (occNameString . snd) x) -- TODO: apply ppQualifyName
+    occHtml = toHtml (showWrapped (occNameLText . snd) x) -- TODO: apply ppQualifyName
 
 -- The Bool indicates if it is to be rendered in infix notation
 ppLDocName :: Qualification -> Notation -> GenLocated l DocName -> Html
@@ -167,7 +171,7 @@ linkIdOcc mdl mbName insertAnchors =
   then anchor ! [href url, title ttl]
   else id
   where
-    ttl = moduleNameString (moduleName mdl)
+    ttl = moduleNameLText (moduleName mdl)
     url = case mbName of
       Nothing   -> moduleUrl mdl
       Just name -> moduleNameUrl mdl name
@@ -176,7 +180,7 @@ linkIdOcc mdl mbName insertAnchors =
 linkIdOcc' :: ModuleName -> Maybe OccName -> Html -> Html
 linkIdOcc' mdl mbName = anchor ! [href url, title ttl]
   where
-    ttl = moduleNameString mdl
+    ttl = moduleNameLText mdl
     url = case mbName of
       Nothing   -> moduleHtmlFile' mdl
       Just name -> moduleNameUrl' mdl name
@@ -187,10 +191,10 @@ ppModule mdl = anchor ! [href (moduleUrl mdl)]
                << toHtml (moduleString mdl)
 
 
-ppModuleRef :: Maybe Html -> ModuleName -> String -> Html
-ppModuleRef Nothing mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
+ppModuleRef :: Maybe Html -> ModuleName -> Text -> Html
+ppModuleRef Nothing mdl ref = anchor ! [href (moduleHtmlFile' mdl <> ref)]
                               << toHtml (moduleNameString mdl)
-ppModuleRef (Just lbl) mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
+ppModuleRef (Just lbl) mdl ref = anchor ! [href (moduleHtmlFile' mdl <> ref)]
                                  << lbl
 
     -- NB: The ref parameter already includes the '#'.

@@ -3,6 +3,7 @@ module Haddock.Backends.Hyperlinker.Types where
 
 import qualified GHC
 
+import Haddock.Utils (LText)
 import Data.ByteString  ( ByteString )
 
 import Data.Map (Map)
@@ -43,7 +44,7 @@ data TokenType
 -- Used in 'SrcMap' to determine whether module originates in current package
 -- or in an external package.
 data SrcPath
-    = SrcExternal FilePath
+    = SrcExternal LText
     | SrcLocal
 
 -- | Mapping from modules to cross-package source paths.

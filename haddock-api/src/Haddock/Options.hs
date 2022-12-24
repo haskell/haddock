@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Options
@@ -54,6 +56,7 @@ import           Haddock.Types
 import           Haddock.Utils
 import           System.Console.GetOpt
 import qualified Text.ParserCombinators.ReadP as RP
+import qualified Data.Text.Lazy as LText
 
 
 data Flag
@@ -291,23 +294,23 @@ optCssFile flags = optLast [ str | Flag_CSS str <- flags ]
 optSourceCssFile :: [Flag] -> Maybe FilePath
 optSourceCssFile flags = optLast [ str | Flag_SourceCss str <- flags ]
 
-sourceUrls :: [Flag] -> (Maybe String, Maybe String, Maybe String, Maybe String)
+sourceUrls :: [Flag] -> (Maybe LText, Maybe LText, Maybe LText, Maybe LText)
 sourceUrls flags =
-  (optLast [str | Flag_SourceBaseURL    str <- flags]
-  ,optLast [str | Flag_SourceModuleURL  str <- flags]
-  ,optLast [str | Flag_SourceEntityURL  str <- flags]
-  ,optLast [str | Flag_SourceLEntityURL str <- flags])
+  (optLast [LText.pack str | Flag_SourceBaseURL    str <- flags]
+  ,optLast [LText.pack str | Flag_SourceModuleURL  str <- flags]
+  ,optLast [LText.pack str | Flag_SourceEntityURL  str <- flags]
+  ,optLast [LText.pack str | Flag_SourceLEntityURL str <- flags])
 
 
-wikiUrls :: [Flag] -> (Maybe String, Maybe String, Maybe String)
+wikiUrls :: [Flag] -> (Maybe LText, Maybe LText, Maybe LText)
 wikiUrls flags =
-  (optLast [str | Flag_WikiBaseURL   str <- flags]
-  ,optLast [str | Flag_WikiModuleURL str <- flags]
-  ,optLast [str | Flag_WikiEntityURL str <- flags])
+  (optLast [LText.pack str | Flag_WikiBaseURL   str <- flags]
+  ,optLast [LText.pack str | Flag_WikiModuleURL str <- flags]
+  ,optLast [LText.pack str | Flag_WikiEntityURL str <- flags])
 
 
-baseUrl :: [Flag] -> Maybe String
-baseUrl flags = optLast [str | Flag_BaseURL str <- flags]
+baseUrl :: [Flag] -> Maybe LText
+baseUrl flags = optLast [LText.pack str | Flag_BaseURL str <- flags]
 
 optDumpInterfaceFile :: [Flag] -> Maybe FilePath
 optDumpInterfaceFile flags = optLast [ str | Flag_DumpInterface str <- flags ]
@@ -376,16 +379,16 @@ readIfaceArgs flags = [ parseIfaceOption s | Flag_ReadInterface s <- flags ]
             (src, ',':rest') ->
               let src' = case src of
                     "" -> Nothing
-                    _  -> Just src
+                    _  -> Just $ LText.pack src
               in
               case break (==',') rest' of
                 (visibility, ',':file) | visibility == "hidden" ->
-                  ((fpath, src'), Hidden, file)
+                  ((LText.pack fpath, src'), Hidden, file)
                                        | otherwise ->
-                  ((fpath, src'), Visible, file)
+                  ((LText.pack fpath, src'), Visible, file)
                 (file, _) ->
-                  ((fpath, src'), Visible, file)
-            (file, _) -> ((fpath, Nothing), Visible, file)
+                  ((LText.pack fpath, src'), Visible, file)
+            (file, _) -> ((LText.pack fpath, Nothing), Visible, file)
         (file, _) -> (("", Nothing), Visible, file)
 
 

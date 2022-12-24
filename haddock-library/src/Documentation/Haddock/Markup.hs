@@ -8,6 +8,8 @@ module Documentation.Haddock.Markup (
 import Documentation.Haddock.Types
 
 import Data.Maybe ( fromMaybe )
+import qualified Data.Text.Lazy as Text
+import Data.Text.Lazy (Text)
 
 markup :: DocMarkupH mod id a -> DocH mod id -> a
 markup m DocEmpty                       = markupEmpty m
@@ -34,6 +36,8 @@ markup m (DocProperty p)                = markupProperty m p
 markup m (DocExamples e)                = markupExample m e
 markup m (DocHeader (Header l t))       = markupHeader m (Header l (markup m t))
 markup m (DocTable (Table h b))         = markupTable m (Table (map (fmap (markup m)) h) (map (fmap (markup m)) b))
+
+{-# INLINE markup #-}
 
 markupPair :: DocMarkupH mod id a -> (DocH mod id, DocH mod id) -> (a, a)
 markupPair m (a,b) = (markup m a, markup m b)
@@ -70,12 +74,12 @@ idMarkup = Markup {
 -- | Map a 'DocH' into a best estimate of an alternate string. The idea is to
 -- strip away any formatting while preserving as much of the actual text as
 -- possible.
-plainMarkup :: (mod -> String) -> (id -> String) -> DocMarkupH mod id String
+plainMarkup :: (mod -> Text) -> (id -> Text) -> DocMarkupH mod id Text
 plainMarkup plainMod plainIdent = Markup {
-  markupEmpty                = "",
+  markupEmpty                = mempty,
   markupString               = id,
   markupParagraph            = id,
-  markupAppend               = (++),
+  markupAppend               = (<>),
   markupIdentifier           = plainIdent,
   markupIdentifierUnchecked  = plainMod,
   markupModule               = \(ModLink m lbl) -> fromMaybe m lbl,
@@ -83,9 +87,9 @@ plainMarkup plainMod plainIdent = Markup {
   markupEmphasis             = id,
   markupBold                 = id,
   markupMonospaced           = id,
-  markupUnorderedList        = const "",
-  markupOrderedList          = const "",
-  markupDefList              = const "",
+  markupUnorderedList        = mempty,
+  markupOrderedList          = mempty,
+  markupDefList              = mempty,
   markupCodeBlock            = id,
   markupHyperlink            = \(Hyperlink url lbl) -> fromMaybe url lbl,
   markupAName                = id,
@@ -93,7 +97,7 @@ plainMarkup plainMod plainIdent = Markup {
   markupMathInline           = id,
   markupMathDisplay          = id,
   markupProperty             = id,
-  markupExample              = const "",
+  markupExample              = mempty,
   markupHeader               = \(Header _ title) -> title,
-  markupTable                = const ""
+  markupTable                = mempty
   }

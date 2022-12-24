@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+{-# language TypeApplications #-}
 {-# LANGUAGE TransformListComp #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE Rank2Types #-}
@@ -28,6 +30,8 @@ import Haddock.Backends.Xhtml.Utils
 import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Doc (combineDocumentation)
+import Haddock.Utils
+import qualified Data.Text.Lazy as LText
 
 import           Data.List             ( intersperse, sort )
 import qualified Data.Map as Map
@@ -70,6 +74,8 @@ ppDecl summ links (L loc decl) pats (mbDoc, fnArgsDoc) instances fixities subdoc
   InstD _ _                      -> noHtml
   DerivD _ _                     -> noHtml
   _                              -> error "declaration not supported by ppDecl"
+
+{-# INLINE ppDecl #-}
 
 
 ppLFunSig :: Bool -> LinksInfo -> SrcSpan -> DocForDecl DocName ->
@@ -193,9 +199,9 @@ ppSubSigLike unicode qual typ argDocs subdocs sep emptyCtxts = do_sig_args 0 sep
     -- We need 'gadtComma' and 'gadtEnd' to line up with the `{` from
     -- 'gadtOpen', so we add 3 spaces to cover for `-> `/`:: ` (3 in unicode
     -- mode since `->` and `::` are rendered as single characters.
-    gadtComma = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml ","
-    gadtEnd = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml "}"
-    gadtOpen = toHtml "{"
+    gadtComma = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml @String ","
+    gadtEnd = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml @String "}"
+    gadtOpen = toHtml @String "{"
 
 
 ppFixities :: [(DocName, Fixity)] -> Qualification -> Html
@@ -205,6 +211,7 @@ ppFixities fs qual = foldr1 (+++) (map ppFix uniq_fs) +++ rightEdge
     ppFix (ns, p, d) = thespan ! [theclass "fixity"] <<
                          (toHtml d <+> toHtml (show p) <+> ppNames ns)
 
+    ppDir :: FixityDirection -> LText.Text
     ppDir InfixR = "infixr"
     ppDir InfixL = "infixl"
     ppDir InfixN = "infix"
@@ -369,7 +376,7 @@ ppFamHeader summary associated (FamilyDecl { fdInfo = info
 
 -- | Print the keywords that begin the family declaration
 ppFamilyLeader :: Bool -> FamilyInfo DocNameI -> Html
-ppFamilyLeader assoc info = keyword (typ ++ if assoc then "" else " family")
+ppFamilyLeader assoc info = keyword (typ <> if assoc then "" else " family")
   where
     typ = case info of
        OpenTypeFamily     -> "type"
@@ -459,7 +466,7 @@ ppContextNoLocsMaybe :: [HsType DocNameI] -> Unicode -> Qualification -> HideEmp
 ppContextNoLocsMaybe [] _ _ emptyCtxts =
   case emptyCtxts of
     HideEmptyContexts -> Nothing
-    ShowEmptyToplevelContexts -> Just (toHtml "()")
+    ShowEmptyToplevelContexts -> Just (toHtml @String "()")
 ppContextNoLocsMaybe cxt unicode qual _ = Just $ ppHsContext cxt unicode qual
 
 ppContext :: HsContext DocNameI -> Unicode -> Qualification -> HideEmptyContexts -> Html
@@ -622,14 +629,15 @@ ppClassDecl summary links instances fixities loc d subdocs
         -> noHtml
 
       -- Minimal complete definition = nothing
-      And [] : _ -> subMinimal $ toHtml "Nothing"
+      And [] : _ -> subMinimal $ toHtml @String "Nothing"
 
       m : _  -> subMinimal $ ppMinimal False m
       _ -> noHtml
 
     ppMinimal _ (Var (L _ n)) = ppDocName qual Prefix True n
-    ppMinimal _ (And fs) = foldr1 (\a b -> a+++", "+++b) $ map (ppMinimal True . unLoc) fs
-    ppMinimal p (Or fs) = wrap $ foldr1 (\a b -> a+++" | "+++b) $ map (ppMinimal False . unLoc) fs
+    ppMinimal _ (And fs) =
+      foldr1 (\a b -> a +++ asText ", " +++b) $ map (ppMinimal True . unLoc) fs
+    ppMinimal p (Or fs) = wrap $ foldr1 (\a b -> a +++ asText " | " +++ b) $ map (ppMinimal False . unLoc) fs
       where wrap | p = parens | otherwise = id
     ppMinimal p (Parens x) = ppMinimal p (unLoc x)
 
@@ -648,7 +656,7 @@ ppInstances links origin instances splice unicode pkg qual
   = subInstances pkg qual instName links True (zipWith instDecl [1..] instances)
   -- force Splice = True to use line URLs
   where
-    instName = getOccString origin
+    instName = getOccLText origin
     instDecl :: Int -> DocInstance DocNameI -> (SubDecl, Maybe Module, Located DocName)
     instDecl no (inst, mdoc, loc, mdl) =
         ((ppInstHead links splice unicode qual mdoc origin False no inst mdl), mdl, loc)
@@ -706,7 +714,7 @@ ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) m
             pdata = pref <+> typ
             pdecl = pdata <+> ppShortDataDecl False True dd [] unicode qual
   where
-    mname = maybe noHtml (\m -> toHtml "Defined in" <+> ppModule m) mdl
+    mname = maybe noHtml (\m -> toHtml @String "Defined in" <+> ppModule m) mdl
     iid = instanceId origin no orphan ihd
     typ = ppAppNameTypes ihdClsName ihdTypes unicode qual
 
@@ -734,13 +742,13 @@ lookupAnySubdoc :: Eq id1 => id1 -> [(id1, DocForDecl id2)] -> DocForDecl id2
 lookupAnySubdoc n = fromMaybe noDocForDecl . lookup n
 
 
-instanceId :: InstOrigin DocName -> Int -> Bool -> InstHead DocNameI -> String
-instanceId origin no orphan ihd = concat $
-    [ "o:" | orphan ] ++
+instanceId :: InstOrigin DocName -> Int -> Bool -> InstHead DocNameI -> LText
+instanceId origin no orphan ihd = LText.concat $
+    [ "o:" | orphan ] <>
     [ qual origin
-    , ":" ++ getOccString origin
-    , ":" ++ getOccString (ihdClsName ihd)
-    , ":" ++ show no
+    , ":" <> getOccLText origin
+    , ":" <> getOccLText (ihdClsName ihd)
+    , ":" <> LText.pack (show no)
     ]
   where
     qual (OriginClass _) = "ic"
@@ -1018,7 +1026,7 @@ ppConstrHdr forall_ tvs ctxt unicode qual = ppForall +++ ppCtxt
     ppCtxt
       | null ctxt = noHtml
       | otherwise = ppContextNoArrow ctxt unicode qual HideEmptyContexts
-                      <+> darrow unicode +++ toHtml " "
+                      <+> darrow unicode +++ toHtml @String " "
 
 
 -- | Pretty-print a record field
@@ -1108,8 +1116,8 @@ ppDataHeader _ _ _ _ = error "ppDataHeader: illegal argument"
 
 
 ppBang :: HsSrcBang -> Html
-ppBang (HsSrcBang _ _ SrcStrict) = toHtml "!"
-ppBang (HsSrcBang _ _ SrcLazy)   = toHtml "~"
+ppBang (HsSrcBang _ _ SrcStrict) = toHtml @String "!"
+ppBang (HsSrcBang _ _ SrcLazy)   = toHtml @String "~"
 ppBang _                         = noHtml
 
 
@@ -1148,7 +1156,7 @@ ppLHsTypeArg :: Unicode -> Qualification -> HideEmptyContexts -> LHsTypeArg DocN
 ppLHsTypeArg unicode qual emptyCtxts (HsValArg ty) = ppLParendType unicode qual emptyCtxts ty
 ppLHsTypeArg unicode qual emptyCtxts (HsTypeArg _ ki) = atSign unicode <>
                                                        ppLParendType unicode qual emptyCtxts ki
-ppLHsTypeArg _ _ _ (HsArgPar _) = toHtml ""
+ppLHsTypeArg _ _ _ (HsArgPar _) = toHtml @String ""
 
 class RenderableBndrFlag flag where
   ppHsTyVarBndr :: Unicode -> Qualification -> HsTyVarBndr flag DocNameI -> Html
@@ -1236,7 +1244,7 @@ ppr_mono_ty (HsQualTy _ ctxt ty) unicode qual emptyCtxts
 
 -- UnicodeSyntax alternatives
 ppr_mono_ty (HsTyVar _ _ (L _ name)) True _ _
-  | getOccString (getName name) == "(->)" = toHtml "(→)"
+  | getOccString (getName name) == "(->)" = toHtml @String "(→)"
 
 ppr_mono_ty (HsBangTy _ b ty) u q _ =
   ppBang b +++ ppLParendType u q HideEmptyContexts ty
@@ -1244,7 +1252,7 @@ ppr_mono_ty (HsTyVar _ prom (L _ name)) _ q _
   | isPromoted prom = promoQuote (ppDocName q Prefix True name)
   | otherwise = ppDocName q Prefix True name
 ppr_mono_ty (HsStarTy _ isUni) u _ _ =
-  toHtml (if u || isUni then "★" else "*")
+  toHtml @String (if u || isUni then "★" else "*")
 ppr_mono_ty (HsFunTy _ mult ty1 ty2) u q e =
   hsep [ ppr_mono_lty ty1 u q HideEmptyContexts
        , arr <+> ppr_mono_lty ty2 u q e
@@ -1264,7 +1272,7 @@ ppr_mono_ty (HsListTy _ ty)       u q _ = brackets (ppr_mono_lty ty u q HideEmpt
 ppr_mono_ty (HsIParamTy _ (L _ n) ty) u q _ =
   ppIPName n <+> dcolon u <+> ppr_mono_lty ty u q HideEmptyContexts
 ppr_mono_ty (HsSpliceTy v _) _ _ _ = absurd v
-ppr_mono_ty (HsRecTy {})        _ _ _ = toHtml "{..}"
+ppr_mono_ty (HsRecTy {})        _ _ _ = toHtml @String "{..}"
        -- Can now legally occur in ConDeclGADT, the output here is to provide a
        -- placeholder in the signature, which is followed by the field
        -- declarations.

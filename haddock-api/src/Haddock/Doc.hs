@@ -8,6 +8,7 @@ import Data.Maybe
 import Documentation.Haddock.Doc
 import Haddock.Types
 import Haddock.Utils (mkMeta)
+import qualified Data.Text.Lazy as Text
 
 combineDocumentation :: Documentation name -> Maybe (MDoc name)
 combineDocumentation (Documentation Nothing Nothing) = Nothing
@@ -15,6 +16,8 @@ combineDocumentation (Documentation mDoc mWarning)   =
   Just (maybe emptyMetaDoc mkMeta mWarning
         `metaDocAppend`
         fromMaybe emptyMetaDoc mDoc)
+
+{-# INLINE combineDocumentation #-}
 
 -- Drop trailing whitespace from @..@ code blocks.  Otherwise this:
 --
@@ -28,7 +31,9 @@ combineDocumentation (Documentation mDoc mWarning)   =
 --
 docCodeBlock :: DocH mod id -> DocH mod id
 docCodeBlock (DocString s)
-  = DocString (reverse $ dropWhile (`elem` " \t") $ reverse s)
+  = DocString (Text.dropWhileEnd (`elem` " \t") s)
 docCodeBlock (DocAppend l r)
   = DocAppend l (docCodeBlock r)
 docCodeBlock d = d
+
+{-# INLINE docCodeBlock #-}

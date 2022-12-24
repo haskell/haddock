@@ -1,4 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE BangPatterns, RecordWildCards #-}
+{-# LANGUAGE DerivingStrategies, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
@@ -16,8 +17,6 @@
 module Haddock.Interface.Rename (renameInterface) where
 
 
-import Data.Traversable (mapM)
-
 import Haddock.GhcUtils
 import Haddock.Types
 
@@ -29,13 +28,13 @@ import GHC.Builtin.Types (eqTyCon_RDR)
 
 import Data.Foldable (traverse_)
 import Control.Applicative
-import Control.Arrow ( first )
-import Control.Monad hiding (mapM)
-import Data.List (intercalate)
+import Control.Monad
+import Control.Monad.Reader (ReaderT, runReaderT, MonadReader(..), asks)
+import Control.Monad.State.Strict (State, runState, MonadState, modify')
 import qualified Data.Map as Map hiding ( Map )
 import qualified Data.Set as Set
+import Data.Set (Set)
 import Prelude hiding (mapM)
-import GHC.HsToCore.Docs
 import GHC.Types.Basic ( TopLevelFlag(..) )
 
 -- | Traverse docstrings and ASTs in the Haddock interface, renaming 'Name' to
@@ -46,35 +45,16 @@ import GHC.Types.Basic ( TopLevelFlag(..) )
 --
 -- The renamed output gets written into fields in the Haddock interface record
 -- that were previously left empty.
-renameInterface :: DynFlags -> [String] -> LinkEnv -> Bool -> Interface -> ErrMsgM Interface
-renameInterface _dflags ignoredSymbols renamingEnv warnings iface =
+renameInterface :: ReportErrorMessage m => DynFlags -> Set String -> LinkEnv -> Bool -> Interface -> m Interface
+renameInterface _dflags ignoredSymbols renamingEnv warnings iface = do
 
   -- first create the local env, where every name exported by this module
   -- is mapped to itself, and everything else comes from the global renaming
   -- env
-  let localEnv = foldl fn renamingEnv (ifaceVisibleExports iface)
-        where fn env name = Map.insert name (ifaceMod iface) env
-
-      -- rename names in the exported declarations to point to things that
-      -- are closer to, or maybe even exported by, the current module.
-      (renamedExportItems, missingNames1)
-        = runRnFM localEnv (renameExportItems (ifaceExportItems iface))
-
-      (rnDocMap, missingNames2) = runRnFM localEnv (mapM renameDoc (ifaceDocMap iface))
-
-      (rnArgMap, missingNames3) = runRnFM localEnv (mapM (mapM renameDoc) (ifaceArgMap iface))
-
-      (renamedOrphanInstances, missingNames4)
-        = runRnFM localEnv (mapM renameDocInstance (ifaceOrphanInstances iface))
-
-      (finalModuleDoc, missingNames5)
-        = runRnFM localEnv (renameDocumentation (ifaceDoc iface))
-
-      -- combine the missing names and filter out the built-ins, which would
-      -- otherwise always be missing.
-      missingNames = nubByName id $ filter isExternalName  -- XXX: isExternalName filters out too much
-                    (missingNames1 ++ missingNames2 ++ missingNames3
-                     ++ missingNames4 ++ missingNames5)
+  let localEnv =
+        Map.union
+          (Map.fromList (map (\name -> (name, ifaceMod iface)) (ifaceVisibleExports iface)))
+          renamingEnv
 
       -- Filter out certain built in type constructors using their string
       -- representation.
@@ -82,33 +62,43 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface =
       -- Note that since the renamed AST represents equality constraints as
       -- @HasOpTy t1 eqTyCon_RDR t2@ (and _not_ as @HsEqTy t1 t2@), we need to
       -- manually filter out 'eqTyCon_RDR' (aka @~@).
+      filterName name
+        | not warnings
+          = False
+        | otherwise
+          = isExternalName name
+          && not (isSystemName name)
+          && not (isBuiltInSyntax name)
+          && Exact name /= eqTyCon_RDR
+
+      -- rename names in the exported declarations to point to things that
+      -- are closer to, or maybe even exported by, the current module.
+      (renamedIface, missingNames) =
+        runRnFM localEnv filterName $ renameInterfaceRn iface
 
       qualifiedName n = (moduleNameString $ moduleName $ nameModule n) <> "." <> getOccString n
 
-      ignoreSet = Set.fromList ignoredSymbols
+      strings =
+        map errMsgFromString
+        -- while this could be a `Set.difference`, it would require mapping
+        -- over the `Set` with the qualification, which would reconstruct it.
+        -- this is probably more wasteful than converting to a list, qualifying
+        -- the names, and then filtering them. the name isn't filtered at the
+        -- initial filter since we'd need to call qualifiedName twice for each
+        -- name, which is a wasteful string concatenation.
+        . filter (\name -> name `Set.member` ignoredSymbols)
+        . map qualifiedName
+        . Set.toList
+        $ missingNames
 
-      strings = [ errMsgFromString (qualifiedName n)
+  -- report things that we couldn't link to. Only do this for non-hidden
+  -- modules.
+  unless (OptHide `elem` ifaceOptions iface || null strings || not warnings) $ do
+    reportErrorMessage $ "Warning: " <> fromString (moduleString (ifaceMod iface)) <>
+          ": could not find link destinations for: "
+    traverse_ (reportErrorMessage . mappend "\t- ") strings
 
-                | n <- missingNames
-                , not (qualifiedName n `Set.member` ignoreSet)
-                , not (isSystemName n)
-                , not (isBuiltInSyntax n)
-                , Exact n /= eqTyCon_RDR
-                ]
-
-  in do
-    -- report things that we couldn't link to. Only do this for non-hidden
-    -- modules.
-    unless (OptHide `elem` ifaceOptions iface || null strings || not warnings) $ do
-      reportErrorMessage $ "Warning: " <> fromString (moduleString (ifaceMod iface)) <>
-            ": could not find link destinations for: "
-      traverse_ (reportErrorMessage . mappend "\t- ") strings
-
-    return $ iface { ifaceRnDoc         = finalModuleDoc,
-                     ifaceRnDocMap      = rnDocMap,
-                     ifaceRnArgMap      = rnArgMap,
-                     ifaceRnExportItems = renamedExportItems,
-                     ifaceRnOrphanInstances = renamedOrphanInstances}
+  return renamedIface
 
 
 --------------------------------------------------------------------------------
@@ -117,60 +107,74 @@ renameInterface _dflags ignoredSymbols renamingEnv warnings iface =
 
 
 -- | The monad does two things for us: it passes around the environment for
--- renaming, and it returns a list of names which couldn't be found in
+-- renaming, and it returns a 'Set' of 'Name's which couldn't be found in
 -- the environment.
-newtype RnM a =
-  RnM { unRn :: (Name -> (Bool, DocName))
-                -- Name lookup function. The 'Bool' indicates that if the name
-                -- was \"found\" in the environment.
+--
+-- However, storing a @'Set' 'Name'@ can result in a huge memory blowup. To
+-- avoid this problem, we also want to have a filtering function that will
+-- prevent names from being recorded if they don't pass the filter.
+newtype RnM a = RnM { unRn :: ReaderT RnMEnv (State (Set Name)) a }
+  deriving newtype (Functor, Applicative, Monad, MonadReader RnMEnv, MonadState (Set Name))
 
-             -> (a, [Name] -> [Name])
-                -- Value returned, as well as a difference list of the names not
-                -- found
-      }
-
-instance Monad RnM where
-  m >>= k = RnM $ \lkp -> let (a, out1) = unRn m lkp
-                              (b, out2) = unRn (k a) lkp
-                          in (b, out1 . out2)
-
-instance Functor RnM where
-  fmap f (RnM lkp) = RnM (first f . lkp)
-
-instance Applicative RnM where
-  pure a = RnM (const (a, id))
-  mf <*> mx = RnM $ \lkp -> let (f, out1) = unRn mf lkp
-                                (x, out2) = unRn mx lkp
-                            in (f x, out1 . out2)
+data RnMEnv = RnMEnv
+  { rnMLookup :: Name -> (Bool, DocName)
+  -- ^ Lookup a name in the environment. Returns whether or not the 'Name' was
+  -- present in the environment, as well as the 'DocName' that corresponds to it.
+  , rnShouldRecordName :: Name -> Bool
+  -- ^ Whether we should record the given 'Name' in the set.
+  }
 
 -- | Look up a 'Name' in the renaming environment.
 lookupRn :: Name -> RnM DocName
-lookupRn name = RnM $ \lkp ->
-  case lkp name of
-    (False,maps_to) -> (maps_to, (name :))
-    (True, maps_to) -> (maps_to, id)
+lookupRn name = do
+  (isFound, mapsTo) <- lookupNameEnv name
+  shouldRecord <- asks $ \env -> rnShouldRecordName env name
+  when (not isFound && shouldRecord) $ do
+    modify' (Set.insert name)
+  pure mapsTo
+
+lookupNameEnv :: Name -> RnM (Bool, DocName)
+lookupNameEnv name = do
+  (!y, !m) <- asks $ \env -> rnMLookup env name
+  pure (y, m)
 
 -- | Look up a 'Name' in the renaming environment, but don't warn if you don't
 -- find the name. Prefer to use 'lookupRn' whenever possible.
 lookupRnNoWarn :: Name -> RnM DocName
-lookupRnNoWarn name = RnM $ \lkp -> (snd (lkp name), id)
+lookupRnNoWarn name = do
+  (_, mapsTo) <- lookupNameEnv name
+  pure $! mapsTo
 
 -- | Run the renamer action using lookup in a 'LinkEnv' as the lookup function.
 -- Returns the renamed value along with a list of `Name`'s that could not be
 -- renamed because they weren't in the environment.
-runRnFM :: LinkEnv -> RnM a -> (a, [Name])
-runRnFM env rn = let (x, dlist) = unRn rn lkp in (x, dlist [])
+runRnFM :: LinkEnv -> (Name -> Bool) -> RnM a -> (a, Set Name)
+runRnFM env shouldRecord rn = runState (runReaderT (unRn rn) (RnMEnv lkp shouldRecord)) mempty
   where
     lkp n | isTyVarName n = (True, Undocumented n)
           | otherwise = case Map.lookup n env of
                           Nothing  -> (False, Undocumented n)
-                          Just mdl -> (True,  Documented n mdl)
+                          Just !mdl -> (True,  Documented n mdl)
 
 
 --------------------------------------------------------------------------------
 -- Renaming
 --------------------------------------------------------------------------------
 
+renameInterfaceRn :: Interface -> RnM Interface
+renameInterfaceRn iface = do
+  exportItems <- renameExportItems (ifaceExportItems iface)
+  docMap <- mapM renameDoc (ifaceDocMap iface)
+  argMap <- mapM (mapM renameDoc) (ifaceArgMap iface)
+  orphans <- mapM renameDocInstance (ifaceOrphanInstances iface)
+  finalModDoc <- renameDocumentation (ifaceDoc iface)
+  pure $! iface
+    { ifaceRnDoc         = finalModDoc
+    , ifaceRnDocMap      = docMap
+    , ifaceRnArgMap      = argMap
+    , ifaceRnExportItems = exportItems
+    , ifaceRnOrphanInstances = orphans
+    }
 
 rename :: Name -> RnM DocName
 rename = lookupRn

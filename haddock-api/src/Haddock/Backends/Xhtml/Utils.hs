@@ -1,3 +1,7 @@
+{-# language OverloadedStrings #-}
+{-# language TypeApplications #-}
+{-# language ViewPatterns #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Util
@@ -34,11 +38,11 @@ module Haddock.Backends.Xhtml.Utils (
 
 import Haddock.Utils
 
-import Data.Maybe
-
 import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
 import GHC              ( SrcSpan(..), srcSpanStartLine, Name )
 import GHC.Unit.Module ( Module, ModuleName, moduleName, moduleNameString )
 import GHC.Types.Name   ( getOccString, nameOccName, isValOcc )
@@ -52,79 +56,102 @@ import GHC.Types.Name   ( getOccString, nameOccName, isValOcc )
 -- >>> spliceURL Nothing mmod mname Nothing "output/%{MODULE}.hs#%{NAME}"
 -- "output/Foo.hs#foo"
 spliceURL :: Maybe FilePath -> Maybe Module -> Maybe GHC.Name ->
-             Maybe SrcSpan -> String -> String
+             Maybe SrcSpan -> LText -> LText
 spliceURL mfile mmod = spliceURL' mfile (moduleName <$> mmod)
 
 
 -- | Same as 'spliceURL' but takes 'ModuleName' instead of 'Module'.
 spliceURL' :: Maybe FilePath -> Maybe ModuleName -> Maybe GHC.Name ->
-              Maybe SrcSpan -> String -> String
+              Maybe SrcSpan -> LText -> LText
 spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
  where
-  file = fromMaybe "" maybe_file
+  file = maybe "" LText.pack maybe_file
   mdl = case maybe_mod of
           Nothing           -> ""
-          Just m -> moduleNameString m
+          Just m -> LText.pack $ moduleNameString m
 
   (name, kind) =
     case maybe_name of
       Nothing             -> ("","")
-      Just n | isValOcc (nameOccName n) -> (escapeStr (getOccString n), "v")
-             | otherwise -> (escapeStr (getOccString n), "t")
+      Just n | isValOcc (nameOccName n) -> (escapeStr (getOccLText n), "v")
+             | otherwise -> (escapeStr (getOccLText n), "t")
 
   line = case maybe_loc of
     Nothing -> ""
     Just span_ ->
       case span_ of
       RealSrcSpan span__ _ ->
-        show $ srcSpanStartLine span__
+        LText.pack $ show $ srcSpanStartLine span__
       UnhelpfulSpan _ -> ""
 
-  run "" = ""
-  run ('%':'M':rest) = mdl  ++ run rest
-  run ('%':'F':rest) = file ++ run rest
-  run ('%':'N':rest) = name ++ run rest
-  run ('%':'K':rest) = kind ++ run rest
-  run ('%':'L':rest) = line ++ run rest
-  run ('%':'%':rest) = '%'   : run rest
+  run txt =
+    case LText.uncons txt of
+      Nothing ->
+        txt
+      Just ('%', (LText.uncons -> Just (c, rest)))
+        | c == 'M' ->
+            mdl <> run rest
+        | c == 'F' ->
+            file <> run rest
+        | c == 'N' ->
+            name <> run rest
+        | c == 'K' ->
+            kind <> run rest
+        | c == 'L' ->
+            line <> run rest
+        | c == '%' ->
+            "%" <> run rest
+        | c == '{'  ->
+            case rest of
+                (LText.stripPrefix "MODULE}" -> Just rest') ->
+                    mdl <> run rest'
+                (LText.stripPrefix "FILE}" -> Just rest') ->
+                    file <> run rest'
+                (LText.stripPrefix "NAME}" -> Just rest') ->
+                    name <> run rest'
+                (LText.stripPrefix "KIND}" -> Just rest') ->
+                    kind <> run rest'
+                (LText.stripPrefix "MODULE/./" -> Just (LText.uncons -> Just (c', LText.uncons -> Just ('}', rest')))) ->
+                    LText.map (\x -> if x == '.' then c' else x) mdl <> run rest'
+                (LText.stripPrefix "FILE///" -> Just (LText.uncons -> Just (c', LText.uncons -> Just ('}', rest')))) ->
+                    LText.map (\x -> if x == '/' then c' else x) file <> run rest'
+                (LText.stripPrefix "LINE}" -> Just rest') ->
+                    line <> run rest'
+                _ ->
+                    error $ "Invalid '{' pattern in spliceURL:" <> LText.unpack txt
+        | otherwise ->
+            error $ "Invalid pattern in spliceURL: " <> LText.unpack txt
+      Just (c, rest) ->
+        LText.cons c (run rest)
 
-  run ('%':'{':'M':'O':'D':'U':'L':'E':'}':rest) = mdl  ++ run rest
-  run ('%':'{':'F':'I':'L':'E':'}':rest)         = file ++ run rest
-  run ('%':'{':'N':'A':'M':'E':'}':rest)         = name ++ run rest
-  run ('%':'{':'K':'I':'N':'D':'}':rest)         = kind ++ run rest
-
-  run ('%':'{':'M':'O':'D':'U':'L':'E':'/':'.':'/':c:'}':rest) =
-    map (\x -> if x == '.' then c else x) mdl ++ run rest
-
-  run ('%':'{':'F':'I':'L':'E':'/':'/':'/':c:'}':rest) =
-    map (\x -> if x == '/' then c else x) file ++ run rest
-
-  run ('%':'{':'L':'I':'N':'E':'}':rest)         = line ++ run rest
-
-  run (c:rest) = c : run rest
-
-
-renderToString :: Bool -> Html -> String
+renderToString :: Bool -> Html -> Builder
 renderToString debug html
   | debug = renderHtml html
   | otherwise = showHtml html
+
+{-# INLINE renderToString #-}
 
 
 hsep :: [Html] -> Html
 hsep [] = noHtml
 hsep htmls = foldr1 (<+>) htmls
 
+{-# INLINE hsep #-}
+
 -- | Concatenate a series of 'Html' values vertically, with linebreaks in between.
 vcat :: [Html] -> Html
 vcat [] = noHtml
 vcat htmls = foldr1 (\a b -> a+++br+++b) htmls
 
+{-# INLINE vcat #-}
 
 infixr 8 <+>
 (<+>) :: Html -> Html -> Html
 a <+> b = a +++ sep +++ b
   where
-    sep = if isNoHtml a || isNoHtml b then noHtml else toHtml " "
+    sep = if isNoHtml a || isNoHtml b then noHtml else toHtml (asText " ")
+
+{-# INLINE (<+>) #-}
 
 -- | Join two 'Html' values together with a linebreak in between.
 --   Has 'noHtml' as left identity.
@@ -134,8 +161,10 @@ a <=> b = a +++ sep +++ b
   where
     sep = if isNoHtml a then noHtml else br
 
+{-# INLINE (<=>) #-}
 
-keyword :: String -> Html
+
+keyword :: Text -> Html
 keyword s = thespan ! [theclass "keyword"] << toHtml s
 
 
@@ -160,8 +189,13 @@ promoQuote h = char '\'' +++ h
 parens, brackets, pabrackets, braces :: Html -> Html
 parens h        = char '(' +++ h +++ char ')'
 brackets h      = char '[' +++ h +++ char ']'
-pabrackets h    = toHtml "[:" +++ h +++ toHtml ":]"
+pabrackets h    = toHtml @String "[:" +++ h +++ toHtml @String ":]"
 braces h        = char '{' +++ h +++ char '}'
+
+{-# INLINE parens #-}
+{-# INLINE brackets #-}
+{-# INLINE pabrackets #-}
+{-# INLINE braces #-}
 
 
 punctuate :: Html -> [Html] -> [Html]
@@ -171,50 +205,72 @@ punctuate h (d0:ds) = go d0 ds
                      go d [] = [d]
                      go d (e:es) = (d +++ h) : go e es
 
+{-# INLINE punctuate #-}
 
 parenList :: [Html] -> Html
 parenList = parens . hsep . punctuate comma
+
+{-# INLINE parenList #-}
 
 
 ubxParenList :: [Html] -> Html
 ubxParenList = ubxparens . hsep . punctuate comma
 
+{-# INLINE ubxParenList #-}
+
 
 ubxSumList :: [Html]  -> Html
-ubxSumList = ubxparens . hsep . punctuate (toHtml " | ")
+ubxSumList = ubxparens . hsep . punctuate (toHtml @String " | ")
 
+{-# INLINE ubxSumList #-}
 
 ubxparens :: Html -> Html
-ubxparens h = toHtml "(#" <+> h <+> toHtml "#)"
+ubxparens h = toHtml @String "(#" <+> h <+> toHtml @String "#)"
+
+{-# INLINE ubxparens #-}
 
 
 dcolon, arrow, lollipop, darrow, forallSymbol, atSign :: Bool -> Html
-dcolon unicode = toHtml (if unicode then "∷" else "::")
-arrow  unicode = toHtml (if unicode then "→" else "->")
-lollipop unicode = toHtml (if unicode then "⊸" else "%1 ->")
-darrow unicode = toHtml (if unicode then "⇒" else "=>")
-forallSymbol unicode = if unicode then toHtml "∀" else keyword "forall"
-atSign unicode = toHtml (if unicode then "@" else "@")
+dcolon unicode = toHtml @String (if unicode then "∷" else "::")
+arrow  unicode = toHtml @String (if unicode then "→" else "->")
+lollipop unicode = toHtml @String (if unicode then "⊸" else "%1 ->")
+darrow unicode = toHtml @String (if unicode then "⇒" else "=>")
+forallSymbol unicode = if unicode then toHtml @String "∀" else keyword "forall"
+atSign unicode = toHtml @String (if unicode then "@" else "@")
+
+{-# INLINE dcolon #-}
+{-# INLINE  arrow #-}
+{-# INLINE  lollipop #-}
+{-# INLINE  darrow #-}
+{-# INLINE  forallSymbol #-}
+{-# INLINE  atSign #-}
 
 multAnnotation :: Html
-multAnnotation = toHtml "%"
+multAnnotation = toHtml @String "%"
+
+{-# INLINE multAnnotation #-}
 
 dot :: Html
-dot = toHtml "."
+dot = toHtml @String "."
 
+{-# INLINE dot #-}
 
 -- | Generate a named anchor
-namedAnchor :: String -> Html -> Html
+namedAnchor :: LText -> Html -> Html
 namedAnchor n = anchor ! [XHtml.identifier n]
 
+{-# INLINE namedAnchor #-}
 
-linkedAnchor :: String -> Html -> Html
-linkedAnchor n = anchor ! [href ('#':n)]
+linkedAnchor :: LText -> Html -> Html
+linkedAnchor n = anchor ! [href ("#" <> n)]
 
+{-# INLINE linkedAnchor #-}
 
 -- | generate an anchor identifier for a group
-groupId :: String -> String
-groupId g = makeAnchorId ("g:" ++ g)
+groupId :: LText -> LText
+groupId g = makeAnchorId ("g:" <> g)
+
+{-# INLINE groupId #-}
 
 --
 -- A section of HTML which is collapsible.
@@ -222,20 +278,24 @@ groupId g = makeAnchorId ("g:" ++ g)
 
 data DetailsState = DetailsOpen | DetailsClosed
 
-collapseDetails :: String -> DetailsState -> Html -> Html
+collapseDetails :: LText -> DetailsState -> Html -> Html
 collapseDetails id_ state = tag "details" ! (identifier id_ : openAttrs)
   where openAttrs = case state of { DetailsOpen -> [emptyAttr "open"]; DetailsClosed -> [] }
+
+{-# INLINE collapseDetails #-}
 
 thesummary :: Html -> Html
 thesummary = tag "summary"
 
+{-# INLINE thesummary #-}
+
 -- | Attributes for an area that toggles a collapsed area
-collapseToggle :: String -> String -> [HtmlAttr]
+collapseToggle :: LText -> LText -> [HtmlAttr]
 collapseToggle id_ classes = [ theclass cs, strAttr "data-details-id" id_ ]
-  where cs = unwords (words classes ++ ["details-toggle"])
+  where cs = LText.unwords (LText.words classes ++ ["details-toggle"])
 
 -- | Attributes for an area that toggles a collapsed area,
 -- and displays a control.
-collapseControl :: String -> String -> [HtmlAttr]
+collapseControl :: LText -> LText -> [HtmlAttr]
 collapseControl id_ classes = collapseToggle id_ cs
-  where cs = unwords (words classes ++ ["details-toggle-control"])
+  where cs = LText.unwords (LText.words classes ++ ["details-toggle-control"])

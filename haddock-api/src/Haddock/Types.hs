@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -35,10 +37,14 @@ module Haddock.Types (
   , runWriter
   , tell
   , fromString
+  , Builder
  ) where
 
 import qualified Data.Text as Text
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Lazy.Encoding as LText
 import Data.String
 import Control.DeepSeq
 import Control.Exception (throw)
@@ -57,6 +63,7 @@ import GHC.Types.Basic (PromotionFlag(..))
 import GHC.Types.Fixity (Fixity(..))
 import GHC.Types.Var (Specificity)
 import Data.ByteString.Builder
+import qualified Data.ByteString.Builder.Prim as P
 import qualified Data.List  as List
 import Control.Monad.Trans (lift)
 import qualified Data.ByteString.Lazy as BSL
@@ -80,8 +87,7 @@ type SubMap        = Map Name [Name]
 type DeclMap       = Map Name [LHsDecl GhcRn]
 type InstMap       = Map RealSrcSpan Name
 type FixMap        = Map Name Fixity
-type DocPaths      = (FilePath, Maybe FilePath) -- paths to HTML and sources
-
+type DocPaths      = (Text, Maybe Text) -- paths to HTML and sources
 
 -----------------------------------------------------------------------------
 -- * Interface
@@ -271,7 +277,7 @@ data ExportItem name
         expItemSectionLevel :: !Int
 
         -- | Section id (for hyperlinks).
-      , expItemSectionId :: !String
+      , expItemSectionId :: !Text
 
         -- | Section heading text.
       , expItemSectionText :: !(Doc (IdP name))
@@ -378,10 +384,10 @@ instance Outputable n => Outputable (Wrap n) where
   ppr (Parenthesized n) = hcat [ char '(', ppr n, char ')' ]
   ppr (Backticked n)    = hcat [ char '`', ppr n, char '`' ]
 
-showWrapped :: (a -> String) -> Wrap a -> String
+showWrapped :: (a -> Text) -> Wrap a -> Text
 showWrapped f (Unadorned n) = f n
-showWrapped f (Parenthesized n) = "(" ++ f n ++ ")"
-showWrapped f (Backticked n) = "`" ++ f n ++ "`"
+showWrapped f (Parenthesized n) = "(" <> f n <> ")"
+showWrapped f (Backticked n) = "`" <> f n <> "`"
 
 instance HasOccName DocName where
 
@@ -543,9 +549,9 @@ instance NFData id => NFData (TableRow id) where
 instance NFData id => NFData (TableCell id) where
     rnf (TableCell i j c) = i `deepseq` j `deepseq` c `deepseq` ()
 
-exampleToString :: Example -> String
+exampleToString :: Example -> Text
 exampleToString (Example expression result) =
-    ">>> " ++ expression ++ "\n" ++  unlines result
+    ">>> "  <>  expression  <>  "\n"  <>   LText.unlines result
 
 data HaddockModInfo name = HaddockModInfo
   { hmi_description :: Maybe (Doc name)
@@ -655,29 +661,46 @@ type ErrMsg = Builder
 
 errMsgFromString :: String -> ErrMsg
 errMsgFromString = fromString
+{-# INLINE errMsgFromString #-}
 
 errMsgToString :: ErrMsg -> String
-errMsgToString = Text.unpack . Text.decodeUtf8 . BSL.toStrict . toLazyByteString
+errMsgToString = LText.unpack . LText.decodeUtf8 . toLazyByteString
+{-# INLINE errMsgToString #-}
 
 errMsgUnlines :: [ErrMsg] -> ErrMsg
-errMsgUnlines = mconcat . List.intersperse (charUtf8 '\n')
+errMsgUnlines = go
+  where
+    go [] = mempty
+    go (x:xs) = x <> charUtf8 '\n' <> go xs
+{-# INLINE errMsgUnlines #-}
 
 class Monad m => ReportErrorMessage m where
     reportErrorMessage :: Builder -> m ()
 
+instance ReportErrorMessage Ghc where
+    reportErrorMessage =
+        liftIO . BSL.putStr . toLazyByteString . (<> charUtf8 '\n')
+    {-# INLINE reportErrorMessage #-}
+
 instance ReportErrorMessage m => ReportErrorMessage (ReaderT r m) where
     reportErrorMessage = lift . reportErrorMessage
+    {-# INLINE reportErrorMessage #-}
 
 #if !MIN_VERSION_mtl(2,3,0)
 -- | @since 2.3
 instance (Monoid w, Monad m) => MonadWriter w (CPS.WriterT w m) where
     writer = CPS.writer
+    {-# INLINE writer #-}
     tell   = CPS.tell
+    {-# INLINE tell #-}
     listen = CPS.listen
+    {-# INLINE listen #-}
     pass   = CPS.pass
+    {-# INLINE pass #-}
 #endif
 
 instance Monad m => ReportErrorMessage (WriterT ErrorMessages m) where
+    {-# INLINE reportErrorMessage #-}
     reportErrorMessage = tell . singleMessage
 
 newtype ErrMsgM a = ErrMsgM { unErrMsgM :: Writer ErrorMessages a }
@@ -691,6 +714,7 @@ runErrMsgM = runWriter . unErrMsgM
 
 singleMessage :: Builder -> ErrorMessages
 singleMessage m = ErrorMessages $ (m :)
+{-# INLINE singleMessage #-}
 
 errorMessagesToList :: ErrorMessages -> [Builder]
 errorMessagesToList messages = unErrorMessages messages []

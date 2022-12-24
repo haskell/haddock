@@ -45,6 +45,8 @@ import Haddock.InterfaceFile
 import Haddock.Options
 import Haddock.Utils
 import Haddock.GhcUtils (modifySessionDynFlags, setOutputDir)
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.IO as LText
 
 import Control.Monad hiding (forM_)
 import Control.Monad.IO.Class (MonadIO(..))
@@ -285,7 +287,7 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
   updateHTMLXRefs (map (\(docPath, _ifaceFilePath, _showModules, ifaceFile) ->
                           ( case baseUrl flags of
                               Nothing  -> fst docPath
-                              Just url -> url </> packageName (ifUnitId ifaceFile)
+                              Just url -> url <//> packageName (ifUnitId ifaceFile)
                           , ifaceFile)) pkgs)
   let
     installedIfaces =
@@ -300,15 +302,15 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
   render logger dflags unit_state flags sinceQual nameQual interfaces installedIfaces extSrcMap
   where
     -- get package name from unit-id
-    packageName :: Unit -> String
-    packageName unit =
+    packageName :: Unit -> LText
+    packageName unit = LText.pack $
       case lookupUnit unit_state unit of
         Nothing  -> show unit
         Just pkg -> unitPackageNameString pkg
 
 -- | Render the interfaces with whatever backend is specified in the flags.
 render :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption -> [Interface]
-       -> [(FilePath, PackageInterfaces)] -> Map Module FilePath -> IO ()
+       -> [(FilePath, PackageInterfaces)] -> Map Module LText -> IO ()
 render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = do
 
   let
@@ -318,23 +320,23 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
                                                  $ optPackageVersion flags
                               }
 
-    title                = fromMaybe "" (optTitle flags)
+    title                = LText.pack $ fromMaybe "" (optTitle flags)
     unicode              = Flag_UseUnicode `elem` flags
     pretty               = Flag_PrettyHtml `elem` flags
     opt_wiki_urls        = wikiUrls          flags
     opt_base_url         = baseUrl           flags
-    opt_contents_url     = optContentsUrl    flags
-    opt_index_url        = optIndexUrl       flags
+    opt_contents_url     = LText.pack <$> optContentsUrl    flags
+    opt_index_url        = LText.pack <$> optIndexUrl       flags
     odir                 = outputDir         flags
     opt_latex_style      = optLaTeXStyle     flags
     opt_source_css       = optSourceCssFile  flags
-    opt_mathjax          = optMathjax        flags
+    opt_mathjax          = LText.pack <$> optMathjax        flags
     dflags'
       | unicode          = gopt_set dflags Opt_PrintUnicodeSyntax
       | otherwise        = dflags
     logger               = setLogFlags log' (initLogFlags dflags')
 
-    visibleIfaces    = [ i | i <- ifaces, OptHide `notElem` ifaceOptions i ]
+    visibleIfaces    = [i | i <- ifaces, OptHide `notElem` ifaceOptions i]
 
     -- /All/ interfaces including external package modules, grouped by
     -- interface file (package).
@@ -365,7 +367,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
 
     pkgMod           = fmap ifaceMod (listToMaybe ifaces)
     pkgKey           = fmap moduleUnit pkgMod
-    pkgStr           = fmap unitString pkgKey
+    pkgStr           = fmap (fastStringToLText . unitFS) pkgKey
     pkgNameVer       = modulePackageInfo unit_state flags pkgMod
     pkgName          = fmap (unpackFS . (\(PackageName n) -> n)) (fst pkgNameVer)
     sincePkg         = case sinceQual of
@@ -437,12 +439,11 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
                   $ flags
 
   when (Flag_GenIndex `elem` flags) $ do
-    withTiming logger "ppHtmlIndex" (const ()) $ do
-      _ <- {-# SCC ppHtmlIndex #-}
-           ppHtmlIndex odir title pkgStr
-                  themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
-                  (concatMap piInstalledInterfaces allVisiblePackages) pretty
-      return ()
+    _ <- {-# SCC ppHtmlIndex #-}
+         ppHtmlIndex logger odir title pkgStr
+                themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
+                (concatMap piInstalledInterfaces allVisiblePackages) pretty
+    return ()
 
     unless withBaseURL $
       copyHtmlBits odir libDir themes withQuickjump
@@ -483,8 +484,8 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     case pkgNameVer of
       (Just (PackageName pkgNameFS), mpkgVer) ->
           let
-            pkgNameStr | unpackFS pkgNameFS == "main" && title /= [] = title
-                       | otherwise = unpackFS pkgNameFS
+            pkgNameStr | pkgNameFS == "main" && title /= "" = title
+                       | otherwise = fastStringToLText pkgNameFS
 
             pkgVer =
               fromMaybe (makeVersion []) mpkgVer
@@ -502,7 +503,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
 
   when (Flag_LaTeX `elem` flags) $ do
     _ <- {-# SCC ppLatex #-}
-         ppLaTeX logger title pkgStr visibleIfaces odir (fmap _doc prologue) opt_latex_style
+         ppLaTeX logger title (LText.unpack <$> pkgStr) visibleIfaces odir (fmap _doc prologue) opt_latex_style
                  libDir
     return ()
 
@@ -753,7 +754,7 @@ hypSrcWarnings flags = do
     isSourceCssFlag _ = False
 
 
-updateHTMLXRefs :: [(FilePath, InterfaceFile)] -> IO ()
+updateHTMLXRefs :: [(LText, InterfaceFile)] -> IO ()
 updateHTMLXRefs packages = do
   writeIORef html_xrefs_ref (Map.fromList mapping)
   writeIORef html_xrefs_ref' (Map.fromList mapping')
@@ -770,7 +771,7 @@ getPrologue dflags flags =
     [filename] -> do
       h <- openFile filename ReadMode
       hSetEncoding h utf8
-      str <- hGetContents h -- semi-closes the handle
+      str <- LText.hGetContents h -- semi-closes the handle
       return . Just $! second (fmap rdrName) $ parseParas dflags Nothing str
     _ -> throwE "multiple -p/--prologue options"
 

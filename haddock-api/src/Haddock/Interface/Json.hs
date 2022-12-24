@@ -11,6 +11,7 @@ import GHC.Unit.Module
 import GHC.Types.Name
 import GHC.Utils.Outputable
 
+import qualified Data.Text.Lazy as Text
 import Control.Arrow
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -60,11 +61,11 @@ jsonMDoc MetaDoc{..} =
              , ("document",  jsonDoc _doc)
              ]
 
-showModName :: Wrap (ModuleName, OccName) -> String
-showModName = showWrapped (moduleNameString . fst)
+showModName :: Wrap (ModuleName, OccName) -> Text.Text
+showModName = showWrapped (Text.pack . moduleNameString . fst)
 
-showName :: Wrap Name -> String
-showName = showWrapped nameStableString
+showName :: Wrap Name -> Text.Text
+showName = showWrapped (Text.pack . nameStableString)
 
 
 jsonDoc :: Doc Name -> JsonDoc
@@ -80,7 +81,7 @@ jsonDoc (DocAppend x y) = jsonObject
 
 jsonDoc (DocString s) = jsonObject
     [ ("tag", jsonString "DocString")
-    , ("string", jsonString s)
+    , ("string", jsonLazyText s)
     ]
 
 jsonDoc (DocParagraph x) = jsonObject
@@ -90,17 +91,17 @@ jsonDoc (DocParagraph x) = jsonObject
 
 jsonDoc (DocIdentifier name) = jsonObject
     [ ("tag", jsonString "DocIdentifier")
-    , ("name", jsonString (showName name))
+    , ("name", jsonLazyText (showName name))
     ]
 
 jsonDoc (DocIdentifierUnchecked modName) = jsonObject
     [ ("tag", jsonString "DocIdentifierUnchecked")
-    , ("modName", jsonString (showModName modName))
+    , ("modName", jsonLazyText (showModName modName))
     ]
 
 jsonDoc (DocModule (ModLink m _l)) = jsonObject
     [ ("tag", jsonString "DocModule")
-    , ("string", jsonString m)
+    , ("string", jsonLazyText m)
     ]
 
 jsonDoc (DocWarning x) = jsonObject
@@ -153,7 +154,7 @@ jsonDoc (DocHyperlink hyperlink) = jsonObject
     ]
   where
     jsonHyperlink Hyperlink{..} = jsonObject
-        [ ("hyperlinkUrl", jsonString hyperlinkUrl)
+        [ ("hyperlinkUrl", jsonLazyText hyperlinkUrl)
         , ("hyperlinkLabel", jsonMaybe jsonDoc hyperlinkLabel)
         ]
 
@@ -163,28 +164,28 @@ jsonDoc (DocPic picture) = jsonObject
     ]
   where
     jsonPicture Picture{..} = jsonObject
-        [ ("pictureUrl", jsonString pictureUri)
-        , ("pictureLabel", jsonMaybe jsonString pictureTitle)
+        [ ("pictureUrl", jsonLazyText pictureUri)
+        , ("pictureLabel", jsonMaybe jsonLazyText pictureTitle)
         ]
 
 jsonDoc (DocMathInline s) = jsonObject
     [ ("tag", jsonString "DocMathInline")
-    , ("string", jsonString s)
+    , ("string", jsonLazyText s)
     ]
 
 jsonDoc (DocMathDisplay s) = jsonObject
     [ ("tag", jsonString "DocMathDisplay")
-    , ("string", jsonString s)
+    , ("string", jsonLazyText s)
     ]
 
 jsonDoc (DocAName s) = jsonObject
     [ ("tag", jsonString "DocAName")
-    , ("string", jsonString s)
+    , ("string", jsonLazyText s)
     ]
 
 jsonDoc (DocProperty s) = jsonObject
     [ ("tag", jsonString "DocProperty")
-    , ("string", jsonString s)
+    , ("string", jsonLazyText s)
     ]
 
 jsonDoc (DocExamples examples) = jsonObject
@@ -193,8 +194,8 @@ jsonDoc (DocExamples examples) = jsonObject
     ]
   where
     jsonExample Example{..} = jsonObject
-        [ ("exampleExpression", jsonString exampleExpression)
-        , ("exampleResult", jsonArray (fmap jsonString exampleResult))
+        [ ("exampleExpression", jsonLazyText exampleExpression)
+        , ("exampleResult", jsonArray (fmap jsonLazyText exampleResult))
         ]
 
 jsonDoc (DocHeader header) = jsonObject
@@ -251,6 +252,9 @@ jsonMaybe = maybe jsonNull
 
 jsonString :: String -> JsonDoc
 jsonString = JSString
+
+jsonLazyText :: Text.Text -> JsonDoc
+jsonLazyText = jsonString . Text.unpack
 
 jsonObject :: [(String, JsonDoc)] -> JsonDoc
 jsonObject = JSObject

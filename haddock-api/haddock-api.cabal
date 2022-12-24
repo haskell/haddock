@@ -47,7 +47,7 @@ library
                , ghc             ^>= 9.4
                , ghc-paths       ^>= 0.1.0.9
                , haddock-library ^>= 1.11
-               , xhtml           ^>= 3000.2.2
+               , xhtml           ^>= 3000.3
                , parsec          ^>= 3.1.13.0
                , text            ^>= 2.0
 

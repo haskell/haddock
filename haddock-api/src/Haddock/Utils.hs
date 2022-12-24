@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
 -----------------------------------------------------------------------------
@@ -28,6 +29,8 @@ module Haddock.Utils (
   nameAnchorId,
   makeAnchorId,
 
+  joinPathText, (<//>),
+
   -- * Miscellaneous utilities
   getProgramName, bye, die, escapeStr,
   writeUtf8File, withTempDir,
@@ -48,7 +51,13 @@ module Haddock.Utils (
   out,
 
   -- * System tools
-  getProcessID
+  getProcessID,
+
+  asText, builderToText, textToBuilder, builderToString,
+  Builder, stringUtf8, lazyTextToBuilder,
+  SText, LText,
+  occNameLText, moduleNameLText,
+  getOccLText, fastStringToLText,
  ) where
 
 
@@ -59,6 +68,9 @@ import Haddock.Types
 import GHC
 import GHC.Types.Name
 
+import Data.String (IsString(..))
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.Encoding as LText
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
 import Data.Char ( isAlpha, isAlphaNum, isAscii, ord, chr )
@@ -66,17 +78,41 @@ import Numeric ( showIntAtBase )
 import Data.Map ( Map )
 import qualified Data.Map as Map hiding ( Map )
 import Data.IORef ( IORef, newIORef, readIORef )
-import Data.List ( isSuffixOf )
+import Data.List ( isSuffixOf, intercalate )
 import System.Environment ( getProgName )
 import System.Exit
 import System.Directory ( createDirectory, removeDirectoryRecursive )
-import System.IO ( hPutStr, hSetEncoding, IOMode(..), utf8, withFile )
 import System.IO.Unsafe ( unsafePerformIO )
 import qualified System.FilePath.Posix as HtmlPath
+import Data.ByteString.Builder as Builder
+import qualified Data.ByteString  as BS
+import qualified Data.ByteString.Lazy  as BSL
+import GHC.Data.FastString
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import Text.XHtml (LText)
+import GHC.Unit.Module.Name
 
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Internals
 #endif
+
+type SText = Text.Text
+
+asText :: LText.Text -> LText.Text
+asText = id
+
+builderToText :: Builder -> Text.Text
+builderToText = Text.decodeUtf8 . BS.toStrict . toLazyByteString
+
+builderToString :: Builder -> String
+builderToString = Text.unpack . builderToText
+
+textToBuilder :: Text.Text -> Builder
+textToBuilder = byteString . Text.encodeUtf8
+
+lazyTextToBuilder :: LText.Text -> Builder
+lazyTextToBuilder = lazyByteString . LText.encodeUtf8
 
 --------------------------------------------------------------------------------
 -- * Logging
@@ -119,7 +155,13 @@ out progVerbosity msgVerbosity msg
 --------------------------------------------------------------------------------
 
 ordNub :: Ord a => [a] -> [a]
-ordNub = Set.toList . Set.fromList
+ordNub = go mempty
+  where
+    go _ [] = []
+    go seen (x:xs)
+      | x `Set.member` seen = go seen xs
+      | otherwise = x : go (Set.insert x seen) xs
+
 
 mkMeta :: Doc a -> MDoc a
 mkMeta x = emptyMetaDoc { _doc = x }
@@ -128,36 +170,41 @@ mkMeta x = emptyMetaDoc { _doc = x }
 -- * Filename mangling functions stolen from s main/DriverUtil.lhs.
 --------------------------------------------------------------------------------
 
-baseName :: ModuleName -> FilePath
-baseName = map (\c -> if c == '.' then '-' else c) . moduleNameString
+baseName :: ModuleName -> LText
+baseName = LText.map (\c -> if c == '.' then '-' else c) . moduleNameLText
 
 
-moduleHtmlFile :: Module -> FilePath
+moduleHtmlFile :: Module -> LText
 moduleHtmlFile mdl =
   case Map.lookup mdl html_xrefs of
-    Nothing  -> baseName mdl' ++ ".html"
-    Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl' ++ ".html"]
+    Nothing  -> baseName mdl' <> ".html"
+    Just fp0 -> joinPathText [fp0, baseName mdl' <> ".html"]
   where
    mdl' = moduleName mdl
 
+joinPathText :: [LText] -> LText
+joinPathText = foldr (<//>) mempty
 
-moduleHtmlFile' :: ModuleName -> FilePath
+(<//>) :: LText -> LText -> LText
+l <//> r = l <> LText.singleton HtmlPath.pathSeparator <> r
+
+moduleHtmlFile' :: ModuleName -> LText
 moduleHtmlFile' mdl =
   case Map.lookup mdl html_xrefs' of
-    Nothing  -> baseName mdl ++ ".html"
-    Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl ++ ".html"]
+    Nothing  -> baseName mdl <> ".html"
+    Just fp0 -> joinPathText [fp0, baseName mdl <> ".html"]
 
 
-contentsHtmlFile, indexHtmlFile, indexJsonFile :: String
+contentsHtmlFile, indexHtmlFile, indexJsonFile :: IsString s => s
 contentsHtmlFile = "index.html"
 indexHtmlFile = "doc-index.html"
 indexJsonFile = "doc-index.json"
 
 
-subIndexHtmlFile :: String -> String
-subIndexHtmlFile ls = "doc-index-" ++ b ++ ".html"
-   where b | all isAlpha ls = ls
-           | otherwise = concatMap (show . ord) ls
+subIndexHtmlFile :: LText -> LText
+subIndexHtmlFile ls = "doc-index-" <> b <> ".html"
+   where b | LText.all isAlpha ls = ls
+           | otherwise = LText.concatMap (LText.pack . show . ord) ls
 
 
 -------------------------------------------------------------------------------
@@ -174,29 +221,51 @@ subIndexHtmlFile ls = "doc-index-" ++ b ++ ".html"
 -------------------------------------------------------------------------------
 
 
-moduleUrl :: Module -> String
+moduleUrl :: Module -> LText
 moduleUrl = moduleHtmlFile
 
 
-moduleNameUrl :: Module -> OccName -> String
-moduleNameUrl mdl n = moduleUrl mdl ++ '#' : nameAnchorId n
+moduleNameUrl :: Module -> OccName -> LText
+moduleNameUrl mdl n = moduleUrl mdl <> "#" <> nameAnchorId n
 
 
-moduleNameUrl' :: ModuleName -> OccName -> String
-moduleNameUrl' mdl n = moduleHtmlFile' mdl ++ '#' : nameAnchorId n
+moduleNameUrl' :: ModuleName -> OccName -> LText
+moduleNameUrl' mdl n = moduleHtmlFile' mdl <> "#" <> nameAnchorId n
 
 
-nameAnchorId :: OccName -> String
-nameAnchorId name = makeAnchorId (prefix : ':' : occNameString name)
- where prefix | isValOcc name = 'v'
-              | otherwise     = 't'
+nameAnchorId :: OccName -> LText
+nameAnchorId name = makeAnchorId (prefix <> occNameLText name)
+ where prefix | isValOcc name = "v:"
+              | otherwise     = "t:"
+
+occNameLText :: OccName -> LText
+occNameLText = fastStringToLText . occNameFS
+{-# INLINE occNameLText #-}
+
+getOccLText :: NamedThing a => a -> LText
+getOccLText = fastStringToLText . getOccFS
+{-# INLINE getOccLText #-}
+{-# SPECIALIZE getOccLText :: Name -> LText #-}
+
+fastStringToLText :: FastString -> LText
+fastStringToLText =
+  LText.decodeUtf8 . BSL.fromStrict . bytesFS
+{-# INLINE fastStringToLText #-}
+
+moduleNameLText :: ModuleName -> LText
+moduleNameLText = fastStringToLText . moduleNameFS
+{-# INLINE moduleNameLText #-}
 
 
 -- | Takes an arbitrary string and makes it a valid anchor ID. The mapping is
 -- identity preserving.
-makeAnchorId :: String -> String
-makeAnchorId [] = []
-makeAnchorId (f:r) = escape isAlpha f ++ concatMap (escape isLegal) r
+makeAnchorId :: LText -> LText
+makeAnchorId txt =
+  case LText.uncons txt of
+    Just (f, r) ->
+      LText.pack (escape isAlpha f) <> LText.concatMap (LText.pack . escape isLegal) r
+    Nothing ->
+      txt
   where
     escape p c | p c = [c]
                | otherwise = '-' : show (ord c) ++ "-"
@@ -212,13 +281,13 @@ makeAnchorId (f:r) = escape isAlpha f ++ concatMap (escape isLegal) r
 -------------------------------------------------------------------------------
 
 
-haddockJsFile :: String
+haddockJsFile :: IsString s => s
 haddockJsFile = "haddock-bundle.min.js"
 
-jsQuickJumpFile :: String
+jsQuickJumpFile :: IsString s => s
 jsQuickJumpFile = "quick-jump.min.js"
 
-quickJumpCssFile :: String
+quickJumpCssFile :: IsString s => s
 quickJumpCssFile = "quick-jump.css"
 
 -------------------------------------------------------------------------------
@@ -236,35 +305,38 @@ getProgramName = fmap (`withoutSuffix` ".bin") getProgName
 bye :: String -> IO a
 bye s = putStr s >> exitSuccess
 
-escapeStr :: String -> String
+escapeStr :: LText -> LText
 escapeStr = escapeURIString isUnreserved
+{-# INLINE escapeStr #-}
 
 
 -- Following few functions are copy'n'pasted from Network.URI module
 -- to avoid depending on the network lib, since doing so gives a
 -- circular build dependency between haddock and network
 -- (at least if you want to build network with haddock docs)
-escapeURIChar :: (Char -> Bool) -> Char -> String
+escapeURIChar :: (Char -> Bool) -> Char -> LText
 escapeURIChar p c
-    | p c       = [c]
-    | otherwise = '%' : myShowHex (ord c) ""
+    | p c       = LText.singleton c
+    | otherwise = "%" <> myShowHex (ord c)
     where
-        myShowHex :: Int -> ShowS
-        myShowHex n r =  case showIntAtBase 16 toChrHex n r of
+        myShowHex :: Int -> LText
+        myShowHex n =  case showIntAtBase 16 toChrHex n "" of
             []  -> "00"
-            [a] -> ['0',a]
-            cs  -> cs
+            [a] -> "0" <> LText.singleton a
+            cs  -> LText.pack cs
         toChrHex d
             | d < 10    = chr (ord '0' + fromIntegral d)
             | otherwise = chr (ord 'A' + fromIntegral (d - 10))
+{-# INLINE escapeURIChar #-}
 
 
-escapeURIString :: (Char -> Bool) -> String -> String
-escapeURIString = concatMap . escapeURIChar
+escapeURIString :: (Char -> Bool) -> LText -> LText
+escapeURIString p = LText.foldr (\c acc -> escapeURIChar p c <> acc) mempty
+{-# INLINE escapeURIString #-}
 
 
 isUnreserved :: Char -> Bool
-isUnreserved c = isAlphaNumChar c || (c `elem` "-_.~")
+isUnreserved c = isAlphaNumChar c || (c `elem` ("-_.~" :: String))
 
 
 isAlphaChar, isDigitChar, isAlphaNumChar :: Char -> Bool
@@ -277,10 +349,9 @@ isAlphaNumChar c = isAlphaChar c || isDigitChar c
 -- The problem with 'writeFile' is that it picks up its 'TextEncoding' from
 -- 'getLocaleEncoding', and on some platforms (like Windows) this default
 -- encoding isn't enough for the characters we want to write.
-writeUtf8File :: FilePath -> String -> IO ()
-writeUtf8File filepath contents = withFile filepath WriteMode $ \h -> do
-    hSetEncoding h utf8
-    hPutStr h contents
+writeUtf8File :: FilePath -> Builder -> IO ()
+writeUtf8File = Builder.writeFile
+{-# INLINE writeUtf8File #-}
 
 withTempDir :: (MonadIO m, MonadMask m) => FilePath -> m a -> m a
 withTempDir dir = bracket_ (liftIO $ createDirectory dir)
@@ -299,22 +370,22 @@ withTempDir dir = bracket_ (liftIO $ createDirectory dir)
 
 
 {-# NOINLINE html_xrefs_ref #-}
-html_xrefs_ref :: IORef (Map Module FilePath)
+html_xrefs_ref :: IORef (Map Module LText)
 html_xrefs_ref = unsafePerformIO (newIORef (error "module_map"))
 
 
 {-# NOINLINE html_xrefs_ref' #-}
-html_xrefs_ref' :: IORef (Map ModuleName FilePath)
+html_xrefs_ref' :: IORef (Map ModuleName LText)
 html_xrefs_ref' = unsafePerformIO (newIORef (error "module_map"))
 
 
 {-# NOINLINE html_xrefs #-}
-html_xrefs :: Map Module FilePath
+html_xrefs :: Map Module LText
 html_xrefs = unsafePerformIO (readIORef html_xrefs_ref)
 
 
 {-# NOINLINE html_xrefs' #-}
-html_xrefs' :: Map ModuleName FilePath
+html_xrefs' :: Map ModuleName LText
 html_xrefs' = unsafePerformIO (readIORef html_xrefs_ref')
 
 
