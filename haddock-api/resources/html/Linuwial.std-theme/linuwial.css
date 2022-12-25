@@ -531,17 +531,21 @@ table.info {
 #synopsis summary {
   display: block;
   float: right;
-  width: 29px;
-  color: rgba(255,255,255,0);
-  height: 110px;
+  color: #536371;
   margin: 0;
-  font-size: 1px;
-  padding: 0;
-  background: url(synopsis.png) no-repeat 0px -8px;
+  padding: 5px;
+  writing-mode: vertical-rl;
+  background: rgb(250,247,224);
+  rotate: 180deg;
 }
-
-#synopsis details[open] > summary {
-  background: url(synopsis.png) no-repeat -75px -8px;
+#synopsis summary::after {
+  content: "\2A20";
+  rotate: 90deg;
+  color: #b0b0af;
+  display: inline-block;
+}
+#synopsis details[open] > summary::after {
+  rotate: -90deg;
 }
 
 #synopsis details:not([open]) > ul {
