@@ -540,12 +540,12 @@ table.info {
 }
 #synopsis summary::after {
   content: "\2A20";
-  rotate: 90deg;
+  rotate: -90deg;
   color: #b0b0af;
   display: inline-block;
 }
 #synopsis details[open] > summary::after {
-  rotate: -90deg;
+  rotate: 90deg;
 }
 
 #synopsis details:not([open]) > ul {
