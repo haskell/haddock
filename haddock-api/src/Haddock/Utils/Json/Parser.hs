@@ -54,8 +54,8 @@ parseArray =
       (tok (Parsec.char ']'))
       (parseValue `Parsec.sepBy` tok (Parsec.char ','))
 
-parseString :: Parser String
-parseString =
+parseString :: Parser Text.Text
+parseString = Text.pack <$>
     Parsec.between
       (tok (Parsec.char '"'))
       (tok (Parsec.char '"'))
@@ -84,13 +84,13 @@ parseString =
                 max_char  = fromEnum (maxBound :: Char)
 
 parseObject :: Parser Object
-parseObject =
+parseObject = Map.fromList <$>
       Parsec.between
         (tok (Parsec.char '{'))
         (tok (Parsec.char '}'))
         (field `Parsec.sepBy` tok (Parsec.char ','))
   where
-    field :: Parser (String, Value)
+    field :: Parser (Text.Text, Value)
     field = (,)
         <$> parseString
         <*  tok (Parsec.char ':')
