@@ -434,19 +434,19 @@ instance ToJSON JsonIndexEntry where
         , jieModule
         , jieLink } =
       Haddock.Utils.Json.object
-        [ Text.pack "display_html" .= Text.pack jieHtmlFragment
-        , Text.pack "name"         .= Text.pack jieName
-        , Text.pack "module"       .= Text.pack jieModule
-        , Text.pack "link"         .= Text.pack jieLink
+        [ "display_html" .= String jieHtmlFragment
+        , "name"         .= String jieName
+        , "module"       .= String jieModule
+        , "link"         .= String jieLink
         ]
 
 instance FromJSON JsonIndexEntry where
     parseJSON = withObject "JsonIndexEntry" $ \v ->
       JsonIndexEntry
-        <$> v .: Text.pack "display_html"
-        <*> v .: Text.pack "name"
-        <*> v .: Text.pack "module"
-        <*> v .: Text.pack "link"
+        <$> v .: "display_html"
+        <*> v .: "name"
+        <*> v .: "module"
+        <*> v .: "link"
 
 ppJsonIndex
   :: Logger

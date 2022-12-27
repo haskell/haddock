@@ -70,7 +70,7 @@ import Haddock.Utils.Json.Parser
 infixr 8 .=
 
 -- | A key-value pair for encoding a JSON object.
-(.=) :: ToJSON v => Text.Text -> v -> Pair
+(.=) :: ToJSON v => String -> v -> Pair
 k .= v  = (k, toJSON v)
 
 
@@ -81,9 +81,6 @@ class ToJSON a where
 
 instance ToJSON () where
   toJSON () = Array mempty
-
-instance ToJSON Text.Text where
-    toJSON = String
 
 instance ToJSON Value where
   toJSON = id
@@ -159,13 +156,13 @@ encodeArrayBB (x:jvs) = BB.char8 '[' <> encodeValueBB x <> go jvs <> BB.char8 ']
     go = foldr (\a z -> BB.char8 ',' <> encodeValueBB a <> z) (BB.char8 ']')
 
 encodeObjectBB :: Object -> Builder
-encodeObjectBB m | Map.null m = "{}"
+encodeObjectBB [] = "{}"
 encodeObjectBB jvs = BB.char8 '{' <> go jvs <> BB.char8 '}'
   where
-    go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encPair . Map.toList
+    go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encPair
     encPair (l,x) = encodeStringBB l <> BB.char8 ':' <> encodeValueBB x
 
-encodeStringBB :: Text.Text -> Builder
+encodeStringBB :: String -> Builder
 encodeStringBB str = BB.char8 '"' <> escapeText str <> BB.char8 '"'
 
 ------------------------------------------------------------------------------
@@ -206,24 +203,24 @@ escapeString s
 needsEscape :: Char -> Bool
 needsEscape c = ord c < 0x20 || c == '\\' || c == '"'
 
-escapeText :: Text.Text -> Builder
+escapeText :: String -> Builder
 escapeText txt
-    | Text.any needsEscape txt = TE.encodeUtf8BuilderEscaped escapeAscii txt
-    | otherwise = TE.encodeUtf8Builder txt
+    | any needsEscape txt = BP.primMapListBounded escapeAscii txt
+    | otherwise = BB.stringUtf8 txt
 
 -- Vendored from Aeson
-escapeAscii :: BP.BoundedPrim Word8
+escapeAscii :: BP.BoundedPrim Char
 escapeAscii =
-    BP.condB (== c2w '\\'  ) (ascii2 ('\\','\\')) $
-    BP.condB (== c2w '\"'  ) (ascii2 ('\\','"' )) $
-    BP.condB (>= c2w '\x20') (BP.liftFixedToBounded BP.word8) $
-    BP.condB (== c2w '\n'  ) (ascii2 ('\\','n' )) $
-    BP.condB (== c2w '\r'  ) (ascii2 ('\\','r' )) $
-    BP.condB (== c2w '\t'  ) (ascii2 ('\\','t' )) $
+    BP.condB (== '\\'  ) (ascii2 ('\\','\\')) $
+    BP.condB (== '\"'  ) (ascii2 ('\\','"' )) $
+    BP.condB (>= '\x20') (BP.liftFixedToBounded BP.char8) $
+    BP.condB (== '\n'  ) (ascii2 ('\\','n' )) $
+    BP.condB (== '\r'  ) (ascii2 ('\\','r' )) $
+    BP.condB (== '\t'  ) (ascii2 ('\\','t' )) $
     BP.liftFixedToBounded hexEscape -- fallback for chars < 0x20
   where
-    hexEscape :: BP.FixedPrim Word8
-    hexEscape = (\c -> ('\\', ('u', fromIntegral c))) BP.>$<
+    hexEscape :: BP.FixedPrim Char
+    hexEscape = (\c -> ('\\', ('u', fromIntegral (ord c)))) BP.>$<
         BP.char8 >*< BP.char8 >*< BP.word16HexFixed
 {-# INLINE escapeAscii #-}
 
@@ -237,7 +234,7 @@ ascii2 cs = BP.liftFixedToBounded $ const cs BP.>$< BP.char7 >*< BP.char7
 -- | Elements of a JSON path used to describe the location of an
 -- error.
 data JSONPathElement
-  = Key !Text.Text
+  = Key !String
   -- ^ JSON path element of a key into an object,
   -- \"object.key\".
   | Index !Int
@@ -331,7 +328,7 @@ withArray :: String -> ([Value] -> Parser a) -> Value -> Parser a
 withArray _    f (Array arr) = f arr
 withArray name _ v           = prependContext name (typeMismatch "Array" v)
 
-withString :: String -> (Text.Text -> Parser a) -> Value -> Parser a
+withString :: String -> (String -> Parser a) -> Value -> Parser a
 withString _    f (String txt) = f txt
 withString name _ v            = prependContext name (typeMismatch "String" v)
 
@@ -363,16 +360,12 @@ instance FromJSON () where
 instance FromJSON Char where
     parseJSON = withString "Char" parseChar
 
-    parseJSONList (String s) = pure (Text.unpack s)
+    parseJSONList (String s) = pure s
     parseJSONList v = typeMismatch "String" v
 
-parseChar :: Text.Text -> Parser Char
-parseChar txt = case Text.uncons txt of
-    Nothing -> boom
-    Just (a, "") -> pure a
-    Just (_, _) -> boom
-  where
-    boom = prependContext "Char" $ fail "expected a string of length 1"
+parseChar :: String -> Parser Char
+parseChar [a] = pure a
+parseChar _ = prependContext "Char" $ fail "expected a string of length 1"
 
 parseRealFloat :: RealFloat a => String -> Value -> Parser a
 parseRealFloat _    (Number s) = pure $ realToFrac s
@@ -453,22 +446,22 @@ fromJSON = parse parseJSON
 parse :: (a -> Parser b) -> a -> Result b
 parse m v = runParser (m v) [] (const Error) Success
 
-explicitParseField :: (Value -> Parser a) -> Object -> Text.Text -> Parser a
+explicitParseField :: (Value -> Parser a) -> Object -> String -> Parser a
 explicitParseField p obj key =
-    case key `Map.lookup` obj of
-      Nothing -> fail $ "key " ++ Text.unpack key ++ " not found"
+    case key `lookup` obj of
+      Nothing -> fail $ "key " ++ key ++ " not found"
       Just v  -> p v <?> Key key
 
-(.:) :: FromJSON a => Object -> Text.Text -> Parser a
+(.:) :: FromJSON a => Object -> String -> Parser a
 (.:) = explicitParseField parseJSON
 
-explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Text.Text -> Parser (Maybe a)
+explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> String -> Parser (Maybe a)
 explicitParseFieldMaybe p obj key =
-    case key `Map.lookup` obj of
+    case key `lookup` obj of
       Nothing -> pure Nothing
       Just v  -> Just <$> p v <?> Key key
 
-(.:?) :: FromJSON a => Object -> Text.Text -> Parser (Maybe a)
+(.:?) :: FromJSON a => Object -> String -> Parser (Maybe a)
 (.:?) = explicitParseFieldMaybe parseJSON
 
 
