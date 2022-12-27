@@ -40,6 +40,7 @@ import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 import Haddock.GhcUtils
 
+import qualified Data.Text as Text
 import Control.Monad         ( when, unless )
 import qualified Data.ByteString.Builder as Builder
 import Data.Bifunctor        ( bimap )
@@ -432,20 +433,20 @@ instance ToJSON JsonIndexEntry where
         , jieName
         , jieModule
         , jieLink } =
-      Object
-        [ "display_html" .= String jieHtmlFragment
-        , "name"         .= String jieName
-        , "module"       .= String jieModule
-        , "link"         .= String jieLink
+      Haddock.Utils.Json.object
+        [ Text.pack "display_html" .= Text.pack jieHtmlFragment
+        , Text.pack "name"         .= Text.pack jieName
+        , Text.pack "module"       .= Text.pack jieModule
+        , Text.pack "link"         .= Text.pack jieLink
         ]
 
 instance FromJSON JsonIndexEntry where
     parseJSON = withObject "JsonIndexEntry" $ \v ->
       JsonIndexEntry
-        <$> v .: "display_html"
-        <*> v .: "name"
-        <*> v .: "module"
-        <*> v .: "link"
+        <$> v .: Text.pack "display_html"
+        <*> v .: Text.pack "name"
+        <*> v .: Text.pack "module"
+        <*> v .: Text.pack "link"
 
 ppJsonIndex
   :: Logger

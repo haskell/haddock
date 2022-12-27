@@ -2,6 +2,7 @@ module Haddock.Backends.Xhtml.Meta where
 
 import Haddock.Utils.Json
 import Haddock.Version
+import qualified Data.Text as Text
 
 import Data.ByteString.Builder (hPutBuilder)
 import System.FilePath ((</>))
@@ -20,8 +21,8 @@ writeHaddockMeta odir withQuickjump = do
   let
     meta_json :: Value
     meta_json = object (concat [
-        [ "haddock_version"   .= String projectVersion ]
-      , [ "quickjump_version" .= quickjumpVersion | withQuickjump ]
+        [ Text.pack "haddock_version"   .= Text.pack projectVersion ]
+      , [ Text.pack "quickjump_version" .= quickjumpVersion | withQuickjump ]
       ])
 
   withFile (odir </> "meta.json") WriteMode $ \h ->
