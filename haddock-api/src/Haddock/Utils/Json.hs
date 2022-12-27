@@ -11,11 +11,11 @@ module Haddock.Utils.Json
     ( Value(..)
     , Object, object, (.=)
     , encodeToBuilder
-    , ToJSON(toJSON)
+    , ToJSON(..)
 
     , Parser(..)
     , Result(..)
-    , FromJSON(parseJSON)
+    , FromJSON(..)
     , withObject
     , withArray
     , withBool
