@@ -84,7 +84,7 @@ parseString = Text.pack <$>
                 max_char  = fromEnum (maxBound :: Char)
 
 parseObject :: Parser Object
-parseObject = Map.fromList <$>
+parseObject =
       Parsec.between
         (tok (Parsec.char '{'))
         (tok (Parsec.char '}'))

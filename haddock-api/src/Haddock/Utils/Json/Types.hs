@@ -36,11 +36,11 @@ typeOf v = case v of
 type Pair = (Text, Value)
 
 -- | A JSON \"object\" (key/value map).
-type Object = Map Text Value
+type Object = [Pair]
 
 -- | Create a 'Value' from a list of name\/value 'Pair's.
 object :: [Pair] -> Value
-object = Object . Map.fromList
+object = Object
 
 instance IsString Value where
   fromString = String . fromString

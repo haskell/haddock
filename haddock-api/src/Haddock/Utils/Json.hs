@@ -159,10 +159,10 @@ encodeArrayBB (x:jvs) = BB.char8 '[' <> encodeValueBB x <> go jvs <> BB.char8 ']
     go = foldr (\a z -> BB.char8 ',' <> encodeValueBB a <> z) (BB.char8 ']')
 
 encodeObjectBB :: Object -> Builder
-encodeObjectBB m | Map.null m = "{}"
+encodeObjectBB m | null m = "{}"
 encodeObjectBB jvs = BB.char8 '{' <> go jvs <> BB.char8 '}'
   where
-    go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encPair . Map.toList
+    go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encPair
     encPair (l,x) = encodeStringBB l <> BB.char8 ':' <> encodeValueBB x
 
 encodeStringBB :: Text.Text -> Builder
@@ -455,7 +455,7 @@ parse m v = runParser (m v) [] (const Error) Success
 
 explicitParseField :: (Value -> Parser a) -> Object -> Text.Text -> Parser a
 explicitParseField p obj key =
-    case key `Map.lookup` obj of
+    case key `lookup` obj of
       Nothing -> fail $ "key " ++ Text.unpack key ++ " not found"
       Just v  -> p v <?> Key key
 
@@ -464,7 +464,7 @@ explicitParseField p obj key =
 
 explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Text.Text -> Parser (Maybe a)
 explicitParseFieldMaybe p obj key =
-    case key `Map.lookup` obj of
+    case key `lookup` obj of
       Nothing -> pure Nothing
       Just v  -> Just <$> p v <?> Key key
 
