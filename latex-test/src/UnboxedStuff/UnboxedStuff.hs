@@ -1,5 +1,5 @@
 {-# LANGUAGE Haskell2010 #-}
-{-# LANGUAGE UnboxedSums, UnboxedTuples #-}
+{-# LANGUAGE UnboxedTuples #-}
 module UnboxedStuff where
 
 data X
@@ -12,8 +12,8 @@ unboxedUnit :: (# #) -> (# #)
 unboxedUnit  = undefined
 
 unboxedTuple :: (# X, Y #) -> (# X, Y, Z #)
-unboxedTuple = undefined 
+unboxedTuple = undefined
 
 unboxedSum :: (# X | Y #) -> (# X | Y | Z #)
-unboxedSum = undefined 
+unboxedSum = undefined
 
