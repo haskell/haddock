@@ -75,7 +75,7 @@ mkPackageInterfaces :: Visibility -> InterfaceFile -> PackageInterfaces
 mkPackageInterfaces piVisibility
                     InterfaceFile { ifPackageInfo
                                   , ifInstalledIfaces
-                                  } = 
+                                  } =
   PackageInterfaces { piPackageInfo = ifPackageInfo
                     , piVisibility
                     , piInstalledInterfaces = ifInstalledIfaces
@@ -126,12 +126,14 @@ binaryInterfaceVersion :: Word16
 #if MIN_VERSION_ghc(9,4,0) && !MIN_VERSION_ghc(9,5,0)
 binaryInterfaceVersion = 41
 
-binaryInterfaceVersionCompatibility :: [Word16]
-binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
 #else
-#error Unsupported GHC version
+binaryInterfaceVersion ::
+    TypeError ('Text "You're attempting to compile with an unsupported version of GHC.")
+binaryInterfaceVersion = undefined
 #endif
 
+binaryInterfaceVersionCompatibility :: [Word16]
+binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
 
 initBinMemSize :: Int
 initBinMemSize = 1024*1024
