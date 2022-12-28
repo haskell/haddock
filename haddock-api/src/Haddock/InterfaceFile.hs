@@ -26,7 +26,7 @@ module Haddock.InterfaceFile (
 
 import Haddock.Types
 
-import Control.Exception (try, ErrorCall)
+import Control.Exception (try, IOException)
 import Data.IORef
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -215,7 +215,7 @@ readInterfaceFile name_cache filename bypass_checks = do
   ebh <- try $ readBinMem filename
 
   case ebh of
-    Left (err :: ErrorCall) ->
+    Left (err :: IOException) ->
       pure $ Left $ "Error from readBinMem: " <> show err
     Right bh -> do
 
