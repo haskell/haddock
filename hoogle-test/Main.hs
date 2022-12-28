@@ -4,6 +4,7 @@
 import Data.Function
 import System.Environment
 import System.FilePath
+import System.IO
 
 import Test.Haddock
 import Test.Haddock.Utils
@@ -31,5 +32,5 @@ main = do
             , "--package-version=0.0.0"
             , "--hoogle"
             ]
-        , cfgHaddockStdout = stdout
+        , cfgHaddockStdOut = "stdout"
         }
