@@ -13,9 +13,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        cabal: ["3.6"]
+        cabal: ["3.8"]
         ghc:
-          - "head"
+          # GHC head is broken on GitHub Actions: https://github.com/haskell/actions/issues/137#issuecomment-1362677728
+          # - "head"
+          - "9.4"
 
     steps:
     - uses: actions/checkout@v2
