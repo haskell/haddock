@@ -74,6 +74,7 @@ infixr 8 .=
 -- | A key-value pair for encoding a JSON object.
 (.=) :: ToJSON v => Text.Text -> v -> Pair
 k .= v  = (k, toJSON v)
+{-# INLINE (.=) #-}
 
 
 -- | A type that can be converted to JSON.
