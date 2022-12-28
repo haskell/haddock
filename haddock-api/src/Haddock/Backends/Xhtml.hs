@@ -21,6 +21,7 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
+import qualified Haddock.Utils.Json.Encoding as EB
 import GHC.Utils.Error
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
@@ -40,6 +41,7 @@ import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 import Haddock.GhcUtils
 
+import qualified Data.Text as Text
 import Control.Monad         ( when, unless )
 import qualified Data.ByteString.Builder as Builder
 import Data.Bifunctor        ( bimap )
@@ -432,20 +434,31 @@ instance ToJSON JsonIndexEntry where
         , jieName
         , jieModule
         , jieLink } =
-      Object
-        [ "display_html" .= String jieHtmlFragment
-        , "name"         .= String jieName
-        , "module"       .= String jieModule
-        , "link"         .= String jieLink
+      Haddock.Utils.Json.object
+        [ Text.pack "display_html" .= jieHtmlFragment
+        , Text.pack "name"         .= jieName
+        , Text.pack "module"       .= jieModule
+        , Text.pack "link"         .= jieLink
         ]
+    toEncoding JsonIndexEntry
+        { jieHtmlFragment
+        , jieName
+        , jieModule
+        , jieLink } =
+      EB.pairs
+        ( EB.pair (Text.pack "display_html") (toEncoding jieHtmlFragment)
+        <> EB.pair (Text.pack "name") (toEncoding jieName)
+        <> EB.pair (Text.pack "module") (toEncoding jieModule)
+        <> EB.pair (Text.pack "link") (toEncoding jieLink)
+        )
 
 instance FromJSON JsonIndexEntry where
     parseJSON = withObject "JsonIndexEntry" $ \v ->
       JsonIndexEntry
-        <$> v .: "display_html"
-        <*> v .: "name"
-        <*> v .: "module"
-        <*> v .: "link"
+        <$> v .: Text.pack "display_html"
+        <*> v .: Text.pack "name"
+        <*> v .: Text.pack "module"
+        <*> v .: Text.pack "link"
 
 ppJsonIndex
   :: Logger
@@ -484,11 +497,10 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
       Builder.hPutBuilder
         h (encodeToBuilder (encodeIndexes (concat installedIndexes)))
   where
-    encodeIndexes :: [JsonIndexEntry] -> Value
+    encodeIndexes :: [JsonIndexEntry] -> [JsonIndexEntry]
     encodeIndexes installedIndexes =
-      toJSON
-        (concatMap fromInterface ifaces
-         ++ installedIndexes)
+      concatMap fromInterface ifaces
+        ++ installedIndexes
 
     fromInterface :: Interface -> [JsonIndexEntry]
     fromInterface iface =

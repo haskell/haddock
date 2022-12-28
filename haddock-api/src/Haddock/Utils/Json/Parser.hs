@@ -7,6 +7,7 @@ module Haddock.Utils.Json.Parser
 
 import Prelude hiding (null)
 
+import qualified Data.Text as Text
 import Control.Applicative (Alternative (..))
 import Control.Monad (MonadPlus (..))
 import Data.Char (isHexDigit)
@@ -16,8 +17,9 @@ import Numeric
 import Text.Parsec.ByteString.Lazy (Parser)
 import Text.ParserCombinators.Parsec ((<?>))
 import qualified Text.ParserCombinators.Parsec as Parsec
+import qualified Data.Map.Strict as Map
 
-import Haddock.Utils.Json.Types hiding (object)
+import Haddock.Utils.Json.Types
 
 parseJSONValue :: Parser Value
 parseJSONValue = Parsec.spaces *> parseValue
@@ -52,8 +54,8 @@ parseArray =
       (tok (Parsec.char ']'))
       (parseValue `Parsec.sepBy` tok (Parsec.char ','))
 
-parseString :: Parser String
-parseString =
+parseString :: Parser Text.Text
+parseString = Text.pack <$>
     Parsec.between
       (tok (Parsec.char '"'))
       (tok (Parsec.char '"'))
@@ -88,7 +90,7 @@ parseObject =
         (tok (Parsec.char '}'))
         (field `Parsec.sepBy` tok (Parsec.char ','))
   where
-    field :: Parser (String, Value)
+    field :: Parser (Text.Text, Value)
     field = (,)
         <$> parseString
         <*  tok (Parsec.char ':')

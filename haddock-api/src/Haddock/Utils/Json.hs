@@ -10,9 +10,8 @@
 module Haddock.Utils.Json
     ( Value(..)
     , Object, object, Pair, (.=)
-    , encodeToString
     , encodeToBuilder
-    , ToJSON(toJSON)
+    , ToJSON(..)
 
     , Parser(..)
     , Result(..)
@@ -24,7 +23,6 @@ module Haddock.Utils.Json
     , withBool
     , fromJSON
     , parse
-    , parseEither
     , (.:)
     , (.:?)
     , decode
@@ -41,14 +39,23 @@ import Control.Monad (MonadPlus (..), zipWithM, (>=>))
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Fail as Fail
 
+import qualified Haddock.Utils.Json.Encoding as EB
+import Data.ByteString.Internal (c2w)
+import Data.Foldable
+import qualified Data.Text as Text
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.Map.Strict as Map
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BB
+import qualified Data.ByteString.Builder.Prim as BP
+import Data.ByteString.Builder.Prim (condB, liftFixedToBounded, (>$<), (>*<))
 import Data.Char
 import Data.Int
 import Data.Word
 import Data.List (intersperse)
 import Data.Monoid
+import qualified Data.Text.Encoding as TE
+import qualified Data.Text as Text
 
 import GHC.Natural
 
@@ -58,14 +65,16 @@ import qualified Text.Parsec.ByteString.Lazy as Parsec.Lazy
 import qualified Text.ParserCombinators.Parsec as Parsec
 
 import Haddock.Utils.Json.Types
+import Haddock.Utils.Json.Encoding (Encoding)
 import Haddock.Utils.Json.Parser
 
 
 infixr 8 .=
 
 -- | A key-value pair for encoding a JSON object.
-(.=) :: ToJSON v => String -> v -> Pair
+(.=) :: ToJSON v => Text.Text -> v -> Pair
 k .= v  = (k, toJSON v)
+{-# INLINE (.=) #-}
 
 
 -- | A type that can be converted to JSON.
@@ -73,36 +82,65 @@ class ToJSON a where
   -- | Convert a Haskell value to a JSON-friendly intermediate type.
   toJSON :: a -> Value
 
+  toJSONList :: [a] ->  Value
+  toJSONList = Array . map toJSON
+
+  toEncoding :: a -> Encoding
+  toEncoding = toEncoding . toJSON
+
+  toEncodingList :: [a] -> Encoding
+  toEncodingList = EB.list toEncoding
+
 instance ToJSON () where
-  toJSON () = Array []
+  toJSON () = Array mempty
+
+instance ToJSON Text.Text where
+    toJSON = String
+    toEncoding = EB.text
 
 instance ToJSON Value where
   toJSON = id
+  toEncoding = EB.value
 
 instance ToJSON Bool where
   toJSON = Bool
+  toEncoding = EB.bool
 
 instance ToJSON a => ToJSON [a] where
-  toJSON = Array . map toJSON
+  {-# SPECIALIZE instance ToJSON String #-}
+  {-# SPECIALIZE instance ToJSON [String] #-}
+  {-# SPECIALIZE instance ToJSON [Object] #-}
+  {-# SPECIALIZE instance ToJSON [[Value]] #-}
+  toJSON = Array . fmap toJSON
+  toEncoding = EB.list toEncoding
+  {-# INLINE toEncoding #-}
+
+instance ToJSON Char where
+  toJSON = String . Text.singleton
+  toJSONList = String . Text.pack
+
+  toEncoding = EB.string . (:[])
+  toEncodingList = EB.string
 
 instance ToJSON a => ToJSON (Maybe a) where
   toJSON Nothing  = Null
   toJSON (Just a) = toJSON a
 
 instance (ToJSON a,ToJSON b) => ToJSON (a,b) where
-  toJSON (a,b) = Array [toJSON a, toJSON b]
+  toJSON (a,b) = toJSON [toJSON a, toJSON b]
 
 instance (ToJSON a,ToJSON b,ToJSON c) => ToJSON (a,b,c) where
-  toJSON (a,b,c) = Array [toJSON a, toJSON b, toJSON c]
+  toJSON (a,b,c) = toJSON [toJSON a, toJSON b, toJSON c]
 
 instance (ToJSON a,ToJSON b,ToJSON c, ToJSON d) => ToJSON (a,b,c,d) where
-  toJSON (a,b,c,d) = Array [toJSON a, toJSON b, toJSON c, toJSON d]
+  toJSON (a,b,c,d) = toJSON [toJSON a, toJSON b, toJSON c, toJSON d]
 
 instance ToJSON Float where
   toJSON = Number . realToFrac
 
 instance ToJSON Double where
   toJSON = Number
+  toEncoding = EB.double
 
 instance ToJSON Int    where  toJSON = Number . realToFrac
 instance ToJSON Int8   where  toJSON = Number . realToFrac
@@ -128,7 +166,8 @@ instance ToJSON Integer where toJSON = Number . fromInteger
 
 -- | Serialise value as JSON/UTF8-encoded 'Builder'
 encodeToBuilder :: ToJSON a => a -> Builder
-encodeToBuilder = encodeValueBB . toJSON
+encodeToBuilder = EB.fromEncoding . toEncoding
+{-# INLINE encodeToBuilder #-}
 
 encodeValueBB :: Value -> Builder
 encodeValueBB jv = case jv of
@@ -144,60 +183,20 @@ encodeValueBB jv = case jv of
   Object o -> encodeObjectBB o
 
 encodeArrayBB :: [Value] -> Builder
-encodeArrayBB [] = "[]"
-encodeArrayBB jvs = BB.char8 '[' <> go jvs <> BB.char8 ']'
+encodeArrayBB [] = BP.primBounded (ascii2 ('[', ']')) ()
+encodeArrayBB (x:jvs) = BB.char8 '[' <> encodeValueBB x <> go jvs <> BB.char8 ']'
   where
-    go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encodeValueBB
+    go = foldr (\a z -> BB.char8 ',' <> encodeValueBB a <> z) (BB.char8 ']')
 
 encodeObjectBB :: Object -> Builder
-encodeObjectBB [] = "{}"
+encodeObjectBB m | null m = "{}"
 encodeObjectBB jvs = BB.char8 '{' <> go jvs <> BB.char8 '}'
   where
     go = Data.Monoid.mconcat . intersperse (BB.char8 ',') . map encPair
     encPair (l,x) = encodeStringBB l <> BB.char8 ':' <> encodeValueBB x
 
-encodeStringBB :: String -> Builder
-encodeStringBB str = BB.char8 '"' <> go str <> BB.char8 '"'
-  where
-    go = BB.stringUtf8 . escapeString
-
-------------------------------------------------------------------------------
--- 'String'-based encoding
-
--- | Serialise value as JSON-encoded Unicode 'String'
-encodeToString :: ToJSON a => a -> String
-encodeToString jv = encodeValue (toJSON jv) []
-
-encodeValue :: Value -> ShowS
-encodeValue jv = case jv of
-  Bool b   -> showString (if b then "true" else "false")
-  Null     -> showString "null"
-  Number n
-    | isNaN n || isInfinite n    -> encodeValue Null
-    | Just i <- doubleToInt64 n -> shows i
-    | otherwise                 -> shows n
-  Array a -> encodeArray a
-  String s -> encodeString s
-  Object o -> encodeObject o
-
-encodeArray :: [Value] -> ShowS
-encodeArray [] = showString "[]"
-encodeArray jvs = ('[':) . go jvs . (']':)
-  where
-    go []     = id
-    go [x]    = encodeValue x
-    go (x:xs) = encodeValue x . (',':) . go xs
-
-encodeObject :: Object -> ShowS
-encodeObject [] = showString "{}"
-encodeObject jvs = ('{':) . go jvs . ('}':)
-  where
-    go []          = id
-    go [(l,x)]     = encodeString l . (':':) . encodeValue x
-    go ((l,x):lxs) = encodeString l . (':':) . encodeValue x . (',':) . go lxs
-
-encodeString :: String -> ShowS
-encodeString str = ('"':) . showString (escapeString str) . ('"':)
+encodeStringBB :: Text.Text -> Builder
+encodeStringBB str = BB.char8 '"' <> escapeText str <> BB.char8 '"'
 
 ------------------------------------------------------------------------------
 -- helpers
@@ -233,8 +232,34 @@ escapeString s
         | ord c < 0x20 -> '\\':'u':'0':'0':'1':intToDigit (ord c - 0x10):escape xs
         | otherwise    -> c : escape xs
 
-    -- unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
-    needsEscape c = ord c < 0x20 || c `elem` ['\\','"']
+-- unescaped = %x20-21 / %x23-5B / %x5D-10FFFF
+needsEscape :: Char -> Bool
+needsEscape c = ord c < 0x20 || c == '\\' || c == '"'
+
+escapeText :: Text.Text -> Builder
+escapeText txt
+    | Text.any needsEscape txt = TE.encodeUtf8BuilderEscaped escapeAscii txt
+    | otherwise = TE.encodeUtf8Builder txt
+
+-- Vendored from Aeson
+escapeAscii :: BP.BoundedPrim Word8
+escapeAscii =
+    BP.condB (== c2w '\\'  ) (ascii2 ('\\','\\')) $
+    BP.condB (== c2w '\"'  ) (ascii2 ('\\','"' )) $
+    BP.condB (>= c2w '\x20') (BP.liftFixedToBounded BP.word8) $
+    BP.condB (== c2w '\n'  ) (ascii2 ('\\','n' )) $
+    BP.condB (== c2w '\r'  ) (ascii2 ('\\','r' )) $
+    BP.condB (== c2w '\t'  ) (ascii2 ('\\','t' )) $
+    BP.liftFixedToBounded hexEscape -- fallback for chars < 0x20
+  where
+    hexEscape :: BP.FixedPrim Word8
+    hexEscape = (\c -> ('\\', ('u', fromIntegral c))) BP.>$<
+        BP.char8 >*< BP.char8 >*< BP.word16HexFixed
+{-# INLINE escapeAscii #-}
+
+ascii2 :: (Char, Char) -> BP.BoundedPrim a
+ascii2 cs = BP.liftFixedToBounded $ const cs BP.>$< BP.char7 >*< BP.char7
+{-# INLINE ascii2 #-}
 
 ------------------------------------------------------------------------------
 -- FromJSON
@@ -242,7 +267,7 @@ escapeString s
 -- | Elements of a JSON path used to describe the location of an
 -- error.
 data JSONPathElement
-  = Key String
+  = Key !Text.Text
   -- ^ JSON path element of a key into an object,
   -- \"object.key\".
   | Index !Int
@@ -336,7 +361,7 @@ withArray :: String -> ([Value] -> Parser a) -> Value -> Parser a
 withArray _    f (Array arr) = f arr
 withArray name _ v           = prependContext name (typeMismatch "Array" v)
 
-withString :: String -> (String -> Parser a) -> Value -> Parser a
+withString :: String -> (Text.Text -> Parser a) -> Value -> Parser a
 withString _    f (String txt) = f txt
 withString name _ v            = prependContext name (typeMismatch "String" v)
 
@@ -368,14 +393,16 @@ instance FromJSON () where
 instance FromJSON Char where
     parseJSON = withString "Char" parseChar
 
-    parseJSONList (String s) = pure s
+    parseJSONList (String s) = pure (Text.unpack s)
     parseJSONList v = typeMismatch "String" v
 
-parseChar :: String -> Parser Char
-parseChar t =
-    if length t == 1
-      then pure $ head t
-      else prependContext "Char" $ fail "expected a string of length 1"
+parseChar :: Text.Text -> Parser Char
+parseChar txt = case Text.uncons txt of
+    Nothing -> boom
+    Just (a, "") -> pure a
+    Just (_, _) -> boom
+  where
+    boom = prependContext "Char" $ fail "expected a string of length 1"
 
 parseRealFloat :: RealFloat a => String -> Value -> Parser a
 parseRealFloat _    (Number s) = pure $ realToFrac s
@@ -456,57 +483,22 @@ fromJSON = parse parseJSON
 parse :: (a -> Parser b) -> a -> Result b
 parse m v = runParser (m v) [] (const Error) Success
 
-parseEither :: (a -> Parser b) -> a -> Either String b
-parseEither m v = runParser (m v) [] onError Right
-  where onError path msg = Left (formatError path msg)
-
-formatError :: JSONPath -> String -> String
-formatError path msg = "Error in " ++ formatPath path ++ ": " ++ msg
-
-formatPath :: JSONPath -> String
-formatPath path = "$" ++ formatRelativePath path
-
-formatRelativePath :: JSONPath -> String
-formatRelativePath path = format "" path
-  where
-    format :: String -> JSONPath -> String
-    format pfx []                = pfx
-    format pfx (Index idx:parts) = format (pfx ++ "[" ++ show idx ++ "]") parts
-    format pfx (Key key:parts)   = format (pfx ++ formatKey key) parts
-
-    formatKey :: String -> String
-    formatKey key
-       | isIdentifierKey key = "." ++ key
-       | otherwise           = "['" ++ escapeKey key ++ "']"
-
-    isIdentifierKey :: String -> Bool
-    isIdentifierKey []     = False
-    isIdentifierKey (x:xs) = isAlpha x && all isAlphaNum xs
-
-    escapeKey :: String -> String
-    escapeKey = concatMap escapeChar
-
-    escapeChar :: Char -> String
-    escapeChar '\'' = "\\'"
-    escapeChar '\\' = "\\\\"
-    escapeChar c    = [c]
-
-explicitParseField :: (Value -> Parser a) -> Object -> String -> Parser a
+explicitParseField :: (Value -> Parser a) -> Object -> Text.Text -> Parser a
 explicitParseField p obj key =
     case key `lookup` obj of
-      Nothing -> fail $ "key " ++ key ++ " not found"
+      Nothing -> fail $ "key " ++ Text.unpack key ++ " not found"
       Just v  -> p v <?> Key key
 
-(.:) :: FromJSON a => Object -> String -> Parser a
+(.:) :: FromJSON a => Object -> Text.Text -> Parser a
 (.:) = explicitParseField parseJSON
 
-explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> String -> Parser (Maybe a)
+explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Text.Text -> Parser (Maybe a)
 explicitParseFieldMaybe p obj key =
     case key `lookup` obj of
       Nothing -> pure Nothing
       Just v  -> Just <$> p v <?> Key key
 
-(.:?) :: FromJSON a => Object -> String -> Parser (Maybe a)
+(.:?) :: FromJSON a => Object -> Text.Text -> Parser (Maybe a)
 (.:?) = explicitParseFieldMaybe parseJSON
 
 

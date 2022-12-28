@@ -3,17 +3,24 @@ module Haddock.Utils.Json.Types
   , typeOf
   , Pair
   , Object
+  , KeyMap
+  , Key
   , object
+  , Map
   ) where
 
 import Data.String
+import Data.Map (Map)
+import qualified Data.Map.Strict as Map
+import Data.Text (Text)
+import Data.ByteString.Builder
 
 -- TODO: We may want to replace 'String' with 'Text' or 'ByteString'
 
 -- | A JSON value represented as a Haskell value.
 data Value = Object !Object
            | Array  [Value]
-           | String  String
+           | String !Text
            | Number !Double
            | Bool   !Bool
            | Null
@@ -29,14 +36,17 @@ typeOf v = case v of
     Null     -> "Null"
 
 -- | A key\/value pair for an 'Object'
-type Pair = (String, Value)
+type Pair = (Text, Value)
+
+type KeyMap v = [(Key, v)]
+type Key = Text
 
 -- | A JSON \"object\" (key/value map).
-type Object = [Pair]
+type Object = KeyMap Value
 
 -- | Create a 'Value' from a list of name\/value 'Pair's.
 object :: [Pair] -> Value
 object = Object
 
 instance IsString Value where
-  fromString = String
+  fromString = String . fromString
