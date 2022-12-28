@@ -31,4 +31,5 @@ main = do
             , "--package-version=0.0.0"
             , "--hoogle"
             ]
+        , cfgHaddockStdout = stdout
         }
