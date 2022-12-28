@@ -8,6 +8,14 @@ jobs:
   build:
     name: hlint
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        cabal: ["3.8"]
+        ghc:
+          # GHC head is broken on GitHub Actions: https://github.com/haskell/actions/issues/137#issuecomment-1362677728
+          # - "head"
+          - "9.4"
 
     steps:
     - uses: actions/checkout@v3
@@ -18,6 +26,17 @@ jobs:
       run: |
         sudo -- sh -c "apt-get update"
         sudo -- sh -c "apt-get -y install libtinfo5"
+
+    - uses: haskell/actions/setup@main
+      id: setup-haskell-cabal
+      name: Setup Haskell
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: ${{ matrix.cabal }}
+
+    - name: Freeze
+      run: |
+        cabal freeze
 
     - uses: actions/cache@v2
       name: Cache ~/.cabal/store
