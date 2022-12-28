@@ -82,7 +82,10 @@ runHaddock cfg@(Config { .. }) = do
 
     putStrLn "Generating documentation..."
     successes <- forM cfgPackages $ \tpkg -> do
-        haddockStdOut <- openFile cfgHaddockStdOut WriteMode
+        haddockStdOut <-
+            if cfgHaddockStdOut == "stdout"
+                then pure stdout
+                else openFile cfgHaddockStdOut WriteMode
         let pc = processConfig
                     { pcArgs = concat
                         [ cfgHaddockArgs

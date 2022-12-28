@@ -4,7 +4,6 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE Rank2Types          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
 {-# OPTIONS_GHC -Wwarn           #-}
 -----------------------------------------------------------------------------
 -- |
@@ -225,7 +224,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
         throwE "No input file(s)."
 
       -- Get packages supplied with --read-interface.
-      name_cache <- liftIO $ freshNameCache
+      name_cache <- liftIO freshNameCache
       packages <- liftIO $ readInterfaceFiles name_cache (readIfaceArgs flags) noChecks
 
       -- Render even though there are no input files (usually contents/index).

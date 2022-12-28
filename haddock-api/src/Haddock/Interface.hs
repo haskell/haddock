@@ -149,7 +149,7 @@ createIfaces verbosity modules flags instIfaceMap = do
         old_plugins = hsc_plugins hsc_env
         new_plugins = old_plugins { staticPlugins = haddockPlugin : staticPlugins old_plugins }
         hsc_env'    = hsc_env { hsc_plugins = new_plugins }
-      in hscUpdateFlags (flip gopt_set Opt_PluginTrustworthy) hsc_env'
+      in hscUpdateFlags (`gopt_set` Opt_PluginTrustworthy) hsc_env'
 
   -- Note that we would rather use withTempSession but as long as we
   -- have the separate attachInstances step we need to keep the session

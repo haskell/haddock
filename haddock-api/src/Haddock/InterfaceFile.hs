@@ -26,6 +26,7 @@ module Haddock.InterfaceFile (
 
 import Haddock.Types
 
+import Control.Exception (try, IOException)
 import Data.IORef
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -75,7 +76,7 @@ mkPackageInterfaces :: Visibility -> InterfaceFile -> PackageInterfaces
 mkPackageInterfaces piVisibility
                     InterfaceFile { ifPackageInfo
                                   , ifInstalledIfaces
-                                  } = 
+                                  } =
   PackageInterfaces { piPackageInfo = ifPackageInfo
                     , piVisibility
                     , piInstalledInterfaces = ifInstalledIfaces
@@ -126,12 +127,14 @@ binaryInterfaceVersion :: Word16
 #if MIN_VERSION_ghc(9,4,0) && !MIN_VERSION_ghc(9,5,0)
 binaryInterfaceVersion = 41
 
-binaryInterfaceVersionCompatibility :: [Word16]
-binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
 #else
-#error Unsupported GHC version
+binaryInterfaceVersion ::
+    TypeError ('Text "You're attempting to compile with an unsupported version of GHC.")
+binaryInterfaceVersion = undefined
 #endif
 
+binaryInterfaceVersionCompatibility :: [Word16]
+binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
 
 initBinMemSize :: Int
 initBinMemSize = 1024*1024
@@ -209,16 +212,21 @@ readInterfaceFile :: NameCache
                   -> Bool  -- ^ Disable version check. Can cause runtime crash.
                   -> IO (Either String InterfaceFile)
 readInterfaceFile name_cache filename bypass_checks = do
-  bh <- readBinMem filename
+  ebh <- try $ readBinMem filename
 
-  magic   <- get bh
-  if magic /= binaryInterfaceMagic
-    then return . Left $ "Magic number mismatch: couldn't load interface file: " ++ filename
-    else do
-      version <- get bh
-      if not bypass_checks && (version `notElem` binaryInterfaceVersionCompatibility)
-        then return . Left $ "Interface file is of wrong version: " ++ filename
-        else Right <$> getWithUserData name_cache bh
+  case ebh of
+    Left (err :: IOException) ->
+      pure $ Left $ "Error from readBinMem: " <> show err
+    Right bh -> do
+
+      magic   <- get bh
+      if magic /= binaryInterfaceMagic
+        then return . Left $ "Magic number mismatch: couldn't load interface file: " ++ filename
+        else do
+          version <- get bh
+          if not bypass_checks && (version `notElem` binaryInterfaceVersionCompatibility)
+            then return . Left $ "Interface file is of wrong version: " ++ filename
+            else Right <$> getWithUserData name_cache bh
 
 -------------------------------------------------------------------------------
 -- * Symbol table
