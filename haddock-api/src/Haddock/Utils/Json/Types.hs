@@ -42,7 +42,7 @@ type KeyMap v = [(Key, v)]
 type Key = Text
 
 -- | A JSON \"object\" (key/value map).
-type Object = [Pair]
+type Object = KeyMap Value
 
 -- | Create a 'Value' from a list of name\/value 'Pair's.
 object :: [Pair] -> Value

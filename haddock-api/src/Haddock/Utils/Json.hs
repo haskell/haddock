@@ -96,6 +96,7 @@ instance ToJSON () where
 
 instance ToJSON Text.Text where
     toJSON = String
+    toEncoding = EB.text
 
 instance ToJSON Value where
   toJSON = id
