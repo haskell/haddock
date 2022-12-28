@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE CPP #-}
@@ -565,7 +566,7 @@ mkMaps dflags pkgName gre instances decls thDocs = do
       let
           ns = names l decl
           subNs = [ n | (n, _, _) <- subs ]
-          dm = [ (n, d) | (n, Just d) <- zip ns (repeat doc) ++ zip subNs subDocs ]
+          dm = [ (n, d) | (n, Just d) <- map (, doc) ns ++ zip subNs subDocs ]
           am = [ (n, args) | n <- ns ] ++ zip subNs subArgs
           cm = [ (n, [ldecl]) | n <- ns ++ subNs ]
 
@@ -906,7 +907,7 @@ availSubordinates = map greNameMangledName . availSubordinateGreNames
 
 availNoDocs :: AvailInfo -> [(Name, DocForDecl Name)]
 availNoDocs avail =
-  zip (availSubordinates avail) (repeat noDocForDecl)
+  map (, noDocForDecl) (availSubordinates avail)
 
 -- | Given a 'Module' from a 'Name', convert it into a 'Module' that
 -- we can actually find in the 'IfaceMap'.

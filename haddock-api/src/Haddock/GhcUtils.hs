@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, FlexibleInstances #-}
+{-# LANGUAGE BangPatterns, FlexibleInstances, TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
@@ -485,7 +485,7 @@ family = getName &&& children
 
 
 familyConDecl :: ConDecl GHC.GhcRn -> [(Name, [Name])]
-familyConDecl d = zip (map unLoc (getConNames d)) (repeat $ children d)
+familyConDecl d = map (, children d) (map unLoc (getConNames d))
 
 -- | A mapping from the parent (main-binder) to its children and from each
 -- child to its grand-children, recursively.

@@ -241,8 +241,8 @@ ambiguous dflags x gres = do
 invalidValue :: DynFlags -> Wrap NsRdrName -> ErrMsgM (Doc a)
 invalidValue dflags x = do
   reportErrorMessage $ "Warning: " <> fromString (showNsRdrName dflags x) <> " cannot be value, yet it is"
-  reportErrorMessage $ "    namespaced as such. Did you mean to specify a type namespace"
-  reportErrorMessage $ "    instead?"
+  reportErrorMessage "    namespaced as such. Did you mean to specify a type namespace"
+  reportErrorMessage "    instead?"
   pure (DocMonospaced (DocString (showNsRdrName dflags x)))
 
 -- | Printable representation of a wrapped and namespaced name

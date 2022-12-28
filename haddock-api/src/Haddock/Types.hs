@@ -690,7 +690,7 @@ runErrMsgM :: ErrMsgM a -> (a, ErrorMessages)
 runErrMsgM = runWriter . unErrMsgM
 
 singleMessage :: Builder -> ErrorMessages
-singleMessage m = ErrorMessages $ (m :)
+singleMessage m = ErrorMessages (m :)
 
 errorMessagesToList :: ErrorMessages -> [Builder]
 errorMessagesToList messages = unErrorMessages messages []
