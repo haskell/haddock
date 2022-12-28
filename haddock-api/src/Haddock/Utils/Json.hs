@@ -112,6 +112,7 @@ instance ToJSON a => ToJSON [a] where
   {-# SPECIALIZE instance ToJSON [[Value]] #-}
   toJSON = Array . fmap toJSON
   toEncoding = EB.list toEncoding
+  {-# INLINE toEncoding #-}
 
 instance ToJSON Char where
   toJSON = String . Text.singleton
