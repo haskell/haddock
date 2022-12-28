@@ -26,6 +26,7 @@ module Haddock.InterfaceFile (
 
 import Haddock.Types
 
+import Control.Exception (try, ErrorCall)
 import Data.IORef
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -211,16 +212,21 @@ readInterfaceFile :: NameCache
                   -> Bool  -- ^ Disable version check. Can cause runtime crash.
                   -> IO (Either String InterfaceFile)
 readInterfaceFile name_cache filename bypass_checks = do
-  bh <- readBinMem filename
+  ebh <- try $ readBinMem filename
 
-  magic   <- get bh
-  if magic /= binaryInterfaceMagic
-    then return . Left $ "Magic number mismatch: couldn't load interface file: " ++ filename
-    else do
-      version <- get bh
-      if not bypass_checks && (version `notElem` binaryInterfaceVersionCompatibility)
-        then return . Left $ "Interface file is of wrong version: " ++ filename
-        else Right <$> getWithUserData name_cache bh
+  case ebh of
+    Left (err :: ErrorCall) ->
+      pure $ Left $ "Error from readBinMem: " <> show err
+    Right bh -> do
+
+      magic   <- get bh
+      if magic /= binaryInterfaceMagic
+        then return . Left $ "Magic number mismatch: couldn't load interface file: " ++ filename
+        else do
+          version <- get bh
+          if not bypass_checks && (version `notElem` binaryInterfaceVersionCompatibility)
+            then return . Left $ "Interface file is of wrong version: " ++ filename
+            else Right <$> getWithUserData name_cache bh
 
 -------------------------------------------------------------------------------
 -- * Symbol table
