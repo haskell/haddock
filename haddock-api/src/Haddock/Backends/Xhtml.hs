@@ -485,9 +485,8 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
       Builder.hPutBuilder
         h (encodeToBuilder (encodeIndexes (concat installedIndexes)))
   where
-    encodeIndexes :: [JsonIndexEntry] -> Value
+    encodeIndexes :: [JsonIndexEntry] -> [JsonIndexEntry]
     encodeIndexes installedIndexes =
-      toJSON
         (concatMap fromInterface ifaces
          ++ installedIndexes)
 

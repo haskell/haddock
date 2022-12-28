@@ -163,6 +163,7 @@ instance ToJSON Integer where toJSON = Number . fromInteger
 -- | Serialise value as JSON/UTF8-encoded 'Builder'
 encodeToBuilder :: ToJSON a => a -> Builder
 encodeToBuilder = EB.fromEncoding . toEncoding
+{-# INLINE encodeToBuilder #-}
 
 encodeValueBB :: Value -> Builder
 encodeValueBB jv = case jv of
