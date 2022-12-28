@@ -50,6 +50,7 @@ library
                , xhtml           ^>= 3000.2.2
                , parsec          ^>= 3.1.13.0
                , text            ^>= 2.0
+               , aeson
 
   -- Versions for the dependencies below are transitively pinned by
   -- the non-reinstallable `ghc` package and hence need no version

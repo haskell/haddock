@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+
 module Haddock.Backends.Xhtml.Meta where
 
 import Haddock.Utils.Json
@@ -20,7 +22,7 @@ writeHaddockMeta odir withQuickjump = do
   let
     meta_json :: Value
     meta_json = object (concat [
-        [ "haddock_version"   .= String projectVersion ]
+        [ "haddock_version"   .= projectVersion ]
       , [ "quickjump_version" .= quickjumpVersion | withQuickjump ]
       ])
 

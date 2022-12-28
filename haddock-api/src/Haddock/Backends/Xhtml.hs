@@ -21,6 +21,8 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
+import Data.Aeson
+import Data.String
 import GHC.Utils.Error
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
@@ -432,20 +434,32 @@ instance ToJSON JsonIndexEntry where
         , jieName
         , jieModule
         , jieLink } =
-      Object
-        [ "display_html" .= String jieHtmlFragment
-        , "name"         .= String jieName
-        , "module"       .= String jieModule
-        , "link"         .= String jieLink
+      Haddock.Utils.Json.object
+        [ fromString "display_html" .= jieHtmlFragment
+        , fromString "name"         .= jieName
+        , fromString "module"       .= jieModule
+        , fromString "link"         .= jieLink
         ]
+
+    toEncoding JsonIndexEntry
+        { jieHtmlFragment
+        , jieName
+        , jieModule
+        , jieLink } =
+      pairs
+        ( fromString "display_html" .= jieHtmlFragment
+        <> fromString "name"         .= jieName
+        <> fromString "module"       .= jieModule
+        <> fromString "link"         .= jieLink
+        )
 
 instance FromJSON JsonIndexEntry where
     parseJSON = withObject "JsonIndexEntry" $ \v ->
       JsonIndexEntry
-        <$> v .: "display_html"
-        <*> v .: "name"
-        <*> v .: "module"
-        <*> v .: "link"
+        <$> v .: fromString "display_html"
+        <*> v .: fromString "name"
+        <*> v .: fromString "module"
+        <*> v .: fromString "link"
 
 ppJsonIndex
   :: Logger
@@ -484,11 +498,10 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
       Builder.hPutBuilder
         h (encodeToBuilder (encodeIndexes (concat installedIndexes)))
   where
-    encodeIndexes :: [JsonIndexEntry] -> Value
+    encodeIndexes :: [JsonIndexEntry] -> [JsonIndexEntry]
     encodeIndexes installedIndexes =
-      toJSON
-        (concatMap fromInterface ifaces
-         ++ installedIndexes)
+        concatMap fromInterface ifaces
+            ++ installedIndexes
 
     fromInterface :: Interface -> [JsonIndexEntry]
     fromInterface iface =
