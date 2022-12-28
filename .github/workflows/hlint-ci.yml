@@ -53,3 +53,4 @@ jobs:
       with:
         path: '[ "haddock-library/", "haddock-api/", "haddock-test/", "hoogle-test/", "html-test/", "hypsrc-test/", "latex-test/" ]'
         fail-on: suggestion
+        hlint-bin: ${{ steps.setup-haskell-cabal.outputs.cabal-path}}/hlint
