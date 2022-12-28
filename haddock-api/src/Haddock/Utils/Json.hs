@@ -11,7 +11,7 @@ module Haddock.Utils.Json
     ( Value(..)
     , Object, object, Pair, (.=)
     , encodeToBuilder
-    , ToJSON(toJSON)
+    , ToJSON(..)
 
     , Parser(..)
     , Result(..)
@@ -39,6 +39,7 @@ import Control.Monad (MonadPlus (..), zipWithM, (>=>))
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Fail as Fail
 
+import qualified Haddock.Utils.Json.Encoding as EB
 import Data.ByteString.Internal (c2w)
 import Data.Foldable
 import qualified Data.Text as Text
@@ -64,6 +65,7 @@ import qualified Text.Parsec.ByteString.Lazy as Parsec.Lazy
 import qualified Text.ParserCombinators.Parsec as Parsec
 
 import Haddock.Utils.Json.Types
+import Haddock.Utils.Json.Encoding (Encoding)
 import Haddock.Utils.Json.Parser
 
 
@@ -79,6 +81,15 @@ class ToJSON a where
   -- | Convert a Haskell value to a JSON-friendly intermediate type.
   toJSON :: a -> Value
 
+  toJSONList :: [a] ->  Value
+  toJSONList = Array . map toJSON
+
+  toEncoding :: a -> Encoding
+  toEncoding = toEncoding . toJSON
+
+  toEncodingList :: [a] -> Encoding
+  toEncodingList = EB.list toEncoding
+
 instance ToJSON () where
   toJSON () = Array mempty
 
@@ -87,12 +98,26 @@ instance ToJSON Text.Text where
 
 instance ToJSON Value where
   toJSON = id
+  toEncoding = EB.value
 
 instance ToJSON Bool where
   toJSON = Bool
+  toEncoding = EB.bool
 
 instance ToJSON a => ToJSON [a] where
+  {-# SPECIALIZE instance ToJSON String #-}
+  {-# SPECIALIZE instance ToJSON [String] #-}
+  {-# SPECIALIZE instance ToJSON [Object] #-}
+  {-# SPECIALIZE instance ToJSON [[Value]] #-}
   toJSON = Array . fmap toJSON
+  toEncoding = EB.list toEncoding
+
+instance ToJSON Char where
+  toJSON = String . Text.singleton
+  toJSONList = String . Text.pack
+
+  toEncoding = EB.string . (:[])
+  toEncodingList = EB.string
 
 instance ToJSON a => ToJSON (Maybe a) where
   toJSON Nothing  = Null
@@ -137,7 +162,7 @@ instance ToJSON Integer where toJSON = Number . fromInteger
 
 -- | Serialise value as JSON/UTF8-encoded 'Builder'
 encodeToBuilder :: ToJSON a => a -> Builder
-encodeToBuilder = encodeValueBB . toJSON
+encodeToBuilder = EB.fromEncoding . toEncoding
 
 encodeValueBB :: Value -> Builder
 encodeValueBB jv = case jv of

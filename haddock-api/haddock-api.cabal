@@ -95,6 +95,8 @@ library
     Haddock.Parser
     Haddock.Utils
     Haddock.Utils.Json
+    Haddock.Utils.Json.Encoding
+    Haddock.Utils.Json.Encoding.Builder
     Haddock.Utils.Json.Types
     Haddock.Utils.Json.Parser
     Haddock.Backends.Xhtml
