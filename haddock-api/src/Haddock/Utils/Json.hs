@@ -137,6 +137,7 @@ instance ToJSON Float where
 
 instance ToJSON Double where
   toJSON = Number
+  toEncoding = EB.double
 
 instance ToJSON Int    where  toJSON = Number . realToFrac
 instance ToJSON Int8   where  toJSON = Number . realToFrac

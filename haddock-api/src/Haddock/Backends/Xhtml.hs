@@ -21,6 +21,7 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
+import qualified Haddock.Utils.Json.Encoding as EB
 import GHC.Utils.Error
 import Haddock.Backends.Xhtml.Decl
 import Haddock.Backends.Xhtml.DocMarkup
@@ -434,11 +435,22 @@ instance ToJSON JsonIndexEntry where
         , jieModule
         , jieLink } =
       Haddock.Utils.Json.object
-        [ Text.pack "display_html" .= Text.pack jieHtmlFragment
-        , Text.pack "name"         .= Text.pack jieName
-        , Text.pack "module"       .= Text.pack jieModule
-        , Text.pack "link"         .= Text.pack jieLink
+        [ Text.pack "display_html" .= jieHtmlFragment
+        , Text.pack "name"         .= jieName
+        , Text.pack "module"       .= jieModule
+        , Text.pack "link"         .= jieLink
         ]
+    toEncoding JsonIndexEntry
+        { jieHtmlFragment
+        , jieName
+        , jieModule
+        , jieLink } =
+      EB.pairs
+        ( EB.pair (Text.pack "display_html") (toEncoding jieHtmlFragment)
+        <> EB.pair (Text.pack "name") (toEncoding jieName)
+        <> EB.pair (Text.pack "module") (toEncoding jieModule)
+        <> EB.pair (Text.pack "link") (toEncoding jieLink)
+        )
 
 instance FromJSON JsonIndexEntry where
     parseJSON = withObject "JsonIndexEntry" $ \v ->
