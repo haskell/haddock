@@ -307,7 +307,7 @@ baseDependencies ghcPath = do
             htmlDirOpt = listToMaybe (haddockHTMLs pkg)
 
         pure (unitId, ifaceOpt, htmlDirOpt)
-    
+
 
 defaultDiffTool :: IO (Maybe FilePath)
 defaultDiffTool =
