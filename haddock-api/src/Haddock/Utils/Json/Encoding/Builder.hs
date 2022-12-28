@@ -65,13 +65,13 @@ bool = BP.primBounded (BP.condB id (ascii4 ('t',('r',('u','e'))))
 
 -- | Encode a JSON array.
 array :: [] Value -> Builder
-array v
-  | null v  = emptyArray_
-  | otherwise = B.char8 '[' <>
-                encodeToBuilder (head v) <>
-                foldr withComma (B.char8 ']') (tail v)
+array [] = emptyArray_
+array (x:xs) = B.char8 '[' <>
+                encodeToBuilder x <>
+                foldr withComma (B.char8 ']') xs
   where
     withComma a z = B.char8 ',' <> encodeToBuilder a <> z
+{-# INLINE array #-}
 
 -- Encode a JSON object.
 object :: KeyMap Value -> Builder

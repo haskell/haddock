@@ -499,8 +499,8 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
   where
     encodeIndexes :: [JsonIndexEntry] -> [JsonIndexEntry]
     encodeIndexes installedIndexes =
-        (concatMap fromInterface ifaces
-         ++ installedIndexes)
+      concatMap fromInterface ifaces
+        ++ installedIndexes
 
     fromInterface :: Interface -> [JsonIndexEntry]
     fromInterface iface =
