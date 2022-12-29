@@ -129,17 +129,13 @@ vcat htmls = foldr1 (\a b -> a+++ br_ [] +++b) htmls
 
 infixr 8 <+>
 (<+>) :: Html -> Html -> Html
-a <+> b = a +++ sep +++ b
-  where
-    sep = if isNoHtml a || isNoHtml b then noHtml else " "
+a <+> b = a +++ " " +++ b
 
 -- | Join two 'Html' values together with a linebreak in between.
 --   Has 'noHtml' as left identity.
 infixr 8 <=>
 (<=>) :: Html -> Html -> Html
-a <=> b = a +++ sep +++ b
-  where
-    sep = if isNoHtml a then noHtml else br_ []
+a <=> b = a +++ br_ [] +++ b
 
 
 

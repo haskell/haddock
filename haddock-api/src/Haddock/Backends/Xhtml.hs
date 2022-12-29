@@ -219,7 +219,7 @@ bodyHtml doctitle iface
            pageContent =
   body_ $ do
     divPackageHeader $ do
-      nonEmptySectionName $ toHtml doctitle
+      nonEmptySectionName doctitle
       unordList (catMaybes [
         srcButton maybe_source_url iface,
         wikiButton maybe_wiki_url (ifaceMod <$> iface),
@@ -754,11 +754,15 @@ ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg qual
 
     no_doc_at_all = not (any has_doc exports)
 
-    description | isNoHtml doc = doc
-                | otherwise    = divDescription $ do
-                    sectionName "Description"
-                    doc
-                where doc = docSection Nothing pkg qual (ifaceRnDoc iface)
+    description =
+      case mdoc of
+        Nothing -> mempty
+        Just doc ->
+          divDescription $ do
+            sectionName "Description"
+            doc
+      where
+        mdoc = docSection Nothing pkg qual (ifaceRnDoc iface)
 
         -- omit the synopsis if there are no documentation annotations at all
     synopsis

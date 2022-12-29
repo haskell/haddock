@@ -251,16 +251,17 @@ rdrDocToHtml pkg qual = markupHacked fmt pkg Nothing . cleanup
 
 docElement :: (Html -> Html) -> Html -> Html
 docElement el content =
-  if isNoHtml content
-    then el spaceHtml `with` [class_ "doc empty"]
-    else el content `with` [class_ "doc"]
+--   if isNoHtml content
+--     then el spaceHtml `with` [class_ "doc empty"]
+--     else
+    el content `with` [class_ "doc"]
 
 
 docSection :: Maybe Name -- ^ Name of the thing this doc is for
            -> Maybe Package -- ^ Current package
-           -> Qualification -> Documentation DocName -> Html
+           -> Qualification -> Documentation DocName -> Maybe Html
 docSection n pkg qual =
-  maybe noHtml (docSection_ n pkg qual) . combineDocumentation
+  fmap (docSection_ n pkg qual) . combineDocumentation
 
 
 docSection_ :: Maybe Name    -- ^ Name of the thing this doc is for

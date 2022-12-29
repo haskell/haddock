@@ -127,10 +127,10 @@ ppTypeOrFunSig :: Bool -> LinksInfo -> SrcSpan -> [DocName] -> HsSigType DocName
 ppTypeOrFunSig summary links loc docnames typ (doc, argDocs) (pref1, pref2, sep)
                splice unicode pkg qual emptyCtxts
   | summary = pref1
-  | Map.null argDocs = topDeclElem links loc splice docnames pref1 +++ docSection curname pkg qual doc
+  | Map.null argDocs = topDeclElem links loc splice docnames pref1 +++ sequence_ (docSection curname pkg qual doc)
   | otherwise = topDeclElem links loc splice docnames pref2
                   +++ subArguments pkg qual (ppSubSigLike unicode qual typ argDocs [] sep emptyCtxts)
-                  +++ docSection curname pkg qual doc
+                  +++ sequence_ (docSection curname pkg qual doc)
   where
     curname = getName <$> listToMaybe docnames
 
@@ -293,7 +293,7 @@ ppFamDecl :: Bool                     -- ^ is a summary
           -> Splice -> Unicode -> Maybe Package -> Qualification -> Html
 ppFamDecl summary associated links instances fixities loc doc decl splice unicode pkg qual
   | summary   = ppFamHeader True associated decl unicode qual
-  | otherwise = header_ +++ docSection curname pkg qual doc +++ instancesBit
+  | otherwise = header_ +++ sequence_ (docSection curname pkg qual doc) +++ instancesBit
 
   where
     docname = unLoc $ fdLName decl
@@ -539,7 +539,7 @@ ppClassDecl summary links instances fixities loc d subdocs
                         , tcdFDs = lfds, tcdSigs = lsigs, tcdATs = ats, tcdATDefs = atsDefs })
             splice unicode pkg qual
   | summary = ppShortClassDecl summary links decl loc subdocs splice unicode pkg qual
-  | otherwise = classheader +++ docSection curname pkg qual d
+  | otherwise = classheader +++ sequence_ (docSection curname pkg qual d)
                   +++ minimalBit +++ atBit +++ methodBit +++ instancesBit
   where
     curname = Just $ getName nm
@@ -810,7 +810,7 @@ ppDataDecl summary links instances fixities subdocs loc doc dataDecl pats
            splice unicode pkg qual
 
   | summary   = ppShortDataDecl summary False dataDecl pats unicode qual
-  | otherwise = header_ +++ docSection curname pkg qual doc +++ constrBit +++ patternBit +++ instancesBit
+  | otherwise = header_ +++ sequence_ (docSection curname pkg qual doc) +++ constrBit +++ patternBit +++ instancesBit
 
   where
     docname   = tcdNameI dataDecl

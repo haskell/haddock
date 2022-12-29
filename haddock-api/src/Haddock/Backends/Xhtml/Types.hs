@@ -20,7 +20,6 @@ module Haddock.Backends.Xhtml.Types (
   -- * Lucid Shims
   Html,
   makeAttribute,
-  isNoHtml,
   noHtml,
   spaceHtml,
   traverse_,
@@ -47,10 +46,6 @@ type Html = L.Html ()
 
 unordList :: [Html] -> Html
 unordList = ul_ . traverse_ li_
-
-isNoHtml :: Html -> Bool
-isNoHtml html =
-    LText.null (renderText html)
 
 noHtml :: Html
 noHtml = mempty

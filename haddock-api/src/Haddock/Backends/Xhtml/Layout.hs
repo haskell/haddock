@@ -78,10 +78,10 @@ sectionName = p_ [class_ "caption"]
 
 -- | Make an element that always has at least something (a non-breaking space).
 -- If it would have otherwise been empty, then give it the class ".empty".
-nonEmptySectionName :: Html -> Html
+nonEmptySectionName :: String -> Html
 nonEmptySectionName c
-  | isNoHtml c = span_ [class_ "caption empty"] $ spaceHtml
-  | otherwise  = span_ [class_ "caption"]       $ c
+  | null c = span_ [class_ "caption empty"] $ spaceHtml
+  | otherwise  = span_ [class_ "caption"]       $ toHtml c
 
 
 divPackageHeader, divContent, divModuleHeader, divFooter,
