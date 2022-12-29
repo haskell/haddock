@@ -10,6 +10,7 @@ import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
 
 import qualified Data.ByteString as BS
+import qualified Data.Text as Text
 
 import GHC.Iface.Ext.Types
 import GHC.Iface.Ext.Utils ( isEvidenceContext , emptyNodeInfo )
@@ -18,15 +19,13 @@ import GHC.Types.Name   ( getOccString, isInternalName, Name, nameModule, nameUn
 import GHC.Types.SrcLoc
 import GHC.Types.Unique ( getKey )
 import GHC.Utils.Encoding ( utf8DecodeByteString )
+import Haddock.Backends.Xhtml.Types
 
 import System.FilePath.Posix ((</>))
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
-
-import Text.XHtml (Html, HtmlAttr, (!))
-import qualified Text.XHtml as Html
 
 
 type StyleClass = String
@@ -42,25 +41,25 @@ render
 render mcss mjs srcs ast tokens = header mcss mjs <> body srcs ast tokens
 
 body :: SrcMaps -> HieAST PrintedType -> [Token] -> Html
-body srcs ast tokens = Html.body . Html.pre $ hypsrc
+body srcs ast tokens = body_ . pre_ $ hypsrc
   where
     hypsrc = renderWithAst srcs ast tokens
 
 header :: Maybe FilePath -> Maybe FilePath -> Html
-header Nothing Nothing = Html.noHtml
-header mcss mjs = Html.header $ css mcss <> js mjs
+header Nothing Nothing = noHtml
+header mcss mjs = header_ $ css mcss <> js mjs
   where
-    css Nothing = Html.noHtml
-    css (Just cssFile) = Html.thelink Html.noHtml !
-        [ Html.rel "stylesheet"
-        , Html.thetype "text/css"
-        , Html.href cssFile
+    css Nothing = noHtml
+    css (Just cssFile) = link_
+        [ rel_ "stylesheet"
+        , type_ "text/css"
+        , href_ $ Text.pack cssFile
         ]
-    js Nothing = Html.noHtml
-    js (Just scriptFile) = Html.script Html.noHtml !
-        [ Html.thetype "text/javascript"
-        , Html.src scriptFile
-        ]
+    js Nothing = noHtml
+    js (Just scriptFile) = script_
+        [ type_ "text/javascript"
+        , src_ $ Text.pack scriptFile
+        ] noHtml
 
 
 splitTokens :: HieAST PrintedType -> [Token] -> ([Token],[Token],[Token])
@@ -121,11 +120,11 @@ renderToken :: Token -> Html
 renderToken Token{..}
     | BS.null tkValue = mempty
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
-    | otherwise = tokenSpan ! [ multiclass style ]
+    | otherwise = tokenSpan `with` [ multiclass style ]
   where
     tkValue' = filterCRLF $ utf8DecodeByteString tkValue
     style = tokenStyle tkType
-    tokenSpan = Html.thespan (Html.toHtml tkValue')
+    tokenSpan = span_ (toHtml tkValue')
 
 
 -- | Given information about the source position of definitions, render a token
@@ -135,9 +134,9 @@ richToken srcs details Token{..}
     | otherwise = annotate details $ linked content
   where
     tkValue' = filterCRLF $ utf8DecodeByteString tkValue
-    content = tokenSpan ! [ multiclass style ]
-    tokenSpan = Html.thespan (Html.toHtml tkValue')
-    style = tokenStyle tkType ++ concatMap (richTokenStyle (null (nodeType details))) contexts
+    content = tokenSpan `with` [ multiclass style ]
+    tokenSpan = span_ (toHtml tkValue')
+    style = tokenStyle tkType <> concatMap (richTokenStyle (null (nodeType details))) contexts
 
     contexts = concatMap (Set.elems . identInfo) . Map.elems . nodeIdentifiers $ details
 
@@ -158,19 +157,19 @@ filterCRLF [] = []
 
 annotate :: NodeInfo PrintedType -> Html -> Html
 annotate  ni content =
-    Html.thespan (annot <> content) ! [ Html.theclass "annot" ]
+    span_ (annot <> content) `with` [ class_ "annot" ]
   where
     annot
       | not (null annotation) =
-          Html.thespan (Html.toHtml annotation) ! [ Html.theclass "annottext" ]
+          span_ (toHtml annotation) `with` [ class_ "annottext" ]
       | otherwise = mempty
-    annotation = typ ++ identTyps
+    annotation = typ <> identTyps
     typ = unlines (nodeType ni)
     typedIdents = [ (n,t) | (n, c@(identType -> Just t)) <- Map.toList $ nodeIdentifiers ni
                           , not (any isEvidenceContext $ identInfo c) ]
     identTyps
       | length typedIdents > 1 || null (nodeType ni)
-          = concatMap (\(n,t) -> printName n ++ " :: " ++ t ++ "\n") typedIdents
+          = concatMap (\(n,t) -> printName n <> " :: " <> t <> "\n") typedIdents
       | otherwise = ""
 
     printName :: Either ModuleName Name -> String
@@ -209,14 +208,14 @@ tokenStyle TkCpp = ["hs-cpp"]
 tokenStyle TkPragma = ["hs-pragma"]
 tokenStyle TkUnknown = []
 
-multiclass :: [StyleClass] -> HtmlAttr
-multiclass = Html.theclass . unwords
+multiclass :: [StyleClass] -> Attribute
+multiclass = class_ . Text.unwords . map Text.pack
 
 externalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
 externalAnchor (Right name) contexts content
   | not (isInternalName name)
   , any isBinding contexts
-  = Html.thespan content ! [ Html.identifier $ externalAnchorIdent name ]
+  = span_ content `with` [ id_ $ Text.pack $ externalAnchorIdent name ]
 externalAnchor _ _ content = content
 
 isBinding :: ContextInfo -> Bool
@@ -232,14 +231,14 @@ internalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
 internalAnchor (Right name) contexts content
   | isInternalName name
   , any isBinding contexts
-  = Html.thespan content ! [ Html.identifier $ internalAnchorIdent name ]
+  = span_ content `with` [ id_ $ internalAnchorIdent name ]
 internalAnchor _ _ content = content
 
 externalAnchorIdent :: Name -> String
 externalAnchorIdent = hypSrcNameUrl
 
-internalAnchorIdent :: Name -> String
-internalAnchorIdent = ("local-" ++) . show . getKey . nameUnique
+internalAnchorIdent :: Name -> Text.Text
+internalAnchorIdent = ("local-" <>) . Text.pack . show . getKey . nameUnique
 
 -- | Generate the HTML hyperlink for an identifier
 hyperlink :: SrcMaps -> Identifier -> Html -> Html
@@ -254,41 +253,41 @@ hyperlink (srcs, srcs') ident = case ident of
     makeHyperlinkUrl url = ".." </> url
 
     internalHyperlink name content =
-        Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
+        a_ content `with` [ href_ $ "#" <> internalAnchorIdent name ]
 
     externalNameHyperlink name content = case Map.lookup mdl srcs of
-        Just SrcLocal -> Html.anchor content !
-            [ Html.href $ hypSrcModuleNameUrl mdl name ]
+        Just SrcLocal -> a_ content `with`
+            [ href_ $ Text.pack $ hypSrcModuleNameUrl mdl name ]
         Just (SrcExternal path) ->
           let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleNameUrl mdl name
-           in Html.anchor content !
-                [ Html.href $ spliceURL Nothing (Just mdl) (Just name) Nothing hyperlinkUrl ]
+           in a_ content `with`
+                [ href_ $ Text.pack $ spliceURL Nothing (Just mdl) (Just name) Nothing hyperlinkUrl ]
         Nothing -> content
       where
         mdl = nameModule name
 
     externalModHyperlink moduleName content =
         case Map.lookup moduleName srcs' of
-          Just SrcLocal -> Html.anchor content !
-            [ Html.href $ hypSrcModuleUrl' moduleName ]
+          Just SrcLocal -> a_ content `with`
+            [ href_ $ Text.pack $ hypSrcModuleUrl' moduleName ]
           Just (SrcExternal path) ->
             let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleUrl' moduleName
-             in Html.anchor content !
-                  [ Html.href $ spliceURL' Nothing (Just moduleName) Nothing Nothing hyperlinkUrl ]
+             in a_ content `with`
+                  [ href_ $ Text.pack $ spliceURL' Nothing (Just moduleName) Nothing Nothing hyperlinkUrl ]
           Nothing -> content
 
 
 renderSpace :: Int -> String -> Html
-renderSpace !_ "" = Html.noHtml
+renderSpace !_ "" = noHtml
 renderSpace !line ('\n':rest) = mconcat
-    [ Html.thespan (Html.toHtml '\n')
+    [ span_ "\n"
     , lineAnchor (line + 1)
     , renderSpace (line + 1) rest
     ]
 renderSpace line space =
     let (hspace, rest) = span (/= '\n') space
-    in (Html.thespan . Html.toHtml) hspace <> renderSpace line rest
+    in (span_ . toHtml) hspace <> renderSpace line rest
 
 
 lineAnchor :: Int -> Html
-lineAnchor line = Html.thespan Html.noHtml ! [ Html.identifier $ hypSrcLineUrl line ]
+lineAnchor line = span_ noHtml `with` [ id_ $ Text.pack $ hypSrcLineUrl line ]

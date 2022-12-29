@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Names
@@ -22,12 +24,13 @@ import Haddock.Backends.Xhtml.Utils
 import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Utils
+import Haddock.Backends.Xhtml.Types
+import qualified Data.Text as Text
 
-import Text.XHtml hiding ( name, p, quote )
 import qualified Data.Map as M
 import Data.List ( stripPrefix )
 
-import GHC hiding (LexicalFixity(..), anchor)
+import GHC hiding (LexicalFixity(..), a_)
 import GHC.Types.Name
 import GHC.Types.Name.Reader
 import GHC.Data.FastString (unpackFS)
@@ -51,7 +54,7 @@ ppIPName = toHtml . ('?':) . unpackFS . hsIPNameFS
 
 
 ppUncheckedLink :: Qualification -> Wrap (ModuleName, OccName) -> Html
-ppUncheckedLink _ x = linkIdOcc' mdl (Just occ) << occHtml
+ppUncheckedLink _ x = linkIdOcc' mdl (Just occ) $ occHtml
   where
     (mdl, occ) = unwrap x
     occHtml = toHtml (showWrapped (occNameString . snd) x) -- TODO: apply ppQualifyName
@@ -66,7 +69,7 @@ ppDocName qual notation insertAnchors docName =
   case docName of
     Documented name mdl ->
       linkIdOcc mdl (Just (nameOccName name)) insertAnchors
-      << ppQualifyName qual notation name mdl
+      $ ppQualifyName qual notation name mdl
     Undocumented name
       | isExternalName name || isWiredInName name ->
           ppQualifyName qual notation name (nameModule name)
@@ -137,11 +140,11 @@ ppBinderWith :: Notation -> Bool -> OccName -> Html
 -- the documentation or is the actual definition; in the latter case, we also
 -- set the 'id' and 'class' attributes.
 ppBinderWith notation isRef n =
-  makeAnchor << ppBinder' notation n
+  makeAnchor $ ppBinder' notation n
   where
-    name = nameAnchorId n
+    name = Text.pack $ nameAnchorId n
     makeAnchor | isRef     = linkedAnchor name
-               | otherwise = namedAnchor name ! [theclass "def"]
+               | otherwise = namedAnchor name `with` [class_ "def"]
 
 ppBinder' :: Notation -> OccName -> Html
 ppBinder' notation n = wrapInfix notation n $ ppOccName n
@@ -164,34 +167,34 @@ linkId mdl mbName = linkIdOcc mdl (fmap nameOccName mbName) True
 linkIdOcc :: Module -> Maybe OccName -> Bool -> Html -> Html
 linkIdOcc mdl mbName insertAnchors =
   if insertAnchors
-  then anchor ! [href url, title ttl]
+  then a_ [href_ url, title_ ttl]
   else id
   where
-    ttl = moduleNameString (moduleName mdl)
-    url = case mbName of
+    ttl = moduleNameText (moduleName mdl)
+    url = Text.pack $ case mbName of
       Nothing   -> moduleUrl mdl
       Just name -> moduleNameUrl mdl name
 
 
 linkIdOcc' :: ModuleName -> Maybe OccName -> Html -> Html
-linkIdOcc' mdl mbName = anchor ! [href url, title ttl]
+linkIdOcc' mdl mbName = a_ [href_ url, title_ ttl]
   where
-    ttl = moduleNameString mdl
-    url = case mbName of
+    ttl = moduleNameText mdl
+    url = Text.pack $ case mbName of
       Nothing   -> moduleHtmlFile' mdl
       Just name -> moduleNameUrl' mdl name
 
 
 ppModule :: Module -> Html
-ppModule mdl = anchor ! [href (moduleUrl mdl)]
-               << toHtml (moduleString mdl)
+ppModule mdl = a_ [href_ (Text.pack $ moduleUrl mdl)]
+               $ toHtml (moduleString mdl)
 
 
 ppModuleRef :: Maybe Html -> ModuleName -> String -> Html
-ppModuleRef Nothing mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
-                              << toHtml (moduleNameString mdl)
-ppModuleRef (Just lbl) mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
-                                 << lbl
+ppModuleRef Nothing mdl ref = a_ [href_ (Text.pack $ moduleHtmlFile' mdl <> ref)]
+                              $ toHtml (moduleNameText mdl)
+ppModuleRef (Just lbl) mdl ref = a_ [href_ (Text.pack $ moduleHtmlFile' mdl <> ref)]
+                                 $ lbl
 
     -- NB: The ref parameter already includes the '#'.
     -- This function is only called from markupModule expanding a
