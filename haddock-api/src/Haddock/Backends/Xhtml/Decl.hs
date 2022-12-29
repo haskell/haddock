@@ -33,7 +33,6 @@ import           Data.List             ( intersperse, sort )
 import qualified Data.Map as Map
 import           Data.Maybe
 import           Data.Void             ( absurd )
-import           Text.XHtml hiding     ( name, title, p, quote )
 
 import GHC.Core.Type ( Specificity(..) )
 import GHC.Types.Basic (PromotionFlag(..), isPromoted)
@@ -202,7 +201,7 @@ ppFixities :: [(DocName, Fixity)] -> Qualification -> Html
 ppFixities [] _ = noHtml
 ppFixities fs qual = foldr1 (+++) (map ppFix uniq_fs) +++ rightEdge
   where
-    ppFix (ns, p, d) = thespan ! [theclass "fixity"] <<
+    ppFix (ns, p, d) = span_ [class_ "fixity"] $
                          (toHtml d <+> toHtml (show p) <+> ppNames ns)
 
     ppDir InfixR = "infixr"
@@ -211,13 +210,13 @@ ppFixities fs qual = foldr1 (+++) (map ppFix uniq_fs) +++ rightEdge
 
     ppNames = case fs of
       _:[] -> const noHtml -- Don't display names for fixities on single names
-      _    -> concatHtml . intersperse (stringToHtml ", ") . map (ppDocName qual Infix False)
+      _    -> concatHtml . intersperse (", ") . map (ppDocName qual Infix False)
 
     uniq_fs = [ (n, the p, the d') | (n, Fixity _ p d) <- fs
                                    , let d' = ppDir d
                                    , then group by Down (p,d') using groupWith ]
 
-    rightEdge = thespan ! [theclass "rightedge"] << noHtml
+    rightEdge = span_ [class_ "rightedge"] noHtml
 
 
 -- | Pretty-print type variables.
@@ -261,7 +260,7 @@ ppTypeSig :: Bool -> [OccName] -> Html -> Unicode -> Html
 ppTypeSig summary nms pp_ty unicode =
   concatHtml htmlNames <+> dcolon unicode <+> pp_ty
   where
-    htmlNames = intersperse (stringToHtml ", ") $ map (ppBinder summary) nms
+    htmlNames = intersperse (", ") $ map (ppBinder summary) nms
 
 ppSimpleSig :: LinksInfo -> Splice -> Unicode -> Qualification -> HideEmptyContexts -> SrcSpan
             -> [DocName] -> HsSigType DocNameI
@@ -628,8 +627,9 @@ ppClassDecl summary links instances fixities loc d subdocs
       _ -> noHtml
 
     ppMinimal _ (Var (L _ n)) = ppDocName qual Prefix True n
-    ppMinimal _ (And fs) = foldr1 (\a b -> a+++", "+++b) $ map (ppMinimal True . unLoc) fs
-    ppMinimal p (Or fs) = wrap $ foldr1 (\a b -> a+++" | "+++b) $ map (ppMinimal False . unLoc) fs
+    ppMinimal _ (And fs) =
+      foldr1 (\a b -> a +++ ", " +++b) $ map (ppMinimal True . unLoc) fs
+    ppMinimal p (Or fs) = wrap $ foldr1 (\a b -> a +++ " | " +++ b) $ map (ppMinimal False . unLoc) fs
       where wrap | p = parens | otherwise = id
     ppMinimal p (Parens x) = ppMinimal p (unLoc x)
 

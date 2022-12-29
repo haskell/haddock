@@ -1,3 +1,4 @@
+{-# language OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Themes
@@ -18,7 +19,8 @@ module Haddock.Backends.Xhtml.Themes (
 
 import Haddock.Options
 import Haddock.Utils (ordNub)
-import Haddock.Backends.Xhtml.Types ( BaseURL, withBaseURL )
+import Haddock.Backends.Xhtml.Types
+import qualified Data.Text as Text
 
 import Control.Monad (liftM)
 import Data.Char (toLower)
@@ -27,8 +29,6 @@ import Data.Maybe (isJust, listToMaybe)
 
 import System.Directory
 import System.FilePath
-import Text.XHtml hiding ( name, title, p, quote, (</>) )
-import qualified Text.XHtml as XHtml
 
 
 --------------------------------------------------------------------------------
@@ -178,15 +178,16 @@ cssFiles ts = ordNub $ concatMap themeFiles ts
 
 
 styleSheet :: BaseURL -> Themes -> Html
-styleSheet base_url ts = toHtml $ zipWith mkLink rels ts
+styleSheet base_url ts = sequence_ $ zipWith mkLink rels ts
   where
     rels = "stylesheet" : repeat "alternate stylesheet"
     mkLink aRel t =
-      thelink
-        ! [ href (withBaseURL base_url (themeHref t)),  rel aRel, thetype "text/css",
-            XHtml.title (themeName t)
-          ]
-        << noHtml
+      link_
+        [ href_ (Text.pack $ withBaseURL base_url (themeHref t))
+        , rel_ aRel
+        , type_ "text/css"
+        , title_ (Text.pack $ themeName t)
+        ]
 
 --------------------------------------------------------------------------------
 -- * Either Utilities

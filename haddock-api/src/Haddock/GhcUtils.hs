@@ -29,6 +29,7 @@ import Data.Maybe ( mapMaybe, fromMaybe )
 
 import Haddock.Types( DocName, DocNameI, XRecCond )
 
+import GHC.Data.FastString
 import GHC.Utils.FV as FV
 import GHC.Utils.Outputable ( Outputable )
 import GHC.Utils.Panic ( panic )
@@ -53,11 +54,21 @@ import qualified GHC.Data.StringBuffer             as S
 import           Data.ByteString ( ByteString )
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS
+import Data.Text (Text)
+import qualified Data.ByteString.Short as SBS
+import qualified Data.Text.Array as A
+import qualified Data.Text.Internal as Text.Internal
 
 import GHC.HsToCore.Docs
 
 moduleString :: Module -> String
 moduleString = moduleNameString . moduleName
+
+moduleText :: Module -> Text
+moduleText = moduleNameText . moduleName
+
+moduleNameText :: ModuleName -> Text
+moduleNameText = fastStringToText . moduleNameFS
 
 isNameSym :: Name -> Bool
 isNameSym = isSymOcc . nameOccName
@@ -754,3 +765,9 @@ defaultRuntimeRepVars = go emptyVarEnv
 
 fromMaybeContext :: Maybe (LHsContext DocNameI) -> HsContext DocNameI
 fromMaybeContext mctxt = unLoc $ fromMaybe (noLocA []) mctxt
+
+fastStringToText :: FastString -> Text
+fastStringToText fs =
+  let !sbs@(SBS.SBS arr) = fastStringToShortByteString fs
+   in Text.Internal.Text (A.ByteArray arr) 0 (SBS.length sbs)
+

@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-incomplete-record-updates #-}
 -----------------------------------------------------------------------------
@@ -53,6 +54,7 @@ module Haddock.Utils (
 
 
 import qualified Data.Set as Set
+import Data.String
 import Documentation.Haddock.Doc (emptyMetaDoc)
 import Haddock.Types
 
@@ -148,7 +150,7 @@ moduleHtmlFile' mdl =
     Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl ++ ".html"]
 
 
-contentsHtmlFile, indexHtmlFile, indexJsonFile :: String
+contentsHtmlFile, indexHtmlFile, indexJsonFile :: IsString s => s
 contentsHtmlFile = "index.html"
 indexHtmlFile = "doc-index.html"
 indexJsonFile = "doc-index.json"
@@ -264,7 +266,7 @@ escapeURIString = concatMap . escapeURIChar
 
 
 isUnreserved :: Char -> Bool
-isUnreserved c = isAlphaNumChar c || (c `elem` "-_.~")
+isUnreserved c = isAlphaNumChar c || (c `elem` ("-_.~" :: String))
 
 
 isAlphaChar, isDigitChar, isAlphaNumChar :: Char -> Bool

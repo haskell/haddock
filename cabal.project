@@ -5,8 +5,6 @@ packages: ./
           ./haddock-library
           ./haddock-test
 
-with-compiler: ghc-9.4
-
 allow-newer:
   ghc-paths:Cabal,
   *:base,

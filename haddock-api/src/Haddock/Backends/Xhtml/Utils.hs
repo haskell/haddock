@@ -1,3 +1,5 @@
+{-# language BangPatterns, OverloadedStrings #-}
+{-# language TypeApplications #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Util
@@ -29,19 +31,22 @@ module Haddock.Backends.Xhtml.Utils (
 
   DetailsState(..), collapseDetails, thesummary,
   collapseToggle, collapseControl,
+  moduleNameText,
 ) where
 
 
 import Haddock.Utils
+import Haddock.GhcUtils
 
+import Data.Functor.Identity
 import Data.Maybe
 
-import Text.XHtml hiding ( name, title, p, quote )
-import qualified Text.XHtml as XHtml
+import Haddock.Backends.Xhtml.Types
 
 import GHC              ( SrcSpan(..), srcSpanStartLine, Name )
-import GHC.Unit.Module ( Module, ModuleName, moduleName, moduleNameString )
+import GHC.Unit.Module ( Module, ModuleName, moduleName, moduleNameString , moduleNameFS )
 import GHC.Types.Name   ( getOccString, nameOccName, isValOcc )
+import GHC.Data.FastString
 
 
 -- | Replace placeholder string elements with provided values.
@@ -104,10 +109,10 @@ spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
   run (c:rest) = c : run rest
 
 
-renderToString :: Bool -> Html -> String
-renderToString debug html
-  | debug = renderHtml html
-  | otherwise = showHtml html
+renderToString :: Bool -> Html -> Builder
+renderToString _ html =
+  let (k, ()) = runIdentity $ runHtmlT html
+  in k mempty
 
 
 hsep :: [Html] -> Html
@@ -117,7 +122,7 @@ hsep htmls = foldr1 (<+>) htmls
 -- | Concatenate a series of 'Html' values vertically, with linebreaks in between.
 vcat :: [Html] -> Html
 vcat [] = noHtml
-vcat htmls = foldr1 (\a b -> a+++br+++b) htmls
+vcat htmls = foldr1 (\a b -> a+++ br_ [] +++b) htmls
 
 
 infixr 8 <+>
@@ -132,11 +137,12 @@ infixr 8 <=>
 (<=>) :: Html -> Html -> Html
 a <=> b = a +++ sep +++ b
   where
-    sep = if isNoHtml a then noHtml else br
+    sep = if isNoHtml a then noHtml else br_ []
 
 
-keyword :: String -> Html
-keyword s = thespan ! [theclass "keyword"] << toHtml s
+
+keyword :: Text -> Html
+keyword s = span_ [class_ "keyword"] $ toHtml s
 
 
 equals, comma :: Html
@@ -149,7 +155,7 @@ char c = toHtml [c]
 
 
 quote :: Html -> Html
-quote h = char '`' +++ h +++ '`'
+quote h = "`" +++ h +++ "`"
 
 
 -- | Promoted type quote (e.g. @'[a, b]@, @'(a, b, c)@).
@@ -203,16 +209,16 @@ dot :: Html
 dot = toHtml "."
 
 
--- | Generate a named anchor
-namedAnchor :: String -> Html -> Html
-namedAnchor n = anchor ! [XHtml.identifier n]
+-- | Generate a named a_
+namedAnchor :: Text -> Html -> Html
+namedAnchor n = a_ [id_ n]
 
 
-linkedAnchor :: String -> Html -> Html
-linkedAnchor n = anchor ! [href ('#':n)]
+linkedAnchor :: Text -> Html -> Html
+linkedAnchor n = a_ [href_ ("#" <> n)]
 
 
--- | generate an anchor identifier for a group
+-- | generate an a_ identifier for a group
 groupId :: String -> String
 groupId g = makeAnchorId ("g:" ++ g)
 
@@ -222,20 +228,23 @@ groupId g = makeAnchorId ("g:" ++ g)
 
 data DetailsState = DetailsOpen | DetailsClosed
 
-collapseDetails :: String -> DetailsState -> Html -> Html
-collapseDetails id_ state = tag "details" ! (identifier id_ : openAttrs)
-  where openAttrs = case state of { DetailsOpen -> [emptyAttr "open"]; DetailsClosed -> [] }
+collapseDetails :: Text -> DetailsState -> Html -> Html
+collapseDetails ident state = details_ (id_ ident : openAttrs)
+  where
+    openAttrs = case state of
+      DetailsOpen -> [makeAttribute "open" "open"]
+      DetailsClosed -> []
 
 thesummary :: Html -> Html
-thesummary = tag "summary"
+thesummary = summary_
 
 -- | Attributes for an area that toggles a collapsed area
-collapseToggle :: String -> String -> [HtmlAttr]
-collapseToggle id_ classes = [ theclass cs, strAttr "data-details-id" id_ ]
-  where cs = unwords (words classes ++ ["details-toggle"])
+collapseToggle :: Text -> Text -> [Attribute]
+collapseToggle ident classes = [ class_ cs, makeAttribute "data-details-id" ident ]
+  where cs = classes <> " details-toggle"
 
 -- | Attributes for an area that toggles a collapsed area,
 -- and displays a control.
-collapseControl :: String -> String -> [HtmlAttr]
-collapseControl id_ classes = collapseToggle id_ cs
-  where cs = unwords (words classes ++ ["details-toggle-control"])
+collapseControl :: Text -> Text -> [Attribute]
+collapseControl ident classes = collapseToggle ident cs
+  where cs = classes <> " details-toggle-control"

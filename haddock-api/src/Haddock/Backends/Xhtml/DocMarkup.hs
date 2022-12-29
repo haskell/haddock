@@ -1,3 +1,5 @@
+{-# language OverloadedStrings, FlexibleContexts #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.DocMarkup
@@ -19,8 +21,10 @@ module Haddock.Backends.Xhtml.DocMarkup (
   docElement, docSection, docSection_,
 ) where
 
+import qualified Data.Text as Text
 import Data.List (intersperse)
 import Documentation.Haddock.Markup
+import Haddock.Backends.Xhtml.Types
 import Haddock.Backends.Xhtml.Names
 import Haddock.Backends.Xhtml.Utils
 import Haddock.Types
@@ -28,10 +32,10 @@ import Haddock.Utils
 import Haddock.Doc (combineDocumentation, emptyMetaDoc,
                     metaDocAppend, metaConcat)
 
-import Text.XHtml hiding ( name, p, quote )
 import Data.Maybe (fromMaybe)
 
-import GHC hiding (anchor)
+import Lucid hiding (Html)
+import GHC hiding (a_)
 import GHC.Types.Name
 
 
@@ -40,10 +44,10 @@ parHtmlMarkup :: Qualification -> Bool
 parHtmlMarkup qual insertAnchors ppId = Markup {
   markupEmpty                = noHtml,
   markupString               = toHtml,
-  markupParagraph            = paragraph,
+  markupParagraph            = p_,
   markupAppend               = (+++),
-  markupIdentifier           = thecode . ppId insertAnchors,
-  markupIdentifierUnchecked  = thecode . ppUncheckedLink qual,
+  markupIdentifier           = code_ . ppId insertAnchors,
+  markupIdentifierUnchecked  = code_ . ppUncheckedLink qual,
   markupModule               = \(ModLink m lbl) ->
                                  let (mdl,ref) = break (=='#') m
                                        -- Accommodate for old style
@@ -52,68 +56,69 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
                                               '\\':_ -> init mdl
                                               _ -> mdl
                                  in ppModuleRef lbl (mkModuleName mdl') ref,
-  markupWarning              = thediv ! [theclass "warning"],
-  markupEmphasis             = emphasize,
-  markupBold                 = strong,
-  markupMonospaced           = thecode,
-  markupUnorderedList        = unordList,
+  markupWarning              = div_ [class_ "warning"],
+  markupEmphasis             = em_,
+  markupBold                 = strong_,
+  markupMonospaced           = code_,
+  markupUnorderedList        = ul_ . traverse_ li_,
   markupOrderedList          = makeOrdList,
   markupDefList              = defList,
-  markupCodeBlock            = pre,
+  markupCodeBlock            = pre_,
   markupHyperlink            = \(Hyperlink url mLabel)
                                -> if insertAnchors
-                                  then anchor ! [href url]
-                                       << fromMaybe (toHtml url) mLabel
+                                  then a_ [href_ (Text.pack url)]
+                                       $ fromMaybe (toHtml url) mLabel
                                   else fromMaybe (toHtml url) mLabel,
   markupAName                = \aname
                                -> if insertAnchors
-                                  then namedAnchor aname << ""
+                                  then namedAnchor (Text.pack aname) mempty
                                   else noHtml,
-  markupPic                  = \(Picture uri t) -> image ! ([src uri] ++ fromMaybe [] (return . title <$> t)),
-  markupMathInline           = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\(" ++ mathjax ++ "\\)"),
-  markupMathDisplay          = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\[" ++ mathjax ++ "\\]"),
-  markupProperty             = pre . toHtml,
+  markupPic                  = \(Picture uri t) -> img_ ([src_ (Text.pack uri)] ++ fromMaybe [] (return . title_ . Text.pack <$> t)),
+  markupMathInline           = \mathjax -> span_ [class_ "mathjax"] $ toHtml ("\\(" ++ mathjax ++ "\\)"),
+  markupMathDisplay          = \mathjax -> span_ [class_ "mathjax"] $ toHtml ("\\[" ++ mathjax ++ "\\]"),
+  markupProperty             = pre_ . toHtml,
   markupExample              = examplesToHtml,
   markupHeader               = \(Header l t) -> makeHeader l t,
   markupTable                = \(Table h r) -> makeTable h r
   }
   where
     makeHeader :: Int -> Html -> Html
-    makeHeader 1 mkup = h1 mkup
-    makeHeader 2 mkup = h2 mkup
-    makeHeader 3 mkup = h3 mkup
-    makeHeader 4 mkup = h4 mkup
-    makeHeader 5 mkup = h5 mkup
-    makeHeader 6 mkup = h6 mkup
+    makeHeader 1 mkup = h1_ mkup
+    makeHeader 2 mkup = h2_ mkup
+    makeHeader 3 mkup = h3_ mkup
+    makeHeader 4 mkup = h4_ mkup
+    makeHeader 5 mkup = h5_ mkup
+    makeHeader 6 mkup = h6_ mkup
     makeHeader l _ = error $ "Somehow got a header level `" ++ show l ++ "' in DocMarkup!"
 
     makeTable :: [TableRow Html] -> [TableRow Html] -> Html
-    makeTable hs bs = table (concatHtml (hs' ++ bs'))
+    makeTable hs bs = table_ (sequence_ (hs' ++ bs'))
       where
         hs' | null hs   = []
-            | otherwise = [thead (concatHtml (map (makeTableRow th) hs))]
+            | otherwise = [thead_ (concatHtml (map (makeTableRow th_) hs))]
 
-        bs' = [tbody (concatHtml (map (makeTableRow td) bs))]
+        bs' = [tbody_ (concatHtml (map (makeTableRow td_) bs))]
 
     makeTableRow :: (Html -> Html) -> TableRow Html -> Html
-    makeTableRow thr (TableRow cs) = tr (concatHtml (map (makeTableCell thr) cs))
+    makeTableRow thr (TableRow cs) = tr_ (concatHtml (map (makeTableCell thr) cs))
 
     makeTableCell :: (Html -> Html) -> TableCell Html -> Html
-    makeTableCell thr (TableCell i j c) = thr c ! (i' ++ j')
+    makeTableCell thr (TableCell i j c) = thr c `with` (i' ++ j')
       where
-        i' = if i == 1 then [] else [ colspan i ]
-        j' = if j == 1 then [] else [ rowspan j ]
+        i' = if i == 1 then [] else [ colspan_ (Text.pack $ show i) ]
+        j' = if j == 1 then [] else [ rowspan_ (Text.pack $ show j) ]
 
-    examplesToHtml l = pre (concatHtml $ map exampleToHtml l) ! [theclass "screen"]
+    examplesToHtml l = pre_ [class_ "screen"] $ do
+        traverse_ exampleToHtml l
 
     exampleToHtml (Example expression result) = htmlExample
       where
         htmlExample = htmlPrompt +++ htmlExpression +++ toHtml (unlines result)
-        htmlPrompt = (thecode . toHtml $ ">>> ") ! [theclass "prompt"]
-        htmlExpression = (strong . thecode . toHtml $ expression ++ "\n") ! [theclass "userinput"]
+        htmlPrompt = code_ [class_ "prompt"] ">>> "
+        htmlExpression = strong_ . code_ [class_ "userinput"] . toHtml $ expression ++ "\n"
 
-    makeOrdList :: HTML a => [(Int, a)] -> Html
-    makeOrdList items = olist << map (\(index, a) -> li ! [intAttr "value" index] << a) items
+    makeOrdList :: ToHtml a => [(Int, a)] -> Html
+    makeOrdList items = ol_ $ traverse_ (\(index, a) -> li_ [value_ (Text.pack (show index))] (toHtml a)) items
 
 -- | We use this intermediate type to transform the input 'Doc' tree
 -- in an arbitrary way before rendering, such as grouping some
@@ -185,13 +190,13 @@ hackMarkup fmt' currPkg h' =
     hackMarkup' fmt h = case h of
       UntouchedDoc d -> (markup fmt $ _doc d, [_meta d])
       CollapsingHeader (Header lvl titl) par n nm ->
-        let id_ = makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
-            col' = collapseControl id_ "subheading"
-            summary = thesummary ! [ theclass "hide-when-js-enabled" ] << "Expand"
-            instTable contents = collapseDetails id_ DetailsClosed (summary +++ contents)
-            lvs = zip [1 .. ] [h1, h2, h3, h4, h5, h6]
-            getHeader = fromMaybe caption (lookup lvl lvs)
-            subCaption = getHeader ! col' << markup fmt titl
+        let ident = Text.pack $ makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
+            col' = collapseControl ident "subheading"
+            summary = summary_ [ class_ "hide-when-js-enabled" ] "Expand"
+            instTable contents = collapseDetails ident DetailsClosed (summary +++ contents)
+            lvs = zip [1 .. ] [h1_, h2_, h3_, h4_, h5_, h6_]
+            getHeader = fromMaybe caption_ (lookup lvl lvs)
+            subCaption = getHeader col' $ markup fmt titl
         in ((subCaption +++) . instTable $ markup fmt (_doc par), [_meta par])
       HackAppend d d' -> let (x, m) = hackMarkup' fmt d
                              (y, m') = hackMarkup' fmt d'
@@ -217,7 +222,7 @@ markupHacked :: DocMarkup (Wrap id) Html
              -> Html
 markupHacked fmt currPkg n = hackMarkup fmt currPkg . toHack 0 n . flatten
 
--- If the doc is a single paragraph, don't surround it with <P> (this causes
+-- If the doc is a single p_, don't surround it with <P> (this causes
 -- ugly extra whitespace with some browsers).  FIXME: Does this still apply?
 docToHtml :: Maybe String  -- ^ Name of the thing this doc is for. See
                            -- comments on 'toHack' for details.
@@ -226,7 +231,7 @@ docToHtml :: Maybe String  -- ^ Name of the thing this doc is for. See
 docToHtml n pkg qual = markupHacked fmt pkg n . cleanup
   where fmt = parHtmlMarkup qual True (ppWrappedDocName qual Raw)
 
--- | Same as 'docToHtml' but it doesn't insert the 'anchor' element
+-- | Same as 'docToHtml' but it doesn't insert the 'a_' element
 -- in links. This is used to generate the Contents box elements.
 docToHtmlNoAnchors :: Maybe String  -- ^ See 'toHack'
                    -> Maybe Package -- ^ Current package
@@ -245,10 +250,10 @@ rdrDocToHtml pkg qual = markupHacked fmt pkg Nothing . cleanup
 
 
 docElement :: (Html -> Html) -> Html -> Html
-docElement el content_ =
-  if isNoHtml content_
-    then el ! [theclass "doc empty"] << spaceHtml
-    else el ! [theclass "doc"] << content_
+docElement el content =
+  if isNoHtml content
+    then el spaceHtml `with` [class_ "doc empty"]
+    else el content `with` [class_ "doc"]
 
 
 docSection :: Maybe Name -- ^ Name of the thing this doc is for
@@ -262,16 +267,16 @@ docSection_ :: Maybe Name    -- ^ Name of the thing this doc is for
             -> Maybe Package -- ^ Current package
             -> Qualification -> MDoc DocName -> Html
 docSection_ n pkg qual =
-  (docElement thediv <<) . docToHtml (getOccString <$> n) pkg qual
+  (docElement div_) . docToHtml (getOccString <$> n) pkg qual
 
 
 cleanup :: MDoc a -> MDoc a
 cleanup = overDoc (markup fmtUnParagraphLists)
   where
-    -- If there is a single paragraph, then surrounding it with <P>..</P>
+    -- If there is a single p_, then surrounding it with <P>..</P>
     -- can add too much whitespace in some browsers (eg. IE).  However if
     -- we have multiple paragraphs, then we want the extra whitespace to
-    -- separate them.  So we catch the single paragraph case and transform it
+    -- separate them.  So we catch the single p_ case and transform it
     -- here. We don't do this in code blocks as it eliminates line breaks.
     unParagraph :: Doc a -> Doc a
     unParagraph (DocParagraph d) = d

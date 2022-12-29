@@ -17,13 +17,61 @@ module Haddock.Backends.Xhtml.Types (
   LinksInfo,
   Splice,
   Unicode,
+  -- * Lucid Shims
+  Html,
+  makeAttribute,
+  isNoHtml,
+  noHtml,
+  spaceHtml,
+  traverse_,
+  (+++),
+  defList,
+  concatHtml,
+  module Lucid,
+  unordList,
+  for_
 ) where
 
 
+import Data.Foldable (traverse_, for_)
 import Data.Map
 import GHC
 import qualified System.FilePath as FilePath
 
+import Lucid as Lucid hiding (Html, for_)
+import qualified Lucid as L
+import Lucid.Base (makeAttribute)
+import qualified Data.Text.Lazy as LText
+
+type Html = L.Html ()
+
+unordList :: [Html] -> Html
+unordList = ul_ . traverse_ li_
+
+isNoHtml :: Html -> Bool
+isNoHtml html =
+    LText.null (renderText html)
+
+noHtml :: Html
+noHtml = mempty
+
+concatHtml :: ToHtml a => [a] -> Html
+concatHtml = foldMap toHtml
+
+defList :: (ToHtml a, ToHtml b) => [(a, b)] -> Html
+defList items =
+  dl_ $ do
+    for_ items $ \(dt, dd) -> do
+      dt_ $ toHtml dt
+      dd_ $ toHtml dd
+
+
+-- | A @&nbsp@
+spaceHtml :: Html
+spaceHtml = toHtmlRaw "&nbsp"
+
+(+++) :: Html -> Html -> Html
+(+++) = (<>)
 
 -- the base, module and entity URLs for the source code and wiki links.
 type SourceURLs = (Maybe FilePath, Maybe FilePath, Map Unit FilePath, Map Unit FilePath)
