@@ -62,7 +62,6 @@ import GHC.Types.Name
 import GHC.Unit.State
 
 import qualified Lucid
-import Lucid.Base (makeAttribute)
 
 --------------------------------------------------------------------------------
 -- * Generating HTML documentation
@@ -346,7 +345,7 @@ ppHtmlContents logger state odir doctitle _maybe_package
             ppModuleTrees pkg qual trees
 
   createDirectoryIfMissing True odir
-  writeUtf8File (joinPath [odir, contentsHtmlFile]) (renderToString debug html)
+  renderToFile (joinPath [odir, contentsHtmlFile]) html
   where
     -- Extract a module's short description.
     toInstalledDescription :: InstalledInterface -> Maybe (MDoc Name)
@@ -578,9 +577,9 @@ ppHtmlIndex odir doctitle _maybe_package themes
     mapM_ (do_sub_index index) initialChars
     -- Let's add a single large index as well for those who don't know exactly what they're looking for:
     let mergedhtml = indexPage False Nothing index
-    writeUtf8File (joinPath [odir, subIndexHtmlFile merged_name]) (renderToString debug mergedhtml)
+    renderToFile (joinPath [odir, subIndexHtmlFile merged_name]) mergedhtml
 
-  writeUtf8File (joinPath [odir, indexHtmlFile]) (renderToString debug html)
+  renderToFile (joinPath [odir, indexHtmlFile]) html
 
   where
     timed = withTiming logger (fromString "ppHtmlIndex") (const ())
