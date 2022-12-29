@@ -439,7 +439,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
   when (Flag_GenIndex `elem` flags) $ do
     withTiming logger "ppHtmlIndex" (const ()) $ do
       _ <- {-# SCC ppHtmlIndex #-}
-           ppHtmlIndex odir title pkgStr
+           ppHtmlIndex logger odir title pkgStr
                   themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
                   (concatMap piInstalledInterfaces allVisiblePackages) pretty
       return ()

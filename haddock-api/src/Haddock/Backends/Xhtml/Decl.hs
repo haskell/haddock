@@ -1,5 +1,6 @@
 {-# LANGUAGE TransformListComp #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -28,6 +29,7 @@ import Haddock.Backends.Xhtml.Utils
 import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Doc (combineDocumentation)
+import qualified Data.Text as Text
 
 import           Data.List             ( intersperse, sort )
 import qualified Data.Map as Map
@@ -192,15 +194,16 @@ ppSubSigLike unicode qual typ argDocs subdocs sep emptyCtxts = do_sig_args 0 sep
     -- We need 'gadtComma' and 'gadtEnd' to line up with the `{` from
     -- 'gadtOpen', so we add 3 spaces to cover for `-> `/`:: ` (3 in unicode
     -- mode since `->` and `::` are rendered as single characters.
-    gadtComma = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml ","
-    gadtEnd = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> toHtml "}"
-    gadtOpen = toHtml "{"
+    gadtComma = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> ","
+    gadtEnd = concatHtml (replicate (if unicode then 2 else 3) spaceHtml) <> "}"
+    gadtOpen = "{"
 
 
 ppFixities :: [(DocName, Fixity)] -> Qualification -> Html
 ppFixities [] _ = noHtml
 ppFixities fs qual = foldr1 (+++) (map ppFix uniq_fs) +++ rightEdge
   where
+    ppFix :: ([DocName], Int, Text.Text) -> Html
     ppFix (ns, p, d) = span_ [class_ "fixity"] $
                          (toHtml d <+> toHtml (show p) <+> ppNames ns)
 
@@ -368,7 +371,7 @@ ppFamHeader summary associated (FamilyDecl { fdInfo = info
 
 -- | Print the keywords that begin the family declaration
 ppFamilyLeader :: Bool -> FamilyInfo DocNameI -> Html
-ppFamilyLeader assoc info = keyword (typ ++ if assoc then "" else " family")
+ppFamilyLeader assoc info = keyword (typ <> if assoc then "" else " family")
   where
     typ = case info of
        OpenTypeFamily     -> "type"
@@ -458,7 +461,7 @@ ppContextNoLocsMaybe :: [HsType DocNameI] -> Unicode -> Qualification -> HideEmp
 ppContextNoLocsMaybe [] _ _ emptyCtxts =
   case emptyCtxts of
     HideEmptyContexts -> Nothing
-    ShowEmptyToplevelContexts -> Just (toHtml "()")
+    ShowEmptyToplevelContexts -> Just "()"
 ppContextNoLocsMaybe cxt unicode qual _ = Just $ ppHsContext cxt unicode qual
 
 ppContext :: HsContext DocNameI -> Unicode -> Qualification -> HideEmptyContexts -> Html
@@ -621,7 +624,7 @@ ppClassDecl summary links instances fixities loc d subdocs
         -> noHtml
 
       -- Minimal complete definition = nothing
-      And [] : _ -> subMinimal $ toHtml "Nothing"
+      And [] : _ -> subMinimal "Nothing"
 
       m : _  -> subMinimal $ ppMinimal False m
       _ -> noHtml
@@ -706,7 +709,7 @@ ppInstHead links splice unicode qual mdoc origin orphan no ihd@(InstHead {..}) m
             pdata = pref <+> typ
             pdecl = pdata <+> ppShortDataDecl False True dd [] unicode qual
   where
-    mname = maybe noHtml (\m -> toHtml "Defined in" <+> ppModule m) mdl
+    mname = maybe noHtml (\m -> "Defined in" <+> ppModule m) mdl
     iid = instanceId origin no orphan ihd
     typ = ppAppNameTypes ihdClsName ihdTypes unicode qual
 
@@ -1018,7 +1021,7 @@ ppConstrHdr forall_ tvs ctxt unicode qual = ppForall +++ ppCtxt
     ppCtxt
       | null ctxt = noHtml
       | otherwise = ppContextNoArrow ctxt unicode qual HideEmptyContexts
-                      <+> darrow unicode +++ toHtml " "
+                      <+> darrow unicode +++ " "
 
 
 -- | Pretty-print a record field
@@ -1108,8 +1111,8 @@ ppDataHeader _ _ _ _ = error "ppDataHeader: illegal argument"
 
 
 ppBang :: HsSrcBang -> Html
-ppBang (HsSrcBang _ _ SrcStrict) = toHtml "!"
-ppBang (HsSrcBang _ _ SrcLazy)   = toHtml "~"
+ppBang (HsSrcBang _ _ SrcStrict) = "!"
+ppBang (HsSrcBang _ _ SrcLazy)   = "~"
 ppBang _                         = noHtml
 
 
@@ -1148,7 +1151,7 @@ ppLHsTypeArg :: Unicode -> Qualification -> HideEmptyContexts -> LHsTypeArg DocN
 ppLHsTypeArg unicode qual emptyCtxts (HsValArg ty) = ppLParendType unicode qual emptyCtxts ty
 ppLHsTypeArg unicode qual emptyCtxts (HsTypeArg _ ki) = atSign unicode <>
                                                        ppLParendType unicode qual emptyCtxts ki
-ppLHsTypeArg _ _ _ (HsArgPar _) = toHtml ""
+ppLHsTypeArg _ _ _ (HsArgPar _) = ""
 
 class RenderableBndrFlag flag where
   ppHsTyVarBndr :: Unicode -> Qualification -> HsTyVarBndr flag DocNameI -> Html
@@ -1236,7 +1239,7 @@ ppr_mono_ty (HsQualTy _ ctxt ty) unicode qual emptyCtxts
 
 -- UnicodeSyntax alternatives
 ppr_mono_ty (HsTyVar _ _ (L _ name)) True _ _
-  | getOccString (getName name) == "(->)" = toHtml "(→)"
+  | getOccString (getName name) == "(->)" = "(→)"
 
 ppr_mono_ty (HsBangTy _ b ty) u q _ =
   ppBang b +++ ppLParendType u q HideEmptyContexts ty
@@ -1244,7 +1247,7 @@ ppr_mono_ty (HsTyVar _ prom (L _ name)) _ q _
   | isPromoted prom = promoQuote (ppDocName q Prefix True name)
   | otherwise = ppDocName q Prefix True name
 ppr_mono_ty (HsStarTy _ isUni) u _ _ =
-  toHtml (if u || isUni then "★" else "*")
+  (if u || isUni then "★" else "*")
 ppr_mono_ty (HsFunTy _ mult ty1 ty2) u q e =
   hsep [ ppr_mono_lty ty1 u q HideEmptyContexts
        , arr <+> ppr_mono_lty ty2 u q e
@@ -1264,7 +1267,7 @@ ppr_mono_ty (HsListTy _ ty)       u q _ = brackets (ppr_mono_lty ty u q HideEmpt
 ppr_mono_ty (HsIParamTy _ (L _ n) ty) u q _ =
   ppIPName n <+> dcolon u <+> ppr_mono_lty ty u q HideEmptyContexts
 ppr_mono_ty (HsSpliceTy v _) _ _ _ = absurd v
-ppr_mono_ty (HsRecTy {})        _ _ _ = toHtml "{..}"
+ppr_mono_ty (HsRecTy {})        _ _ _ = "{..}"
        -- Can now legally occur in ConDeclGADT, the output here is to provide a
        -- placeholder in the signature, which is followed by the field
        -- declarations.

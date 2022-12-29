@@ -40,6 +40,8 @@ import Haddock.GhcUtils
 
 import Data.Functor.Identity
 import Data.Maybe
+import Data.Text (Text)
+import Data.ByteString.Builder
 
 import Haddock.Backends.Xhtml.Types
 
@@ -129,7 +131,7 @@ infixr 8 <+>
 (<+>) :: Html -> Html -> Html
 a <+> b = a +++ sep +++ b
   where
-    sep = if isNoHtml a || isNoHtml b then noHtml else toHtml " "
+    sep = if isNoHtml a || isNoHtml b then noHtml else " "
 
 -- | Join two 'Html' values together with a linebreak in between.
 --   Has 'noHtml' as left identity.
@@ -166,7 +168,7 @@ promoQuote h = char '\'' +++ h
 parens, brackets, pabrackets, braces :: Html -> Html
 parens h        = char '(' +++ h +++ char ')'
 brackets h      = char '[' +++ h +++ char ']'
-pabrackets h    = toHtml "[:" +++ h +++ toHtml ":]"
+pabrackets h    = "[:" +++ h +++ ":]"
 braces h        = char '{' +++ h +++ char '}'
 
 
@@ -187,26 +189,26 @@ ubxParenList = ubxparens . hsep . punctuate comma
 
 
 ubxSumList :: [Html]  -> Html
-ubxSumList = ubxparens . hsep . punctuate (toHtml " | ")
+ubxSumList = ubxparens . hsep . punctuate (" | ")
 
 
 ubxparens :: Html -> Html
-ubxparens h = toHtml "(#" <+> h <+> toHtml "#)"
+ubxparens h = "(#" <+> h <+> "#)"
 
 
 dcolon, arrow, lollipop, darrow, forallSymbol, atSign :: Bool -> Html
-dcolon unicode = toHtml (if unicode then "∷" else "::")
-arrow  unicode = toHtml (if unicode then "→" else "->")
-lollipop unicode = toHtml (if unicode then "⊸" else "%1 ->")
-darrow unicode = toHtml (if unicode then "⇒" else "=>")
-forallSymbol unicode = if unicode then toHtml "∀" else keyword "forall"
-atSign unicode = toHtml (if unicode then "@" else "@")
+dcolon unicode = (if unicode then "∷" else "::")
+arrow  unicode = (if unicode then "→" else "->")
+lollipop unicode = (if unicode then "⊸" else "%1 ->")
+darrow unicode = (if unicode then "⇒" else "=>")
+forallSymbol unicode = if unicode then "∀" else keyword "forall"
+atSign unicode = if unicode then "@" else "@"
 
 multAnnotation :: Html
-multAnnotation = toHtml "%"
+multAnnotation = "%"
 
 dot :: Html
-dot = toHtml "."
+dot = "."
 
 
 -- | Generate a named a_

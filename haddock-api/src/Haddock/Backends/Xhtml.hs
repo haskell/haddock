@@ -1,3 +1,4 @@
+{-# language OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html
@@ -21,6 +22,7 @@ module Haddock.Backends.Xhtml (
 
 import Prelude hiding (div)
 
+import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.String
 import GHC.Utils.Error
@@ -111,7 +113,7 @@ ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologu
         prologue debug pkg (makeContentsQual qual)
 
   when (isNothing maybe_index_url) $ do
-    ppHtmlIndex odir doctitle maybe_package
+    ppHtmlIndex logger odir doctitle maybe_package
       themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
@@ -555,7 +557,8 @@ ppJsonIndex logger odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifa
       jie { jieLink = makeRelative odir (takeDirectory ifaceFile)
                         FilePath.</> jieLink jie }
 
-ppHtmlIndex :: FilePath
+ppHtmlIndex :: Logger
+            -> FilePath
             -> String
             -> Maybe String
             -> Themes
@@ -566,8 +569,8 @@ ppHtmlIndex :: FilePath
             -> [InstalledInterface]
             -> Bool
             -> IO ()
-ppHtmlIndex odir doctitle _maybe_package themes
-  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = do
+ppHtmlIndex logger odir doctitle _maybe_package themes
+  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = timed $ do
   let html = indexPage split_indices Nothing
               (if split_indices then [] else index)
 
@@ -625,7 +628,7 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
     do_sub_index this_ix c
       = unless (null index_part) $
-          writeUtf8File (joinPath [odir, subIndexHtmlFile [c]]) (renderToString debug html)
+          renderToFile (joinPath [odir, subIndexHtmlFile [c]]) html
       where
         html = indexPage True (Just c) index_part
         index_part = [(n,stuff) | (n,stuff) <- this_ix, toUpper (head n) == c]
@@ -672,9 +675,9 @@ ppHtmlIndex odir doctitle _maybe_package themes
           toHtml (show j) <+> parens (ppAnnot (nameOccName nm))
         td_ $ indexLinks nm entries
 
-    ppAnnot n | not (isValOcc n) = toHtml "Type/Class"
-              | isDataOcc n      = toHtml "Data Constructor"
-              | otherwise        = toHtml "Function"
+    ppAnnot n | not (isValOcc n) = "Type/Class"
+              | isDataOcc n      = "Data Constructor"
+              | otherwise        = "Function"
 
     indexLinks nm entries =
        td_ [ class_ "module" ] $ do
@@ -725,7 +728,7 @@ ppHtmlModule logger odir doctitle themes
             ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
 
   createDirectoryIfMissing True odir
-  writeUtf8File (joinPath [odir, moduleHtmlFile mdl]) (renderToString debug html)
+  renderToFile (joinPath [odir, moduleHtmlFile mdl]) html
   where
     timed = withTiming logger (fromString ("ppHtmlModule " <> moduleString (ifaceMod iface))) (const ())
 
@@ -855,7 +858,7 @@ processExport summary _ _ _ qual (ExportNoDecl y subs)
 processExport summary _ _ pkg qual (ExportDoc doc)
   = nothingIf summary $ docSection_ Nothing pkg qual doc
 processExport summary _ _ _ _ (ExportModule mdl)
-  = processDeclOneLiner summary $ toHtml "module" <+> ppModule mdl
+  = processDeclOneLiner summary $ "module" <+> ppModule mdl
 
 
 nothingIf :: Bool -> a -> Maybe a

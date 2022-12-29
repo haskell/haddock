@@ -16,6 +16,7 @@ import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
 import Haddock.Backends.Xhtml.Utils ( renderToString )
 
+import Lucid
 import Data.Maybe
 import System.Directory
 import System.FilePath
@@ -95,7 +96,7 @@ ppHyperlinkedModuleSource logger verbosity srcdir pretty srcs iface =
         let tokens = fmap (\tk -> tk {tkSpan = (tkSpan tk){srcSpanFile = srcSpanFile $ nodeSpan fullAst}}) tokens'
 
         -- Produce and write out the hyperlinked sources
-        writeUtf8File path . renderToString pretty . render' fullAst $ tokens
+        renderToFile path . render' fullAst $ tokens
     Nothing -> return ()
   where
     df = ifaceDynFlags iface
