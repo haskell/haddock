@@ -373,11 +373,10 @@ unrestrictedModuleImports idecls =
       M.fromListWith (++) (concatMap moduleMapping idecls)
 
     moduleMapping idecl =
-      concat [ [ (unLoc (ideclName idecl), [idecl]) ]
-             , [ (unLoc mod_name, [idecl])
-               | Just mod_name <- [ideclAs idecl]
-               ]
-             ]
+        (unLoc (ideclName idecl), [idecl]) :
+      [ (unLoc mod_name, [idecl])
+      | Just mod_name <- [ideclAs idecl]
+      ]
 
     isInteresting idecl =
       case ideclHiding idecl of

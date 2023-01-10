@@ -339,12 +339,12 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     -- /All/ interfaces including external package modules, grouped by
     -- interface file (package).
     allPackages      :: [PackageInterfaces]
-    allPackages      = [PackageInterfaces
+    allPackages      = PackageInterfaces
                          { piPackageInfo = packageInfo
                          , piVisibility  = Visible
                          , piInstalledInterfaces  = map toInstalledIface ifaces
-                         }]
-                    ++ map snd packages
+                         }
+                    : map snd packages
 
     -- /All/ visible interfaces including external package modules, grouped by
     -- interface file (package).
@@ -626,7 +626,7 @@ getHaddockLibDir flags =
       -- under @data-files@ in the Cabal file) will have been copied to a
       -- special directory.
       data_dir <- getDataDir      -- Provided by Cabal
-      let res_dirs = [ data_dir ] ++
+      let res_dirs = data_dir :
 
 #endif
 

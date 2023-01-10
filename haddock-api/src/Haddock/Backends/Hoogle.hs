@@ -178,10 +178,9 @@ ppClass dflags decl subdocs =
 
         ppTyFams
             | null $ tcdATs decl = ""
-            | otherwise = (" " ++) . showSDoc dflags . whereWrapper $ concat
-                [ map pprTyFam (tcdATs decl)
-                , map (pprTyFamInstDecl NotTopLevel . unLoc) (tcdATDefs decl)
-                ]
+            | otherwise = (" " ++) . showSDoc dflags . whereWrapper $
+                (  map pprTyFam (tcdATs decl)
+                ++ map (pprTyFamInstDecl NotTopLevel . unLoc) (tcdATDefs decl))
 
         pprTyFam :: LFamilyDecl GhcRn -> SDoc
         pprTyFam (L _ at) = vcat' $ map text $
