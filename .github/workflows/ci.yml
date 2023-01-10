@@ -13,18 +13,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        cabal: ["3.6"]
+        cabal: ["3.8"]
         ghc:
-          - "head"
+          - "9.4"
 
     steps:
     - uses: actions/checkout@v2
       if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/ghc-head'
-
-    - name: Install gmp and tinfo
-      run: |
-        sudo -- sh -c "apt-get update"
-        sudo -- sh -c "apt-get -y install libgmp-dev libtinfo-dev"
 
     - uses: haskell/actions/setup@main
       id: setup-haskell-cabal
