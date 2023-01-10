@@ -18,7 +18,7 @@ jobs:
           - "9.4"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/ghc-head'
 
     - uses: haskell/actions/setup@main
