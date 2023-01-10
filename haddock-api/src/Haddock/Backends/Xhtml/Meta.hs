@@ -19,10 +19,10 @@ writeHaddockMeta :: FilePath -> Bool -> IO ()
 writeHaddockMeta odir withQuickjump = do
   let
     meta_json :: Value
-    meta_json = object (concat [
-        [ "haddock_version"   .= String projectVersion ]
-      , [ "quickjump_version" .= quickjumpVersion | withQuickjump ]
-      ])
+    meta_json = object (
+      ( "haddock_version"   .= String projectVersion ) :
+      [ "quickjump_version" .= quickjumpVersion | withQuickjump ]
+      )
 
   withFile (odir </> "meta.json") WriteMode $ \h ->
     hPutBuilder h (encodeToBuilder meta_json)
