@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP, PatternGuards, TypeFamilies #-}
+{-# LANGUAGE BangPatterns #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Convert
@@ -428,7 +429,7 @@ synifyDataCon use_gadt_syntax dc =
            , con_doc    = Nothing }
 
 synifyNameN :: NamedThing n => n -> LocatedN Name
-synifyNameN n = L (noAnnSrcSpan $ srcLocSpan (getSrcLoc n)) (getName n)
+synifyNameN n = L (noAnnSrcSpan $! srcLocSpan (getSrcLoc n)) (getName n)
 
 -- synifyName :: NamedThing n => n -> LocatedA Name
 -- synifyName n = L (noAnnSrcSpan $ srcLocSpan (getSrcLoc n)) (getName n)
@@ -633,7 +634,7 @@ synifyType _ vs (TyConApp tc tys)
       = mk_app_tys (HsTyVar noAnn prom $ noLocA (getName tc))
                    vis_tys
       where
-        prom = if isPromotedDataCon tc then IsPromoted else NotPromoted
+        !prom = if isPromotedDataCon tc then IsPromoted else NotPromoted
         mk_app_tys ty_app ty_args =
           foldl (\t1 t2 -> noLocA $ HsAppTy noExtField t1 t2)
                 (noLocA ty_app)

@@ -88,7 +88,6 @@ processModules
   -> Ghc ([Interface], LinkEnv) -- ^ Resulting list of interfaces and renaming
                                 -- environment
 processModules verbosity modules flags extIfaces = do
-  dynFlags <- getDynFlags
 #if defined(mingw32_HOST_OS)
   -- Avoid internal error: <stderr>: hPutChar: invalid argument (invalid character)' non UTF-8 Windows
   liftIO $ hSetEncoding stdout $ mkLocaleEncoding TransliterateCodingFailure
@@ -129,7 +128,7 @@ processModules verbosity modules flags extIfaces = do
   out verbosity verbose "Renaming interfaces..."
   let warnings = Flag_NoWarnings `notElem` flags
   let (interfaces'', msgs) =
-         runWriter $ mapM (renameInterface dynFlags (ignoredSymbols flags) links warnings) interfaces'
+         runWriter $ mapM (renameInterface (ignoredSymbols flags) links warnings) interfaces'
   liftIO $ mapM_ putStrLn msgs
   out verbosity verbose "Renaming interfaces done..."
 
@@ -236,6 +235,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
   let mod_iface = hm_iface hmi
       cls_insts = instEnvElts $ md_insts $ hm_details hmi
       fam_insts = md_fam_insts $ hm_details hmi
+      insts = (cls_insts, fam_insts)
       unit_state = hsc_units hsc_env
 
   out verbosity verbose "Creating interface..."
@@ -243,7 +243,7 @@ processModule verbosity modsum flags modMap instIfaceMap = do
                       withTimingM "createInterface" (const ())
                           $ liftIO
                           $ runIfM (fmap dropErr . lookupGlobal_maybe hsc_env)
-                          $ createInterface1 flags unit_state modsum mod_iface modMap instIfaceMap (cls_insts, fam_insts)
+                          $ createInterface1 flags unit_state modsum mod_iface modMap instIfaceMap insts
 
   liftIO $ mapM_ putStrLn (show (ms_mod_name modsum) : nub msgs)
   dflags <- getDynFlags

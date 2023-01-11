@@ -44,8 +44,8 @@ import GHC.Types.Basic ( TopLevelFlag(..) )
 --
 -- The renamed output gets written into fields in the Haddock interface record
 -- that were previously left empty.
-renameInterface :: DynFlags -> [String] -> LinkEnv -> Bool -> Interface -> ErrMsgM Interface
-renameInterface _dflags ignoredSymbols renamingEnv warnings iface =
+renameInterface :: [String] -> LinkEnv -> Bool -> Interface -> ErrMsgM Interface
+renameInterface ignoredSymbols renamingEnv warnings iface =
 
   -- first create the local env, where every name exported by this module
   -- is mapped to itself, and everything else comes from the global renaming

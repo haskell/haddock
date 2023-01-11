@@ -59,7 +59,6 @@ import qualified GHC.Types.Unique.Map as UniqMap
 import GHC.Core.ConLike (ConLike (..))
 import GHC.Data.FastString (unpackFS, bytesFS)
 import GHC.HsToCore.Docs hiding (mkMaps)
-import GHC.Stack (HasCallStack)
 import GHC.Types.Avail hiding (avail)
 import qualified GHC.Types.Avail as Avail
 import GHC.Types.Basic
@@ -801,8 +800,7 @@ extractDecl prr dflags name decl
               _ -> pure $ Left "internal: extractDecl (ClsInstD)"
       _ -> pure $ Left ("extractDecl: Unhandled decl for " ++ getOccString name)
 
-extractPatternSyn :: HasCallStack
-                  => Name -> Name
+extractPatternSyn :: Name -> Name
                   -> [LHsTypeArg GhcRn] -> [LConDecl GhcRn]
                   -> Either ErrMsg (LSig GhcRn)
 extractPatternSyn nm t tvs cons =

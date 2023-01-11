@@ -137,14 +137,11 @@ ppBinder' notation n = wrapInfix notation n $ ppOccName n
 
 wrapInfix :: Notation -> OccName -> Html -> Html
 wrapInfix notation n = case notation of
-  Infix | is_star_kind -> id
-        | not is_sym -> quote
-  Prefix | is_star_kind -> id
-         | is_sym -> parens
+  Infix | not is_sym -> quote
+  Prefix | is_sym -> parens
   _ -> id
   where
     is_sym = isSymOcc n
-    is_star_kind = isTcOcc n && occNameString n == "*"
 
 linkId :: Module -> Maybe Name -> Html -> Html
 linkId mdl mbName = linkIdOcc mdl (fmap nameOccName mbName) True
