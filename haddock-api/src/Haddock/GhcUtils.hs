@@ -29,15 +29,16 @@ import Data.Maybe ( mapMaybe, fromMaybe )
 
 import Haddock.Types( DocName, DocNameI, XRecCond )
 
+import GHC
+import GHC.Builtin.Names
+import GHC.Data.FastString
+import GHC.Driver.Ppr (showPpr )
+import GHC.Driver.Session
+import GHC.Types.Basic
+import GHC.Types.Name
 import GHC.Utils.FV as FV
 import GHC.Utils.Outputable ( Outputable )
 import GHC.Utils.Panic ( panic )
-import GHC.Driver.Ppr (showPpr )
-import GHC.Types.Name
-import GHC.Unit.Module
-import GHC
-import GHC.Driver.Session
-import GHC.Types.Basic
 import GHC.Types.SrcLoc  ( advanceSrcLoc )
 import GHC.Types.Var     ( Specificity, VarBndr(..), TyVarBinder
                          , tyVarKind, updateTyVarKind, isInvisibleArgFlag )
@@ -54,7 +55,7 @@ import           Data.ByteString ( ByteString )
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS
 
-import GHC.HsToCore.Docs
+import GHC.HsToCore.Docs hiding (sigNameNoLoc)
 
 moduleString :: Module -> String
 moduleString = moduleNameString . moduleName
@@ -96,7 +97,16 @@ ifTrueJust True  = Just
 ifTrueJust False = const Nothing
 
 sigName :: LSig GhcRn -> [IdP GhcRn]
-sigName (L _ sig) = sigNameNoLoc emptyOccEnv sig
+sigName (L _ sig) = sigNameNoLoc' emptyOccEnv sig
+
+sigNameNoLoc' :: forall pass w. UnXRec pass => w -> Sig pass -> [IdP pass]
+sigNameNoLoc' _ (TypeSig    _   ns _)         = map (unXRec @pass) ns
+sigNameNoLoc' _ (ClassOpSig _ _ ns _)         = map (unXRec @pass) ns
+sigNameNoLoc' _ (PatSynSig  _   ns _)         = map (unXRec @pass) ns
+sigNameNoLoc' _ (SpecSig    _   n _ _)        = [unXRec @pass n]
+sigNameNoLoc' _ (InlineSig  _   n _)          = [unXRec @pass n]
+sigNameNoLoc' _ (FixSig _ (FixitySig _ ns _)) = map (unXRec @pass) ns
+sigNameNoLoc' _ _                             = []
 
 -- | Was this signature given by the user?
 isUserLSig :: forall p. UnXRec p => LSig p -> Bool
@@ -108,6 +118,12 @@ isClassD _ = False
 
 pretty :: Outputable a => DynFlags -> a -> String
 pretty = showPpr
+
+dataListModule :: Module
+dataListModule = mkBaseModule (fsLit "Data.List")
+
+dataTupleModule :: Module
+dataTupleModule = mkBaseModule (fsLit "Data.Tuple")
 
 -- ---------------------------------------------------------------------
 
@@ -193,7 +209,7 @@ getMainDeclBinderI (ValD _ d) =
   case collectHsBindBinders CollNoDictBinders d of
     []       -> []
     (name:_) -> [name]
-getMainDeclBinderI (SigD _ d) = sigNameNoLoc emptyOccEnv d
+getMainDeclBinderI (SigD _ d) = sigNameNoLoc' emptyOccEnv d
 getMainDeclBinderI (ForD _ (ForeignImport _ name _ _)) = [unLoc name]
 getMainDeclBinderI (ForD _ (ForeignExport _ _ _ _)) = []
 getMainDeclBinderI _ = []
@@ -338,7 +354,7 @@ reparenTypePrec = go
   where
 
   -- Shorter name for 'reparenType'
-  go :: XParTy a ~ EpAnn AnnParen => Precedence -> HsType a -> HsType a
+  go :: Precedence -> HsType a -> HsType a
   go _ (HsBangTy x b ty)     = HsBangTy x b (reparenLType ty)
   go _ (HsTupleTy x con tys) = HsTupleTy x con (map reparenLType tys)
   go _ (HsSumTy x tys)       = HsSumTy x (map reparenLType tys)
@@ -376,12 +392,11 @@ reparenTypePrec = go
   go _ t@XHsType{} = t
 
   -- Located variant of 'go'
-  goL :: XParTy a ~ EpAnn AnnParen => Precedence -> LHsType a -> LHsType a
+  goL :: Precedence -> LHsType a -> LHsType a
   goL ctxt_prec = mapXRec @a (go ctxt_prec)
 
   -- Optionally wrap a type in parens
-  paren :: XParTy a ~ EpAnn AnnParen
-        => Precedence            -- Precedence of context
+  paren :: Precedence            -- Precedence of context
         -> Precedence            -- Precedence of top-level operator
         -> HsType a -> HsType a  -- Wrap in parens if (ctxt >= op)
   paren ctxt_prec op_prec | ctxt_prec >= op_prec = HsParTy noAnn . wrapXRec @a

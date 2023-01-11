@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE CPP, DeriveDataTypeable, DeriveTraversable, StandaloneDeriving, TypeFamilies, RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ConstraintKinds #-}
@@ -90,9 +91,6 @@ data Interface = Interface
     -- | Is this a signature?
   , ifaceIsSig           :: !Bool
 
-    -- | Original file name of the module.
-  , ifaceOrigFilename    :: !FilePath
-
     -- | Textual information about the module.
   , ifaceInfo            :: !(HaddockModInfo Name)
 
@@ -105,15 +103,13 @@ data Interface = Interface
     -- | Haddock options for this module (prune, ignore-exports, etc).
   , ifaceOptions         :: ![DocOption]
 
-    -- | Declarations originating from the module. Excludes declarations without
-    -- names (instances and stand-alone documentation comments). Includes
-    -- names of subordinate declarations mapped to their parent declarations.
-  , ifaceDeclMap         :: !(Map Name [LHsDecl GhcRn])
-
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
   , ifaceDocMap          :: !(DocMap Name)
   , ifaceArgMap          :: !(ArgMap Name)
+
+    -- | The names of all the default methods for classes defined in this module
+  , ifaceDefMeths        :: !([(OccName, Name)])
 
     -- | Documentation of declarations originating from the module (including
     -- subordinates).
@@ -131,10 +127,9 @@ data Interface = Interface
     -- | All \"visible\" names exported by the module.
     -- A visible name is a name that will show up in the documentation of the
     -- module.
+    --
+    -- Names from modules that are entirely re-exported don't count as visible.
   , ifaceVisibleExports  :: ![Name]
-
-    -- | Aliases of module imports as in @import A.B.C as C@.
-  , ifaceModuleAliases   :: !AliasMap
 
     -- | Instances exported by the module.
   , ifaceInstances       :: ![ClsInst]
@@ -153,7 +148,7 @@ data Interface = Interface
 
     -- | Tokenized source code of module (available if Haddock is invoked with
     -- source generation flag).
-  , ifaceHieFile :: !(Maybe FilePath)
+  , ifaceHieFile ::  !FilePath
   , ifaceDynFlags :: !DynFlags
   }
 
@@ -178,6 +173,9 @@ data InstalledInterface = InstalledInterface
   , instDocMap           :: DocMap Name
 
   , instArgMap           :: ArgMap Name
+ 
+    -- | The names of all the default methods for classes defined in this module
+  , instDefMeths         :: [(OccName,Name)]
 
     -- | All names exported by this module.
   , instExports          :: [Name]
@@ -197,15 +195,17 @@ data InstalledInterface = InstalledInterface
 -- | Convert an 'Interface' to an 'InstalledInterface'
 toInstalledIface :: Interface -> InstalledInterface
 toInstalledIface interface = InstalledInterface
-  { instMod              = ifaceMod              interface
-  , instIsSig            = ifaceIsSig            interface
-  , instInfo             = ifaceInfo             interface
-  , instDocMap           = ifaceDocMap           interface
-  , instArgMap           = ifaceArgMap           interface
-  , instExports          = ifaceExports          interface
-  , instVisibleExports   = ifaceVisibleExports   interface
-  , instOptions          = ifaceOptions          interface
-  , instFixMap           = ifaceFixMap           interface
+  { instMod              = interface.ifaceMod              
+  , instIsSig            = interface.ifaceIsSig            
+  , instInfo             = interface.ifaceInfo             
+  , instDocMap           = interface.ifaceDocMap           
+  , instArgMap           = interface.ifaceArgMap           
+  , instExports          = interface.ifaceExports          
+  , instVisibleExports   = interface.ifaceVisibleExports   
+  , instOptions          = interface.ifaceOptions          
+  , instFixMap           = interface.ifaceFixMap           
+  , instDefMeths         = interface.ifaceDefMeths         
+
   }
 
 
@@ -576,6 +576,8 @@ data DocOption
   | OptNotHome         -- ^ Not the best place to get docs for things
                        -- exported by this module.
   | OptShowExtensions  -- ^ Render enabled extensions for this module.
+  | OptPrintRuntimeRep -- ^ Render runtime reps for this module (see
+                       -- the GHC @-fprint-explicit-runtime-reps@ flag)
   deriving (Eq, Show)
 
 
@@ -586,23 +588,12 @@ data QualOption
   | OptLocalQual      -- ^ Qualify all imported names fully.
   | OptRelativeQual   -- ^ Like local, but strip module prefix
                       --   from modules in the same hierarchy.
-  | OptAliasedQual    -- ^ Uses aliases of module names
-                      --   as suggested by module import renamings.
-                      --   However, we are unfortunately not able
-                      --   to maintain the original qualifications.
-                      --   Image a re-export of a whole module,
-                      --   how could the re-exported identifiers be qualified?
-
-type AliasMap = Map Module ModuleName
 
 data Qualification
   = NoQual
   | FullQual
   | LocalQual Module
   | RelativeQual Module
-  | AliasedQual AliasMap Module
-       -- ^ @Module@ contains the current module.
-       --   This way we can distinguish imported and local identifiers.
 
 makeContentsQual :: QualOption -> Qualification
 makeContentsQual qual =
@@ -610,12 +601,11 @@ makeContentsQual qual =
     OptNoQual -> NoQual
     _         -> FullQual
 
-makeModuleQual :: QualOption -> AliasMap -> Module -> Qualification
-makeModuleQual qual aliases mdl =
+makeModuleQual :: QualOption -> Module -> Qualification
+makeModuleQual qual mdl =
   case qual of
     OptLocalQual      -> LocalQual mdl
     OptRelativeQual   -> RelativeQual mdl
-    OptAliasedQual    -> AliasedQual aliases mdl
     OptFullQual       -> FullQual
     OptNoQual         -> NoQual
 
@@ -631,6 +621,15 @@ data SinceQual
   = Always
   | External -- ^ only qualify when the thing being annotated is from
              -- an external package
+
+-----------------------------------------------------------------------------
+-- * Renaming
+-----------------------------------------------------------------------------
+
+-- | Renames an identifier.
+-- The first input is the identifier as it occurred in the comment
+-- The second input is the possible namespaces of the identifier
+type Renamer = String -> [NameSpace] -> [Name]
 
 -----------------------------------------------------------------------------
 -- * Error handling

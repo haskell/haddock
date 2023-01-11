@@ -310,12 +310,13 @@ putInterfaceFile_ bh (InterfaceFile env info ifaces) = do
   put_ bh ifaces
 
 instance Binary InstalledInterface where
-  put_ bh (InstalledInterface modu is_sig info docMap argMap
+  put_ bh (InstalledInterface modu is_sig info docMap argMap defMeths
            exps visExps opts fixMap) = do
     put_ bh modu
     put_ bh is_sig
     put_ bh info
     lazyPut bh (docMap, argMap)
+    put_ bh defMeths
     put_ bh exps
     put_ bh visExps
     put_ bh opts
@@ -326,13 +327,13 @@ instance Binary InstalledInterface where
     is_sig  <- get bh
     info    <- get bh
     ~(docMap, argMap) <- lazyGet bh
+    defMeths <- get bh
     exps    <- get bh
     visExps <- get bh
     opts    <- get bh
     fixMap  <- get bh
-    return (InstalledInterface modu is_sig info docMap argMap
-            exps visExps opts fixMap)
-
+    return (InstalledInterface modu is_sig info
+            docMap argMap defMeths exps visExps opts fixMap)
 
 instance Binary DocOption where
     put_ bh OptHide = do
@@ -342,6 +343,8 @@ instance Binary DocOption where
     put_ bh OptIgnoreExports = do
             putByte bh 2
     put_ bh OptNotHome = do
+            putByte bh 2
+    put_ bh OptPrintRuntimeRep = do
             putByte bh 3
     put_ bh OptShowExtensions = do
             putByte bh 4
@@ -353,13 +356,12 @@ instance Binary DocOption where
               1 -> do
                     return OptPrune
               2 -> do
-                    return OptIgnoreExports
-              3 -> do
                     return OptNotHome
-              4 -> do
+              3 -> do
                     return OptShowExtensions
+              4 -> do
+                    return OptPrintRuntimeRep
               _ -> fail "invalid binary data found"
-
 
 instance Binary Example where
     put_ bh (Example expression result) = do
