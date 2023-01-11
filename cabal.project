@@ -1,4 +1,4 @@
-with-compiler: ghc-9.4
+with-compiler: ghc-9.4.4
 
 packages: ./
           ./haddock-api
@@ -18,6 +18,3 @@ package haddock-library
 
 package haddock-api
   tests: False
-
--- Pinning the index-state helps to make reasonably CI deterministic
-index-state: 2022-08-05T20:43:48Z
