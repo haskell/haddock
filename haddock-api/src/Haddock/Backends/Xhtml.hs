@@ -488,7 +488,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
                     return (Right [])
             )
             installedIfacesPaths
-  traverse_ (\(indexFile, err) -> putStrLn $ "haddock: Coudn't parse " ++ indexFile ++ ": " ++ err)
+  traverse_ (\(indexFile, err) -> putStrLn $ "haddock: Couldn't parse " ++ indexFile ++ ": " ++ err)
             errors
   IO.withBinaryFile (joinPath [odir, indexJsonFile]) IO.WriteMode $ \h ->
       Builder.hPutBuilder

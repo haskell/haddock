@@ -166,13 +166,13 @@ createIfaces verbosity modules flags instIfaceMap = do
 
       let
         -- We topologically sort the module graph including boot files,
-        -- so it should be acylic (hopefully we failed much earlier if this is not the case)
+        -- so it should be acyclic (hopefully we failed much earlier if this is not the case)
         -- We then filter out boot modules from the resultant topological sort
         --
         -- We do it this way to make 'buildHomeLinks' a bit more stable
         -- 'buildHomeLinks' depends on the topological order of its input in order
         -- to construct its result. In particular, modules closer to the bottom of
-        -- the dependency chain are to be prefered for link destinations.
+        -- the dependency chain are to be preferred for link destinations.
         --
         -- If there are cycles in the graph, then this order is indeterminate
         -- (the nodes in the cycle can be ordered in any way).

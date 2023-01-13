@@ -51,7 +51,7 @@
 // elements themselves. Note that this covers both <details> elements
 // that list instances -- what the above explained UI and logic is
 // concerned with -- and details about individual instances themselves
-// -- which the above is not concerend with. The association includes
+// -- which the above is not concerned with. The association includes
 // adding event listeners that change CSS classes back and forth
 // between "expander" and "collapser"; these classes determine whether
 // an element is adorned with a right arrow ("expander") or a down
@@ -268,7 +268,7 @@ function getDefaultOpenSetting(): boolean {
 // Event handler for "toggle" events, which are triggered when a
 // <details> element's "open" property changes.  We don't deal with
 // any config stuff here, because we only change configs in response
-// to mouse clicks. In contrast, for example, this event is triggred
+// to mouse clicks. In contrast, for example, this event is triggered
 // automatically once for every <details> element when the user clicks
 // the "collapse all elements" button.
 function onToggleEvent(ev: Event) {

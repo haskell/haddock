@@ -7,7 +7,7 @@ import Data.ByteString.Builder (hPutBuilder)
 import System.FilePath ((</>))
 import System.IO (withFile, IOMode (WriteMode))
 
--- | Everytime breaking changes to the Quckjump api
+-- | Everytime breaking changes to the Quickjump api
 -- happen this needs to be modified.
 quickjumpVersion :: Int
 quickjumpVersion = 1
