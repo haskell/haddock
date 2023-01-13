@@ -47,8 +47,8 @@ stripIfRequired mdl =
 preserveLinksModules :: [String]
 preserveLinksModules = ["Bug253.html", "NamespacedIdentifiers.html"]
 
-ingoredTests :: [FilePath]
-ingoredTests =
+ignoredTests :: [FilePath]
+ignoredTests =
   [
     -- Currently some declarations are exported twice
     -- we need a reliable way to deduplicate here.
@@ -57,6 +57,6 @@ ingoredTests =
   ]
 
 checkIgnore :: FilePath -> Bool
-checkIgnore file | takeBaseName file `elem` ingoredTests = True
+checkIgnore file | takeBaseName file `elem` ignoredTests = True
 checkIgnore file@(c:_) | takeExtension file == ".html" && isUpper c = False
 checkIgnore _ = True

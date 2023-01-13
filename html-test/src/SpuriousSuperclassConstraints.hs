@@ -3,8 +3,8 @@
 -- |
 -- What is tested here:
 --
--- Due to a change in GHC 7.6.1 we had a bug that superclass contraints were
--- included in the instances list.  Edward K. repported it here:
+-- Due to a change in GHC 7.6.1 we had a bug that superclass constraints were
+-- included in the instances list.  Edward K. reported it here:
 --
 --   <http://www.haskell.org/pipermail/haskell-cafe/2012-September/103600.html>
 --
