@@ -129,7 +129,7 @@ flagsDiffTool flags = mlast [ path | FlagDiffTool path <- flags ]
 options :: [OptDescr Flag]
 options =
     [ Option [] ["haddock-path"] (ReqArg FlagHaddockPath "FILE")
-        "path to Haddock executable to exectue tests with"
+        "path to Haddock executable to execute tests with"
     , Option [] ["haddock-options"] (ReqArg FlagHaddockOptions "OPTS")
         "additional options to run Haddock with"
     , Option [] ["haddock-stdout"] (ReqArg FlagHaddockStdOut "FILE")
