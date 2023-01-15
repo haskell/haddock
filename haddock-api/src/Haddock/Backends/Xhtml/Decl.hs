@@ -1184,7 +1184,7 @@ patSigContext sig_typ | hasNonEmptyContext typ && isFirstContextEmpty typ =  Sho
     hasNonEmptyContext t =
       case unLoc t of
         HsForAllTy _ _ s -> hasNonEmptyContext s
-        HsQualTy _ cxt s -> if null (unLoc cxt) then hasNonEmptyContext s else True
+        HsQualTy _ cxt s -> not (null (unLoc cxt)) || hasNonEmptyContext s
         HsFunTy _ _ _ s    -> hasNonEmptyContext s
         _ -> False
     isFirstContextEmpty t =
