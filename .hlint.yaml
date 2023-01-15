@@ -10,7 +10,6 @@
 - ignore: {name: "Move brackets to avoid $"} # 7 hints
 - ignore: {name: "Move guards forward"} # 1 hint
 - ignore: {name: "Move map inside list comprehension"} # 2 hints
-- ignore: {name: "Redundant $"} # 1 hint
 - ignore: {name: "Redundant bracket"} # 45 hints
 - ignore: {name: "Replace case with fromMaybe"} # 2 hints
 - ignore: {name: "Replace case with maybe"} # 4 hints
