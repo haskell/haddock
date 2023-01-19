@@ -31,6 +31,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Version
 import Data.Word
+import Control.Exception
 import Text.ParserCombinators.ReadP (readP_to_S)
 
 import GHC.Iface.Binary (getWithUserData, putSymbolTable)
@@ -45,6 +46,11 @@ import GHC.Types.Unique
 
 import Haddock.Options (Visibility (..))
 
+-- | WARN: Until the test suite is more self-contained wrt its test package,
+-- when changing the format of the interface file (binary or otherwise),
+-- the patch must be developed in the GHC tree.
+--
+-- See 'Test.Haddock.Config' for the culprits.
 data InterfaceFile = InterfaceFile {
   ifLinkEnv         :: LinkEnv,
   -- | Package meta data.  Currently it only consist of a package name, which
@@ -124,7 +130,7 @@ binaryInterfaceMagic = 0xD0Cface
 --
 binaryInterfaceVersion :: Word16
 #if MIN_VERSION_ghc(9,4,0) && !MIN_VERSION_ghc(9,5,0)
-binaryInterfaceVersion = 41
+binaryInterfaceVersion = 43
 
 binaryInterfaceVersionCompatibility :: [Word16]
 binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
@@ -218,7 +224,10 @@ readInterfaceFile name_cache filename bypass_checks = do
       version <- get bh
       if not bypass_checks && (version `notElem` binaryInterfaceVersionCompatibility)
         then return . Left $ "Interface file is of wrong version: " ++ filename
-        else Right <$> getWithUserData name_cache bh
+        else do
+          result <- catch (getWithUserData name_cache bh)
+                          (\(e :: SomeException) -> print e >> pure undefined )
+          pure $ Right result
 
 -------------------------------------------------------------------------------
 -- * Symbol table
@@ -340,14 +349,14 @@ instance Binary DocOption where
             putByte bh 0
     put_ bh OptPrune = do
             putByte bh 1
-    put_ bh OptIgnoreExports = do
-            putByte bh 2
     put_ bh OptNotHome = do
             putByte bh 2
-    put_ bh OptPrintRuntimeRep = do
-            putByte bh 3
     put_ bh OptShowExtensions = do
+            putByte bh 3
+    put_ bh OptPrintRuntimeRep = do
             putByte bh 4
+    put_ bh OptIgnoreExports = do
+            putByte bh 5
     get bh = do
             h <- getByte bh
             case h of
@@ -361,7 +370,9 @@ instance Binary DocOption where
                     return OptShowExtensions
               4 -> do
                     return OptPrintRuntimeRep
-              _ -> fail "invalid binary data found"
+              5 -> do
+                    return OptIgnoreExports
+              n -> fail $ "invalid binary data found: " <> show n
 
 instance Binary Example where
     put_ bh (Example expression result) = do
