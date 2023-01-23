@@ -150,7 +150,6 @@ createIfaces verbosity modules flags instIfaceMap = do
   liftIO $ traceMarkerIO "Load started...."
   -- Create (if necessary) and load .hi-files.
   success <- withTimingM "load'" (const ()) $ do
-               -- TODO: Determine how to use `load'` since GHC 9.4
                load' noIfaceCache LoadAllTargets Nothing modGraph
   when (failed success) $ do
     out verbosity normal "load' failed"
