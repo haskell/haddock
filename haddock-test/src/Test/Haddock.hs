@@ -94,7 +94,9 @@ runHaddock cfg@(Config { .. }) = do
                     , pcStdErr = Just haddockStdOut
                     }
 
-        let msg = "Failed to run Haddock on test package '" ++ tpkgName tpkg ++ "'"
+        let msg = do
+              err <- readFile cfgHaddockStdOut
+              return $ unlines [err, "Failed to run Haddock on test package '" ++ tpkgName tpkg ++ "'"]
         succeeded <- waitForSuccess msg stdout =<< runProcess' cfgHaddockPath pc
         unless succeeded $ removeDirectoryRecursive (outDir cfgDirConfig tpkg)
 
