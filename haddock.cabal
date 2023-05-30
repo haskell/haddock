@@ -124,6 +124,7 @@ executable haddock
       Haddock.Backends.Xhtml.Themes
       Haddock.Backends.Xhtml.Types
       Haddock.Backends.Xhtml.Utils
+      Haddock.Backends.Xhtml.Utils.Lucid
       Haddock.Backends.LaTeX
       Haddock.Backends.HaddockDB
       Haddock.Backends.Hoogle

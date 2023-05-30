@@ -37,3 +37,7 @@ cabal.project.local~
 .stack-work/
 
 .hspec-failures
+
+flake.lock
+flake.nix
+.vscode/settings.json

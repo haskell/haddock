@@ -63,6 +63,8 @@ library
                , ghc-boot
                , mtl
                , transformers
+               , lucid2
+               , text
 
   hs-source-dirs: src
 
@@ -105,6 +107,7 @@ library
     Haddock.Backends.Xhtml.Themes
     Haddock.Backends.Xhtml.Types
     Haddock.Backends.Xhtml.Utils
+    Haddock.Backends.Xhtml.Utils.Lucid
     Haddock.Backends.LaTeX
     Haddock.Backends.HaddockDB
     Haddock.Backends.Hoogle

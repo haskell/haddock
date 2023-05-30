@@ -9,6 +9,10 @@ module Haddock.Backends.Hyperlinker.Renderer (render) where
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
 
+import Data.Text(Text)
+import qualified Data.Text as Text
+import Data.Text.Encoding
+
 import qualified Data.ByteString as BS
 
 import GHC.Iface.Ext.Types
@@ -17,7 +21,6 @@ import GHC.Unit.Module ( ModuleName, moduleNameString )
 import GHC.Types.Name   ( getOccString, isInternalName, Name, nameModule, nameUnique )
 import GHC.Types.SrcLoc
 import GHC.Types.Unique ( getKey )
-import GHC.Utils.Encoding ( utf8DecodeByteString )
 
 import System.FilePath.Posix ((</>))
 
@@ -25,11 +28,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
 
-import Text.XHtml (Html, HtmlAttr, (!))
-import qualified Text.XHtml as Html
+import Lucid
 
-
-type StyleClass = String
+type StyleClass = Text
 
 -- | Produce the HTML corresponding to a hyperlinked Haskell source
 render
@@ -38,29 +39,30 @@ render
   -> SrcMaps            -- ^ Paths to sources
   -> HieAST PrintedType  -- ^ ASTs from @.hie@ files
   -> [Token]       -- ^ tokens to render
-  -> Html
+  -> Html ()
 render mcss mjs srcs ast tokens = header mcss mjs <> body srcs ast tokens
 
-body :: SrcMaps -> HieAST PrintedType -> [Token] -> Html
-body srcs ast tokens = Html.body . Html.pre $ hypsrc
+body :: SrcMaps -> HieAST PrintedType -> [Token] -> Html ()
+body srcs ast tokens = body_ . pre_ $ hypsrc
   where
     hypsrc = renderWithAst srcs ast tokens
 
-header :: Maybe FilePath -> Maybe FilePath -> Html
-header Nothing Nothing = Html.noHtml
-header mcss mjs = Html.header $ css mcss <> js mjs
+header :: Maybe FilePath -> Maybe FilePath -> Html ()
+header Nothing Nothing = (pure ())
+header mcss mjs = header_ $ css mcss <> js mjs
   where
-    css Nothing = Html.noHtml
-    css (Just cssFile) = Html.thelink Html.noHtml !
-        [ Html.rel "stylesheet"
-        , Html.thetype "text/css"
-        , Html.href cssFile
+    css Nothing = pure ()
+    css (Just cssFile) = link_
+        [ rel_ "stylesheet"
+        , type_ "text/css"
+        , href_ (Text.pack cssFile)
         ]
-    js Nothing = Html.noHtml
-    js (Just scriptFile) = Html.script Html.noHtml !
-        [ Html.thetype "text/javascript"
-        , Html.src scriptFile
-        ]
+    js :: Maybe FilePath -> Html ()
+    js Nothing = pure ()
+    js (Just scriptFile) = script_
+        [ type_ "text/javascript"
+        , src_ (Text.pack scriptFile)
+        ] (pure () :: Html ())
 
 
 splitTokens :: HieAST PrintedType -> [Token] -> ([Token],[Token],[Token])
@@ -74,7 +76,7 @@ splitTokens ast toks = (before,during,after)
 
 -- | Turn a list of tokens into hyperlinked sources, threading in relevant link
 -- information from the 'HieAST'.
-renderWithAst :: SrcMaps -> HieAST PrintedType -> [Token] -> Html
+renderWithAst :: SrcMaps -> HieAST PrintedType -> [Token] -> Html ()
 renderWithAst srcs Node{..} toks = anchored $ case toks of
 
     [tok] | nodeSpan == tkSpan tok -> richToken srcs nodeInfo tok
@@ -117,26 +119,28 @@ renderWithAst srcs Node{..} toks = anchored $ case toks of
     anchorOne n dets c = externalAnchor n d $ internalAnchor n d c
       where d = identInfo dets
 
-renderToken :: Token -> Html
+renderToken :: Token -> Html ()
 renderToken Token{..}
     | BS.null tkValue = mempty
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
-    | otherwise = tokenSpan ! [ multiclass style ]
+    | otherwise = tokenSpan [ multiclass style ]
   where
-    tkValue' = filterCRLF $ utf8DecodeByteString tkValue
+    tkValue' = filterCRLF $ decodeUtf8 tkValue
     style = tokenStyle tkType
-    tokenSpan = Html.thespan (Html.toHtml tkValue')
+    tokenSpan :: [Attributes] -> Html ()
+    tokenSpan attrs = span_ attrs (toHtml tkValue')
 
 
 -- | Given information about the source position of definitions, render a token
-richToken :: SrcMaps -> NodeInfo PrintedType -> Token -> Html
+richToken :: SrcMaps -> NodeInfo PrintedType -> Token -> Html ()
 richToken srcs details Token{..}
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
     | otherwise = annotate details $ linked content
   where
-    tkValue' = filterCRLF $ utf8DecodeByteString tkValue
-    content = tokenSpan ! [ multiclass style ]
-    tokenSpan = Html.thespan (Html.toHtml tkValue')
+    tkValue' = filterCRLF $ decodeUtf8 tkValue
+    content = tokenSpan  [ multiclass style ]
+    tokenSpan :: [Attributes] -> Html ()
+    tokenSpan attrs = span_ attrs (toHtml tkValue')
     style = tokenStyle tkType ++ concatMap (richTokenStyle (null (nodeType details))) contexts
 
     contexts = concatMap (Set.elems . identInfo) . Map.elems . nodeIdentifiers $ details
@@ -151,18 +155,16 @@ richToken srcs details Token{..}
       Nothing -> id
 
 -- | Remove CRLFs from source
-filterCRLF :: String -> String
-filterCRLF ('\r':'\n':cs) = '\n' : filterCRLF cs
-filterCRLF (c:cs) = c : filterCRLF cs
-filterCRLF [] = []
+filterCRLF :: Text -> Text
+filterCRLF = Text.replace "\r\n" "\n"
 
-annotate :: NodeInfo PrintedType -> Html -> Html
+annotate :: NodeInfo PrintedType -> Html () -> Html ()
 annotate  ni content =
-    Html.thespan (annot <> content) ! [ Html.theclass "annot" ]
+    span_ [ class_ "annot" ] (annot <> content)  
   where
     annot
       | not (null annotation) =
-          Html.thespan (Html.toHtml annotation) ! [ Html.theclass "annottext" ]
+          span_ [ class_ "annottext" ] (toHtml annotation)  
       | otherwise = mempty
     annotation = typ ++ identTyps
     typ = unlines (nodeType ni)
@@ -209,14 +211,14 @@ tokenStyle TkCpp = ["hs-cpp"]
 tokenStyle TkPragma = ["hs-pragma"]
 tokenStyle TkUnknown = []
 
-multiclass :: [StyleClass] -> HtmlAttr
-multiclass = Html.theclass . unwords
+multiclass :: [StyleClass] -> Attributes
+multiclass = class_ . Text.unwords
 
-externalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
+externalAnchor :: Identifier -> Set.Set ContextInfo -> Html () -> Html ()
 externalAnchor (Right name) contexts content
   | not (isInternalName name)
   , any isBinding contexts
-  = Html.thespan content ! [ Html.identifier $ externalAnchorIdent name ]
+  = span_ [ id_ $ externalAnchorIdent name ] content  
 externalAnchor _ _ content = content
 
 isBinding :: ContextInfo -> Bool
@@ -228,21 +230,21 @@ isBinding TyVarBind{} = True
 isBinding ClassTyDecl{} = True
 isBinding _ = False
 
-internalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
+internalAnchor :: Identifier -> Set.Set ContextInfo -> Html () -> Html ()
 internalAnchor (Right name) contexts content
   | isInternalName name
   , any isBinding contexts
-  = Html.thespan content ! [ Html.identifier $ internalAnchorIdent name ]
+  = span_ [ id_ $ internalAnchorIdent name ] content  
 internalAnchor _ _ content = content
 
-externalAnchorIdent :: Name -> String
-externalAnchorIdent = hypSrcNameUrl
+externalAnchorIdent :: Name -> Text
+externalAnchorIdent = Text.pack . hypSrcNameUrl
 
-internalAnchorIdent :: Name -> String
-internalAnchorIdent = ("local-" ++) . show . getKey . nameUnique
+internalAnchorIdent :: Name -> Text
+internalAnchorIdent = ("local-" <>) . Text.pack . show . getKey . nameUnique
 
 -- | Generate the HTML hyperlink for an identifier
-hyperlink :: SrcMaps -> Identifier -> Html -> Html
+hyperlink :: SrcMaps -> Identifier -> Html () -> Html ()
 hyperlink (srcs, srcs') ident = case ident of
     Right name | isInternalName name -> internalHyperlink name
                | otherwise -> externalNameHyperlink name
@@ -253,42 +255,44 @@ hyperlink (srcs, srcs') ident = case ident of
     makeHyperlinkUrl url | List.isPrefixOf "file://" url = url
     makeHyperlinkUrl url = ".." </> url
 
+    internalHyperlink :: Name -> Html () -> Html ()
     internalHyperlink name content =
-        Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
+        a_ [ href_ $ "#" <> internalAnchorIdent name ] content  
 
+    externalNameHyperlink :: Name -> Html () -> Html ()
     externalNameHyperlink name content = case Map.lookup mdl srcs of
-        Just SrcLocal -> Html.anchor content !
-            [ Html.href $ hypSrcModuleNameUrl mdl name ]
+        Just SrcLocal -> a_ [ href_ . Text.pack $ hypSrcModuleNameUrl mdl name ] content 
         Just (SrcExternal path) ->
           let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleNameUrl mdl name
-           in Html.anchor content !
-                [ Html.href $ spliceURL Nothing (Just mdl) (Just name) Nothing hyperlinkUrl ]
+           in a_ [ href_ . Text.pack $ spliceURL Nothing (Just mdl) (Just name) Nothing hyperlinkUrl ] content 
+                
         Nothing -> content
       where
         mdl = nameModule name
 
+    externalModHyperlink :: ModuleName -> Html () -> Html ()
     externalModHyperlink moduleName content =
         case Map.lookup moduleName srcs' of
-          Just SrcLocal -> Html.anchor content !
-            [ Html.href $ hypSrcModuleUrl' moduleName ]
+          Just SrcLocal -> a_ [ href_ . Text.pack $ hypSrcModuleUrl' moduleName ] content 
+            
           Just (SrcExternal path) ->
             let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleUrl' moduleName
-             in Html.anchor content !
-                  [ Html.href $ spliceURL' Nothing (Just moduleName) Nothing Nothing hyperlinkUrl ]
+             in a_ [ href_ . Text.pack $ spliceURL' Nothing (Just moduleName) Nothing Nothing hyperlinkUrl ] content 
+                  
           Nothing -> content
 
 
-renderSpace :: Int -> String -> Html
-renderSpace !_ "" = Html.noHtml
-renderSpace !line ('\n':rest) = mconcat
-    [ Html.thespan (Html.toHtml '\n')
-    , lineAnchor (line + 1)
-    , renderSpace (line + 1) rest
-    ]
+renderSpace :: Int -> Text -> Html ()
 renderSpace line space =
-    let (hspace, rest) = span (/= '\n') space
-    in (Html.thespan . Html.toHtml) hspace <> renderSpace line rest
+  case Text.uncons space of
+    Nothing -> (pure ())
+    Just ('\n', rest) -> mconcat
+      [ span_ [] (toHtml ("\n" :: Text))
+      , lineAnchor (line + 1)
+      , renderSpace (line + 1) rest
+      ]
+    _ -> let (hspace, rest) = Text.span (/= '\n') space
+         in (span_ . toHtml) hspace <> renderSpace line rest
 
-
-lineAnchor :: Int -> Html
-lineAnchor line = Html.thespan Html.noHtml ! [ Html.identifier $ hypSrcLineUrl line ]
+lineAnchor :: Int -> Html ()
+lineAnchor line = span_ [ id_ . Text.pack $ hypSrcLineUrl line ] (pure ())
