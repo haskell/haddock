@@ -169,8 +169,8 @@ linkIdOcc mdl mbName insertAnchors =
   then anchor ! [href url, title ttl]
   else id
   where
-    ttl = moduleNameString (moduleName mdl)
-    url = case mbName of
+    ttl = Text.pack $ moduleNameString (moduleName mdl)
+    url = Text.pack $ case mbName of
       Nothing   -> moduleUrl mdl
       Just name -> moduleNameUrl mdl name
 
@@ -178,21 +178,21 @@ linkIdOcc mdl mbName insertAnchors =
 linkIdOcc' :: ModuleName -> Maybe OccName -> Html -> Html
 linkIdOcc' mdl mbName = anchor ! [href url, title ttl]
   where
-    ttl = moduleNameString mdl
-    url = case mbName of
+    ttl = Text.pack $ moduleNameString mdl
+    url = Text.pack $ case mbName of
       Nothing   -> moduleHtmlFile' mdl
       Just name -> moduleNameUrl' mdl name
 
 
 ppModule :: Module -> Html
-ppModule mdl = anchor ! [href (moduleUrl mdl)]
+ppModule mdl = anchor ! [href (Text.pack $ moduleUrl mdl)]
                << toHtml (moduleString mdl)
 
 
 ppModuleRef :: Maybe Html -> ModuleName -> String -> Html
-ppModuleRef Nothing mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
+ppModuleRef Nothing mdl ref = anchor ! [href (Text.pack $ moduleHtmlFile' mdl ++ ref)]
                               << toHtml (moduleNameString mdl)
-ppModuleRef (Just lbl) mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
+ppModuleRef (Just lbl) mdl ref = anchor ! [href (Text.pack $ moduleHtmlFile' mdl ++ ref)]
                                  << lbl
 
     -- NB: The ref parameter already includes the '#'.
