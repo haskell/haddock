@@ -42,3 +42,5 @@ flake.lock
 flake.nix
 .vscode/settings.json
 retrie.sh
+retrie.sh
+flake.nix

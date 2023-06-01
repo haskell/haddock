@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Util
@@ -31,13 +32,17 @@ module Haddock.Backends.Xhtml.Utils (
   collapseToggle, collapseControl,
 ) where
 
+import Data.Text(Text)
+import qualified Data.Text as Text
+import qualified Data.Text.Lazy as TL
+
 
 import Haddock.Utils
 
 import Data.Maybe
 
-import Text.XHtml hiding ( name, title, p, quote )
-import qualified Text.XHtml as XHtml
+import Lucid
+import Lucid.Base (makeElement, makeAttributes)
 
 import GHC              ( SrcSpan(..), srcSpanStartLine, Name )
 import GHC.Unit.Module ( Module, ModuleName, moduleName, moduleNameString )
@@ -74,8 +79,8 @@ spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
 
   line = case maybe_loc of
     Nothing -> ""
-    Just span_ ->
-      case span_ of
+    Just span' ->
+      case span' of
       RealSrcSpan span__ _ ->
         show $ srcSpanStartLine span__
       UnhelpfulSpan _ -> ""
@@ -104,112 +109,109 @@ spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
   run (c:rest) = c : run rest
 
 
-renderToString :: Bool -> Html -> String
-renderToString debug html
-  | debug = renderHtml html
-  | otherwise = showHtml html
+renderToString :: Bool -> Html () -> String
+renderToString _ html = TL.unpack $ renderText html
 
-
-hsep :: [Html] -> Html
-hsep [] = noHtml
+hsep :: [Html ()] -> Html ()
+hsep [] = pure ()
 hsep htmls = foldr1 (<+>) htmls
 
 -- | Concatenate a series of 'Html' values vertically, with linebreaks in between.
-vcat :: [Html] -> Html
-vcat [] = noHtml
-vcat htmls = foldr1 (\a b -> a+++br+++b) htmls
+vcat :: [Html ()] -> Html ()
+vcat [] = pure ()
+vcat htmls = foldr1 (\a b -> a<>br_ []<>b) htmls
 
 
 infixr 8 <+>
-(<+>) :: Html -> Html -> Html
-a <+> b = a +++ sep +++ b
+(<+>) :: Html () -> Html () -> Html ()
+a <+> b = a <> sep <> b
   where
-    sep = if isNoHtml a || isNoHtml b then noHtml else toHtml " "
+    sep = if isNoHtml a || isNoHtml b then pure () else toHtml (" " :: Text)
 
 -- | Join two 'Html' values together with a linebreak in between.
---   Has 'noHtml' as left identity.
+--   Has 'pure ()' as left identity.
 infixr 8 <=>
-(<=>) :: Html -> Html -> Html
-a <=> b = a +++ sep +++ b
+(<=>) :: Html () -> Html () -> Html ()
+a <=> b = a <> sep <> b
   where
-    sep = if isNoHtml a then noHtml else br
+    sep = if isNoHtml a then pure () else br_ []
 
 
-keyword :: String -> Html
-keyword s = thespan ! [theclass "keyword"] << toHtml s
+keyword :: String -> Html ()
+keyword s = span_ [class_ "keyword"] (toHtml s)
 
 
-equals, comma :: Html
+equals, comma :: Html ()
 equals = char '='
 comma  = char ','
 
 
-char :: Char -> Html
+char :: Char -> Html ()
 char c = toHtml [c]
 
 
-quote :: Html -> Html
-quote h = char '`' +++ h +++ '`'
+quote :: Html () -> Html ()
+quote h = char '`' <> h <> "`"
 
 
 -- | Promoted type quote (e.g. @'[a, b]@, @'(a, b, c)@).
-promoQuote :: Html -> Html
-promoQuote h = char '\'' +++ h
+promoQuote :: Html () -> Html ()
+promoQuote h = char '\'' <> h
 
 
-parens, brackets, pabrackets, braces :: Html -> Html
-parens h        = char '(' +++ h +++ char ')'
-brackets h      = char '[' +++ h +++ char ']'
-pabrackets h    = toHtml "[:" +++ h +++ toHtml ":]"
-braces h        = char '{' +++ h +++ char '}'
+parens, brackets, pabrackets, braces :: Html () -> Html ()
+parens h        = char '(' <> h <> char ')'
+brackets h      = char '[' <> h <> char ']'
+pabrackets h    = toHtml ("[:" :: Text) <> h <> toHtml (":]" :: Text)
+braces h        = char '{' <> h <> char '}'
 
 
-punctuate :: Html -> [Html] -> [Html]
+punctuate :: Html () -> [Html ()] -> [Html ()]
 punctuate _ []     = []
 punctuate h (d0:ds) = go d0 ds
                    where
                      go d [] = [d]
-                     go d (e:es) = (d +++ h) : go e es
+                     go d (e:es) = (d <> h) : go e es
 
 
-parenList :: [Html] -> Html
+parenList :: [Html ()] -> Html ()
 parenList = parens . hsep . punctuate comma
 
 
-ubxParenList :: [Html] -> Html
+ubxParenList :: [Html ()] -> Html ()
 ubxParenList = ubxparens . hsep . punctuate comma
 
 
-ubxSumList :: [Html]  -> Html
-ubxSumList = ubxparens . hsep . punctuate (toHtml " | ")
+ubxSumList :: [Html ()]  -> Html ()
+ubxSumList = ubxparens . hsep . punctuate (toHtml (" | " :: Text))
 
 
-ubxparens :: Html -> Html
-ubxparens h = toHtml "(#" <+> h <+> toHtml "#)"
+ubxparens :: Html () -> Html ()
+ubxparens h = toHtml( "(#"  :: Text) <+> h <+> toHtml ("#)" :: Text)
 
 
-dcolon, arrow, lollipop, darrow, forallSymbol, atSign :: Bool -> Html
-dcolon unicode = toHtml (if unicode then "∷" else "::")
-arrow  unicode = toHtml (if unicode then "→" else "->")
-lollipop unicode = toHtml (if unicode then "⊸" else "%1 ->")
-darrow unicode = toHtml (if unicode then "⇒" else "=>")
-forallSymbol unicode = if unicode then toHtml "∀" else keyword "forall"
-atSign unicode = toHtml (if unicode then "@" else "@")
+dcolon, arrow, lollipop, darrow, forallSymbol, atSign :: Bool -> Html ()
+dcolon unicode = toHtml (if unicode then "∷" else "::" :: Text)
+arrow  unicode = toHtml (if unicode then "→" else "->"  :: Text)
+lollipop unicode = toHtml (if unicode then "⊸" else "%1 ->"  :: Text)
+darrow unicode = toHtml (if unicode then "⇒" else "=>"  :: Text)
+forallSymbol unicode = if unicode then toHtml ("∀"   :: Text) else keyword "forall"
+atSign unicode = toHtml (if unicode then "@" else "@"  :: Text)
 
-multAnnotation :: Html
-multAnnotation = toHtml "%"
+multAnnotation :: Html ()
+multAnnotation = toHtml ("%"   :: Text)
 
-dot :: Html
-dot = toHtml "."
+dot :: Html ()
+dot = toHtml ("."   :: Text)
 
 
 -- | Generate a named anchor
-namedAnchor :: String -> Html -> Html
-namedAnchor n = anchor ! [XHtml.identifier n]
+namedAnchor :: Text -> Html () -> Html ()
+namedAnchor n = a_ [id_ n]
 
 
-linkedAnchor :: String -> Html -> Html
-linkedAnchor n = anchor ! [href ('#':n)]
+linkedAnchor :: Text -> Html () -> Html ()
+linkedAnchor n = a_ [href_ (Text.cons '#' n)]
 
 
 -- | generate an anchor identifier for a group
@@ -222,20 +224,26 @@ groupId g = makeAnchorId ("g:" ++ g)
 
 data DetailsState = DetailsOpen | DetailsClosed
 
-collapseDetails :: String -> DetailsState -> Html -> Html
-collapseDetails id_ state = tag "details" ! (identifier id_ : openAttrs)
+collapseDetails :: Text -> DetailsState -> Html () -> Html ()
+collapseDetails id' state = makeElement "details" (id_ id' : openAttrs)
   where openAttrs = case state of { DetailsOpen -> [emptyAttr "open"]; DetailsClosed -> [] }
 
-thesummary :: Html -> Html
-thesummary = tag "summary"
+thesummary :: Html () -> Html ()
+thesummary = makeElement "summary" []
 
 -- | Attributes for an area that toggles a collapsed area
-collapseToggle :: String -> String -> [HtmlAttr]
-collapseToggle id_ classes = [ theclass cs, strAttr "data-details-id" id_ ]
-  where cs = unwords (words classes ++ ["details-toggle"])
+collapseToggle :: Text -> Text -> [Attributes]
+collapseToggle id' classes = [ class_ cs, makeAttributes "data-details-id" id' ]
+  where cs = Text.unwords (Text.words classes ++ ["details-toggle"])
 
 -- | Attributes for an area that toggles a collapsed area,
 -- and displays a control.
-collapseControl :: String -> String -> [HtmlAttr]
-collapseControl id_ classes = collapseToggle id_ cs
-  where cs = unwords (words classes ++ ["details-toggle-control"])
+collapseControl :: Text -> Text -> [Attributes]
+collapseControl id' classes = collapseToggle id' cs
+  where cs = Text.unwords (Text.words classes ++ ["details-toggle-control"])
+
+isNoHtml :: Html () -> Bool
+isNoHtml = (=="") . renderBS
+
+emptyAttr :: Text -> Attributes
+emptyAttr s = makeAttributes s s
