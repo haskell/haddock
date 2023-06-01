@@ -113,7 +113,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
         htmlPrompt = (thecode . toHtml $ ">>> ") ! [theclass "prompt"]
         htmlExpression = (strong . thecode . toHtml $ expression ++ "\n") ! [theclass "userinput"]
 
-    makeOrdList :: HTML a => [(Int, a)] -> Html
+    makeOrdList :: [(Int, a)] -> Html
     makeOrdList items = olist << map (\(index, a) -> li ! [intAttr "value" index] << a) items
 
 -- | We use this intermediate type to transform the input 'Doc' tree
