@@ -141,7 +141,7 @@ ppBinderWith notation isRef n =
   where
     name = nameAnchorId n
     makeAnchor | isRef     = linkedAnchor name
-               | otherwise = namedAnchor name ! [theclass "def"]
+               | otherwise = namedAnchor name [theclass "def"]
 
 ppBinder' :: Notation -> OccName -> Html
 ppBinder' notation n = wrapInfix notation n $ ppOccName n
