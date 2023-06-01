@@ -41,3 +41,4 @@ cabal.project.local~
 flake.lock
 flake.nix
 .vscode/settings.json
+retrie.sh
