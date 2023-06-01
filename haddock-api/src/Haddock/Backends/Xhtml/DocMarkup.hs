@@ -29,6 +29,7 @@ import Haddock.Utils
 import Haddock.Doc (combineDocumentation, emptyMetaDoc,
                     metaDocAppend, metaConcat)
 
+import Data.Text(Text)
 import qualified Data.Text as Text
 import Lucid
 import Data.Maybe (fromMaybe)
@@ -58,9 +59,9 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupEmphasis             = emphasize,
   markupBold                 = strong,
   markupMonospaced           = thecode,
-  markupUnorderedList        = unordList,
+  markupUnorderedList        = ul_ . mconcat,
   markupOrderedList          = makeOrdList,
-  markupDefList              = defList,
+  markupDefList              = dl . concatMap _,
   markupCodeBlock            = pre,
   markupHyperlink            = \(Hyperlink url mLabel)
                                -> if insertAnchors
@@ -100,8 +101,8 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
     makeTableRow :: (Html -> Html) -> TableRow Html -> Html
     makeTableRow thr (TableRow cs) = tr (concatHtml (map (makeTableCell thr) cs))
 
-    makeTableCell :: (Html -> Html) -> TableCell Html -> Html
-    makeTableCell thr (TableCell i j c) = thr c ! (i' ++ j')
+    makeTableCell :: ([Attributes] -> Html -> Html) -> TableCell Html -> Html
+    makeTableCell thr (TableCell i j c) = thr (i' ++ j') c 
       where
         i' = if i == 1 then [] else [ colspan i ]
         j' = if j == 1 then [] else [ rowspan j ]
@@ -111,8 +112,8 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
     exampleToHtml (Example expression result) = htmlExample
       where
         htmlExample = htmlPrompt +++ htmlExpression +++ toHtml (unlines result)
-        htmlPrompt = (thecode . toHtml $ ">>> ") ! [theclass "prompt"]
-        htmlExpression = (strong . thecode . toHtml $ expression ++ "\n") ! [theclass "userinput"]
+        htmlPrompt = (thecode [theclass "prompt"] . toHtml $ ">>> ")
+        htmlExpression = (strong . thecode [theclass "userinput"] . toHtml $ expression ++ "\n")
 
     makeOrdList :: [(Int, a)] -> Html
     makeOrdList items = ol_ << concatMap (\(index, a) -> li [intAttr "value" index] a) items
@@ -180,7 +181,7 @@ flatten x = [x]
 hackMarkup :: DocMarkup id Html -> Maybe Package -> Hack (Wrap (ModuleName, OccName)) id -> Html
 hackMarkup fmt' currPkg h' =
   let (html, ms) = hackMarkup' fmt' h'
-  in html +++ renderMeta fmt' currPkg (metaConcat ms)
+  in html <> renderMeta fmt' currPkg (metaConcat ms)
   where
     hackMarkup' :: DocMarkup id Html -> Hack (Wrap (ModuleName, OccName)) id
                 -> (Html, [Meta])
@@ -189,11 +190,11 @@ hackMarkup fmt' currPkg h' =
       CollapsingHeader (Header lvl titl) par n nm ->
         let id_ = Text.pack $ makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
             col' = collapseControl id_ "subheading"
-            summary = thesummary ! [ theclass "hide-when-js-enabled" ] << "Expand"
+            summary = summary_ [ theclass "hide-when-js-enabled" ] (toHtml ("Expand" :: Text))
             instTable contents = collapseDetails id_ DetailsClosed (summary +++ contents)
             lvs = zip [1 .. ] [h1, h2, h3, h4, h5, h6]
-            getHeader = fromMaybe caption (lookup lvl lvs)
-            subCaption = getHeader ! col' << markup fmt titl
+            getHeader attrs = fromMaybe (caption_ attrs) (lookup lvl lvs)
+            subCaption = getHeader col' (markup fmt titl)
         in ((subCaption +++) . instTable $ markup fmt (_doc par), [_meta par])
       HackAppend d d' -> let (x, m) = hackMarkup' fmt d
                              (y, m') = hackMarkup' fmt d'
@@ -249,8 +250,8 @@ rdrDocToHtml pkg qual = markupHacked fmt pkg Nothing . cleanup
 docElement :: (Html -> Html) -> Html -> Html
 docElement el content_ =
   if isNoHtml content_
-    then el ! [theclass "doc empty"] << spaceHtml
-    else el ! [theclass "doc"] << content_
+    then el [theclass "doc empty"] spaceHtml
+    else el [theclass "doc"] content_
 
 
 docSection :: Maybe Name -- ^ Name of the thing this doc is for
