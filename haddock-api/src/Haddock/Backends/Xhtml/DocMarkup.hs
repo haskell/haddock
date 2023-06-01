@@ -106,7 +106,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
         i' = if i == 1 then [] else [ colspan i ]
         j' = if j == 1 then [] else [ rowspan j ]
 
-    examplesToHtml l = pre (concatHtml $ map exampleToHtml l) ! [theclass "screen"]
+    examplesToHtml l = pre [theclass "screen"] (concatHtml $ map exampleToHtml l) 
 
     exampleToHtml (Example expression result) = htmlExample
       where
@@ -115,7 +115,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
         htmlExpression = (strong . thecode . toHtml $ expression ++ "\n") ! [theclass "userinput"]
 
     makeOrdList :: [(Int, a)] -> Html
-    makeOrdList items = olist << map (\(index, a) -> li ! [intAttr "value" index] << a) items
+    makeOrdList items = ol_ << concatMap (\(index, a) -> li [intAttr "value" index] a) items
 
 -- | We use this intermediate type to transform the input 'Doc' tree
 -- in an arbitrary way before rendering, such as grouping some
@@ -187,7 +187,7 @@ hackMarkup fmt' currPkg h' =
     hackMarkup' fmt h = case h of
       UntouchedDoc d -> (markup fmt $ _doc d, [_meta d])
       CollapsingHeader (Header lvl titl) par n nm ->
-        let id_ = makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
+        let id_ = Text.pack $ makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
             col' = collapseControl id_ "subheading"
             summary = thesummary ! [ theclass "hide-when-js-enabled" ] << "Expand"
             instTable contents = collapseDetails id_ DetailsClosed (summary +++ contents)
@@ -264,7 +264,7 @@ docSection_ :: Maybe Name    -- ^ Name of the thing this doc is for
             -> Maybe Package -- ^ Current package
             -> Qualification -> MDoc DocName -> Html
 docSection_ n pkg qual =
-  (docElement thediv <<) . docToHtml (getOccString <$> n) pkg qual
+  docElement div_ . docToHtml (getOccString <$> n) pkg qual
 
 
 cleanup :: MDoc a -> MDoc a
