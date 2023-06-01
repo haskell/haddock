@@ -25,6 +25,7 @@ import Haddock.Types
 import Haddock.Utils
 
 import Lucid
+import qualified Data.Text as Text
 import qualified Data.Map as M
 import Data.List ( stripPrefix )
 
@@ -140,7 +141,7 @@ ppBinderWith :: Notation -> Bool -> OccName -> Html
 ppBinderWith notation isRef n =
   makeAnchor << ppBinder' notation n
   where
-    name = nameAnchorId n
+    name = Text.pack $ nameAnchorId n
     makeAnchor | isRef     = linkedAnchor name
                | otherwise = namedAnchor name [theclass "def"]
 
