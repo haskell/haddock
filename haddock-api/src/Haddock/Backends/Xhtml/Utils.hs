@@ -215,8 +215,8 @@ linkedAnchor n = a_ [href_ (Text.cons '#' n)]
 
 
 -- | generate an anchor identifier for a group
-groupId :: String -> String
-groupId g = makeAnchorId ("g:" ++ g)
+groupId :: String -> Text
+groupId g = Text.pack $ makeAnchorId ("g:" ++ g)
 
 --
 -- A section of HTML which is collapsible.
