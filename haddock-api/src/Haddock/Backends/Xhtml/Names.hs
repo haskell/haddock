@@ -25,7 +25,6 @@ import Haddock.Types
 import Haddock.Utils
 
 import Lucid
-import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Map as M
 import Data.List ( stripPrefix )
@@ -42,54 +41,53 @@ data Notation = Raw -- ^ Render as-is.
               | Prefix -- ^ Render using prefix notation.
                 deriving (Eq, Show)
 
-ppOccName :: OccName -> Html
+ppOccName :: OccName -> Html ()
 ppOccName = toHtml . occNameString
 
 
-ppRdrName :: RdrName -> Html
+ppRdrName :: RdrName -> Html ()
 ppRdrName = ppOccName . rdrNameOcc
 
-ppIPName :: HsIPName -> Html
+ppIPName :: HsIPName -> Html ()
 ppIPName = toHtml . ('?':) . unpackFS . hsIPNameFS
 
 
-ppUncheckedLink :: Qualification -> Wrap (ModuleName, OccName) -> Html
-ppUncheckedLink _ x = linkIdOcc' mdl (Just occ) << occHtml
+ppUncheckedLink :: Qualification -> Wrap (ModuleName, OccName) -> Html ()
+ppUncheckedLink _ x = linkIdOcc' mdl (Just occ) occHtml
   where
     (mdl, occ) = unwrap x
-    occHtml = toHtml (showWrapped (occNameString . snd) x) -- TODO: apply ppQualifyName
+    occHtml = toHtml (Text.pack $ showWrapped (occNameString . snd) x) -- TODO: apply ppQualifyName
 
 -- The Bool indicates if it is to be rendered in infix notation
-ppLDocName :: Qualification -> Notation -> GenLocated l DocName -> Html
+ppLDocName :: Qualification -> Notation -> GenLocated l DocName -> Html ()
 ppLDocName qual notation (L _ d) = ppDocName qual notation True d
 
 
-ppDocName :: Qualification -> Notation -> Bool -> DocName -> Html
+ppDocName :: Qualification -> Notation -> Bool -> DocName -> Html ()
 ppDocName qual notation insertAnchors docName =
   case docName of
     Documented name mdl ->
-      linkIdOcc mdl (Just (nameOccName name)) insertAnchors
-      << ppQualifyName qual notation name mdl
+      linkIdOcc mdl (Just (nameOccName name)) insertAnchors (ppQualifyName qual notation name mdl)
     Undocumented name
       | isExternalName name || isWiredInName name ->
           ppQualifyName qual notation name (nameModule name)
       | otherwise -> ppName notation name
 
 
-ppWrappedDocName :: Qualification -> Notation -> Bool -> Wrap DocName -> Html
+ppWrappedDocName :: Qualification -> Notation -> Bool -> Wrap DocName -> Html ()
 ppWrappedDocName qual notation insertAnchors docName = case docName of
   Unadorned n -> ppDocName qual notation insertAnchors n
   Parenthesized n -> ppDocName qual Prefix insertAnchors n
   Backticked n -> ppDocName qual Infix insertAnchors n
 
-ppWrappedName :: Notation -> Wrap Name -> Html
+ppWrappedName :: Notation -> Wrap Name -> Html ()
 ppWrappedName notation docName = case docName of
   Unadorned n -> ppName notation n
   Parenthesized n -> ppName Prefix n
   Backticked n -> ppName Infix n
 
 -- | Render a name depending on the selected qualification mode
-ppQualifyName :: Qualification -> Notation -> Name -> Module -> Html
+ppQualifyName :: Qualification -> Notation -> Name -> Module -> Html ()
 ppQualifyName qual notation name mdl =
   case qual of
     NoQual   -> ppName notation name
@@ -115,41 +113,41 @@ ppQualifyName qual notation name mdl =
         _ -> ppName notation name
 
 
-ppFullQualName :: Notation -> Module -> Name -> Html
+ppFullQualName :: Notation -> Module -> Name -> Html ()
 ppFullQualName notation mdl name = wrapInfix notation (getOccName name) qname
   where
     qname = toHtml $ moduleString mdl ++ '.' : getOccString name
 
-ppQualName :: Notation -> ModuleName -> Name -> Html
+ppQualName :: Notation -> ModuleName -> Name -> Html ()
 ppQualName notation mdlName name = wrapInfix notation (getOccName name) qname
   where
     qname = toHtml $ moduleNameString mdlName ++ '.' : getOccString name
 
-ppName :: Notation -> Name -> Html
-ppName notation name = wrapInfix notation (getOccName name) $ toHtml (getOccString name)
+ppName :: Notation -> Name -> Html ()
+ppName notation name = wrapInfix notation (getOccName name) $ toHtml (Text.pack $ getOccString name)
 
 
-ppBinder :: Bool -> OccName -> Html
+ppBinder :: Bool -> OccName -> Html ()
 ppBinder = ppBinderWith Prefix
 
-ppBinderInfix :: Bool -> OccName -> Html
+ppBinderInfix :: Bool -> OccName -> Html ()
 ppBinderInfix = ppBinderWith Infix
 
-ppBinderWith :: Notation -> Bool -> OccName -> Html
+ppBinderWith :: Notation -> Bool -> OccName -> Html ()
 -- 'isRef' indicates whether this is merely a reference from another part of
 -- the documentation or is the actual definition; in the latter case, we also
 -- set the 'id' and 'class' attributes.
 ppBinderWith notation isRef n =
-  makeAnchor << ppBinder' notation n
+  makeAnchor (ppBinder' notation n)
   where
     name = Text.pack $ nameAnchorId n
     makeAnchor | isRef     = linkedAnchor name
-               | otherwise = namedAnchor name [theclass "def"]
+               | otherwise = namedAnchor name [class_ "def"]
 
-ppBinder' :: Notation -> OccName -> Html
+ppBinder' :: Notation -> OccName -> Html ()
 ppBinder' notation n = wrapInfix notation n $ ppOccName n
 
-wrapInfix :: Notation -> OccName -> Html -> Html
+wrapInfix :: Notation -> OccName -> Html () -> Html ()
 wrapInfix notation n = case notation of
   Infix | is_star_kind -> id
         | not is_sym -> quote
@@ -160,14 +158,14 @@ wrapInfix notation n = case notation of
     is_sym = isSymOcc n
     is_star_kind = isTcOcc n && occNameString n == "*"
 
-linkId :: Module -> Maybe Name -> Html -> Html
+linkId :: Module -> Maybe Name -> Html () -> Html ()
 linkId mdl mbName = linkIdOcc mdl (fmap nameOccName mbName) True
 
 
-linkIdOcc :: Module -> Maybe OccName -> Bool -> Html -> Html
+linkIdOcc :: Module -> Maybe OccName -> Bool -> Html () -> Html ()
 linkIdOcc mdl mbName insertAnchors =
   if insertAnchors
-  then anchor ! [href url, title ttl]
+  then a_ [href_ url, title_ ttl]
   else id
   where
     ttl = Text.pack $ moduleNameString (moduleName mdl)
@@ -176,8 +174,8 @@ linkIdOcc mdl mbName insertAnchors =
       Just name -> moduleNameUrl mdl name
 
 
-linkIdOcc' :: ModuleName -> Maybe OccName -> Html -> Html
-linkIdOcc' mdl mbName = anchor ! [href url, title ttl]
+linkIdOcc' :: ModuleName -> Maybe OccName -> Html () -> Html ()
+linkIdOcc' mdl mbName = a_ [href_ url, title_ ttl]
   where
     ttl = Text.pack $ moduleNameString mdl
     url = Text.pack $ case mbName of
@@ -185,20 +183,14 @@ linkIdOcc' mdl mbName = anchor ! [href url, title ttl]
       Just name -> moduleNameUrl' mdl name
 
 
-ppModule :: Module -> Html
-ppModule mdl = anchor ! [href (Text.pack $ moduleUrl mdl)]
-               << toHtml (moduleString mdl)
+ppModule :: Module -> Html ()
+ppModule mdl = a_ [href_ (Text.pack $ moduleUrl mdl)] (toHtml (Text.pack $ moduleString mdl))
 
 
-ppModuleRef :: Maybe Html -> ModuleName -> String -> Html
-ppModuleRef Nothing mdl ref = anchor ! [href (Text.pack $ moduleHtmlFile' mdl ++ ref)]
-                              << toHtml (moduleNameString mdl)
-ppModuleRef (Just lbl) mdl ref = anchor ! [href (Text.pack $ moduleHtmlFile' mdl ++ ref)]
-                                 << lbl
+ppModuleRef :: Maybe (Html ()) -> ModuleName -> String -> Html ()
+ppModuleRef Nothing mdl ref = a_ [href_ (Text.pack $ moduleHtmlFile' mdl ++ ref)] (toHtml (Text.pack $ moduleNameString mdl))
+ppModuleRef (Just lbl) mdl ref = a_ [href_ (Text.pack $ moduleHtmlFile' mdl ++ ref)] lbl
 
     -- NB: The ref parameter already includes the '#'.
     -- This function is only called from markupModule expanding a
     -- DocModule, which doesn't seem to be ever be used.
-
-(<<) :: a
-(<<) = undefined
