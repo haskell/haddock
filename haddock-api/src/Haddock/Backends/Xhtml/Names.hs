@@ -196,3 +196,6 @@ ppModuleRef (Just lbl) mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
     -- NB: The ref parameter already includes the '#'.
     -- This function is only called from markupModule expanding a
     -- DocModule, which doesn't seem to be ever be used.
+
+(<<) :: a
+(<<) = undefined
