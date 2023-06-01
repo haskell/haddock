@@ -61,7 +61,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupMonospaced           = thecode,
   markupUnorderedList        = ul_ . mconcat,
   markupOrderedList          = makeOrdList,
-  markupDefList              = dl . concatMap _,
+  markupDefList              = dl_ . concatMap _,
   markupCodeBlock            = pre,
   markupHyperlink            = \(Hyperlink url mLabel)
                                -> if insertAnchors
@@ -107,8 +107,10 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
         i' = if i == 1 then [] else [ colspan i ]
         j' = if j == 1 then [] else [ rowspan j ]
 
+    examplesToHtml :: [Example] -> Html
     examplesToHtml l = pre [theclass "screen"] (concatHtml $ map exampleToHtml l) 
 
+    exampleToHtml :: Example -> Html
     exampleToHtml (Example expression result) = htmlExample
       where
         htmlExample = htmlPrompt +++ htmlExpression +++ toHtml (unlines result)
@@ -190,7 +192,7 @@ hackMarkup fmt' currPkg h' =
       CollapsingHeader (Header lvl titl) par n nm ->
         let id_ = Text.pack $ makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
             col' = collapseControl id_ "subheading"
-            summary = summary_ [ theclass "hide-when-js-enabled" ] (toHtml ("Expand" :: Text))
+            summary = summary_ [ theclass "hide-when-js-enabled" ] (toHtml "Expand")
             instTable contents = collapseDetails id_ DetailsClosed (summary +++ contents)
             lvs = zip [1 .. ] [h1, h2, h3, h4, h5, h6]
             getHeader attrs = fromMaybe (caption_ attrs) (lookup lvl lvs)
