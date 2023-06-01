@@ -206,8 +206,8 @@ dot = toHtml ("."   :: Text)
 
 
 -- | Generate a named anchor
-namedAnchor :: Text -> Attributes -> Html () -> Html ()
-namedAnchor n attr = a_ [id_ n, attr]
+namedAnchor :: Text -> [Attributes] -> Html () -> Html ()
+namedAnchor n attr = a_ ((id_ n):attr)
 
 
 linkedAnchor :: Text -> Html () -> Html ()
