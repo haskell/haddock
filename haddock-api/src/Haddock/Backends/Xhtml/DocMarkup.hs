@@ -29,7 +29,7 @@ import Haddock.Doc (combineDocumentation, emptyMetaDoc,
                     metaDocAppend, metaConcat)
 
 import qualified Data.Text as Text
-import Text.XHtml hiding ( name, p, quote )
+import Lucid
 import Data.Maybe (fromMaybe)
 
 import GHC hiding (anchor)
