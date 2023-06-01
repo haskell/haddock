@@ -23,7 +23,7 @@ import Haddock.GhcUtils
 import Haddock.Types
 import Haddock.Utils
 
-import Text.XHtml hiding ( name, p, quote )
+import Lucid
 import qualified Data.Map as M
 import Data.List ( stripPrefix )
 

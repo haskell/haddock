@@ -14,7 +14,7 @@ import Haddock.Backends.Hyperlinker.Renderer
 import Haddock.Backends.Hyperlinker.Parser
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
-import Haddock.Backends.Xhtml.Utils.Lucid ( renderToString )
+import Haddock.Backends.Xhtml.Utils ( renderToString )
 
 import Data.Maybe
 import System.Directory
