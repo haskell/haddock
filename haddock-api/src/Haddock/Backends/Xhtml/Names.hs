@@ -25,6 +25,7 @@ import Haddock.Types
 import Haddock.Utils
 
 import Lucid
+import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Map as M
 import Data.List ( stripPrefix )
