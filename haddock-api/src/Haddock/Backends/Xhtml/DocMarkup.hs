@@ -28,6 +28,7 @@ import Haddock.Utils
 import Haddock.Doc (combineDocumentation, emptyMetaDoc,
                     metaDocAppend, metaConcat)
 
+import qualified Data.Text as Text
 import Text.XHtml hiding ( name, p, quote )
 import Data.Maybe (fromMaybe)
 
