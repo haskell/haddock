@@ -78,11 +78,11 @@ import GHC.Types.Name (nameOccName)
 miniBody :: Html () -> Html ()
 miniBody = body_ [id_ "mini"]
 
-sectionDiv :: Text -> Html () -> Html ()
-sectionDiv i = div_ [id_ i]
+sectionDiv :: Text -> [Attributes] -> Html () -> Html ()
+sectionDiv i attrs = div_ ([id_ i] <> attrs)
 
-sectionName :: Html () -> Html ()
-sectionName = p_ [class_ "caption"]
+sectionName :: [Attributes] -> Html () -> Html ()
+sectionName attrs = p_ ([class_ "caption"] <> attrs)
 
 {- | Make an element that always has at least something (a non-breaking space).
 If it would have otherwise been empty, then give it the class ".empty".
@@ -105,7 +105,7 @@ divPackageHeader
   , divPackageList
   , divModuleList
   , divContentsList ::
-    Html () -> Html ()
+    [Attributes] -> Html () -> Html ()
 divPackageHeader = sectionDiv "package-header"
 divContent = sectionDiv "content"
 divModuleHeader = sectionDiv "module-header"
@@ -126,8 +126,8 @@ divPackageList = sectionDiv "module-list"
 
 --------------------------------------------------------------------------------
 
-shortDeclList :: [Html ()] -> Html ()
-shortDeclList items = ul_ (foldMap (li_ [class_ "src short"]) items)
+shortDeclList :: [Attributes] -> [Html ()] -> Html ()
+shortDeclList attrs items = ul_ attrs (foldMap (li_ [class_ "src short"]) items)
 
 shortSubDecls :: Bool -> [Html ()] -> Html ()
 shortSubDecls inst items = ul_ [class_ c] (foldMap i items)

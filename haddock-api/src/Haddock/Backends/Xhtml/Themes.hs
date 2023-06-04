@@ -114,9 +114,9 @@ builtInTheme pts s = either Left fetch <$> pts
 --------------------------------------------------------------------------------
 
 -- | Process input flags for CSS Theme arguments
-getThemes :: FilePath -> [Flag] -> IO PossibleThemes
+getThemes :: FilePath -> [Flag] -> IO (Either String Themes)
 getThemes libDir flags =
-  liftM concatEither (mapM themeFlag flags) >>= someTheme
+  liftM concatEither (mapM themeFlag flags) >>= fmap (either (Left . Text.unpack) Right) . someTheme
   where
     themeFlag :: Flag -> IO (Either Text Themes)
     themeFlag (Flag_CSS path) = (liftM . liftEither) (:[]) (theme path)
