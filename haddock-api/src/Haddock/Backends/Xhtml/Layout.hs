@@ -48,6 +48,7 @@ import Haddock.Types
 import Haddock.Utils (makeAnchorId, nameAnchorId)
 import qualified Data.Map as Map
 import Lucid
+import Data.Text(Text)
 import qualified Data.Text as Text
 import Data.Maybe (fromMaybe)
 
