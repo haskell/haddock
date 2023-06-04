@@ -23,6 +23,8 @@ module Haddock.Backends.Xhtml.Types (
 import Data.Map
 import GHC
 import qualified System.FilePath as FilePath
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 
 -- the base, module and entity URLs for the source code and wiki links.
@@ -34,9 +36,9 @@ type WikiURLs = (Maybe FilePath, Maybe FilePath, Maybe FilePath)
 type BaseURL = Maybe String
 
 -- TODO: we shouldn't use 'FilePath.</>'
-withBaseURL :: BaseURL -> String -> String
+withBaseURL :: BaseURL -> Text -> Text
 withBaseURL Nothing        uri = uri
-withBaseURL (Just baseUrl) uri = baseUrl FilePath.</> uri
+withBaseURL (Just baseUrl) uri = Text.pack $ baseUrl FilePath.</> Text.unpack uri
 
 -- The URL for source and wiki links
 type LinksInfo = (SourceURLs, WikiURLs)
