@@ -61,23 +61,23 @@ import GHC.Types.Name (nameOccName)
 
 
 miniBody :: Html -> Html
-miniBody = body ! [identifier "mini"]
+miniBody = body [identifier "mini"]
 
 
 sectionDiv :: String -> Html -> Html
-sectionDiv i = thediv ! [identifier i]
+sectionDiv i = thediv [identifier i]
 
 
 sectionName :: Html -> Html
-sectionName = paragraph ! [theclass "caption"]
+sectionName = paragraph [theclass "caption"]
 
 
 -- | Make an element that always has at least something (a non-breaking space).
 -- If it would have otherwise been empty, then give it the class ".empty".
 nonEmptySectionName :: Html -> Html
 nonEmptySectionName c
-  | isNoHtml c = thespan ! [theclass "caption empty"] $ spaceHtml
-  | otherwise  = thespan ! [theclass "caption"]       $ c
+  | isNoHtml c = thespan [theclass "caption empty"] spaceHtml
+  | otherwise  = thespan [theclass "caption"]       c
 
 
 divPackageHeader, divContent, divModuleHeader, divFooter,
@@ -106,19 +106,19 @@ divPackageList      = sectionDiv "module-list"
 
 
 shortDeclList :: [Html] -> Html
-shortDeclList items = ulist << map (li ! [theclass "src short"] <<) items
+shortDeclList items = ulist << map (li [theclass "src short"]) items
 
 
 shortSubDecls :: Bool -> [Html] -> Html
-shortSubDecls inst items = ulist ! [theclass c] << map (i <<) items
-  where i | inst      = li ! [theclass "inst"]
+shortSubDecls inst items = ulist [theclass c] (map (i []) items)
+  where i | inst      = li [theclass "inst"]
           | otherwise = li
         c | inst      = "inst"
           | otherwise = "subs"
 
 
 divTopDecl :: Html -> Html
-divTopDecl = thediv ! [theclass "top"]
+divTopDecl = thediv [theclass "top"]
 
 
 type SubDecl = (Html, Maybe (MDoc DocName), [Html])
@@ -128,8 +128,8 @@ divSubDecls :: (ToHtml a) => String -> a -> Maybe Html -> Html
 divSubDecls cssClass captionName = maybe noHtml wrap
   where
     wrap = (subSection <<) . (subCaption +++)
-    subSection = thediv ! [theclass $ unwords ["subs", cssClass]]
-    subCaption = paragraph ! [theclass "caption"] << (toHtml captionName)
+    subSection = thediv [theclass $ unwords ["subs", cssClass]]
+    subCaption = paragraph [theclass "caption"] << (toHtml captionName)
 
 
 subDlist :: Maybe Package -> Qualification -> [SubDecl] -> Maybe Html
@@ -138,8 +138,8 @@ subDlist pkg qual decls = Just $ ulist << map subEntry decls
   where
     subEntry (decl, mdoc, subs) =
       li <<
-        (define ! [theclass "src"] << decl +++
-         docElement thediv << (fmap (docToHtml Nothing pkg qual) mdoc +++ subs))
+        (define [theclass "src"] $ decl +++
+         docElement thediv (fmap (docToHtml Nothing pkg qual) mdoc +++ subs))
 
 
 subTable :: Maybe Package -> Qualification -> [SubDecl] -> Maybe Html
@@ -147,7 +147,7 @@ subTable _ _ [] = Nothing
 subTable pkg qual decls = Just $ table << aboves (concatMap subRow decls)
   where
     subRow (decl, mdoc, subs) =
-      (td ! [theclass "src"] << decl
+      (td [theclass "src"] decl
        <->
        docElement td << fmap (docToHtml Nothing pkg qual) mdoc)
       : map (cell . (td <<)) subs
@@ -160,8 +160,8 @@ subTableSrc _ _ _ _ [] = Nothing
 subTableSrc pkg qual lnks splice decls = Just $ table << aboves (concatMap subRow decls)
   where
     subRow ((decl, mdoc, subs), mdl, L loc dn) =
-      (td ! [theclass "src clearfix"] <<
-        (thespan ! [theclass "inst-left"] << decl)
+      (td [theclass "src clearfix"]
+        (thespan [theclass "inst-left"] decl)
         <+> linkHtml loc mdl dn
       <->
       docElement td << fmap (docToHtml Nothing pkg qual) mdoc
@@ -208,9 +208,9 @@ subInstances pkg qual nm lnks splice = maybe noHtml wrap . instTable
   where
     wrap contents = subSection (hdr +++ collapseDetails id_ DetailsOpen (summary +++ contents))
     instTable = subTableSrc pkg qual lnks splice
-    subSection = thediv ! [theclass "subs instances"]
-    hdr = h4 ! collapseControl id_ "instances" << "Instances"
-    summary = thesummary ! [ theclass "hide-when-js-enabled" ] << "Instances details"
+    subSection = thediv [theclass "subs instances"]
+    hdr = h4 (collapseControl id_ "instances") (toHtml ("Instances" :: Text))
+    summary = thesummary [ theclass "hide-when-js-enabled" ] << (toHtml ("Instances details" :: Text))
     id_ = makeAnchorId $ "i:" ++ nm
 
 
@@ -220,7 +220,7 @@ subOrphanInstances :: Maybe Package -> Qualification
 subOrphanInstances pkg qual lnks splice  = maybe noHtml wrap . instTable
   where
     wrap = ((h1 << "Orphan instances") +++)
-    instTable = fmap (thediv ! [ identifier ("section." ++ id_) ] <<) . subTableSrc pkg qual lnks splice
+    instTable = fmap (thediv [ identifier ("section." ++ id_) ]) . subTableSrc pkg qual lnks splice
     id_ = makeAnchorId "orphans"
 
 
@@ -230,7 +230,7 @@ subInstHead :: String -- ^ Instance unique id (for anchor generation)
 subInstHead iid hdr =
     expander noHtml <+> hdr
   where
-    expander = thespan ! collapseControl (instAnchorId iid) "instance"
+    expander = thespan (collapseControl (instAnchorId iid) "instance")
 
 
 subInstDetails :: String -- ^ Instance unique id (for anchor generation)
@@ -246,14 +246,14 @@ subFamInstDetails :: String -- ^ Instance unique id (for anchor generation)
                   -> Html   -- ^ Source module TODO: use this
                   -> Html
 subFamInstDetails iid fi mdl =
-    subInstSection iid << (p mdl <+> (thediv ! [theclass "src"] << fi))
+    subInstSection iid << (p mdl <+> (thediv [theclass "src"] fi))
 
 subInstSection :: String -- ^ Instance unique id (for anchor generation)
                -> Html
                -> Html
 subInstSection iid contents = collapseDetails (instAnchorId iid) DetailsClosed (summary +++ contents)
   where
-    summary = thesummary ! [ theclass "hide-when-js-enabled" ] << "Instance details"
+    summary = thesummary [ theclass "hide-when-js-enabled" ] (toHtml ("Instance details" :: Text))
 
 instAnchorId :: String -> String
 instAnchorId iid = makeAnchorId $ "i:" ++ iid
@@ -271,7 +271,7 @@ subMinimal = divSubDecls "minimal" "Minimal complete definition" . Just . declEl
 
 -- a box for displaying code
 declElem :: Html -> Html
-declElem = paragraph ! [theclass "src"]
+declElem = paragraph [theclass "src"]
 
 
 -- a box for top level documented names
@@ -285,7 +285,7 @@ topDeclElem lnks loc splice names html =
 -- Name must be documented, otherwise we wouldn't get here.
 links :: LinksInfo -> SrcSpan -> Bool -> Maybe Module -> DocName -> Html
 links ((_,_,sourceMap,lineMap), (_,_,maybe_wiki_url)) loc splice mdl' docName@(Documented n mdl) =
-  srcLink <+> wikiLink <+> (selfLink ! [theclass "selflink"] << "#")
+  srcLink <+> wikiLink <+> (selfLink [theclass "selflink"] (toHtml ("#" :: Text)))
   where selfLink = linkedAnchor (nameAnchorId (nameOccName (getName docName)))
 
         srcLink = let nameUrl = Map.lookup origPkg sourceMap
@@ -297,14 +297,14 @@ links ((_,_,sourceMap,lineMap), (_,_,maybe_wiki_url)) loc splice mdl' docName@(D
             Nothing  -> noHtml
             Just url -> let url' = spliceURL (Just fname) (Just origMod)
                                                (Just n) (Just loc) url
-                          in anchor ! [href url', theclass "link"] << "Source"
+                          in anchor [href url', theclass "link"] toHtml ("Source" :: Text)
 
         wikiLink =
           case maybe_wiki_url of
             Nothing  -> noHtml
             Just url -> let url' = spliceURL (Just fname) (Just mdl)
                                                (Just n) (Just loc) url
-                          in anchor ! [href url', theclass "link"] << "Comments"
+                          in anchor [href url', theclass "link"] (toHtml ("Comments" :: Text))
 
         -- For source links, we want to point to the original module,
         -- because only that will have the source.
