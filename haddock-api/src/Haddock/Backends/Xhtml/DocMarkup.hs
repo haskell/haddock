@@ -61,7 +61,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupMonospaced           = code_,
   markupUnorderedList        = ul_ . mconcat,
   markupOrderedList          = makeOrdList,
-  markupDefList              = dl_ . concatMap _ ,
+  markupDefList              = dl_ . foldMap (\(dt, dd) -> dt_ dt <> dd_ dd),
   markupCodeBlock            = pre_,
   markupHyperlink            = \(Hyperlink url mLabel)
                                -> if insertAnchors
@@ -71,7 +71,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
                                -> if insertAnchors
                                   then namedAnchor (Text.pack aname) [] ""
                                   else pure (),
-  markupPic                  = \(Picture uri t) -> img_ ([src_ (Text.pack uri)] ++ fromMaybe [] (return . title_ <$> t)),
+  markupPic                  = \(Picture uri t) -> img_ ([src_ (Text.pack uri)] ++ fromMaybe [] (return . title_ . Text.pack <$> t)),
   markupMathInline           = \mathjax -> span_ [class_ "mathjax"] (toHtml (Text.pack $ "\\(" ++ mathjax ++ "\\)")),
   markupMathDisplay          = \mathjax -> span_ [class_ "mathjax"] (toHtml (Text.pack $ "\\[" ++ mathjax ++ "\\]")),
   markupProperty             = pre_ . toHtml,
@@ -112,12 +112,12 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
     exampleToHtml :: Example -> Html ()
     exampleToHtml (Example expression result) = htmlExample
       where
-        htmlExample = htmlPrompt (<>) htmlExpression (<>) toHtml (Text.pack $ unlines result)
-        htmlPrompt = (code_ [class_ "prompt"] . toHtml $ ">>> ")
+        htmlExample = htmlPrompt <> htmlExpression <> toHtml (Text.pack $ unlines result)
+        htmlPrompt = (code_ [class_ "prompt"] (toHtml (">>> " :: Text)))
         htmlExpression = (strong_ . code_ [class_ "userinput"] . toHtml $ expression ++ "\n")
 
-    makeOrdList :: [(Int, a)] -> Html ()
-    makeOrdList items = ol_ (concatMap (\(index, a) -> li_ [intAttr "value" index] a) items)
+    makeOrdList :: (ToHtml a) => [(Int, a)] -> Html ()
+    makeOrdList items = ol_ (foldMap (\(index, a) -> li_ [value_ (Text.pack . show $ index)] (toHtml a)) items)
 
 -- | We use this intermediate type to transform the input 'Doc' tree
 -- in an arbitrary way before rendering, such as grouping some
@@ -191,12 +191,13 @@ hackMarkup fmt' currPkg h' =
       CollapsingHeader (Header lvl titl) par n nm ->
         let id_ = Text.pack $ makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
             col' = collapseControl id_ "subheading"
-            summary = summary_ [ class_ "hide-when-js-enabled" ] (toHtml (Text.pack $ "Expand"))
-            instTable contents = collapseDetails id_ DetailsClosed (summary (<>) contents)
+            summary = summary_ [ class_ "hide-when-js-enabled" ] (toHtml (Text.pack "Expand"))
+            instTable contents = collapseDetails id_ DetailsClosed (summary <> contents)
+            lvs :: [(Int, Html () -> Html ())]
             lvs = zip [1 .. ] [h1_, h2_, h3_, h4_, h5_, h6_]
             getHeader attrs = fromMaybe (caption_ attrs) (lookup lvl lvs)
             subCaption = getHeader col' (markup fmt titl)
-        in ((subCaption (<>)) . instTable $ markup fmt (_doc par), [_meta par])
+        in ((subCaption <>) . instTable $ markup fmt (_doc par), [_meta par])
       HackAppend d d' -> let (x, m) = hackMarkup' fmt d
                              (y, m') = hackMarkup' fmt d'
                          in (markupAppend fmt x y, m ++ m')
@@ -248,10 +249,10 @@ rdrDocToHtml pkg qual = markupHacked fmt pkg Nothing . cleanup
   where fmt = parHtmlMarkup qual True (const (ppRdrName . unwrap))
 
 
-docElement :: (Html () -> Html ()) -> Html () -> Html ()
+docElement :: ([Attributes] -> Html () -> Html ()) -> Html () -> Html ()
 docElement el content_ =
-  if isNoHtml content_
-    then el [class_ "doc empty"] spaceHtml
+  if renderText content_ == ""
+    then el [class_ "doc empty"] (toHtmlRaw ("&nbsp;" :: Text))
     else el [class_ "doc"] content_
 
 
