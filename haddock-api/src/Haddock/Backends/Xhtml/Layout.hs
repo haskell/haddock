@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Layout
@@ -128,7 +129,7 @@ type SubDecl = (Html, Maybe (MDoc DocName), [Html])
 divSubDecls :: (ToHtml a) => String -> a -> Maybe Html -> Html
 divSubDecls cssClass captionName = maybe noHtml wrap
   where
-    wrap = (subSection <<) . (subCaption +++)
+    wrap = subSection . (subCaption <>)
     subSection = thediv [theclass $ unwords ["subs", cssClass]]
     subCaption = paragraph [theclass "caption"] << (toHtml captionName)
 
