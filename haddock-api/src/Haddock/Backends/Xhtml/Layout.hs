@@ -47,7 +47,8 @@ import Haddock.Backends.Xhtml.Utils
 import Haddock.Types
 import Haddock.Utils (makeAnchorId, nameAnchorId)
 import qualified Data.Map as Map
-import Text.XHtml hiding ( name, title, quote )
+import Lucid
+import qualified Data.Text as Text
 import Data.Maybe (fromMaybe)
 
 import GHC.Data.FastString ( unpackFS )
