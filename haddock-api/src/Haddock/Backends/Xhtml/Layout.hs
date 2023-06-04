@@ -124,7 +124,7 @@ divTopDecl = thediv ! [theclass "top"]
 type SubDecl = (Html, Maybe (MDoc DocName), [Html])
 
 
-divSubDecls :: (toHtml a) => String -> a -> Maybe Html -> Html
+divSubDecls :: (ToHtml a) => String -> a -> Maybe Html -> Html
 divSubDecls cssClass captionName = maybe noHtml wrap
   where
     wrap = (subSection <<) . (subCaption +++)
