@@ -124,12 +124,12 @@ divTopDecl = thediv ! [theclass "top"]
 type SubDecl = (Html, Maybe (MDoc DocName), [Html])
 
 
-divSubDecls :: (HTML a) => String -> a -> Maybe Html -> Html
+divSubDecls :: (toHtml a) => String -> a -> Maybe Html -> Html
 divSubDecls cssClass captionName = maybe noHtml wrap
   where
     wrap = (subSection <<) . (subCaption +++)
     subSection = thediv ! [theclass $ unwords ["subs", cssClass]]
-    subCaption = paragraph ! [theclass "caption"] << captionName
+    subCaption = paragraph ! [theclass "caption"] << (toHtml captionName)
 
 
 subDlist :: Maybe Package -> Qualification -> [SubDecl] -> Maybe Html
