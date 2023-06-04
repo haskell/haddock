@@ -189,10 +189,10 @@ hackMarkup fmt' currPkg h' =
     hackMarkup' fmt h = case h of
       UntouchedDoc d -> (markup fmt $ _doc d, [_meta d])
       CollapsingHeader (Header lvl titl) par n nm ->
-        let id_ = Text.pack $ makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
-            col' = collapseControl id_ "subheading"
+        let id' = Text.pack $ makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
+            col' = collapseControl id' "subheading"
             summary = summary_ [ class_ "hide-when-js-enabled" ] (toHtml (Text.pack "Expand"))
-            instTable contents = collapseDetails id_ DetailsClosed (summary <> contents)
+            instTable contents = collapseDetails id' DetailsClosed (summary <> contents)
             lvs :: [(Int, Html () -> Html ())]
             lvs = zip [1 .. ] [h1_, h2_, h3_, h4_, h5_, h6_]
             getHeader attrs = fromMaybe (caption_ attrs) (lookup lvl lvs)
@@ -250,10 +250,10 @@ rdrDocToHtml pkg qual = markupHacked fmt pkg Nothing . cleanup
 
 
 docElement :: ([Attributes] -> Html () -> Html ()) -> Html () -> Html ()
-docElement el content_ =
-  if renderText content_ == ""
+docElement el content' =
+  if renderText content' == ""
     then el [class_ "doc empty"] (toHtmlRaw ("&nbsp;" :: Text))
-    else el [class_ "doc"] content_
+    else el [class_ "doc"] content'
 
 
 docSection :: Maybe Name -- ^ Name of the thing this doc is for
