@@ -1,0 +1,336 @@
+diff -r goldens/old/src/Bug1091.html goldens/new/src/Bug1091.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+12c13,14
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/CPP.html goldens/new/src/CPP.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+40c41,42
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Classes.html goldens/new/src/Classes.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+132c133,134
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Constructors.html goldens/new/src/Constructors.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+128c129,130
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Identifiers.html goldens/new/src/Identifiers.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+161c162,163
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/LinkingIdentifiers.html goldens/new/src/LinkingIdentifiers.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+64c65,66
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Literals.html goldens/new/src/Literals.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+45c46,47
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Operators.html goldens/new/src/Operators.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+89c90,91
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Polymorphism.html goldens/new/src/Polymorphism.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+141c142,143
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/PositionPragmas.html goldens/new/src/PositionPragmas.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+24c25,26
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Quasiquoter.html goldens/new/src/Quasiquoter.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+50c51,52
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Records.html goldens/new/src/Records.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+108c109,110
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/TemplateHaskellQuasiquotes.html goldens/new/src/TemplateHaskellQuasiquotes.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+69c70,71
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/TemplateHaskellSplices.html goldens/new/src/TemplateHaskellSplices.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+27c28,29
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/Types.html goldens/new/src/Types.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+70c71,72
+< </body>
+---
+>   </body>
+> </html>
+diff -r goldens/old/src/UsingQuasiquotes.html goldens/new/src/UsingQuasiquotes.html
+1,6c1,7
+< <header>
+<   <link rel="stylesheet" type="text/css" href="style.css" />
+<   <script type="text/javascript" src="highlight.js"></script>
+< </header>
+< <body>
+<   <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+---
+> <html xmlns="http://www.w3.org/1999/xhtml">
+>   <header>
+>     <link rel="stylesheet" type="text/css" href="style.css" />
+>     <script type="text/javascript" src="highlight.js"></script>
+>   </header>
+>   <body>
+>     <pre><span class="hs-pragma">{-# LANGUAGE Haskell2010 #-}</span><span>
+22c23,24
+< </body>
+---
+>   </body>
+> </html>
