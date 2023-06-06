@@ -136,7 +136,7 @@ spliceURL' maybe_file maybe_mod maybe_name maybe_loc = run
   run (c : rest) = c : run rest
 
 renderToString :: Bool -> Html () -> String
-renderToString _ html = TL.unpack $ renderText html
+renderToString _ = TL.unpack . renderText . html_ [xmlns_ "http://www.w3.org/1999/xhtml"]
 
 hsep :: [Html ()] -> Html ()
 hsep [] = pure ()

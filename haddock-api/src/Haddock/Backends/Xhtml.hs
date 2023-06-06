@@ -157,7 +157,7 @@ headHtml docTitle themes mathjax_url base_url =
                 , href_ (withBaseURL base_url (Text.pack quickJumpCssFile)) ]
     , link_ [ rel_ "stylesheet", type_ "text/css", href_ fontUrl]
     , script_ [ src_ (withBaseURL base_url (Text.pack haddockJsFile))
-               , makeAttributes "async" ""
+               , makeAttributes "async" "async"
                , type_ "text/javascript" ]
             (pure () :: Html ())
     , script_ [type_ "text/x-mathjax-config"] (toHtmlRaw mjConf)
