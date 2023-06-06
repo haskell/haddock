@@ -65,14 +65,18 @@
           </p>
           <div class="doc">
             <ul>
-              <p>We can</p>
-              <ul>
-                <p>easily go back</p>
-                <ol>
-                  <li value="1">some indentation</li>
-                </ol>
-                levels
-              </ul>
+              <li>
+                <p>We can</p>
+                <ul>
+                  <li>
+                    <p>easily go back</p>
+                    <ol>
+                      <li value="1">some indentation</li>
+                    </ol>
+                  </li>
+                  <li>levels</li>
+                </ul>
+              </li>
             </ul>
             <ol>
               <li value="1"><pre>back at the top</pre></li>
@@ -86,12 +90,16 @@
           </p>
           <div class="doc">
             <ul>
-              <p>Beginning of list</p>
-              <ul>
-                second list
-              </ul>
-              Some indented list but the presence of this text pushes it out of
-              nesting back to the top.
+              <li>
+                <p>Beginning of list</p>
+                <ul>
+                  <li>second list</li>
+                </ul>
+              </li>
+              <li>
+                Some indented list but the presence of this text pushes it out
+                of nesting back to the top.
+              </li>
             </ul>
           </div>
         </div>
@@ -102,12 +110,14 @@
           </p>
           <div class="doc">
             <ul>
-              <p>Beginning of list</p>
-              <pre>
+              <li>
+                <p>Beginning of list</p>
+                <pre>
 nested code
     we preserve the space correctly
 </pre
-              >
+                >
+              </li>
             </ul>
           </div>
         </div>
@@ -118,10 +128,12 @@ nested code
           </p>
           <div class="doc">
             <ul>
-              <p>Beginning of list</p>
-              <ul>
-                Nested list
-              </ul>
+              <li>
+                <p>Beginning of list</p>
+                <ul>
+                  <li>Nested list</li>
+                </ul>
+              </li>
             </ul>
           </div>
         </div>
@@ -132,12 +144,14 @@ nested code
           </p>
           <div class="doc">
             <ul>
-              <p>Beginning of list</p>
-              <pre>
+              <li>
+                <p>Beginning of list</p>
+                <pre>
 nested
 bird
 tracks</pre
-              >
+                >
+              </li>
             </ul>
           </div>
         </div>
@@ -148,31 +162,42 @@ tracks</pre
           </p>
           <div class="doc">
             <ul>
-              <p>Beginning of list This belongs to the list above!</p>
-              <pre>
+              <li>
+                <p>Beginning of list This belongs to the list above!</p>
+                <pre>
 nested
 bird
 tracks
 
 another line
   with indentation</pre
-              >
-              <pre>
+                >
+                <pre>
 nested bird tracks
   without leading space</pre
-              >
-              <ul>
-                <p>Next list More of the indented list.</p>
+                >
                 <ul>
-                  <p>Deeper</p>
-                  <ul>
-                    <p>Deeper</p>
+                  <li>
+                    <p>Next list More of the indented list.</p>
                     <ul>
-                      Even deeper!No newline separation even in indented lists.
+                      <li>
+                        <p>Deeper</p>
+                        <ul>
+                          <li>
+                            <p>Deeper</p>
+                            <ul>
+                              <li>Even deeper!</li>
+                              <li>
+                                No newline separation even in indented lists.
+                              </li>
+                            </ul>
+                          </li>
+                        </ul>
+                      </li>
                     </ul>
-                  </ul>
+                  </li>
                 </ul>
-              </ul>
+              </li>
             </ul>
           </div>
         </div>
@@ -192,36 +217,42 @@ bird
 tracks</pre
                 >
                 <ul>
-                  <p>Next list with more of the indented list content.</p>
-                  <p>Even more content on a new line.</p>
-                  <ol>
-                    <li value="1">
-                      <p>Different type of list</p>
-                      <ol>
-                        <li value="2">Deeper</li>
-                      </ol>
-                      <pre
-                        class="screen"
-                      ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">Here&#39;s an example in a list
-</code></strong>example result
+                  <li>
+                    <p>Next list with more of the indented list content.</p>
+                    <p>Even more content on a new line.</p>
+                    <ol>
+                      <li value="1">
+                        <p>Different type of list</p>
+                        <ol>
+                          <li value="2">Deeper</li>
+                        </ol>
+                        <pre class="screen"><code class="prompt"
+			  >&gt;&gt;&gt; </code
+			  ><strong class="userinput"
+			  ><code
+			    >Here's an example in a list
+</code
+			    ></strong
+			  >example result
 </pre>
-                      <dl>
-                        <dt>b</dt>
-                        <dd>Even deeper!</dd>
-                        <dt>c</dt>
-                        <dd>
-                          No newline separation even in indented lists. We can
-                          have any paragraph level element that we normally can,
-                          like headers
-                        </dd>
-                      </dl>
-                      <h3>Level 3 header</h3>
-                      <p>with some contentâ¦</p>
-                      <ul>
-                        and even more lists inside
-                      </ul>
-                    </li>
-                  </ol>
+                        <dl>
+                          <dt>b</dt>
+                          <dd>Even deeper!</dd>
+                          <dt>c</dt>
+                          <dd>
+                            No newline separation even in indented lists. We can
+                            have any paragraph level element that we normally
+                            can, like headers
+                          </dd>
+                        </dl>
+                        <h3>Level 3 header</h3>
+                        <p>with some content&#8230;</p>
+                        <ul>
+                          <li>and even more lists inside</li>
+                        </ul>
+                      </li>
+                    </ol>
+                  </li>
                 </ul>
               </dd>
             </dl>
@@ -234,13 +265,17 @@ tracks</pre
           </p>
           <div class="doc">
             <ul>
-              list may start at arbitrary depthand consecutive items at that
-              depth belong to the same list
-              <p>of course we can still</p>
-              <ul>
-                nest items like we are used to
-              </ul>
-              and then get back to initial list
+              <li>list may start at arbitrary depth</li>
+              <li>
+                and consecutive items at that depth belong to the same list
+              </li>
+              <li>
+                <p>of course we can still</p>
+                <ul>
+                  <li>nest items like we are used to</li>
+                </ul>
+              </li>
+              <li>and then get back to initial list</li>
             </ul>
           </div>
         </div>

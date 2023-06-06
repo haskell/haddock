@@ -97,80 +97,89 @@
           </p>
           <div class="doc">
             <ul>
-              <p>Unadorned:</p>
-              <ul>
-                Unqualified:
-                <code><a href="#" title="GHC.List">++</a></code
-                >,
-                <code><a href="#" title="Data.Foldable">elem</a></code
-                >Qualified:
-                <code><a href="#" title="GHC.List">++</a></code
-                >,
-                <code><a href="#" title="Data.Lis">elem</a></code
-                >Namespaced:
-                <code><a href="#" title="GHC.List">++</a></code
-                >,
-                <code>++</code
-                >,
-                <code><a href="#" title="Data.Foldable">elem</a></code
-                >,
-                <code>elem</code
-                >,
-                <code><a href="#" title="Identifiers">Id</a></code
-                >,
-                <code><a href="#" title="Identifiers">Id</a></code
-                >,
-                <code><a href="#" title="Identifiers">:*</a></code
-                >,
-                <code><a href="#" title="Identifiers">:*</a></code>
-              </ul>
-              <p>Parenthesized:</p>
-              <ul>
-                Unqualified:
-                <code
-                  ><code><a href="#" title="GHC.List">(++)</a></code> [1,2,3]
-                  [4,5,6]</code
-                >Qualified:
-                <code
-                  ><code><a href="#" title="GHC.List">(++)</a></code> [1,2,3]
-                  [4,5,6]</code
-                >Namespaced:
-                <code><a href="#" title="GHC.List">(++)</a></code
-                >,
-                <code>++</code
-                >,
-                <code><a href="#" title="Identifiers">(:*)</a></code
-                >,
-                <code><a href="#" title="Identifiers">(:*)</a></code>
-              </ul>
-              <p>Backticked:</p>
-              <ul>
-                Unqualified:
-                <code
-                  >1
-                  <code><a href="#" title="Data.Foldable">`elem`</a></code>
-                  [-3..3]</code
-                >Qualified:
-                <code
-                  >1
-                  <code><a href="#" title="Data.Foldable">`elem`</a></code>
-                  [-3..3]</code
-                >Namespaced:
-                <code><a href="#" title="Data.Foldable">`elem`</a></code
-                >,
-                <code>`elem`</code
-                >,
-                <code><a href="#" title="Identifiers">`Id`</a></code
-                >,
-                <code><a href="#" title="Identifiers">`Id`</a></code>
-              </ul>
-              <p>Edge cases:</p>
-              <ul>
-                Tuples:
-                <code>()</code
-                >,
-                <code>(,,,)</code>
-              </ul>
+              <li>
+                <p>Unadorned:</p>
+                <ul>
+                  <li>
+                    Unqualified: <code><a href="#" title="GHC.List">++</a></code
+                    >, <code><a href="#" title="Data.Foldable">elem</a></code>
+                  </li>
+                  <li>
+                    Qualified: <code><a href="#" title="GHC.List">++</a></code
+                    >, <code><a href="#" title="Data.Lis">elem</a></code>
+                  </li>
+                  <li>
+                    Namespaced: <code><a href="#" title="GHC.List">++</a></code
+                    >, <code>++</code>,
+                    <code><a href="#" title="Data.Foldable">elem</a></code
+                    >, <code>elem</code>,
+                    <code><a href="#" title="Identifiers">Id</a></code
+                    >, <code><a href="#" title="Identifiers">Id</a></code
+                    >, <code><a href="#" title="Identifiers">:*</a></code
+                    >, <code><a href="#" title="Identifiers">:*</a></code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <p>Parenthesized:</p>
+                <ul>
+                  <li>
+                    Unqualified:
+                    <code
+                      ><code><a href="#" title="GHC.List">(++)</a></code>
+                      [1,2,3] [4,5,6]</code
+                    >
+                  </li>
+                  <li>
+                    Qualified:
+                    <code
+                      ><code><a href="#" title="GHC.List">(++)</a></code>
+                      [1,2,3] [4,5,6]</code
+                    >
+                  </li>
+                  <li>
+                    Namespaced:
+                    <code><a href="#" title="GHC.List">(++)</a></code
+                    >, <code>++</code>,
+                    <code><a href="#" title="Identifiers">(:*)</a></code
+                    >, <code><a href="#" title="Identifiers">(:*)</a></code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <p>Backticked:</p>
+                <ul>
+                  <li>
+                    Unqualified:
+                    <code
+                      >1
+                      <code><a href="#" title="Data.Foldable">`elem`</a></code>
+                      [-3..3]</code
+                    >
+                  </li>
+                  <li>
+                    Qualified:
+                    <code
+                      >1
+                      <code><a href="#" title="Data.Foldable">`elem`</a></code>
+                      [-3..3]</code
+                    >
+                  </li>
+                  <li>
+                    Namespaced:
+                    <code><a href="#" title="Data.Foldable">`elem`</a></code
+                    >, <code>`elem`</code>,
+                    <code><a href="#" title="Identifiers">`Id`</a></code
+                    >, <code><a href="#" title="Identifiers">`Id`</a></code>
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <p>Edge cases:</p>
+                <ul>
+                  <li>Tuples: <code>()</code>, <code>(,,,)</code></li>
+                </ul>
+              </li>
             </ul>
           </div>
         </div>
