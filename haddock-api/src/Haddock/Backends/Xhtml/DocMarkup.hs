@@ -193,9 +193,9 @@ hackMarkup fmt' currPkg h' =
             col' = collapseControl id' "subheading"
             summary = summary_ [ class_ "hide-when-js-enabled" ] (toHtml (Text.pack "Expand"))
             instTable contents = collapseDetails id' DetailsClosed (summary <> contents)
-            lvs :: [(Int, Html () -> Html ())]
+            lvs :: [(Int, [Attributes] -> Html () -> Html ())]
             lvs = zip [1 .. ] [h1_, h2_, h3_, h4_, h5_, h6_]
-            getHeader attrs = fromMaybe (caption_ attrs) (lookup lvl lvs)
+            getHeader = fromMaybe caption_ (lookup lvl lvs)
             subCaption = getHeader col' (markup fmt titl)
         in ((subCaption <>) . instTable $ markup fmt (_doc par), [_meta par])
       HackAppend d d' -> let (x, m) = hackMarkup' fmt d

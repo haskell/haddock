@@ -478,25 +478,7 @@ diff -r goldens/old/Bug298.html goldens/new/Bug298.html
 ---
 >               <code><a href="#" title="Bug298">â^</a></code
 diff -r goldens/old/Bug335.html goldens/new/Bug335.html
-61,66c61
-<             <h3
-<               class="subheading details-toggle-control details-toggle"
-<               data-details-id="ch:f0"
-<             >
-<               ExF:
-<             </h3>
----
->             <h3>ExF:</h3>
-79,84c74
-<             <h3
-<               class="subheading details-toggle-control details-toggle"
-<               data-details-id="ch:g0"
-<             >
-<               ExG:
-<             </h3>
----
->             <h3>ExG:</h3>
-87,94c77,80
+87,94c87,90
 <               <pre class="screen"><code class="prompt"
 < 		>&gt;&gt;&gt; </code
 < 		><strong class="userinput"
@@ -510,7 +492,7 @@ diff -r goldens/old/Bug335.html goldens/new/Bug335.html
 >                 class="screen"
 >               ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">a
 > </code></strong>b
-96,103c82,85
+96,103c92,95
 <               <pre class="screen"><code class="prompt"
 < 		>&gt;&gt;&gt; </code
 < 		><strong class="userinput"
@@ -810,29 +792,11 @@ diff -r goldens/old/Bug953.html goldens/new/Bug953.html
 <               <a href="#">Bar'</a>
 ---
 >               <a href="#">Bar&#39;</a>
-68,73c68
-<             <h4
-<               class="subheading details-toggle-control details-toggle"
-<               data-details-id="ch:Foo0"
-<             >
-<               Examples
-<             </h4>
----
->             <h4>Examples</h4>
-83c78
+83c83
 <                 <td class="src"><a id="v:Foo-39-" class="def">Foo'</a></td>
 ---
 >                 <td class="src"><a id="v:Foo-39-" class="def">Foo&#39;</a></td>
-96,101c91
-<             <h4
-<               class="subheading details-toggle-control details-toggle"
-<               data-details-id="ch:Bar0"
-<             >
-<               Examples
-<             </h4>
----
->             <h4>Examples</h4>
-111c101
+111c111
 <                 <td class="src"><a id="v:Bar-39-" class="def">Bar'</a></td>
 ---
 >                 <td class="src"><a id="v:Bar-39-" class="def">Bar&#39;</a></td>
