@@ -1,9 +1,3 @@
-diff -r goldens/old/Bold.html goldens/new/Bold.html
-62c62,63
-<               <li><strong>Bold</strong> in a list</li>
----
->               <strong>Bold</strong>
->               in a list
 diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
 106,108c106
 <                 </tr>
@@ -1103,28 +1097,7 @@ diff -r goldens/old/BugExportHeadings.html goldens/new/BugExportHeadings.html
 ---
 >         <a href="#"><h1 id="g:6">Three</h1></a>
 diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
-100,109c100,108
-<               <li>Lists with their length encoded in their type</li>
-<               <li>
-<                 <code><a href="#" title="BundledPatterns">Vec</a></code
-<                 >tor elements have an <strong>ASCENDING</strong> subscript
-<                 starting from 0 and ending at
-<                 <code
-<                   ><code><a href="#" title="Data.Foldable">length</a></code> -
-<                   1</code
-<                 >.
-<               </li>
----
->               Lists with their length encoded in their type<code
->                 ><a href="#" title="BundledPatterns">Vec</a></code
->               >tor elements have an
->               <strong>ASCENDING</strong>
->               subscript starting from 0 and ending at
->               <code
->                 ><code><a href="#" title="Data.Foldable">length</a></code> -
->                 1</code
->               >.
-139,161c138,144
+139,161c139,145
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1156,7 +1129,7 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = 3:&gt;4:&gt;5:&gt;Nil
 > </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
 > </code></strong>x :: Num a =&gt; Vec 3 a
-164,186c147,153
+164,186c148,154
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1188,7 +1161,7 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 > </code></strong>f :: Num a =&gt; Vec ((n + 1) + 1) a -&gt; a
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
 > </code></strong>7
-189,211c156,162
+189,211c157,163
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1220,16 +1193,7 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 > </code></strong>g :: Num a =&gt; Vec ((((n + 1) + 1) + 1) + 1) a -&gt; a
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
 > </code></strong>12
-229,230c180,184
-<               <li>Only has elements at the leaf of the tree</li>
-<               <li>A tree of depth <em>d</em> has <em>2^d</em> elements.</li>
----
->               Only has elements at the leaf of the treeA tree of depth
->               <em>d</em>
->               has
->               <em>2^d</em>
->               elements.
-244,266c198,204
+244,266c196,202
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1261,7 +1225,7 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = LR 1
 > </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
 > </code></strong>x :: Num a =&gt; RTree 0 a
-269,291c207,213
+269,291c205,211
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1293,7 +1257,7 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 > </code></strong>f :: Num a =&gt; RTree 0 a -&gt; RTree 0 a -&gt; a
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (LR 1) (LR 2)
 > </code></strong>3
-306,328c228,234
+306,328c226,232
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1325,7 +1289,7 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = BR (LR 1) (LR 2)
 > </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
 > </code></strong>x :: Num a =&gt; RTree 1 a
-331,353c237,243
+331,353c235,241
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1358,28 +1322,7 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (BR (LR 1) (LR 2))
 > </code></strong>3
 diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
-100,109c100,108
-<               <li>Lists with their length encoded in their type</li>
-<               <li>
-<                 <code><a href="#" title="BundledPatterns2">Vec</a></code
-<                 >tor elements have an <strong>ASCENDING</strong> subscript
-<                 starting from 0 and ending at
-<                 <code
-<                   ><code><a href="#" title="Data.Foldable">length</a></code> -
-<                   1</code
-<                 >.
-<               </li>
----
->               Lists with their length encoded in their type<code
->                 ><a href="#" title="BundledPatterns2">Vec</a></code
->               >tor elements have an
->               <strong>ASCENDING</strong>
->               subscript starting from 0 and ending at
->               <code
->                 ><code><a href="#" title="Data.Foldable">length</a></code> -
->                 1</code
->               >.
-127,149c126,132
+127,149c127,133
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1411,7 +1354,7 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = 3:&gt;4:&gt;5:&gt;Nil
 > </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
 > </code></strong>x :: Num a =&gt; Vec 3 a
-152,174c135,141
+152,174c136,142
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1443,7 +1386,7 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 > </code></strong>f :: Num a =&gt; Vec ((n + 1) + 1) a -&gt; a
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
 > </code></strong>7
-177,199c144,150
+177,199c145,151
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1475,16 +1418,7 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 > </code></strong>g :: Num a =&gt; Vec ((((n + 1) + 1) + 1) + 1) a -&gt; a
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
 > </code></strong>12
-225,226c176,180
-<               <li>Only has elements at the leaf of the tree</li>
-<               <li>A tree of depth <em>d</em> has <em>2^d</em> elements.</li>
----
->               Only has elements at the leaf of the treeA tree of depth
->               <em>d</em>
->               has
->               <em>2^d</em>
->               elements.
-240,262c194,200
+240,262c192,198
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1516,7 +1450,7 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = LR 1
 > </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
 > </code></strong>x :: Num a =&gt; RTree 0 a
-265,287c203,209
+265,287c201,207
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1548,7 +1482,7 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 > </code></strong>f :: Num a =&gt; RTree 0 a -&gt; RTree 0 a -&gt; a
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (LR 1) (LR 2)
 > </code></strong>3
-302,324c224,230
+302,324c222,228
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -1580,7 +1514,7 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 > <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = BR (LR 1) (LR 2)
 > </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
 > </code></strong>x :: Num a =&gt; RTree 1 a
-327,349c233,239
+327,349c231,237
 <                   <pre class="screen"><code class="prompt"
 < 		    >&gt;&gt;&gt; </code
 < 		    ><strong class="userinput"
@@ -2015,10 +1949,6 @@ diff -r goldens/old/DefaultSignatures.html goldens/new/DefaultSignatures.html
 ---
 >                 <a id="v:baz-39-" class="def">baz&#39;</a> ::
 diff -r goldens/old/DeprecatedReExport.html goldens/new/DeprecatedReExport.html
-58c58
-<             <li>Deprecation messages are shown for re-exported items.</li>
----
->             Deprecation messages are shown for re-exported items.
 73c73
 <         <a href="#" id="g:1"><h1>Re-exported from an other module</h1></a>
 ---
@@ -2515,166 +2445,6 @@ diff -r goldens/old/HiddenInstancesB.html goldens/new/HiddenInstancesB.html
 <                   <td colspan="2">
 ---
 >                   <td>
-diff -r goldens/old/Identifiers.html goldens/new/Identifiers.html
-100,182c100,173
-<               <li>
-<                 <p>Unadorned:</p>
-<                 <ul>
-<                   <li>
-<                     Unqualified: <code><a href="#" title="GHC.List">++</a></code
-<                     >, <code><a href="#" title="Data.Foldable">elem</a></code>
-<                   </li>
-<                   <li>
-<                     Qualified: <code><a href="#" title="GHC.List">++</a></code
-<                     >, <code><a href="#" title="Data.Lis">elem</a></code>
-<                   </li>
-<                   <li>
-<                     Namespaced: <code><a href="#" title="GHC.List">++</a></code
-<                     >, <code>++</code>,
-<                     <code><a href="#" title="Data.Foldable">elem</a></code
-<                     >, <code>elem</code>,
-<                     <code><a href="#" title="Identifiers">Id</a></code
-<                     >, <code><a href="#" title="Identifiers">Id</a></code
-<                     >, <code><a href="#" title="Identifiers">:*</a></code
-<                     >, <code><a href="#" title="Identifiers">:*</a></code>
-<                   </li>
-<                 </ul>
-<               </li>
-<               <li>
-<                 <p>Parenthesized:</p>
-<                 <ul>
-<                   <li>
-<                     Unqualified:
-<                     <code
-<                       ><code><a href="#" title="GHC.List">(++)</a></code>
-<                       [1,2,3] [4,5,6]</code
-<                     >
-<                   </li>
-<                   <li>
-<                     Qualified:
-<                     <code
-<                       ><code><a href="#" title="GHC.List">(++)</a></code>
-<                       [1,2,3] [4,5,6]</code
-<                     >
-<                   </li>
-<                   <li>
-<                     Namespaced:
-<                     <code><a href="#" title="GHC.List">(++)</a></code
-<                     >, <code>++</code>,
-<                     <code><a href="#" title="Identifiers">(:*)</a></code
-<                     >, <code><a href="#" title="Identifiers">(:*)</a></code>
-<                   </li>
-<                 </ul>
-<               </li>
-<               <li>
-<                 <p>Backticked:</p>
-<                 <ul>
-<                   <li>
-<                     Unqualified:
-<                     <code
-<                       >1
-<                       <code><a href="#" title="Data.Foldable">`elem`</a></code>
-<                       [-3..3]</code
-<                     >
-<                   </li>
-<                   <li>
-<                     Qualified:
-<                     <code
-<                       >1
-<                       <code><a href="#" title="Data.Foldable">`elem`</a></code>
-<                       [-3..3]</code
-<                     >
-<                   </li>
-<                   <li>
-<                     Namespaced:
-<                     <code><a href="#" title="Data.Foldable">`elem`</a></code
-<                     >, <code>`elem`</code>,
-<                     <code><a href="#" title="Identifiers">`Id`</a></code
-<                     >, <code><a href="#" title="Identifiers">`Id`</a></code>
-<                   </li>
-<                 </ul>
-<               </li>
-<               <li>
-<                 <p>Edge cases:</p>
-<                 <ul>
-<                   <li>Tuples: <code>()</code>, <code>(,,,)</code></li>
-<                 </ul>
-<               </li>
----
->               <p>Unadorned:</p>
->               <ul>
->                 Unqualified:
->                 <code><a href="#" title="GHC.List">++</a></code
->                 >,
->                 <code><a href="#" title="Data.Foldable">elem</a></code
->                 >Qualified:
->                 <code><a href="#" title="GHC.List">++</a></code
->                 >,
->                 <code><a href="#" title="Data.Lis">elem</a></code
->                 >Namespaced:
->                 <code><a href="#" title="GHC.List">++</a></code
->                 >,
->                 <code>++</code
->                 >,
->                 <code><a href="#" title="Data.Foldable">elem</a></code
->                 >,
->                 <code>elem</code
->                 >,
->                 <code><a href="#" title="Identifiers">Id</a></code
->                 >,
->                 <code><a href="#" title="Identifiers">Id</a></code
->                 >,
->                 <code><a href="#" title="Identifiers">:*</a></code
->                 >,
->                 <code><a href="#" title="Identifiers">:*</a></code>
->               </ul>
->               <p>Parenthesized:</p>
->               <ul>
->                 Unqualified:
->                 <code
->                   ><code><a href="#" title="GHC.List">(++)</a></code> [1,2,3]
->                   [4,5,6]</code
->                 >Qualified:
->                 <code
->                   ><code><a href="#" title="GHC.List">(++)</a></code> [1,2,3]
->                   [4,5,6]</code
->                 >Namespaced:
->                 <code><a href="#" title="GHC.List">(++)</a></code
->                 >,
->                 <code>++</code
->                 >,
->                 <code><a href="#" title="Identifiers">(:*)</a></code
->                 >,
->                 <code><a href="#" title="Identifiers">(:*)</a></code>
->               </ul>
->               <p>Backticked:</p>
->               <ul>
->                 Unqualified:
->                 <code
->                   >1
->                   <code><a href="#" title="Data.Foldable">`elem`</a></code>
->                   [-3..3]</code
->                 >Qualified:
->                 <code
->                   >1
->                   <code><a href="#" title="Data.Foldable">`elem`</a></code>
->                   [-3..3]</code
->                 >Namespaced:
->                 <code><a href="#" title="Data.Foldable">`elem`</a></code
->                 >,
->                 <code>`elem`</code
->                 >,
->                 <code><a href="#" title="Identifiers">`Id`</a></code
->                 >,
->                 <code><a href="#" title="Identifiers">`Id`</a></code>
->               </ul>
->               <p>Edge cases:</p>
->               <ul>
->                 Tuples:
->                 <code>()</code
->                 >,
->                 <code>(,,,)</code>
->               </ul>
 diff -r goldens/old/Instances.html goldens/new/Instances.html
 90,92c90
 <                 </tr>
@@ -2980,198 +2750,14 @@ diff -r goldens/old/Instances.html goldens/new/Instances.html
 ---
 >                   <td>
 diff -r goldens/old/NamespacedIdentifiers.html goldens/new/NamespacedIdentifiers.html
-77,104c77,94
-<               <li>
-<                 the type
-<                 <code
-<                   ><a
-<                     href="NamespacedIdentifiers.html#t:Bar"
-<                     title="NamespacedIdentifiers"
-<                     >Bar</a
-<                   ></code
-<                 >
-<               </li>
-<               <li>
-<                 the constructor
-<                 <code
-<                   ><a
-<                     href="NamespacedIdentifiers.html#v:Bar"
-<                     title="NamespacedIdentifiers"
-<                     >Bar</a
-<                   ></code
-<                 >
-<               </li>
-<               <li>
-<                 the unimported but qualified type
-<                 <code><a href="A.html#t:A" title="A">A</a></code>
-<               </li>
-<               <li>
-<                 the unimported but qualified value
-<                 <code><a href="A.html#v:A" title="A">A</a></code>
-<               </li>
----
->               the type
->               <code
->                 ><a
->                   href="NamespacedIdentifiers.html#t:Bar"
->                   title="NamespacedIdentifiers"
->                   >Bar</a
->                 ></code
->               >the constructor
->               <code
->                 ><a
->                   href="NamespacedIdentifiers.html#v:Bar"
->                   title="NamespacedIdentifiers"
->                   >Bar</a
->                 ></code
->               >the unimported but qualified type
->               <code><a href="A.html#t:A" title="A">A</a></code
->               >the unimported but qualified value
->               <code><a href="A.html#v:A" title="A">A</a></code>
-123c113,115
+123c123,125
 <             <p>A link to the value <code>Foo</code> (which shouldn't exist).</p>
 ---
 >             <p>
 >               A link to the value <code>Foo</code> (which shouldn&#39;t exist).
 >             </p>
 diff -r goldens/old/Nesting.html goldens/new/Nesting.html
-68,79c68,75
-<               <li>
-<                 <p>We can</p>
-<                 <ul>
-<                   <li>
-<                     <p>easily go back</p>
-<                     <ol>
-<                       <li value="1">some indentation</li>
-<                     </ol>
-<                   </li>
-<                   <li>levels</li>
-<                 </ul>
-<               </li>
----
->               <p>We can</p>
->               <ul>
->                 <p>easily go back</p>
->                 <ol>
->                   <li value="1">some indentation</li>
->                 </ol>
->                 levels
->               </ul>
-93,102c89,94
-<               <li>
-<                 <p>Beginning of list</p>
-<                 <ul>
-<                   <li>second list</li>
-<                 </ul>
-<               </li>
-<               <li>
-<                 Some indented list but the presence of this text pushes it out
-<                 of nesting back to the top.
-<               </li>
----
->               <p>Beginning of list</p>
->               <ul>
->                 second list
->               </ul>
->               Some indented list but the presence of this text pushes it out of
->               nesting back to the top.
-113,115c105,106
-<               <li>
-<                 <p>Beginning of list</p>
-<                 <pre>
----
->               <p>Beginning of list</p>
->               <pre>
-119,120c110
-<                 >
-<               </li>
----
->               >
-131,136c121,124
-<               <li>
-<                 <p>Beginning of list</p>
-<                 <ul>
-<                   <li>Nested list</li>
-<                 </ul>
-<               </li>
----
->               <p>Beginning of list</p>
->               <ul>
->                 Nested list
->               </ul>
-147,149c135,136
-<               <li>
-<                 <p>Beginning of list</p>
-<                 <pre>
----
->               <p>Beginning of list</p>
->               <pre>
-153,154c140
-<                 >
-<               </li>
----
->               >
-165,167c151,152
-<               <li>
-<                 <p>Beginning of list This belongs to the list above!</p>
-<                 <pre>
----
->               <p>Beginning of list This belongs to the list above!</p>
->               <pre>
-174,175c159,160
-<                 >
-<                 <pre>
----
->               >
->               <pre>
-178,181c163,169
-<                 >
-<                 <ul>
-<                   <li>
-<                     <p>Next list More of the indented list.</p>
----
->               >
->               <ul>
->                 <p>Next list More of the indented list.</p>
->                 <ul>
->                   <p>Deeper</p>
->                   <ul>
->                     <p>Deeper</p>
-183,196c171
-<                       <li>
-<                         <p>Deeper</p>
-<                         <ul>
-<                           <li>
-<                             <p>Deeper</p>
-<                             <ul>
-<                               <li>Even deeper!</li>
-<                               <li>
-<                                 No newline separation even in indented lists.
-<                               </li>
-<                             </ul>
-<                           </li>
-<                         </ul>
-<                       </li>
----
->                       Even deeper!No newline separation even in indented lists.
-198c173
-<                   </li>
----
->                   </ul>
-200c175
-<               </li>
----
->               </ul>
-220,236c195,206
-<                   <li>
-<                     <p>Next list with more of the indented list content.</p>
-<                     <p>Even more content on a new line.</p>
-<                     <ol>
-<                       <li value="1">
-<                         <p>Different type of list</p>
-<                         <ol>
-<                           <li value="2">Deeper</li>
-<                         </ol>
+229,236c229,232
 <                         <pre class="screen"><code class="prompt"
 < 			  >&gt;&gt;&gt; </code
 < 			  ><strong class="userinput"
@@ -3181,75 +2767,14 @@ diff -r goldens/old/Nesting.html goldens/new/Nesting.html
 < 			    ></strong
 < 			  >example result
 ---
->                   <p>Next list with more of the indented list content.</p>
->                   <p>Even more content on a new line.</p>
->                   <ol>
->                     <li value="1">
->                       <p>Different type of list</p>
->                       <ol>
->                         <li value="2">Deeper</li>
->                       </ol>
->                       <pre
->                         class="screen"
->                       ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">Here&#39;s an example in a list
+>                         <pre
+>                           class="screen"
+>                         ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">Here&#39;s an example in a list
 > </code></strong>example result
-238,255c208,224
-<                         <dl>
-<                           <dt>b</dt>
-<                           <dd>Even deeper!</dd>
-<                           <dt>c</dt>
-<                           <dd>
-<                             No newline separation even in indented lists. We can
-<                             have any paragraph level element that we normally
-<                             can, like headers
-<                           </dd>
-<                         </dl>
-<                         <h3>Level 3 header</h3>
+249c245
 <                         <p>with some content&#8230;</p>
-<                         <ul>
-<                           <li>and even more lists inside</li>
-<                         </ul>
-<                       </li>
-<                     </ol>
-<                   </li>
 ---
->                       <dl>
->                         <dt>b</dt>
->                         <dd>Even deeper!</dd>
->                         <dt>c</dt>
->                         <dd>
->                           No newline separation even in indented lists. We can
->                           have any paragraph level element that we normally can,
->                           like headers
->                         </dd>
->                       </dl>
->                       <h3>Level 3 header</h3>
->                       <p>with some contentâ¦</p>
->                       <ul>
->                         and even more lists inside
->                       </ul>
->                     </li>
->                   </ol>
-268,278c237,243
-<               <li>list may start at arbitrary depth</li>
-<               <li>
-<                 and consecutive items at that depth belong to the same list
-<               </li>
-<               <li>
-<                 <p>of course we can still</p>
-<                 <ul>
-<                   <li>nest items like we are used to</li>
-<                 </ul>
-<               </li>
-<               <li>and then get back to initial list</li>
----
->               list may start at arbitrary depthand consecutive items at that
->               depth belong to the same list
->               <p>of course we can still</p>
->               <ul>
->                 nest items like we are used to
->               </ul>
->               and then get back to initial list
+>                         <p>with some contentâ¦</p>
 diff -r goldens/old/OrphanInstances.html goldens/new/OrphanInstances.html
 69,71c69
 <             </tr>
@@ -3291,17 +2816,6 @@ diff -r goldens/old/PromotedTypes.html goldens/new/PromotedTypes.html
 <                   <a href="#" title="PromotedTypes">Tuple</a> '(a, b)
 ---
 >                   <a href="#" title="PromotedTypes">Tuple</a> &#39;(a, b)
-diff -r goldens/old/PruneWithWarning.html goldens/new/PruneWithWarning.html
-49,52c49,52
-<             <li>
-<               If a binding has a deprecation message but no documentation, it is
-<               pruned when <code>OPTIONS_HADDOCK prune</code> is used.
-<             </li>
----
->             If a binding has a deprecation message but no documentation, it is
->             pruned when
->             <code>OPTIONS_HADDOCK prune</code>
->             is used.
 diff -r goldens/old/QuasiExpr.html goldens/new/QuasiExpr.html
 110,112c110
 <                 </tr>
@@ -3593,12 +3107,6 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <         <a href="#" id="g:5"><h1>Function types</h1></a>
 ---
 >         <a href="#"><h1 id="g:5">Function types</h1></a>
-1214,1215c1194,1195
-<               <li>This is a bulleted list</li>
-<               <li>This is the next item (different kind of bullet)</li>
----
->               This is a bulleted listThis is the next item (different kind of
->               bullet)
 1229,1233c1209
 <             <pre>     This is a block of code, which can include other markup: <code
 < 	      ><a href="#" title="Test"
@@ -4036,32 +3544,25 @@ diff -r goldens/old/Unicode2.html goldens/new/Unicode2.html
 <             <p>All of the following work with a unicode character &#252;:</p>
 ---
 >             <p>All of the following work with a unicode character Ã¼:</p>
-62,64c62,66
+62,63c62,63
 <               <li>an italicized <em>&#252;</em></li>
 <               <li>inline code <code>&#252;</code></li>
-<               <li>a code block:</li>
 ---
->               an italicized
->               <em>Ã¼</em
->               >inline code
->               <code>Ã¼</code
->               >a code block:
-66c68
+>               <li>an italicized <em>Ã¼</em></li>
+>               <li>inline code <code>Ã¼</code></li>
+66c66
 <             <pre>&#252;</pre>
 ---
 >             <pre>Ã¼</pre>
-68,73c70,73
-<               <li>
+67a68
+>               <li>a url <a href="#">https://www.google.com/search?q=Ã¼</a></li>
+69,72c70
 <                 a url <a href="#">https://www.google.com/search?q=&#252;</a>
 <               </li>
 <               <li>
 <                 a link to <code><a href="#" title="Unicode2">&#252;</a></code>
-<               </li>
 ---
->               a url
->               <a href="#">https://www.google.com/search?q=Ã¼</a
->               >a link to
->               <code><a href="#" title="Unicode2">Ã¼</a></code>
+>                 a link to <code><a href="#" title="Unicode2">Ã¼</a></code>
 diff -r goldens/old/src/Bug1091.html goldens/new/src/Bug1091.html
 7,32c7,9
 <     <pre><span class="hs-pragma"
