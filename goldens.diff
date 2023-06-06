@@ -380,77 +380,14 @@ diff -r goldens/old/Bug195.html goldens/new/Bug195.html
 <                 <td colspan="2">
 ---
 >                 <td>
-65,66c65,68
-<                           ><a id="v:someField" class="def">someField</a> ::
-<                           ()</dfn
----
->                           ><a id="v:someField" class="def">someField</a> :: ()
->                           <div class="doc">
->                             <p>Doc for someField of A</p>
->                           </div></dfn
-68d69
-<                         <div class="doc"><p>Doc for someField of A</p></div>
-75c76,79
-<                           :: ()</dfn
----
->                           :: ()
->                           <div class="doc">
->                             <p>Doc for someOtherField of A</p>
->                           </div></dfn
-77,79d80
-<                         <div class="doc">
-<                           <p>Doc for someOtherField of A</p>
-<                         </div>
-90c91
+90c90
 <                 <td colspan="2">
 ---
 >                 <td>
-96,97c97,100
-<                           ><a id="v:someField" class="def">someField</a> ::
-<                           ()</dfn
----
->                           ><a id="v:someField" class="def">someField</a> :: ()
->                           <div class="doc">
->                             <p>Doc for someField of A</p>
->                           </div></dfn
-99d101
-<                         <div class="doc"><p>Doc for someField of A</p></div>
-106c108,111
-<                           :: ()</dfn
----
->                           :: ()
->                           <div class="doc">
->                             <p>Doc for someOtherField of A</p>
->                           </div></dfn
-108,110d112
-<                         <div class="doc">
-<                           <p>Doc for someOtherField of A</p>
-<                         </div>
-121c123
+121c121
 <                 <td colspan="2">
 ---
 >                 <td>
-127,128c129,132
-<                           ><a id="v:someField" class="def">someField</a> ::
-<                           ()</dfn
----
->                           ><a id="v:someField" class="def">someField</a> :: ()
->                           <div class="doc">
->                             <p>Doc for someField of A</p>
->                           </div></dfn
-130d133
-<                         <div class="doc"><p>Doc for someField of A</p></div>
-137c140,143
-<                           :: ()</dfn
----
->                           :: ()
->                           <div class="doc">
->                             <p>Doc for someOtherField of A</p>
->                           </div></dfn
-139,141d144
-<                         <div class="doc">
-<                           <p>Doc for someOtherField of A</p>
-<                         </div>
 diff -r goldens/old/Bug201.html goldens/new/Bug201.html
 85c85
 < because there's a space before closing @
@@ -645,13 +582,6 @@ diff -r goldens/old/Bug548.html goldens/new/Bug548.html
 <                 <td colspan="2">
 ---
 >                 <td>
-72c72,73
-<                           a b c</dfn
----
->                           a b c
->                           <div class="doc empty">&nbsp;</div></dfn
-74d74
-<                         <div class="doc empty">&nbsp;</div>
 111c111
 <                   <td colspan="2">
 ---
@@ -784,20 +714,6 @@ diff -r goldens/old/Bug6.html goldens/new/Bug6.html
 <                 <td colspan="2">
 ---
 >                 <td>
-168c168,169
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc empty">&nbsp;</div></dfn
-170d170
-<                         <div class="doc empty">&nbsp;</div>
-175c175,176
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc empty">&nbsp;</div></dfn
-177d177
-<                         <div class="doc empty">&nbsp;</div>
 193,194c193,194
 <               .. with only some of the fields exported (we can't handle this one
 <               - how do we render the declaration?)
@@ -1426,364 +1342,27 @@ diff -r goldens/old/ConstructorArgs.html goldens/new/ConstructorArgs.html
 <                 <td colspan="2">
 ---
 >                 <td>
-148c149,165
-<                           <a href="#" title="Data.String">String</a></dfn
----
->                           <a href="#" title="Data.String">String</a>
->                           <div class="doc">
->                             <p>
->                               doc on the
->                               <code
->                                 ><a href="#" title="Data.String"
->                                   >String</a
->                                 ></code
->                               >
->                               field of
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Rec</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-150,161d166
-<                         <div class="doc">
-<                           <p>
-<                             doc on the
-<                             <code
-<                               ><a href="#" title="Data.String">String</a></code
-<                             >
-<                             field of
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Rec</a></code
-<                             >
-<                           </p>
-<                         </div>
-166c171,187
-<                           <a href="#" title="Data.String">String</a></dfn
----
->                           <a href="#" title="Data.String">String</a>
->                           <div class="doc">
->                             <p>
->                               doc on the
->                               <code
->                                 ><a href="#" title="Data.String"
->                                   >String</a
->                                 ></code
->                               >
->                               field of
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Rec</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-168,179d188
-<                         <div class="doc">
-<                           <p>
-<                             doc on the
-<                             <code
-<                               ><a href="#" title="Data.String">String</a></code
-<                             >
-<                             field of
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Rec</a></code
-<                             >
-<                           </p>
-<                         </div>
-208c217
+208c209
 <                 <td colspan="2">
 ---
 >                 <td>
-214c223,235
-<                           >!<a href="#" title="Data.Int">Int</a></dfn
----
->                           >!<a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               doc on the
->                               <code><a href="#" title="Data.Int">Int</a></code>
->                               field of
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Boa</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-216,225d236
-<                         <div class="doc">
-<                           <p>
-<                             doc on the
-<                             <code><a href="#" title="Data.Int">Int</a></code>
-<                             field of
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Boa</a></code
-<                             >
-<                           </p>
-<                         </div>
-229,242c240,257
-<                           >!<a href="#" title="Data.String">String</a></dfn
-<                         >
-<                         <div class="doc">
-<                           <p>
-<                             doc on the
-<                             <code
-<                               ><a href="#" title="Data.String">String</a></code
-<                             >
-<                             field of
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Boa</a></code
-<                             >
-<                           </p>
-<                         </div>
----
->                           >!<a href="#" title="Data.String">String</a>
->                           <div class="doc">
->                             <p>
->                               doc on the
->                               <code
->                                 ><a href="#" title="Data.String"
->                                   >String</a
->                                 ></code
->                               >
->                               field of
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Boa</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
->                         >
-271c286
+271c272
 <                 <td colspan="2">
 ---
 >                 <td>
-277c292,305
-<                           ><a href="#" title="Data.Int">Int</a></dfn
----
->                           ><a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               doc on the
->                               <code><a href="#" title="Data.Int">Int</a></code>
->                               field of the
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >:*</a
->                                 ></code
->                               >
->                               constructor
->                             </p>
->                           </div></dfn
-279,289d306
-<                         <div class="doc">
-<                           <p>
-<                             doc on the
-<                             <code><a href="#" title="Data.Int">Int</a></code>
-<                             field of the
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">:*</a></code
-<                             >
-<                             constructor
-<                           </p>
-<                         </div>
-293,307c310,328
-<                           ><a href="#" title="Data.String">String</a></dfn
-<                         >
-<                         <div class="doc">
-<                           <p>
-<                             doc on the
-<                             <code
-<                               ><a href="#" title="Data.String">String</a></code
-<                             >
-<                             field of the
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">:*</a></code
-<                             >
-<                             constructor
-<                           </p>
-<                         </div>
----
->                           ><a href="#" title="Data.String">String</a>
->                           <div class="doc">
->                             <p>
->                               doc on the
->                               <code
->                                 ><a href="#" title="Data.String"
->                                   >String</a
->                                 ></code
->                               >
->                               field of the
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >:*</a
->                                 ></code
->                               >
->                               constructor
->                             </p>
->                           </div></dfn
->                         >
-340c361
+340c341
 <                 <td colspan="2">
 ---
 >                 <td>
-346c367,378
-<                           >:: <a href="#" title="Data.Int">Int</a></dfn
----
->                           >:: <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               <code><a href="#" title="Data.Int">Int</a></code>
->                               field of
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Foo</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-348,356d379
-<                         <div class="doc">
-<                           <p>
-<                             <code><a href="#" title="Data.Int">Int</a></code>
-<                             field of
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Foo</a></code
-<                             >
-<                           </p>
-<                         </div>
-360,372c383,399
-<                           >-&gt; <a href="#" title="Data.String">String</a></dfn
-<                         >
-<                         <div class="doc">
-<                           <p>
-<                             <code
-<                               ><a href="#" title="Data.String">String</a></code
-<                             >
-<                             field of
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Foo</a></code
-<                             >
-<                           </p>
-<                         </div>
----
->                           >-&gt; <a href="#" title="Data.String">String</a>
->                           <div class="doc">
->                             <p>
->                               <code
->                                 ><a href="#" title="Data.String"
->                                   >String</a
->                                 ></code
->                               >
->                               field of
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Foo</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
->                         >
-376,386c403,414
-<                           >-&gt;
-<                           <a href="#" title="ConstructorArgs">Boo</a></dfn
-<                         >
-<                         <div class="doc">
-<                           <p>
-<                             Make a
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Boo</a></code
-<                             >
-<                           </p>
-<                         </div>
----
->                           >-&gt; <a href="#" title="ConstructorArgs">Boo</a>
->                           <div class="doc">
->                             <p>
->                               Make a
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Boo</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
->                         >
-420c448
+420c421
 <                 <td colspan="2">
 ---
 >                 <td>
-426c454,460
-<                           >:: <a href="#" title="Data.Int">Int</a></dfn
----
->                           >:: <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               an
->                               <code><a href="#" title="Data.Int">Int</a></code>
->                             </p>
->                           </div></dfn
-428,432d461
-<                         <div class="doc">
-<                           <p>
-<                             an <code><a href="#" title="Data.Int">Int</a></code>
-<                           </p>
-<                         </div>
-436c465,475
-<                           >-&gt; <a href="#" title="Data.String">String</a></dfn
----
->                           >-&gt; <a href="#" title="Data.String">String</a>
->                           <div class="doc">
->                             <p>
->                               a
->                               <code
->                                 ><a href="#" title="Data.String"
->                                   >String</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-438,445d476
-<                         <div class="doc">
-<                           <p>
-<                             a
-<                             <code
-<                               ><a href="#" title="Data.String">String</a></code
-<                             >
-<                           </p>
-<                         </div>
-449,450c480,490
-<                           >-&gt;
-<                           <a href="#" title="ConstructorArgs">Boo</a></dfn
----
->                           >-&gt; <a href="#" title="ConstructorArgs">Boo</a>
->                           <div class="doc">
->                             <p>
->                               a
->                               <code
->                                 ><a href="#" title="ConstructorArgs"
->                                   >Boo</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-452,459d491
-<                         <div class="doc">
-<                           <p>
-<                             a
-<                             <code
-<                               ><a href="#" title="ConstructorArgs">Boo</a></code
-<                             >
-<                           </p>
-<                         </div>
-468c500
+468c469
 <                   <a id="v:Fo-39-" class="def">Fo'</a> ::
 ---
 >                   <a id="v:Fo-39-" class="def">Fo&#39;</a> ::
-527c559
+527c528
 <             <a id="v:Bo-39-" class="def">Bo'</a> ::
 ---
 >             <a id="v:Bo-39-" class="def">Bo&#39;</a> ::
@@ -1818,115 +1397,11 @@ diff -r goldens/old/DeprecatedRecord.html goldens/new/DeprecatedRecord.html
 <                 <td colspan="2">
 ---
 >                 <td>
-89c89,90
-<                           <a href="#" title="Data.String">String</a></dfn
----
->                           <a href="#" title="Data.String">String</a>
->                           <div class="doc"><p>some name</p></div></dfn
-91d91
-<                         <div class="doc"><p>some name</p></div>
-96c96,102
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <div class="warning">
->                               <p>Deprecated: do not use this</p>
->                             </div>
->                             <p>some value</p>
->                           </div></dfn
-98,103d103
-<                         <div class="doc">
-<                           <div class="warning">
-<                             <p>Deprecated: do not use this</p>
-<                           </div>
-<                           <p>some value</p>
-<                         </div>
 diff -r goldens/old/DuplicateRecordFields.html goldens/new/DuplicateRecordFields.html
 62c62
 <                 <td colspan="2">
 ---
 >                 <td>
-69c69,72
-<                           Int</dfn
----
->                           Int
->                           <div class="doc">
->                             <p>The byte size of the first section.</p>
->                           </div></dfn
-71,73d73
-<                         <div class="doc">
-<                           <p>The byte size of the first section.</p>
-<                         </div>
-77,78c77,80
-<                           ><a id="v:headerCRC" class="def">headerCRC</a> ::
-<                           Int</dfn
----
->                           ><a id="v:headerCRC" class="def">headerCRC</a> :: Int
->                           <div class="doc">
->                             <p>The CRC of the first section.</p>
->                           </div></dfn
-80,82d81
-<                         <div class="doc">
-<                           <p>The CRC of the first section.</p>
-<                         </div>
-86c85,86
-<                           ><a id="v:header" class="def">header</a> :: Int</dfn
----
->                           ><a id="v:header" class="def">header</a> :: Int
->                           <div class="doc"><p>The first section.</p></div></dfn
-88d87
-<                         <div class="doc"><p>The first section.</p></div>
-93c92,95
-<                           Int</dfn
----
->                           Int
->                           <div class="doc">
->                             <p>The byte size of the second section.</p>
->                           </div></dfn
-95,97d96
-<                         <div class="doc">
-<                           <p>The byte size of the second section.</p>
-<                         </div>
-102c101,104
-<                           Int</dfn
----
->                           Int
->                           <div class="doc">
->                             <p>The CRC of the second section.</p>
->                           </div></dfn
-104,106d105
-<                         <div class="doc">
-<                           <p>The CRC of the second section.</p>
-<                         </div>
-110c109,110
-<                           ><a id="v:content" class="def">content</a> :: Int</dfn
----
->                           ><a id="v:content" class="def">content</a> :: Int
->                           <div class="doc"><p>The second section.</p></div></dfn
-112d111
-<                         <div class="doc"><p>The second section.</p></div>
-116c115,123
-<                           ><a id="v:footer" class="def">footer</a> :: Int</dfn
----
->                           ><a id="v:footer" class="def">footer</a> :: Int
->                           <div class="doc">
->                             <p>
->                               Arbitrary data after the second section. In
->                               replays generated by Rocket League, this is always
->                               empty. However it is not technically invalid to
->                               put something here.
->                             </p>
->                           </div></dfn
-118,125d124
-<                         <div class="doc">
-<                           <p>
-<                             Arbitrary data after the second section. In replays
-<                             generated by Rocket League, this is always empty.
-<                             However it is not technically invalid to put
-<                             something here.
-<                           </p>
-<                         </div>
 diff -r goldens/old/Examples.html goldens/new/Examples.html
 72,87c72,77
 <             <pre class="screen"><code class="prompt"
@@ -2040,180 +1515,19 @@ diff -r goldens/old/GADTRecords.html goldens/new/GADTRecords.html
 <                 <td colspan="2">
 ---
 >                 <td>
-115c115,116
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc"><p>hello docs</p></div></dfn
-117d117
-<                         <div class="doc"><p>hello docs</p></div>
-124c124,125
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc empty">&nbsp;</div></dfn
-126d126
-<                         <div class="doc empty">&nbsp;</div>
 137c137
 <                 <td colspan="2">
 ---
 >                 <td>
-143,144c143,144
-<                           >:: { <a id="v:field2" class="def">field2</a> ::
-<                           a</dfn
----
->                           >:: { <a id="v:field2" class="def">field2</a> :: a
->                           <div class="doc"><p>hello2 docs</p></div></dfn
-146d145
-<                         <div class="doc"><p>hello2 docs</p></div>
-152c151,152
-<                           <a href="#" title="Data.Int">Int</a> a</dfn
----
->                           <a href="#" title="Data.Int">Int</a> a
->                           <div class="doc empty">&nbsp;</div></dfn
-154d153
-<                         <div class="doc empty">&nbsp;</div>
 diff -r goldens/old/GadtConstructorArgs.html goldens/new/GadtConstructorArgs.html
 60c60
 <                 <td colspan="2">
 ---
 >                 <td>
-67c67,77
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               an
->                               <code
->                                 ><a href="#" title="GadtConstructorArgs"
->                                   >x</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-69,78d78
-<                         <div class="doc">
-<                           <p>
-<                             an
-<                             <code
-<                               ><a href="#" title="GadtConstructorArgs"
-<                                 >x</a
-<                               ></code
-<                             >
-<                           </p>
-<                         </div>
-83c83,93
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               a
->                               <code
->                                 ><a href="#" title="GadtConstructorArgs"
->                                   >y</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-85,94d94
-<                         <div class="doc">
-<                           <p>
-<                             a
-<                             <code
-<                               ><a href="#" title="GadtConstructorArgs"
-<                                 >y</a
-<                               ></code
-<                             >
-<                           </p>
-<                         </div>
-99c99,100
-<                           <a href="#" title="GadtConstructorArgs">Boo</a></dfn
----
->                           <a href="#" title="GadtConstructorArgs">Boo</a>
->                           <div class="doc empty">&nbsp;</div></dfn
-101d101
-<                         <div class="doc empty">&nbsp;</div>
 112c112
 <                 <td colspan="2">
 ---
 >                 <td>
-119c119,129
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               a
->                               <code
->                                 ><a href="#" title="GadtConstructorArgs"
->                                   >w</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-121,130d130
-<                         <div class="doc">
-<                           <p>
-<                             a
-<                             <code
-<                               ><a href="#" title="GadtConstructorArgs"
-<                                 >w</a
-<                               ></code
-<                             >
-<                           </p>
-<                         </div>
-135c135,145
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               a
->                               <code
->                                 ><a href="#" title="GadtConstructorArgs"
->                                   >z</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-137,146d146
-<                         <div class="doc">
-<                           <p>
-<                             a
-<                             <code
-<                               ><a href="#" title="GadtConstructorArgs"
-<                                 >z</a
-<                               ></code
-<                             >
-<                           </p>
-<                         </div>
-151c151,161
-<                           <a href="#" title="GadtConstructorArgs">Boo</a></dfn
----
->                           <a href="#" title="GadtConstructorArgs">Boo</a>
->                           <div class="doc">
->                             <p>
->                               a
->                               <code
->                                 ><a href="#" title="GadtConstructorArgs"
->                                   >Boo</a
->                                 ></code
->                               >
->                             </p>
->                           </div></dfn
-153,162d162
-<                         <div class="doc">
-<                           <p>
-<                             a
-<                             <code
-<                               ><a href="#" title="GadtConstructorArgs"
-<                                 >Boo</a
-<                               ></code
-<                             >
-<                           </p>
-<                         </div>
 diff -r goldens/old/Hash.html goldens/new/Hash.html
 116,117c116,117
 <         <a href="#" id="g:1"
@@ -2622,34 +1936,10 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <                 <td colspan="2">
 ---
 >                 <td>
-604c604,605
-<                           ><a id="v:n" class="def">n</a> :: a b</dfn
----
->                           ><a id="v:n" class="def">n</a> :: a b
->                           <div class="doc empty">&nbsp;</div></dfn
-606d606
-<                         <div class="doc empty">&nbsp;</div>
 632c632
 <                 <td colspan="2">
 ---
 >                 <td>
-638c638,644
-<                           ><a id="v:n3" class="def">n3</a> :: a b</dfn
----
->                           ><a id="v:n3" class="def">n3</a> :: a b
->                           <div class="doc">
->                             <p>
->                               this is the
->                               <code><a href="#" title="Test">n3</a></code> field
->                             </p>
->                           </div></dfn
-640,645d645
-<                         <div class="doc">
-<                           <p>
-<                             this is the
-<                             <code><a href="#" title="Test">n3</a></code> field
-<                           </p>
-<                         </div>
 662c662
 <               because the difference isn't visible to the programmer for an
 ---
@@ -2658,39 +1948,14 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <                 <td colspan="2">
 ---
 >                 <td>
-687c687,690
-<                           ><a id="v:n5" class="def">n5</a> :: a b</dfn
----
->                           ><a id="v:n5" class="def">n5</a> :: a b
->                           <div class="doc">
->                             <p>no docs on the datatype or the constructor</p>
->                           </div></dfn
-689,691d691
-<                         <div class="doc">
-<                           <p>no docs on the datatype or the constructor</p>
-<                         </div>
 714c714
 <                 <td colspan="2">
 ---
 >                 <td>
-720c720,721
-<                           ><a id="v:n6" class="def">n6</a> :: a b</dfn
----
->                           ><a id="v:n6" class="def">n6</a> :: a b
->                           <div class="doc empty">&nbsp;</div></dfn
-722d722
-<                         <div class="doc empty">&nbsp;</div>
 750c750
 <                 <td colspan="2">
 ---
 >                 <td>
-756c756,757
-<                           ><a id="v:n7" class="def">n7</a> :: a b</dfn
----
->                           ><a id="v:n7" class="def">n7</a> :: a b
->                           <div class="doc empty">&nbsp;</div></dfn
-758d758
-<                         <div class="doc empty">&nbsp;</div>
 767c767
 <         <a href="#" id="g:3"><h2>Records</h2></a>
 ---
@@ -2699,138 +1964,14 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <                 <td colspan="2">
 ---
 >                 <td>
-805c805,811
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               This comment applies to the
->                               <code><a href="#" title="Test">p</a></code> field
->                             </p>
->                           </div></dfn
-807,812d812
-<                         <div class="doc">
-<                           <p>
-<                             This comment applies to the
-<                             <code><a href="#" title="Test">p</a></code> field
-<                           </p>
-<                         </div>
-817c817,823
-<                           <span class="keyword">forall</span> a. a -&gt; a</dfn
----
->                           <span class="keyword">forall</span> a. a -&gt; a
->                           <div class="doc">
->                             <p>
->                               This comment applies to the
->                               <code><a href="#" title="Test">q</a></code> field
->                             </p>
->                           </div></dfn
-819,824d824
-<                         <div class="doc">
-<                           <p>
-<                             This comment applies to the
-<                             <code><a href="#" title="Test">q</a></code> field
-<                           </p>
-<                         </div>
-830c830,837
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               This comment applies to both
->                               <code><a href="#" title="Test">r</a></code> and
->                               <code><a href="#" title="Test">s</a></code>
->                             </p>
->                           </div></dfn
-832,838d838
-<                         <div class="doc">
-<                           <p>
-<                             This comment applies to both
-<                             <code><a href="#" title="Test">r</a></code> and
-<                             <code><a href="#" title="Test">s</a></code>
-<                           </p>
-<                         </div>
 855c855
 <                 <td colspan="2">
 ---
 >                 <td>
-871c871,872
-<                           <a href="#" title="Test">T5</a> () ()</dfn
----
->                           <a href="#" title="Test">T5</a> () ()
->                           <div class="doc empty">&nbsp;</div></dfn
-873d873
-<                         <div class="doc empty">&nbsp;</div>
-879c879,880
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc empty">&nbsp;</div></dfn
-881d881
-<                         <div class="doc empty">&nbsp;</div>
 912c912
 <                 <td colspan="2">
 ---
 >                 <td>
-919c919,926
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               The
->                               <code><a href="#" title="Test">s1</a></code>
->                               record selector
->                             </p>
->                           </div></dfn
-921,927d927
-<                         <div class="doc">
-<                           <p>
-<                             The
-<                             <code><a href="#" title="Test">s1</a></code> record
-<                             selector
-<                           </p>
-<                         </div>
-932c932,939
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               The
->                               <code><a href="#" title="Test">s2</a></code>
->                               record selector
->                             </p>
->                           </div></dfn
-934,940d940
-<                         <div class="doc">
-<                           <p>
-<                             The
-<                             <code><a href="#" title="Test">s2</a></code> record
-<                             selector
-<                           </p>
-<                         </div>
-945c945,952
-<                           <a href="#" title="Data.Int">Int</a></dfn
----
->                           <a href="#" title="Data.Int">Int</a>
->                           <div class="doc">
->                             <p>
->                               The
->                               <code><a href="#" title="Test">s3</a></code>
->                               record selector
->                             </p>
->                           </div></dfn
-947,953d953
-<                         <div class="doc">
-<                           <p>
-<                             The
-<                             <code><a href="#" title="Test">s3</a></code> record
-<                             selector
-<                           </p>
-<                         </div>
 1001c1001
 <         <a href="#" id="g:4"><h1>Class declarations</h1></a>
 ---
@@ -3166,13 +2307,6 @@ diff -r goldens/old/TypeOperators.html goldens/new/TypeOperators.html
 <                 <td colspan="2">
 ---
 >                 <td>
-85c85,86
-<                           ><a id="v:unO" class="def">unO</a> :: g (f a)</dfn
----
->                           ><a id="v:unO" class="def">unO</a> :: g (f a)
->                           <div class="doc empty">&nbsp;</div></dfn
-87d87
-<                         <div class="doc empty">&nbsp;</div>
 diff -r goldens/old/UnboxedStuff.html goldens/new/UnboxedStuff.html
 107c107
 <         <a href="#" id="g:1"><h1>Unboxed type constructors</h1></a>

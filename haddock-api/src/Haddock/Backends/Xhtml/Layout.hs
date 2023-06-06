@@ -158,9 +158,10 @@ subDlist pkg qual decls = Just $ ul_ (foldMap subEntry decls)
   subEntry :: SubDecl -> Html ()
   subEntry (decl, mdoc, subs) =
     li_
-      ( dfn_ [class_ "src"] $
+      ( dfn_
+          [class_ "src"]
           decl
-            <> docElement div_ (foldMap (docToHtml Nothing pkg qual) mdoc <> mconcat subs)
+          <> docElement div_ (foldMap (docToHtml Nothing pkg qual) mdoc <> mconcat subs)
       )
 
 subTable :: Maybe Package -> Qualification -> [SubDecl] -> Maybe (Html ())
