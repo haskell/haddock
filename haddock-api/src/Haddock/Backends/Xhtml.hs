@@ -879,10 +879,10 @@ processDeclOneLiner True = Just
 processDeclOneLiner False = Just . divTopDecl . declElem
 
 groupHeading :: Int -> String -> Html () -> Html ()
-groupHeading lev id0 = linkedAnchor grpId [] . groupTag lev [id_ grpId]
+groupHeading lev id0 = linkedAnchor grpId [id_ grpId] . groupTag lev
   where grpId = groupId id0
 
-groupTag :: Int -> [Attributes] -> Html () -> Html ()
+groupTag :: Int -> Html () -> Html ()
 groupTag lev
   | lev == 1  = h1_
   | lev == 2  = h2_

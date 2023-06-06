@@ -318,13 +318,6 @@ diff -r goldens/old/Bug1033.html goldens/new/Bug1033.html
 <                         '<a href="#" title="Data.Bool">False</a>) (<a
 ---
 >                         &#39;<a href="#" title="Data.Bool">False</a>) (<a
-diff -r goldens/old/Bug1054.html goldens/new/Bug1054.html
-63,64c63,64
-<         <a href="#" id="g:1"
-<           ><h1>Header with <code>foo</code> link</h1></a
----
->         <a href="#"
->           ><h1 id="g:1">Header with <code>foo</code> link</h1></a
 diff -r goldens/old/Bug1063.html goldens/new/Bug1063.html
 77c77
 <                   <td colspan="2">
@@ -817,31 +810,6 @@ diff -r goldens/old/Bug973.html goldens/new/Bug973.html
 <             <a id="v:showRead-39-" class="def">showRead'</a>
 ---
 >             <a id="v:showRead-39-" class="def">showRead&#39;</a>
-diff -r goldens/old/BugExportHeadings.html goldens/new/BugExportHeadings.html
-83c83
-<         <a href="#" id="g:1"><h1>Foo</h1></a>
----
->         <a href="#"><h1 id="g:1">Foo</h1></a>
-91c91
-<         <a href="#" id="g:2"><h1>Bar</h1></a>
----
->         <a href="#"><h1 id="g:2">Bar</h1></a>
-99c99
-<         <a href="#" id="g:3"><h1>Baz</h1></a>
----
->         <a href="#"><h1 id="g:3">Baz</h1></a>
-107c107
-<         <a href="#" id="g:4"><h1>One</h1></a>
----
->         <a href="#"><h1 id="g:4">One</h1></a>
-118c118
-<         <a href="#" id="g:5"><h1>Two</h1></a>
----
->         <a href="#"><h1 id="g:5">Two</h1></a>
-129c129
-<         <a href="#" id="g:6"><h1>Three</h1></a>
----
->         <a href="#"><h1 id="g:6">Three</h1></a>
 diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 139,161c139,145
 <                   <pre class="screen"><code class="prompt"
@@ -1347,15 +1315,6 @@ diff -r goldens/old/DefaultSignatures.html goldens/new/DefaultSignatures.html
 <                 <a id="v:baz-39-" class="def">baz'</a> ::
 ---
 >                 <a id="v:baz-39-" class="def">baz&#39;</a> ::
-diff -r goldens/old/DeprecatedReExport.html goldens/new/DeprecatedReExport.html
-73c73
-<         <a href="#" id="g:1"><h1>Re-exported from an other module</h1></a>
----
->         <a href="#"><h1 id="g:1">Re-exported from an other module</h1></a>
-91c91
-<         <a href="#" id="g:2"><h1>Re-exported from an other package</h1></a>
----
->         <a href="#"><h1 id="g:2">Re-exported from an other package</h1></a>
 diff -r goldens/old/DeprecatedRecord.html goldens/new/DeprecatedRecord.html
 82c82
 <                 <td colspan="2">
@@ -1493,24 +1452,6 @@ diff -r goldens/old/GadtConstructorArgs.html goldens/new/GadtConstructorArgs.htm
 ---
 >                 <td>
 diff -r goldens/old/Hash.html goldens/new/Hash.html
-116,117c116,117
-<         <a href="#" id="g:1"
-<           ><h1>The <code>HashTable</code> type</h1></a
----
->         <a href="#"
->           ><h1 id="g:1">The <code>HashTable</code> type</h1></a
-134,135c134,135
-<         <a href="#" id="g:2"
-<           ><h2>Operations on <code>HashTable</code>s</h2></a
----
->         <a href="#"
->           ><h2 id="g:2">Operations on <code>HashTable</code>s</h2></a
-188,189c188,189
-<         <a href="#" id="g:3"
-<           ><h1>The <code>Hash</code> class</h1></a
----
->         <a href="#"
->           ><h1 id="g:3">The <code>Hash</code> class</h1></a
 238c238
 <                   <td colspan="2">
 ---
@@ -1871,11 +1812,6 @@ diff -r goldens/old/QuasiExpr.html goldens/new/QuasiExpr.html
 <                   <td colspan="2">
 ---
 >                   <td>
-diff -r goldens/old/SectionLabels.html goldens/new/SectionLabels.html
-63c63
-<         <a href="#" id="g:custom"><h1>Section heading</h1></a>
----
->         <a href="#"><h1 id="g:custom">Section heading</h1></a>
 diff -r goldens/old/SpuriousSuperclassConstraints.html goldens/new/SpuriousSuperclassConstraints.html
 108c108
 <                   <td colspan="2">
@@ -1890,12 +1826,6 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <               <a href="#">f'</a> :: <a href="#" title="Data.Int">Int</a>
 ---
 >               <a href="#">f&#39;</a> :: <a href="#" title="Data.Int">Int</a>
-400,401c400,401
-<         <a href="#" id="g:1"><h1>Type declarations</h1></a
-<         ><a href="#" id="g:2"><h2>Data types</h2></a>
----
->         <a href="#"><h1 id="g:1">Type declarations</h1></a
->         ><a href="#"><h2 id="g:2">Data types</h2></a>
 598c598
 <                 <td colspan="2">
 ---
@@ -1920,10 +1850,6 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <                 <td colspan="2">
 ---
 >                 <td>
-767c767
-<         <a href="#" id="g:3"><h2>Records</h2></a>
----
->         <a href="#"><h2 id="g:3">Records</h2></a>
 798c798
 <                 <td colspan="2">
 ---
@@ -1936,10 +1862,6 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <                 <td colspan="2">
 ---
 >                 <td>
-1001c1001
-<         <a href="#" id="g:4"><h1>Class declarations</h1></a>
----
->         <a href="#"><h1 id="g:4">Class declarations</h1></a>
 1087c1087
 <                   <td colspan="2">
 ---
@@ -1948,10 +1870,6 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <                   <td colspan="2">
 ---
 >                   <td>
-1198c1198
-<         <a href="#" id="g:5"><h1>Function types</h1></a>
----
->         <a href="#"><h1 id="g:5">Function types</h1></a>
 1229,1233c1229
 <             <pre>     This is a block of code, which can include other markup: <code
 < 	      ><a href="#" title="Test"
@@ -1960,42 +1878,16 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 < 	      >
 ---
 >             <pre>     This is a block of code, which can include other markup: <code><a href="#" title="Test">R</a></code>
-1254c1250
-<         <a href="#" id="g:6"><h1>Auxiliary stuff</h1></a>
----
->         <a href="#"><h1 id="g:6">Auxiliary stuff</h1></a>
 1341c1337
 < each line must begin with &gt; (which isn't significant unless it
 ---
 > each line must begin with &gt; (which isn&#39;t significant unless it
-1345c1341
-<         <a href="#" id="g:7"><h1>A hidden module</h1></a>
----
->         <a href="#"><h1 id="g:7">A hidden module</h1></a>
-1354c1350
-<         <a href="#" id="g:8"><h1>A visible module</h1></a>
----
->         <a href="#"><h1 id="g:8">A visible module</h1></a>
-1359c1355
-<         <a href="#" id="g:9"><h1>Existential / Universal types</h1></a>
----
->         <a href="#"><h1 id="g:9">Existential / Universal types</h1></a>
-1408c1404
-<         <a href="#" id="g:10"><h1>Type signatures with argument docs</h1></a>
----
->         <a href="#"><h1 id="g:10">Type signatures with argument docs</h1></a>
 1431c1427,1429
 <                 <td class="doc"><p>This argument has type 'T2 Int Int'</p></td>
 ---
 >                 <td class="doc">
 >                   <p>This argument has type &#39;T2 Int Int&#39;</p>
 >                 </td>
-1545,1546c1543,1544
-<         <a href="#" id="g:11"><h1>A section</h1></a
-<         ><a href="#" id="g:12"><h2>A subsection</h2></a>
----
->         <a href="#"><h1 id="g:11">A section</h1></a
->         ><a href="#"><h2 id="g:12">A subsection</h2></a>
 1553c1551
 <             <a id="v:f-39-" class="def">f'</a> ::
 ---
@@ -2271,11 +2163,6 @@ diff -r goldens/old/TypeOperators.html goldens/new/TypeOperators.html
 <                 <td colspan="2">
 ---
 >                 <td>
-diff -r goldens/old/UnboxedStuff.html goldens/new/UnboxedStuff.html
-107c107
-<         <a href="#" id="g:1"><h1>Unboxed type constructors</h1></a>
----
->         <a href="#"><h1 id="g:1">Unboxed type constructors</h1></a>
 diff -r goldens/old/Unicode.html goldens/new/Unicode.html
 62c62
 <           <div class="doc"><p>&#947;&#955;&#974;&#963;&#963;&#945;</p></div>
