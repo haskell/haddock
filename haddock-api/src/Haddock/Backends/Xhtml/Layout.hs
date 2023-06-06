@@ -169,11 +169,11 @@ subTable pkg qual decls = Just $ table_ (foldMap subRow decls)
  where
   subRow :: SubDecl -> Html ()
   subRow (decl, mdoc, subs) =
-    tr_
+    foldMap tr_ $
       ( td_ [class_ "src"] decl
           <> docElement td_ (foldMap (docToHtml Nothing pkg qual) mdoc)
-          <> foldMap td_ subs
       )
+        : fmap td_ subs
 
 -- | Sub table with source information (optional).
 subTableSrc ::
@@ -188,13 +188,13 @@ subTableSrc pkg qual lnks splice decls = Just $ table_ (foldMap subRow decls)
  where
   subRow :: (SubDecl, Maybe Module, Located DocName) -> Html ()
   subRow ((decl, mdoc, subs), mdl, L loc dn) =
-    tr_
+    foldMap tr_ $
       ( td_
           [class_ "src clearfix"]
           ((span_ [class_ "inst-left"] decl) <+> linkHtml loc mdl dn)
           <> docElement td_ (foldMap (docToHtml Nothing pkg qual) mdoc)
-          <> foldMap td_ subs
       )
+        : fmap td_ subs
 
   linkHtml :: SrcSpan -> Maybe Module -> DocName -> Html ()
   linkHtml loc@(RealSrcSpan _ _) mdl dn = links lnks loc splice mdl dn
