@@ -138,28 +138,28 @@
                   <p>Add an element to the head of a vector.</p>
                   <pre
                     class="screen"
-                  ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">3:&gt;4:&gt;5:&gt;Nil
+                  ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>3:&gt;4:&gt;5:&gt;Nil
 </code></strong>&lt;3,4,5&gt;
-<code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = 3:&gt;4:&gt;5:&gt;Nil
-</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = 3:&gt;4:&gt;5:&gt;Nil
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 </code></strong>x :: Num a =&gt; Vec 3 a
 </pre>
                   <p>Can be used as a pattern:</p>
                   <pre
                     class="screen"
-                  ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (x :&gt; y :&gt; _) = x + y
-</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+                  ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (x :&gt; y :&gt; _) = x + y
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 </code></strong>f :: Num a =&gt; Vec ((n + 1) + 1) a -&gt; a
-<code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
 </code></strong>7
 </pre>
                   <p>Also in conjunctions with (<code>:&lt;</code>):</p>
                   <pre
                     class="screen"
-                  ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let g (a :&gt; b :&gt; (_ :&lt; y :&lt; x)) = a + b +  x + y
-</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t g
+                  ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let g (a :&gt; b :&gt; (_ :&lt; y :&lt; x)) = a + b +  x + y
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t g
 </code></strong>g :: Num a =&gt; Vec ((((n + 1) + 1) + 1) + 1) a -&gt; a
-<code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
 </code></strong>12
 </pre>
                 </td>
@@ -195,19 +195,19 @@
                   <p>Leaf of a perfect depth tree</p>
                   <pre
                     class="screen"
-                  ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">LR 1
+                  ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>LR 1
 </code></strong>1
-<code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = LR 1
-</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = LR 1
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 </code></strong>x :: Num a =&gt; RTree 0 a
 </pre>
                   <p>Can be used as a pattern:</p>
                   <pre
                     class="screen"
-                  ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (LR a) (LR b) = a + b
-</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+                  ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (LR a) (LR b) = a + b
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 </code></strong>f :: Num a =&gt; RTree 0 a -&gt; RTree 0 a -&gt; a
-<code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (LR 1) (LR 2)
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (LR 1) (LR 2)
 </code></strong>3
 </pre>
                 </td>
@@ -225,19 +225,19 @@
                   <p>Branch of a perfect depth tree</p>
                   <pre
                     class="screen"
-                  ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">BR (LR 1) (LR 2)
+                  ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>BR (LR 1) (LR 2)
 </code></strong>&lt;1,2&gt;
-<code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = BR (LR 1) (LR 2)
-</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = BR (LR 1) (LR 2)
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 </code></strong>x :: Num a =&gt; RTree 1 a
 </pre>
                   <p>Case be used a pattern:</p>
                   <pre
                     class="screen"
-                  ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (BR (LR a) (LR b)) = LR (a + b)
-</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+                  ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (BR (LR a) (LR b)) = LR (a + b)
+</code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 </code></strong>f :: Num a =&gt; RTree 1 a -&gt; RTree 0 a
-<code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (BR (LR 1) (LR 2))
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (BR (LR 1) (LR 2))
 </code></strong>3
 </pre>
                 </td>

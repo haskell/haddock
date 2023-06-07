@@ -483,7 +483,7 @@ diff -r goldens/old/Bug335.html goldens/new/Bug335.html
 ---
 >               <pre
 >                 class="screen"
->               ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">a
+>               ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>a
 > </code></strong>b
 96,103c92,95
 <               <pre class="screen"><code class="prompt"
@@ -497,7 +497,7 @@ diff -r goldens/old/Bug335.html goldens/new/Bug335.html
 ---
 >               <pre
 >                 class="screen"
->               ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">c
+>               ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>c
 > </code></strong>d
 diff -r goldens/old/Bug4.html goldens/new/Bug4.html
 63c63
@@ -838,10 +838,10 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">3:&gt;4:&gt;5:&gt;Nil
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>3:&gt;4:&gt;5:&gt;Nil
 > </code></strong>&lt;3,4,5&gt;
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = 3:&gt;4:&gt;5:&gt;Nil
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = 3:&gt;4:&gt;5:&gt;Nil
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 > </code></strong>x :: Num a =&gt; Vec 3 a
 164,186c148,154
 <                   <pre class="screen"><code class="prompt"
@@ -870,10 +870,10 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (x :&gt; y :&gt; _) = x + y
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (x :&gt; y :&gt; _) = x + y
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 > </code></strong>f :: Num a =&gt; Vec ((n + 1) + 1) a -&gt; a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
 > </code></strong>7
 189,211c157,163
 <                   <pre class="screen"><code class="prompt"
@@ -902,10 +902,10 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let g (a :&gt; b :&gt; (_ :&lt; y :&lt; x)) = a + b +  x + y
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t g
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let g (a :&gt; b :&gt; (_ :&lt; y :&lt; x)) = a + b +  x + y
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t g
 > </code></strong>g :: Num a =&gt; Vec ((((n + 1) + 1) + 1) + 1) a -&gt; a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
 > </code></strong>12
 244,266c196,202
 <                   <pre class="screen"><code class="prompt"
@@ -934,10 +934,10 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">LR 1
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>LR 1
 > </code></strong>1
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = LR 1
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = LR 1
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 > </code></strong>x :: Num a =&gt; RTree 0 a
 269,291c205,211
 <                   <pre class="screen"><code class="prompt"
@@ -966,10 +966,10 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (LR a) (LR b) = a + b
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (LR a) (LR b) = a + b
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 > </code></strong>f :: Num a =&gt; RTree 0 a -&gt; RTree 0 a -&gt; a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (LR 1) (LR 2)
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (LR 1) (LR 2)
 > </code></strong>3
 306,328c226,232
 <                   <pre class="screen"><code class="prompt"
@@ -998,10 +998,10 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">BR (LR 1) (LR 2)
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>BR (LR 1) (LR 2)
 > </code></strong>&lt;1,2&gt;
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = BR (LR 1) (LR 2)
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = BR (LR 1) (LR 2)
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 > </code></strong>x :: Num a =&gt; RTree 1 a
 331,353c235,241
 <                   <pre class="screen"><code class="prompt"
@@ -1030,10 +1030,10 @@ diff -r goldens/old/BundledPatterns.html goldens/new/BundledPatterns.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (BR (LR a) (LR b)) = LR (a + b)
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (BR (LR a) (LR b)) = LR (a + b)
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 > </code></strong>f :: Num a =&gt; RTree 1 a -&gt; RTree 0 a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (BR (LR 1) (LR 2))
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (BR (LR 1) (LR 2))
 > </code></strong>3
 diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 127,149c127,133
@@ -1063,10 +1063,10 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">3:&gt;4:&gt;5:&gt;Nil
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>3:&gt;4:&gt;5:&gt;Nil
 > </code></strong>&lt;3,4,5&gt;
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = 3:&gt;4:&gt;5:&gt;Nil
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = 3:&gt;4:&gt;5:&gt;Nil
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 > </code></strong>x :: Num a =&gt; Vec 3 a
 152,174c136,142
 <                   <pre class="screen"><code class="prompt"
@@ -1095,10 +1095,10 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (x :&gt; y :&gt; _) = x + y
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (x :&gt; y :&gt; _) = x + y
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 > </code></strong>f :: Num a =&gt; Vec ((n + 1) + 1) a -&gt; a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (3:&gt;4:&gt;5:&gt;6:&gt;7:&gt;Nil)
 > </code></strong>7
 177,199c145,151
 <                   <pre class="screen"><code class="prompt"
@@ -1127,10 +1127,10 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let g (a :&gt; b :&gt; (_ :&lt; y :&lt; x)) = a + b +  x + y
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t g
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let g (a :&gt; b :&gt; (_ :&lt; y :&lt; x)) = a + b +  x + y
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t g
 > </code></strong>g :: Num a =&gt; Vec ((((n + 1) + 1) + 1) + 1) a -&gt; a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>g (1:&gt;2:&gt;3:&gt;4:&gt;5:&gt;Nil)
 > </code></strong>12
 240,262c192,198
 <                   <pre class="screen"><code class="prompt"
@@ -1159,10 +1159,10 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">LR 1
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>LR 1
 > </code></strong>1
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = LR 1
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = LR 1
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 > </code></strong>x :: Num a =&gt; RTree 0 a
 265,287c201,207
 <                   <pre class="screen"><code class="prompt"
@@ -1191,10 +1191,10 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (LR a) (LR b) = a + b
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (LR a) (LR b) = a + b
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 > </code></strong>f :: Num a =&gt; RTree 0 a -&gt; RTree 0 a -&gt; a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (LR 1) (LR 2)
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (LR 1) (LR 2)
 > </code></strong>3
 302,324c222,228
 <                   <pre class="screen"><code class="prompt"
@@ -1223,10 +1223,10 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">BR (LR 1) (LR 2)
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>BR (LR 1) (LR 2)
 > </code></strong>&lt;1,2&gt;
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let x = BR (LR 1) (LR 2)
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t x
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let x = BR (LR 1) (LR 2)
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t x
 > </code></strong>x :: Num a =&gt; RTree 1 a
 327,349c231,237
 <                   <pre class="screen"><code class="prompt"
@@ -1255,10 +1255,10 @@ diff -r goldens/old/BundledPatterns2.html goldens/new/BundledPatterns2.html
 ---
 >                   <pre
 >                     class="screen"
->                   ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">let f (BR (LR a) (LR b)) = LR (a + b)
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">:t f
+>                   ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>let f (BR (LR a) (LR b)) = LR (a + b)
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:t f
 > </code></strong>f :: Num a =&gt; RTree 1 a -&gt; RTree 0 a
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">f (BR (LR 1) (LR 2))
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>f (BR (LR 1) (LR 2))
 > </code></strong>3
 diff -r goldens/old/ConstructorArgs.html goldens/new/ConstructorArgs.html
 105c105,106
@@ -1346,9 +1346,9 @@ diff -r goldens/old/Examples.html goldens/new/Examples.html
 ---
 >             <pre
 >               class="screen"
->             ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">fib 5
+>             ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>fib 5
 > </code></strong>5
-> <code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">fib 10
+> <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>fib 10
 > </code></strong>55
 89,96c79,82
 <             <pre class="screen"><code class="prompt"
@@ -1362,7 +1362,7 @@ diff -r goldens/old/Examples.html goldens/new/Examples.html
 ---
 >             <pre
 >               class="screen"
->             ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">fib 10
+>             ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>fib 10
 > </code></strong>55
 99,106c85,88
 <             <pre class="screen"><code class="prompt"
@@ -1376,7 +1376,7 @@ diff -r goldens/old/Examples.html goldens/new/Examples.html
 ---
 >             <pre
 >               class="screen"
->             ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">fib 5
+>             ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>fib 5
 > </code></strong>5
 109,116c91,94
 <             <pre class="screen"><code class="prompt"
@@ -1390,7 +1390,7 @@ diff -r goldens/old/Examples.html goldens/new/Examples.html
 ---
 >             <pre
 >               class="screen"
->             ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">fib 5
+>             ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>fib 5
 > </code></strong>5
 119,133c97,101
 <             <pre class="screen"><code class="prompt"
@@ -1411,8 +1411,8 @@ diff -r goldens/old/Examples.html goldens/new/Examples.html
 ---
 >             <pre
 >               class="screen"
->             ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">import Data.Char
-> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">isSpace &#39;a&#39;
+>             ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>import Data.Char
+> </code></strong><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isSpace &#39;a&#39;
 > </code></strong>False
 135,142c103,106
 <             <pre class="screen"><code class="prompt"
@@ -1426,7 +1426,7 @@ diff -r goldens/old/Examples.html goldens/new/Examples.html
 ---
 >             <pre
 >               class="screen"
->             ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">putStrLn &quot;foo\n\nbar&quot;
+>             ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>putStrLn &quot;foo\n\nbar&quot;
 > </code></strong>foo
 diff -r goldens/old/FunArgs.html goldens/new/FunArgs.html
 151c151
@@ -1762,7 +1762,7 @@ diff -r goldens/old/Nesting.html goldens/new/Nesting.html
 ---
 >                         <pre
 >                           class="screen"
->                         ><code class="prompt">&gt;&gt;&gt; </code><strong><code class="userinput">Here&#39;s an example in a list
+>                         ><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>Here&#39;s an example in a list
 > </code></strong>example result
 249c245
 <                         <p>with some content&#8230;</p>

@@ -114,7 +114,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
       where
         htmlExample = htmlPrompt <> htmlExpression <> toHtml (Text.pack $ unlines result)
         htmlPrompt = (code_ [class_ "prompt"] (toHtml (">>> " :: Text)))
-        htmlExpression = (strong_ . code_ [class_ "userinput"] . toHtml $ expression ++ "\n")
+        htmlExpression = (strong_ [class_ "userinput"] . code_ . toHtml $ expression ++ "\n")
 
     makeOrdList :: (ToHtml a) => [(Int, a)] -> Html ()
     makeOrdList items = ol_ (foldMap (\(index, a) -> li_ [value_ (Text.pack . show $ index)] (toHtml a)) items)
