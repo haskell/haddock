@@ -195,7 +195,7 @@ subTableSrc pkg qual lnks splice decls = Just $ table_ (foldMap subRow decls)
           ((span_ [class_ "inst-left"] decl) <+> linkHtml loc mdl dn)
           <> docElement td_ (foldMap (docToHtml Nothing pkg qual) mdoc)
       )
-        : fmap td_ subs
+        : fmap (td_ [colspan_ "2"]) subs
 
   linkHtml :: SrcSpan -> Maybe Module -> DocName -> Html ()
   linkHtml loc@(RealSrcSpan _ _) mdl dn = links lnks loc splice mdl dn

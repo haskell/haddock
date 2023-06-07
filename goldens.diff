@@ -1,25 +1,9 @@
 diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
-107c107
-<                   <td colspan="2">
----
->                   <td>
-177c177
-<                   <td colspan="2">
----
->                   <td>
-217c217
-<                   <td colspan="2">
----
->                   <td>
-271c271
-<                   <td colspan="2">
----
->                   <td>
-293c293
+297c297
 <                           <a href="#">foldMap'</a> ::
 ---
 >                           <a href="#">foldMap&#39;</a> ::
-305,307c305,308
+309,311c309,312
 <                           <a href="#">foldr'</a> :: (a -&gt; b -&gt; b) -&gt; b
 <                           -&gt; <a href="#" title="Bug1004">Product</a> f g a
 <                           -&gt; b <a href="#" class="selflink">#</a>
@@ -28,7 +12,7 @@ diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
 >                           -&gt; b -&gt;
 >                           <a href="#" title="Bug1004">Product</a> f g a -&gt; b
 >                           <a href="#" class="selflink">#</a>
-315,317c316,319
+319,321c320,323
 <                           <a href="#">foldl'</a> :: (b -&gt; a -&gt; b) -&gt; b
 <                           -&gt; <a href="#" title="Bug1004">Product</a> f g a
 <                           -&gt; b <a href="#" class="selflink">#</a>
@@ -37,124 +21,49 @@ diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
 >                           -&gt; b -&gt;
 >                           <a href="#" title="Bug1004">Product</a> f g a -&gt; b
 >                           <a href="#" class="selflink">#</a>
-402c404
-<                   <td colspan="2">
----
->                   <td>
-443c445
-<                   <td colspan="2">
----
->                   <td>
-485c487
-<                   <td colspan="2">
----
->                   <td>
-581c583
-<                   <td colspan="2">
----
->                   <td>
-645c647
-<                   <td colspan="2">
----
->                   <td>
-709c711
-<                   <td colspan="2">
----
->                   <td>
-764c766
-<                   <td colspan="2">
----
->                   <td>
-830c832
-<                   <td colspan="2">
----
->                   <td>
-875c877
-<                   <td colspan="2">
----
->                   <td>
-927c929
-<                   <td colspan="2">
----
->                   <td>
-976c978
-<                   <td colspan="2">
----
->                   <td>
-1059,1060c1061,1062
+1093,1094c1095,1096
 <                           <a href="#">gmapQl</a> :: (r -&gt; r' -&gt; r) -&gt; r
 <                           -&gt; (<span class="keyword">forall</span> d.
 ---
 >                           <a href="#">gmapQl</a> :: (r -&gt; r&#39; -&gt; r)
 >                           -&gt; r -&gt; (<span class="keyword">forall</span> d.
-1062,1063c1064,1066
+1096,1097c1098,1100
 <                           r') -&gt; <a href="#" title="Bug1004">Product</a> f g
 <                           a -&gt; r <a href="#" class="selflink">#</a>
 ---
 >                           r&#39;) -&gt;
 >                           <a href="#" title="Bug1004">Product</a> f g a -&gt; r
 >                           <a href="#" class="selflink">#</a>
-1067,1068c1070,1071
+1101,1102c1104,1105
 <                           <span class="keyword">forall</span> r r'. (r' -&gt; r
-<                           -&gt; r) -&gt; r -&gt; (<span class="keyword">forall</span
+<                           -&gt; r) -&gt; r -&gt; (<span class="keyword"
 ---
 >                           <span class="keyword">forall</span> r r&#39;. (r&#39;
->                           -&gt; r -&gt; r) -&gt; r -&gt; (<span class="keyword">forall</span
-1071c1074
+>                           -&gt; r -&gt; r) -&gt; r -&gt; (<span class="keyword"
+1106c1109
 <                           -&gt; r') -&gt;
 ---
 >                           -&gt; r&#39;) -&gt;
-1146c1149
-<                   <td colspan="2">
----
->                   <td>
-1200c1203
-<                   <td colspan="2">
----
->                   <td>
-1250c1253
-<                   <td colspan="2">
----
->                   <td>
-1318c1321
-<                   <td colspan="2">
----
->                   <td>
-1380c1383
-<                   <td colspan="2">
----
->                   <td>
-1435c1438
-<                   <td colspan="2">
----
->                   <td>
-1482c1485
-<                   <td colspan="2">
----
->                   <td>
-1564c1567
-<                   <td colspan="2">
----
->                   <td>
-1578c1581
+1626c1629
 <                         <a href="#" title="GHC.Generics">D1</a> ('<a
 ---
 >                         <a href="#" title="GHC.Generics">D1</a> (&#39;<a
-1584,1585c1587,1588
+1632,1633c1635,1637
 <                         &quot;base&quot; '<a href="#" title="Data.Bool">False</a
 <                         >) (<a href="#" title="GHC.Generics">C1</a> ('<a
 ---
->                         &quot;base&quot; &#39;<a href="#" title="Data.Bool">False</a
+>                         &quot;base&quot; &#39;<a href="#" title="Data.Bool"
+>                           >False</a
 >                         >) (<a href="#" title="GHC.Generics">C1</a> (&#39;<a
-1590c1593
-<                         &quot;Pair&quot; '<a href="#" title="GHC.Generics">PrefixI</a
+1638c1642
+<                         &quot;Pair&quot; '<a href="#" title="GHC.Generics"
 ---
->                         &quot;Pair&quot; &#39;<a href="#" title="GHC.Generics">PrefixI</a
-1592c1595
+>                         &quot;Pair&quot; &#39;<a href="#" title="GHC.Generics"
+1641c1645
 <                         '<a href="#" title="Data.Bool">False</a>) (<a
 ---
 >                         &#39;<a href="#" title="Data.Bool">False</a>) (<a
-1597,1603c1600,1603
+1646,1652c1650,1653
 <                         ('<a href="#" title="GHC.Generics">MetaSel</a> ('<a
 <                           href="#"
 <                           title="Data.Maybe"
@@ -167,15 +76,16 @@ diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
 >                         (&#39;<a href="#" title="Data.Maybe">Nothing</a> ::
 >                         <a href="#" title="Data.Maybe">Maybe</a>
 >                         <a href="#" title="GHC.TypeLits">Symbol</a>) &#39;<a
-1608,1612c1608
+1657,1661c1658,1659
 <                         '<a href="#" title="GHC.Generics">NoSourceStrictness</a>
 <                         '<a href="#" title="GHC.Generics">DecidedLazy</a>) (<a
 <                           href="#"
 <                           title="GHC.Generics"
 <                           >Rec1</a
 ---
->                         &#39;<a href="#" title="GHC.Generics">NoSourceStrictness</a
-1614,1615c1610,1613
+>                         &#39;<a href="#" title="GHC.Generics"
+>                           >NoSourceStrictness</a
+1663,1664c1661,1664
 <                         f) <a href="#" title="GHC.Generics">:*:</a>
 <                         <a href="#" title="GHC.Generics">S1</a> ('<a
 ---
@@ -183,51 +93,49 @@ diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
 >                         (<a href="#" title="GHC.Generics">Rec1</a> f)
 >                         <a href="#" title="GHC.Generics">:*:</a>
 >                         <a href="#" title="GHC.Generics">S1</a> (&#39;<a
-1620c1618
+1669c1669
 <                         ('<a href="#" title="Data.Maybe">Nothing</a> ::
 ---
 >                         (&#39;<a href="#" title="Data.Maybe">Nothing</a> ::
-1622c1620
+1671c1671
 <                         <a href="#" title="GHC.TypeLits">Symbol</a>) '<a
 ---
 >                         <a href="#" title="GHC.TypeLits">Symbol</a>) &#39;<a
-1627,1631c1625
+1676,1680c1676,1677
 <                         '<a href="#" title="GHC.Generics">NoSourceStrictness</a>
 <                         '<a href="#" title="GHC.Generics">DecidedLazy</a>) (<a
 <                           href="#"
 <                           title="GHC.Generics"
 <                           >Rec1</a
 ---
->                         &#39;<a href="#" title="GHC.Generics">NoSourceStrictness</a
-1633c1627,1628
+>                         &#39;<a href="#" title="GHC.Generics"
+>                           >NoSourceStrictness</a
+1682c1679,1680
 <                         g)))
 ---
 >                         &#39;<a href="#" title="GHC.Generics">DecidedLazy</a>)
 >                         (<a href="#" title="GHC.Generics">Rec1</a> g)))
-1658c1653
-<                   <td colspan="2">
----
->                   <td>
-1671c1666,1667
+1721c1719,1720
 <                         f g a) = <a href="#" title="GHC.Generics">D1</a> ('<a
 ---
 >                         f g a) =
 >                         <a href="#" title="GHC.Generics">D1</a> (&#39;<a
-1677,1678c1673,1674
+1727,1728c1726,1728
 <                         &quot;base&quot; '<a href="#" title="Data.Bool">False</a
 <                         >) (<a href="#" title="GHC.Generics">C1</a> ('<a
 ---
->                         &quot;base&quot; &#39;<a href="#" title="Data.Bool">False</a
+>                         &quot;base&quot; &#39;<a href="#" title="Data.Bool"
+>                           >False</a
 >                         >) (<a href="#" title="GHC.Generics">C1</a> (&#39;<a
-1683c1679
-<                         &quot;Pair&quot; '<a href="#" title="GHC.Generics">PrefixI</a
+1733c1733
+<                         &quot;Pair&quot; '<a href="#" title="GHC.Generics"
 ---
->                         &quot;Pair&quot; &#39;<a href="#" title="GHC.Generics">PrefixI</a
-1685c1681
+>                         &quot;Pair&quot; &#39;<a href="#" title="GHC.Generics"
+1736c1736
 <                         '<a href="#" title="Data.Bool">False</a>) (<a
 ---
 >                         &#39;<a href="#" title="Data.Bool">False</a>) (<a
-1690,1696c1686,1689
+1741,1747c1741,1744
 <                         ('<a href="#" title="GHC.Generics">MetaSel</a> ('<a
 <                           href="#"
 <                           title="Data.Maybe"
@@ -240,15 +148,16 @@ diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
 >                         (&#39;<a href="#" title="Data.Maybe">Nothing</a> ::
 >                         <a href="#" title="Data.Maybe">Maybe</a>
 >                         <a href="#" title="GHC.TypeLits">Symbol</a>) &#39;<a
-1701,1705c1694
+1752,1756c1749,1750
 <                         '<a href="#" title="GHC.Generics">NoSourceStrictness</a>
 <                         '<a href="#" title="GHC.Generics">DecidedLazy</a>) (<a
 <                           href="#"
 <                           title="GHC.Generics"
 <                           >Rec0</a
 ---
->                         &#39;<a href="#" title="GHC.Generics">NoSourceStrictness</a
-1707,1708c1696,1699
+>                         &#39;<a href="#" title="GHC.Generics"
+>                           >NoSourceStrictness</a
+1758,1759c1752,1755
 <                         (f a)) <a href="#" title="GHC.Generics">:*:</a>
 <                         <a href="#" title="GHC.Generics">S1</a> ('<a
 ---
@@ -256,41 +165,34 @@ diff -r goldens/old/Bug1004.html goldens/new/Bug1004.html
 >                         (<a href="#" title="GHC.Generics">Rec0</a> (f a))
 >                         <a href="#" title="GHC.Generics">:*:</a>
 >                         <a href="#" title="GHC.Generics">S1</a> (&#39;<a
-1713c1704
+1764c1760
 <                         ('<a href="#" title="Data.Maybe">Nothing</a> ::
 ---
 >                         (&#39;<a href="#" title="Data.Maybe">Nothing</a> ::
-1715c1706
+1766c1762
 <                         <a href="#" title="GHC.TypeLits">Symbol</a>) '<a
 ---
 >                         <a href="#" title="GHC.TypeLits">Symbol</a>) &#39;<a
-1720,1724c1711
+1771,1775c1767,1768
 <                         '<a href="#" title="GHC.Generics">NoSourceStrictness</a>
 <                         '<a href="#" title="GHC.Generics">DecidedLazy</a>) (<a
 <                           href="#"
 <                           title="GHC.Generics"
 <                           >Rec0</a
 ---
->                         &#39;<a href="#" title="GHC.Generics">NoSourceStrictness</a
-1726c1713,1714
+>                         &#39;<a href="#" title="GHC.Generics"
+>                           >NoSourceStrictness</a
+1777c1770,1771
 <                         (g a))))
 ---
 >                         &#39;<a href="#" title="GHC.Generics">DecidedLazy</a>)
 >                         (<a href="#" title="GHC.Generics">Rec0</a> (g a))))
 diff -r goldens/old/Bug1033.html goldens/new/Bug1033.html
-84c84
-<                   <td colspan="2">
----
->                   <td>
-136c136
-<                   <td colspan="2">
----
->                   <td>
-146c146
+148c148
 <                         <a href="#" title="GHC.Generics">D1</a> ('<a
 ---
 >                         <a href="#" title="GHC.Generics">D1</a> (&#39;<a
-151,155c151,152
+153,157c153,154
 <                         &quot;Foo&quot; &quot;Bug1033&quot; &quot;main&quot; '<a
 <                           href="#"
 <                           title="Data.Bool"
@@ -299,79 +201,29 @@ diff -r goldens/old/Bug1033.html goldens/new/Bug1033.html
 ---
 >                         &quot;Foo&quot; &quot;Bug1033&quot; &quot;main&quot;
 >                         &#39;<a href="#" title="Data.Bool">False</a>) (<a
-158c155
+160c157
 <                           >MetaCons</a
 ---
 >                           >C1</a
-160c157,158
-<                         &quot;Foo&quot; '<a href="#" title="GHC.Generics">PrefixI</a
+162c159,160
+<                         &quot;Foo&quot; '<a href="#" title="GHC.Generics"
 ---
 >                         (&#39;<a href="#" title="GHC.Generics">MetaCons</a>
->                         &quot;Foo&quot; &#39;<a href="#" title="GHC.Generics">PrefixI</a
-162c160
+>                         &quot;Foo&quot; &#39;<a href="#" title="GHC.Generics"
+165c163
 <                         '<a href="#" title="Data.Bool">False</a>) (<a
 ---
 >                         &#39;<a href="#" title="Data.Bool">False</a>) (<a
-diff -r goldens/old/Bug1063.html goldens/new/Bug1063.html
-76c76
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/Bug1103.html goldens/new/Bug1103.html
-79c79
-<                   <td colspan="2">
----
->                   <td>
-113c113
-<                   <td colspan="2">
----
->                   <td>
-167c167
-<                   <td colspan="2">
----
->                   <td>
-196c196
-<                   <td colspan="2">
----
->                   <td>
-230c230
-<                   <td colspan="2">
----
->                   <td>
-264c264
-<                   <td colspan="2">
----
->                   <td>
-313c313
-<                   <td colspan="2">
----
->                   <td>
-342c342
-<                   <td colspan="2">
----
->                   <td>
-372c372
-<                   <td colspan="2">
----
->                   <td>
-401c401
-<                   <td colspan="2">
----
->                   <td>
-435c435
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/Bug195.html goldens/new/Bug195.html
 59c59
 <                 <td colspan="2">
 ---
 >                 <td>
-87c87
+90c90
 <                 <td colspan="2">
 ---
 >                 <td>
-115c115
+121c121
 <                 <td colspan="2">
 ---
 >                 <td>
@@ -396,54 +248,32 @@ diff -r goldens/old/Bug26.html goldens/new/Bug26.html
 <           <p>This module tests the &#8216;@since &#8230;&#8217; annotation.</p>
 ---
 >           <p>This module tests the â@since â¦â annotation.</p>
-132c132
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/Bug294.html goldens/new/Bug294.html
-76c76
-<                   <td colspan="2">
----
->                   <td>
-86c86,87
+87c87,89
 <                         <a id="v:ProblemCtor-39-" class="def">ProblemCtor'</a>
 ---
->                         <a id="v:ProblemCtor-39-" class="def">ProblemCtor&#39;</a
+>                         <a id="v:ProblemCtor-39-" class="def"
+>                           >ProblemCtor&#39;</a
 >                         >
-107c108
-<                   <td colspan="2">
----
->                   <td>
-136c137
+138c140
 <             <a id="v:problemField-39-" class="def">problemField'</a> :: DO
 ---
 >             <a id="v:problemField-39-" class="def">problemField&#39;</a> :: DO
-179c180
-<                   <td colspan="2">
----
->                   <td>
-230c231
-<                   <td colspan="2">
----
->                   <td>
-240c241,242
+244c246,248
 <                         <a id="v:ProblemCtor-39-" class="def">ProblemCtor'</a>
 ---
->                         <a id="v:ProblemCtor-39-" class="def">ProblemCtor&#39;</a
+>                         <a id="v:ProblemCtor-39-" class="def"
+>                           >ProblemCtor&#39;</a
 >                         >
-253c255
+257c261
 <             <a id="t:TO-39-" class="def">TO'</a> t :: *
 ---
 >             <a id="t:TO-39-" class="def">TO&#39;</a> t :: *
-273c275
+278c282
 <                       <a href="#" title="Bug294">TO'</a> a</span
 ---
 >                       <a href="#" title="Bug294">TO&#39;</a> a</span
-280c282
-<                   <td colspan="2">
----
->                   <td>
-288c290
+293c297
 <                         <a href="#" title="Bug294">TO'</a> a =
 ---
 >                         <a href="#" title="Bug294">TO&#39;</a> a =
@@ -476,24 +306,12 @@ diff -r goldens/old/Bug458.html goldens/new/Bug458.html
 <             <a id="v:-8838-" class="def">(&#8838;)</a> :: () -&gt; () -&gt; ()
 ---
 >             <a id="v:-8838-" class="def">(â)</a> :: () -&gt; () -&gt; ()
-64c64
-<               <code><code><a href="#" title="Bug458">&#8838;</a></code></code
+65c65
+<                 ><code><a href="#" title="Bug458">&#8838;</a></code></code
 ---
->               <code><code><a href="#" title="Bug458">â</a></code></code
+>                 ><code><a href="#" title="Bug458">â</a></code></code
 diff -r goldens/old/Bug466.html goldens/new/Bug466.html
-83c83
-<                   <td colspan="2">
----
->                   <td>
-146c146
-<                   <td colspan="2">
----
->                   <td>
-182c182
-<                   <td colspan="2">
----
->                   <td>
-191c191
+194c194
 <                         <a href="#" title="Bug466">X</a> = '[<a
 ---
 >                         <a href="#" title="Bug466">X</a> = &#39;[<a
@@ -520,129 +338,95 @@ diff -r goldens/old/Bug548.html goldens/new/Bug548.html
 <                 <td colspan="2">
 ---
 >                 <td>
-109c109
-<                   <td colspan="2">
----
->                   <td>
-175c175
-<                   <td colspan="2">
----
->                   <td>
-227c227
-<                   <td colspan="2">
----
->                   <td>
-293c293
-<                   <td colspan="2">
----
->                   <td>
-334c334
-<                   <td colspan="2">
----
->                   <td>
-402c402
-<                   <td colspan="2">
----
->                   <td>
-417c417
+424c424
 <                         <a href="#" title="GHC.Generics">D1</a> ('<a
 ---
 >                         <a href="#" title="GHC.Generics">D1</a> (&#39;<a
-423,424c423,424
+430,431c430,432
 <                         &quot;base&quot; '<a href="#" title="Data.Bool">True</a
 <                         >) (<a href="#" title="GHC.Generics">C1</a> ('<a
 ---
->                         &quot;base&quot; &#39;<a href="#" title="Data.Bool">True</a
+>                         &quot;base&quot; &#39;<a href="#" title="Data.Bool"
+>                           >True</a
 >                         >) (<a href="#" title="GHC.Generics">C1</a> (&#39;<a
-429,431c429
-<                         &quot;WrapArrow&quot; '<a href="#" title="GHC.Generics">PrefixI</a
-<                         >
-<                         '<a href="#" title="Data.Bool">True</a>) (<a
+436c437,439
+<                         &quot;WrapArrow&quot; '<a href="#" title="GHC.Generics"
 ---
 >                         &quot;WrapArrow&quot; &#39;<a
-434c432
-<                           >S1</a
----
->                           >PrefixI</a
-436c434
-<                         ('<a href="#" title="GHC.Generics">MetaSel</a> ('<a
+>                           href="#"
+>                           title="GHC.Generics"
+439c442
+<                         '<a href="#" title="Data.Bool">True</a>) (<a
 ---
 >                         &#39;<a href="#" title="Data.Bool">True</a>) (<a
-438,439c436,437
+444,449c447,449
+<                         ('<a href="#" title="GHC.Generics">MetaSel</a> ('<a
+<                           href="#"
 <                           title="Data.Maybe"
 <                           >Just</a
----
->                           title="GHC.Generics"
->                           >S1</a
-441c439,441
+<                         >
 <                         &quot;unwrapArrow&quot;) '<a
 ---
 >                         (&#39;<a href="#" title="GHC.Generics">MetaSel</a>
 >                         (&#39;<a href="#" title="Data.Maybe">Just</a>
 >                         &quot;unwrapArrow&quot;) &#39;<a
-446,450c446
+454,458c454,455
 <                         '<a href="#" title="GHC.Generics">NoSourceStrictness</a>
 <                         '<a href="#" title="GHC.Generics">DecidedLazy</a>) (<a
 <                           href="#"
 <                           title="GHC.Generics"
 <                           >Rec1</a
 ---
->                         &#39;<a href="#" title="GHC.Generics">NoSourceStrictness</a
-452c448,449
+>                         &#39;<a href="#" title="GHC.Generics"
+>                           >NoSourceStrictness</a
+460c457,458
 <                         (a b))))
 ---
 >                         &#39;<a href="#" title="GHC.Generics">DecidedLazy</a>)
 >                         (<a href="#" title="GHC.Generics">Rec1</a> (a b))))
-477c474
-<                   <td colspan="2">
----
->                   <td>
-490c487,488
+499c497,498
 <                         a b c) = <a href="#" title="GHC.Generics">D1</a> ('<a
 ---
 >                         a b c) =
 >                         <a href="#" title="GHC.Generics">D1</a> (&#39;<a
-496,497c494,495
+505,506c504,506
 <                         &quot;base&quot; '<a href="#" title="Data.Bool">True</a
 <                         >) (<a href="#" title="GHC.Generics">C1</a> ('<a
 ---
->                         &quot;base&quot; &#39;<a href="#" title="Data.Bool">True</a
+>                         &quot;base&quot; &#39;<a href="#" title="Data.Bool"
+>                           >True</a
 >                         >) (<a href="#" title="GHC.Generics">C1</a> (&#39;<a
-502,504c500
-<                         &quot;WrapArrow&quot; '<a href="#" title="GHC.Generics">PrefixI</a
-<                         >
-<                         '<a href="#" title="Data.Bool">True</a>) (<a
+511c511,513
+<                         &quot;WrapArrow&quot; '<a href="#" title="GHC.Generics"
 ---
 >                         &quot;WrapArrow&quot; &#39;<a
-507c503
-<                           >S1</a
----
->                           >PrefixI</a
-509c505
-<                         ('<a href="#" title="GHC.Generics">MetaSel</a> ('<a
+>                           href="#"
+>                           title="GHC.Generics"
+514c516
+<                         '<a href="#" title="Data.Bool">True</a>) (<a
 ---
 >                         &#39;<a href="#" title="Data.Bool">True</a>) (<a
-511,512c507,508
+519,524c521,523
+<                         ('<a href="#" title="GHC.Generics">MetaSel</a> ('<a
+<                           href="#"
 <                           title="Data.Maybe"
 <                           >Just</a
----
->                           title="GHC.Generics"
->                           >S1</a
-514c510,512
+<                         >
 <                         &quot;unwrapArrow&quot;) '<a
 ---
 >                         (&#39;<a href="#" title="GHC.Generics">MetaSel</a>
 >                         (&#39;<a href="#" title="Data.Maybe">Just</a>
 >                         &quot;unwrapArrow&quot;) &#39;<a
-519,523c517
+529,533c528,529
 <                         '<a href="#" title="GHC.Generics">NoSourceStrictness</a>
 <                         '<a href="#" title="GHC.Generics">DecidedLazy</a>) (<a
 <                           href="#"
 <                           title="GHC.Generics"
 <                           >Rec0</a
 ---
->                         &#39;<a href="#" title="GHC.Generics">NoSourceStrictness</a
-525c519,520
+>                         &#39;<a href="#" title="GHC.Generics"
+>                           >NoSourceStrictness</a
+535c531,532
 <                         (a b c))))
 ---
 >                         &#39;<a href="#" title="GHC.Generics">DecidedLazy</a>)
@@ -658,47 +442,17 @@ diff -r goldens/old/Bug6.html goldens/new/Bug6.html
 <                 <td colspan="2">
 ---
 >                 <td>
-191,192c191,192
+193,194c193,194
 <               .. with only some of the fields exported (we can't handle this one
 <               - how do we render the declaration?)
 ---
 >               .. with only some of the fields exported (we can&#39;t handle this
 >               one - how do we render the declaration?)
 diff -r goldens/old/Bug613.html goldens/new/Bug613.html
-106c106
-<                   <td colspan="2">
----
->                   <td>
-142c142
-<                   <td colspan="2">
----
->                   <td>
-173c173
+175c175
 <               This ensures that the renamer doesn't create a new conflict
 ---
 >               This ensures that the renamer doesn&#39;t create a new conflict
-215c215
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/Bug679.html goldens/new/Bug679.html
-89c89
-<                   <td colspan="2">
----
->                   <td>
-153c153
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/Bug7.html goldens/new/Bug7.html
-109c109
-<                   <td colspan="2">
----
->                   <td>
-154c154
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/Bug85.html goldens/new/Bug85.html
 78c78
 <                   <a id="v:Baz-39-" class="def">Baz'</a> ::
@@ -713,27 +467,23 @@ diff -r goldens/old/Bug923.html goldens/new/Bug923.html
 <                   <a href="#" title="Bug923">T</a> ('<a
 ---
 >                   <a href="#" title="Bug923">T</a> (&#39;<a
-114c114
+115c115
 <                       ('<a href="#" title="GHC.Tuple.Prim">(,)</a> a ::
 ---
 >                       (&#39;<a href="#" title="GHC.Tuple.Prim">(,)</a> a ::
-128c128
-<                   <td colspan="2">
----
->                   <td>
-138c138
+139c139
 <                           <a href="#" title="Bug923">T</a> ('<a
 ---
 >                           <a href="#" title="Bug923">T</a> (&#39;<a
-143c143
+144c144
 <                           a) -&gt; <a href="#" title="Bug923">T</a> ('<a
 ---
 >                           a) -&gt; <a href="#" title="Bug923">T</a> (&#39;<a
-153c153
+154c154
 <                           <a href="#" title="Bug923">T</a> ('<a
 ---
 >                           <a href="#" title="Bug923">T</a> (&#39;<a
-158c158
+159c159
 <                           a) -&gt; <a href="#" title="Bug923">T</a> ('<a
 ---
 >                           a) -&gt; <a href="#" title="Bug923">T</a> (&#39;<a
@@ -793,27 +543,27 @@ diff -r goldens/old/ConstructorArgs.html goldens/new/ConstructorArgs.html
 <                 <td colspan="2">
 ---
 >                 <td>
-202c203
+208c209
 <                 <td colspan="2">
 ---
 >                 <td>
-260c261
+271c272
 <                 <td colspan="2">
 ---
 >                 <td>
-324c325
+340c341
 <                 <td colspan="2">
 ---
 >                 <td>
-397c398
+420c421
 <                 <td colspan="2">
 ---
 >                 <td>
-440c441
+468c469
 <                   <a id="v:Fo-39-" class="def">Fo'</a> ::
 ---
 >                   <a id="v:Fo-39-" class="def">Fo&#39;</a> ::
-499c500
+527c528
 <             <a id="v:Bo-39-" class="def">Bo'</a> ::
 ---
 >             <a id="v:Bo-39-" class="def">Bo&#39;</a> ::
@@ -859,7 +609,7 @@ diff -r goldens/old/GADTRecords.html goldens/new/GADTRecords.html
 <                 <td colspan="2">
 ---
 >                 <td>
-135c135
+137c137
 <                 <td colspan="2">
 ---
 >                 <td>
@@ -868,123 +618,48 @@ diff -r goldens/old/GadtConstructorArgs.html goldens/new/GadtConstructorArgs.htm
 <                 <td colspan="2">
 ---
 >                 <td>
-105c105
+112c112
 <                 <td colspan="2">
 ---
 >                 <td>
-diff -r goldens/old/Hash.html goldens/new/Hash.html
-229c229
-<                   <td colspan="2">
----
->                   <td>
-261c261
-<                   <td colspan="2">
----
->                   <td>
-294c294
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/HiddenInstances.html goldens/new/HiddenInstances.html
-90c90
-<                   <td colspan="2">
----
->                   <td>
-113c113
-<                   <td colspan="2">
----
->                   <td>
-157c157
-<                   <td colspan="2">
----
->                   <td>
-237c237
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/HiddenInstancesB.html goldens/new/HiddenInstancesB.html
-90c90
-<                   <td colspan="2">
----
->                   <td>
-133c133
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/Instances.html goldens/new/Instances.html
-91c91
-<                   <td colspan="2">
----
->                   <td>
-107c107
+108c108
 <                           <a href="#">foo'</a> :: (a
 ---
 >                           <a href="#">foo&#39;</a> :: (a
-143c143
+144c144
 <               <a id="v:foo-39-" class="def">foo'</a> :: f (f a) -&gt;
 ---
 >               <a id="v:foo-39-" class="def">foo&#39;</a> :: f (f a) -&gt;
-173c173
-<                   <td colspan="2">
----
->                   <td>
-189c189
+191c191
 <                           <a href="#">foo'</a> ::
 ---
 >                           <a href="#">foo&#39;</a> ::
-222c222
-<                   <td colspan="2">
----
->                   <td>
-236c236
+240c240
 <                           <a href="#">foo'</a> :: [[a]] -&gt;
 ---
 >                           <a href="#">foo&#39;</a> :: [[a]] -&gt;
-265c265
-<                   <td colspan="2">
----
->                   <td>
-281c281
+286c286
 <                           <a href="#">foo'</a> ::
 ---
 >                           <a href="#">foo&#39;</a> ::
-318c318
-<                   <td colspan="2">
----
->                   <td>
-334c334
+340c340
 <                           <a href="#">foo'</a> :: (a
 ---
 >                           <a href="#">foo&#39;</a> :: (a
-367c367
-<                   <td colspan="2">
----
->                   <td>
-381c381
+388c388
 <                           <a href="#">foo'</a> :: (f a, (f a, a0)) -&gt;
 ---
 >                           <a href="#">foo&#39;</a> :: (f a, (f a, a0)) -&gt;
-408c408
-<                   <td colspan="2">
----
->                   <td>
-424c424
+432c432
 <                           <a href="#">foo'</a> ::
 ---
 >                           <a href="#">foo&#39;</a> ::
-462c462
-<                   <td colspan="2">
----
->                   <td>
-476c476
+485c485
 <                           <a href="#">foo'</a> :: (a, a, (a, a, a0)) -&gt;
 ---
 >                           <a href="#">foo&#39;</a> :: (a, a, (a, a, a0)) -&gt;
-498c498
-<                   <td colspan="2">
----
->                   <td>
-512,514c512,514
+522,524c522,524
 <                           <a href="#">foo'</a> :: (a -&gt; (a -&gt; a0)) -&gt;
 <                           <a href="#" title="Data.Int">Int</a> -&gt; a -&gt; (a
 <                           -&gt; <a href="#" title="Data.Int">Int</a>)
@@ -992,181 +667,111 @@ diff -r goldens/old/Instances.html goldens/new/Instances.html
 >                           <a href="#">foo&#39;</a> :: (a -&gt; (a -&gt; a0))
 >                           -&gt; <a href="#" title="Data.Int">Int</a> -&gt; a
 >                           -&gt; (a -&gt; <a href="#" title="Data.Int">Int</a>)
-545,546c545,546
+555,556c555,556
 <               <a id="v:bar-39-" class="def">bar'</a> :: f (f a) -&gt; f (f (f
 <               b)) <a href="#" class="selflink">#</a>
 ---
 >               <a id="v:bar-39-" class="def">bar&#39;</a> :: f (f a) -&gt; f (f
 >               (f b)) <a href="#" class="selflink">#</a>
-582c582
-<                   <td colspan="2">
----
->                   <td>
-600c600
+611c611
 <                           <a href="#">bar'</a> ::
 ---
 >                           <a href="#">bar&#39;</a> ::
-665c665
-<                   <td colspan="2">
----
->                   <td>
-681c681
+693c693
 <                           <a href="#">bar'</a> ::
 ---
 >                           <a href="#">bar&#39;</a> ::
-736c736
-<                   <td colspan="2">
----
->                   <td>
-752c752
+765c765
 <                           <a href="#">bar'</a> :: [[(a, a)]] -&gt; [[[b]]]
 ---
 >                           <a href="#">bar&#39;</a> :: [[(a, a)]] -&gt; [[[b]]]
-786c786
-<                   <td colspan="2">
----
->                   <td>
-802c802
+816c816
 <                           <a href="#">bar'</a> ::
 ---
 >                           <a href="#">bar&#39;</a> ::
-863c863
-<                   <td colspan="2">
----
->                   <td>
-884c884
+901c901
 <                           <a href="#">bar'</a> ::
 ---
 >                           <a href="#">bar&#39;</a> ::
-952c952
-<                   <td colspan="2">
----
->                   <td>
-966c966
+986c986
 <                           <a href="#">bar'</a> :: (a, b, (a, b, (a, b, a)))
 ---
 >                           <a href="#">bar&#39;</a> :: (a, b, (a, b, (a, b, a)))
-1010c1010
+1030c1030
 <               <a id="v:baz-39-" class="def">baz'</a> :: b -&gt; (<span
 ---
 >               <a id="v:baz-39-" class="def">baz&#39;</a> :: b -&gt; (<span
-1018,1020c1018,1019
+1038,1039c1038,1039
 <               <a id="v:baz-39--39-" class="def">baz''</a> :: b -&gt; (<span
 <                 class="keyword"
-<                 >forall</span
 ---
 >               <a id="v:baz-39--39-" class="def">baz&#39;&#39;</a> :: b -&gt;
->               (<span class="keyword">forall</span> b. (<span class="keyword">forall</span
-1022,1023c1021,1022
+>               (<span class="keyword">forall</span> b. (<span class="keyword"
+1042,1043c1042,1043
 <               b. (<span class="keyword">forall</span> b. b -&gt; a) -&gt; c)
 <               -&gt; <span class="keyword">forall</span> c. c -&gt; b
 ---
 >               b. b -&gt; a) -&gt; c) -&gt;
 >               <span class="keyword">forall</span> c. c -&gt; b
-1050c1049
-<                   <td colspan="2">
----
->                   <td>
-1068c1067,1069
-<                           <a href="#">baz'</a> :: b -&gt; (<span class="keyword">forall</span
+1089c1089,1090
+<                           <a href="#">baz'</a> :: b -&gt; (<span class="keyword"
 ---
 >                           <a href="#">baz&#39;</a> :: b -&gt; (<span
 >                             class="keyword"
->                             >forall</span
-1076c1077
+1099c1100
 <                           <a href="#">baz''</a> :: b -&gt; (<span
 ---
 >                           <a href="#">baz&#39;&#39;</a> :: b -&gt; (<span
-1102c1103
-<                   <td colspan="2">
----
->                   <td>
-1121c1122
+1145c1146
 <                           <a href="#">baz'</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;</a> :: b0 -&gt; (<span
-1131c1132
+1156c1157
 <                           <a href="#">baz''</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;&#39;</a> :: b0 -&gt; (<span
-1162c1163
-<                   <td colspan="2">
----
->                   <td>
-1179c1180
+1205c1206
 <                           <a href="#">baz'</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;</a> :: b0 -&gt; (<span
-1190c1191
-<                           <a href="#">baz''</a> :: b0 -&gt; (<span
----
->                           <a href="#">baz&#39;&#39;</a> :: b0 -&gt; (<span
 1216c1217
-<                   <td colspan="2">
----
->                   <td>
-1235c1236
-<                           <a href="#">baz'</a> :: b0 -&gt; (<span
----
->                           <a href="#">baz&#39;</a> :: b0 -&gt; (<span
-1245c1246
 <                           <a href="#">baz''</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;&#39;</a> :: b0 -&gt; (<span
-1271c1272
-<                   <td colspan="2">
----
->                   <td>
-1290c1291
+1262c1263
 <                           <a href="#">baz'</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;</a> :: b0 -&gt; (<span
-1302c1303
+1273c1274
 <                           <a href="#">baz''</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;&#39;</a> :: b0 -&gt; (<span
-1370c1371
-<                   <td colspan="2">
+1319c1320
+<                           <a href="#">baz'</a> :: b0 -&gt; (<span
 ---
->                   <td>
-1386c1387
+>                           <a href="#">baz&#39;</a> :: b0 -&gt; (<span
+1331c1332
+<                           <a href="#">baz''</a> :: b0 -&gt; (<span
+---
+>                           <a href="#">baz&#39;&#39;</a> :: b0 -&gt; (<span
+1416c1417
 <                           <a href="#">foo'</a> ::
 ---
 >                           <a href="#">foo&#39;</a> ::
-1424c1425
-<                   <td colspan="2">
----
->                   <td>
-1445c1446
+1476c1477
 <                           <a href="#">bar'</a> ::
 ---
 >                           <a href="#">bar&#39;</a> ::
-1508c1509
-<                   <td colspan="2">
----
->                   <td>
-1525c1526
+1559c1560
 <                           <a href="#">baz'</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;</a> :: b0 -&gt; (<span
-1536c1537
+1570c1571
 <                           <a href="#">baz''</a> :: b0 -&gt; (<span
 ---
 >                           <a href="#">baz&#39;&#39;</a> :: b0 -&gt; (<span
-1569c1570
-<                   <td colspan="2">
----
->                   <td>
-1659c1660
-<                   <td colspan="2">
----
->                   <td>
-1713c1714
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/NamespacedIdentifiers.html goldens/new/NamespacedIdentifiers.html
-121c121,123
+123c123,125
 <             <p>A link to the value <code>Foo</code> (which shouldn't exist).</p>
 ---
 >             <p>
@@ -1181,23 +786,8 @@ diff -r goldens/old/Nesting.html goldens/new/Nesting.html
 <                         <p>with some content&#8230;</p>
 ---
 >                         <p>with some contentâ¦</p>
-diff -r goldens/old/OrphanInstances.html goldens/new/OrphanInstances.html
-70c70
-<               <td colspan="2">
----
->               <td>
-diff -r goldens/old/OrphanInstancesClass.html goldens/new/OrphanInstancesClass.html
-85c85
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/OrphanInstancesType.html goldens/new/OrphanInstancesType.html
-88c88
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/PatternSyns.html goldens/new/PatternSyns.html
-268,269c268,269
+269,270c269,270
 <               Earlier ghc versions didn't allow explicit signatures on pattern
 <               synonyms.
 ---
@@ -1216,24 +806,6 @@ diff -r goldens/old/PromotedTypes.html goldens/new/PromotedTypes.html
 <                   <a href="#" title="PromotedTypes">Tuple</a> '(a, b)
 ---
 >                   <a href="#" title="PromotedTypes">Tuple</a> &#39;(a, b)
-diff -r goldens/old/QuasiExpr.html goldens/new/QuasiExpr.html
-111c111
-<                   <td colspan="2">
----
->                   <td>
-199c199
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/SpuriousSuperclassConstraints.html goldens/new/SpuriousSuperclassConstraints.html
-104c104
-<                   <td colspan="2">
----
->                   <td>
-190c190
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/Test.html goldens/new/Test.html
 390c390
 <               <a href="#">f'</a> :: <a href="#" title="Data.Int">Int</a>
@@ -1243,61 +815,53 @@ diff -r goldens/old/Test.html goldens/new/Test.html
 <                 <td colspan="2">
 ---
 >                 <td>
-631c631
+632c632
 <                 <td colspan="2">
 ---
 >                 <td>
-660c660
+662c662
 <               because the difference isn't visible to the programmer for an
 ---
 >               because the difference isn&#39;t visible to the programmer for an
-679c679
+681c681
 <                 <td colspan="2">
 ---
 >                 <td>
-711c711
+714c714
 <                 <td colspan="2">
 ---
 >                 <td>
-746c746
+750c750
 <                 <td colspan="2">
 ---
 >                 <td>
-793c793
+798c798
 <                 <td colspan="2">
 ---
 >                 <td>
-847c847
+855c855
 <                 <td colspan="2">
 ---
 >                 <td>
-902c902
+912c912
 <                 <td colspan="2">
 ---
 >                 <td>
-1073c1073
-<                   <td colspan="2">
----
->                   <td>
-1109c1109
-<                   <td colspan="2">
----
->                   <td>
-1320c1320
+1337c1337
 < each line must begin with &gt; (which isn't significant unless it
 ---
 > each line must begin with &gt; (which isn&#39;t significant unless it
-1407c1407,1409
+1427c1427,1429
 <                 <td class="doc"><p>This argument has type 'T2 Int Int'</p></td>
 ---
 >                 <td class="doc">
 >                   <p>This argument has type &#39;T2 Int Int&#39;</p>
 >                 </td>
-1529c1531
+1549c1551
 <             <a id="v:f-39-" class="def">f'</a> ::
 ---
 >             <a id="v:f-39-" class="def">f&#39;</a> ::
-1536,1537c1538,1539
+1556,1557c1558,1559
 <               <code><a href="#" title="Test">f'</a></code> but f' doesn't get
 <               link'd 'f''
 ---
@@ -1321,248 +885,74 @@ diff -r goldens/old/TitledPicture.html goldens/new/TitledPicture.html
 ---
 >               <img src="unâ£ââ" title="Î´â" />
 diff -r goldens/old/TypeFamilies.html goldens/new/TypeFamilies.html
-159c159
-<                   <td colspan="2">
----
->                   <td>
-197c197
-<                   <td colspan="2">
----
->                   <td>
-212,213c212,213
+215,216c215,216
 <                       '<a href="#" title="TypeFamilies">XX</a>
 <                       <a href="#" title="TypeFamilies">&gt;&lt;</a> '<a
 ---
 >                       &#39;<a href="#" title="TypeFamilies">XX</a>
 >                       <a href="#" title="TypeFamilies">&gt;&lt;</a> &#39;<a
-224c224
-<                   <td colspan="2">
----
->                   <td>
-248c248
-<                   <td colspan="2">
----
->                   <td>
-278c278
-<                   <td colspan="2">
----
->                   <td>
-308c308
-<                   <td colspan="2">
----
->                   <td>
-340c340
-<                   <td colspan="2">
----
->                   <td>
-389c389
-<                   <td colspan="2">
----
->                   <td>
-410c410
+419c419
 <                       <span class="keyword">type</span> '<a
 ---
 >                       <span class="keyword">type</span> &#39;<a
-415c415
+424c424
 <                       <a href="#" title="TypeFamilies">&lt;&gt;</a> '<a
 ---
 >                       <a href="#" title="TypeFamilies">&lt;&gt;</a> &#39;<a
-426c426
-<                   <td colspan="2">
----
->                   <td>
-433c433
+442c442
 <                         <span class="keyword">type</span> '<a
 ---
 >                         <span class="keyword">type</span> &#39;<a
-438c438
+447c447
 <                         <a href="#" title="TypeFamilies">&lt;&gt;</a> '<a
 ---
 >                         <a href="#" title="TypeFamilies">&lt;&gt;</a> &#39;<a
-443c443
+452c452
 <                         = '<a href="#" title="TypeFamilies">X</a>
 ---
 >                         = &#39;<a href="#" title="TypeFamilies">X</a>
-464c464
-<                   <td colspan="2">
----
->                   <td>
-514c514
-<                   <td colspan="2">
----
->                   <td>
-552c552
-<                   <td colspan="2">
----
->                   <td>
-576c576
-<                   <td colspan="2">
----
->                   <td>
-605c605
-<                   <td colspan="2">
----
->                   <td>
-635c635
-<                   <td colspan="2">
----
->                   <td>
-666c666
-<                   <td colspan="2">
----
->                   <td>
-697c697
-<                   <td colspan="2">
----
->                   <td>
-728c728
-<                   <td colspan="2">
----
->                   <td>
-791c791
-<                   <td colspan="2">
----
->                   <td>
-806c806
+825c825
 <                             <a href="#" title="TypeFamilies">Bat</a> '<a
 ---
 >                             <a href="#" title="TypeFamilies">Bat</a> &#39;<a
-814c814
+833c833
 <                             <a href="#" title="TypeFamilies">Bat</a> '<a
 ---
 >                             <a href="#" title="TypeFamilies">Bat</a> &#39;<a
-860c860
-<                   <td colspan="2">
----
->                   <td>
-883c883
-<                   <td colspan="2">
----
->                   <td>
-928c928
-<                   <td colspan="2">
----
->                   <td>
-958c958
-<                   <td colspan="2">
----
->                   <td>
-1009c1009
-<                   <td colspan="2">
----
->                   <td>
-1024c1024
+1048c1048
 <                             <a href="#" title="TypeFamilies">Bat</a> '<a
 ---
 >                             <a href="#" title="TypeFamilies">Bat</a> &#39;<a
-1032c1032
+1056c1056
 <                             <a href="#" title="TypeFamilies">Bat</a> '<a
 ---
 >                             <a href="#" title="TypeFamilies">Bat</a> &#39;<a
-1058c1058
-<                   <td colspan="2">
----
->                   <td>
-1107c1107
-<                   <td colspan="2">
----
->                   <td>
-1173c1173
-<                   <td colspan="2">
----
->                   <td>
-1211c1211
-<                   <td colspan="2">
----
->                   <td>
-1290c1290
+1319c1319
 <                       <span class="keyword">type</span> '<a
 ---
 >                       <span class="keyword">type</span> &#39;<a
-1295c1295
+1324c1324
 <                       <a href="#" title="TypeFamilies">&lt;&gt;</a> '<a
 ---
 >                       <a href="#" title="TypeFamilies">&lt;&gt;</a> &#39;<a
-1306c1306
-<                   <td colspan="2">
----
->                   <td>
-1313c1313
+1342c1342
 <                         <span class="keyword">type</span> '<a
 ---
 >                         <span class="keyword">type</span> &#39;<a
-1318c1318
+1347c1347
 <                         <a href="#" title="TypeFamilies">&lt;&gt;</a> '<a
 ---
 >                         <a href="#" title="TypeFamilies">&lt;&gt;</a> &#39;<a
-1323c1323
+1352c1352
 <                         = '<a href="#" title="TypeFamilies">X</a>
 ---
 >                         = &#39;<a href="#" title="TypeFamilies">X</a>
-1344c1344
-<                   <td colspan="2">
----
->                   <td>
-1376c1376
-<                   <td colspan="2">
----
->                   <td>
-1417,1418c1417,1418
+1449,1450c1449,1450
 <                       '<a href="#" title="TypeFamilies">XX</a>
 <                       <a href="#" title="TypeFamilies">&gt;&lt;</a> '<a
 ---
 >                       &#39;<a href="#" title="TypeFamilies">XX</a>
 >                       <a href="#" title="TypeFamilies">&gt;&lt;</a> &#39;<a
-1429c1429
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/TypeFamilies2.html goldens/new/TypeFamilies2.html
-98c98
-<                   <td colspan="2">
----
->                   <td>
-130c130
-<                   <td colspan="2">
----
->                   <td>
-180c180
-<                   <td colspan="2">
----
->                   <td>
-212c212
-<                   <td colspan="2">
----
->                   <td>
-262c262
-<                   <td colspan="2">
----
->                   <td>
-296c296
-<                   <td colspan="2">
----
->                   <td>
-diff -r goldens/old/TypeFamilies3.html goldens/new/TypeFamilies3.html
-121c121
-<                   <td colspan="2">
----
->                   <td>
-150c150
-<                   <td colspan="2">
----
->                   <td>
-199c199
-<                   <td colspan="2">
----
->                   <td>
-228c228
-<                   <td colspan="2">
----
->                   <td>
-259c259
-<                   <td colspan="2">
----
->                   <td>
 diff -r goldens/old/TypeOperators.html goldens/new/TypeOperators.html
 79c79
 <                 <td colspan="2">
@@ -1605,6 +995,33 @@ diff -r goldens/old/Unicode2.html goldens/new/Unicode2.html
 <                 a link to <code><a href="#" title="Unicode2">&#252;</a></code>
 ---
 >                 a link to <code><a href="#" title="Unicode2">Ã¼</a></code>
+diff -r goldens/old/src/CallingQuotes.html goldens/new/src/CallingQuotes.html
+10c10,12
+< </span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Quasiquoter.html"><span class="hs-identifier">Quasiquoter</span></a></span><span>
+---
+> </span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Quasiquoter.html"><span class="hs-identifier">Quasiquoter</span
+> 	  ></a
+> 	></span><span>
+13c15,20
+< </span><a href="CallingQuotes.html#baz"><span class="hs-identifier hs-var hs-var">baz</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="">[string| foo bar |]</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+---
+> </span
+> 	  ><a href="CallingQuotes.html#baz"><span class="hs-identifier hs-var hs-var">baz</span
+> 	    ></a
+> 	  ></span
+> 	></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="">[string| foo bar |]</span
+> 	></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+15c22,24
+< </span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="">[string| some
+---
+> </span
+> 	><span class="hs-operator hs-var">++</span
+> 	></span><span> </span><span class="annot"><span class="">[string| some
+18c27,28
+< |]</span></span><span>
+---
+> |]</span
+> 	></span><span>
 diff -r goldens/old/src/Classes.html goldens/new/src/Classes.html
 37c37
 < </span><span id="line-18"></span><span class="hs-keyword">class</span><span> </span><span class="annot"><a href="Classes.html#Foo"><span class="hs-identifier hs-type">Foo</span></a></span><span> </span><span class="annot"><a href="#"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="Foo%27"><span class="annot"><a href="Classes.html#Foo%27"><span class="hs-identifier hs-var">Foo'</span></a></span></span><span> </span><span id=""><span class="annot"><a href="#"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
