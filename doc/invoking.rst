@@ -130,9 +130,15 @@ The following options are available:
 
 .. option:: --mathjax
 
-    Specify a custom URL for a mathjax-compatible JS script. By default,
-    this is set to `MathJax
-    <https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML>`_.
+    Specify a custom URL for a MathJax-compatible JS script. By default, if the MathJax version
+    (see `--mathjax-version`) is 2, `MathJax 2
+    <https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML>`_
+    is used. For version 3, `MathJax 3
+    <https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js>`_ is used.
+
+.. option:: --mathjax-version=<version>
+
+    Specify the version of MathJax. Valid versions are 2 and 3. By default, this is set to 2.
 
 .. option:: --latex
 

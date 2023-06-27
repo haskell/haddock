@@ -75,6 +75,7 @@ ppHtml :: Logger
        -> Maybe (MDoc GHC.RdrName)     -- ^ Prologue text, maybe
        -> Themes                       -- ^ Themes
        -> Maybe String                 -- ^ The mathjax URL (--mathjax)
+       -> Maybe Int                    -- ^ The mathjax version (--mathjax-version)
        -> SourceURLs                   -- ^ The source URL (--source)
        -> WikiURLs                     -- ^ The wiki URL (--wiki)
        -> BaseURL                      -- ^ The base URL (--base-url)
@@ -89,7 +90,7 @@ ppHtml :: Logger
        -> IO ()
 
 ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologue
-        themes maybe_mathjax_url maybe_source_url maybe_wiki_url
+        themes maybe_mathjax_url maybe_mathjax_version maybe_source_url maybe_wiki_url
         maybe_base_url maybe_contents_url maybe_index_url unicode
         pkg packageInfo qual debug withQuickjump = withTiming logger (fromString "ppHtml") (const ()) $ do
   let
@@ -98,7 +99,7 @@ ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologu
 
   when (isNothing maybe_contents_url) $
     ppHtmlContents logger state odir doctitle maybe_package
-        themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
+        themes maybe_mathjax_url maybe_mathjax_version maybe_index_url maybe_source_url maybe_wiki_url
         [PackageInterfaces
           { piPackageInfo = packageInfo
           , piVisibility  = Visible
@@ -110,7 +111,7 @@ ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologu
 
   when (isNothing maybe_index_url) $ do
     ppHtmlIndex odir doctitle maybe_package
-      themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
+      themes maybe_mathjax_url maybe_mathjax_version maybe_contents_url maybe_source_url maybe_wiki_url
       (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
   when withQuickjump $
@@ -119,7 +120,7 @@ ppHtml logger state doctitle maybe_package ifaces reexported_ifaces odir prologu
 
   withTiming logger (fromString "ppHtmlModules") (const ()) $ do
     mapM_ (ppHtmlModule logger odir doctitle themes
-             maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
+             maybe_mathjax_url maybe_mathjax_version maybe_source_url maybe_wiki_url maybe_base_url
              maybe_contents_url maybe_index_url unicode pkg qual debug) visible_ifaces
 
 
@@ -136,8 +137,8 @@ copyHtmlBits odir libdir themes withQuickjump = do
   return ()
 
 
-headHtml :: String -> Themes -> Maybe String -> Maybe String -> Html
-headHtml docTitle themes mathjax_url base_url =
+headHtml :: String -> Themes -> Maybe String -> Maybe Int -> Maybe String -> Html
+headHtml docTitle themes mathjax_url mathjax_version base_url =
       header ! (maybe [] (\url -> [identifier "head", strAttr "data-base-url" url ]) base_url)
     <<
     [ meta ! [ httpequiv "Content-Type", content "text/html; charset=UTF-8"]
@@ -153,18 +154,35 @@ headHtml docTitle themes mathjax_url base_url =
                , emptyAttr "async"
                , thetype "text/javascript" ]
             << noHtml
-    , script ! [thetype "text/x-mathjax-config"] << primHtml mjConf
+    , script ! [thetype mjConfMimeType] << primHtml mjConf
     , script ! [src mjUrl, thetype "text/javascript"] << noHtml
     ]
   where
     fontUrl = "https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700"
-    mjUrl = fromMaybe "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" mathjax_url
-    mjConf = unwords [ "MathJax.Hub.Config({"
-                     ,   "tex2jax: {"
-                     ,     "processClass: \"mathjax\","
-                     ,     "ignoreClass: \".*\""
-                     ,   "}"
-                     , "});" ]
+    mjVer = let ver = fromMaybe 2 mathjax_version
+            in if ver `elem` [2, 3] then ver else error "Unsupported MathJax version"
+    mjUrl = let defaultStart = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/"
+                defaultEnd = case mjVer of 2 -> "2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+                                           3 -> "3.2.2/es5/tex-mml-chtml.min.js"
+                                           _ -> ""
+            in fromMaybe (defaultStart ++ defaultEnd) mathjax_url
+    mjConfMimeType = case mjVer of 2 -> "text/x-mathjax-config"
+                                   3 -> "text/javascript"
+                                   _ -> ""
+    mjConf = case mjVer of 2 -> unwords [ "MathJax.Hub.Config({"
+                                        ,   "tex2jax: {"
+                                        ,     "processClass: \"mathjax\","
+                                        ,     "ignoreClass: \".*\""
+                                        ,   "}"
+                                        , "});" ]
+                           3 -> unwords [ "window.MathJax = {"
+                                        ,   "options: {"
+                                        ,     "processHtmlClass: \"mathjax\","
+                                        ,     "ignoreHtmlClass: \".*\""
+                                        ,    "}"
+                                        , "};"
+                                        ]
+                           _ -> ""
 
 srcButton :: SourceURLs -> Maybe Interface -> Maybe Html
 srcButton (Just src_base_url, _, _, _) Nothing =
@@ -286,6 +304,7 @@ ppHtmlContents
    -> Maybe String
    -> Themes
    -> Maybe String
+   -> Maybe Int
    -> Maybe String
    -> SourceURLs
    -> WikiURLs
@@ -295,7 +314,7 @@ ppHtmlContents
    -> Qualification  -- ^ How to qualify names
    -> IO ()
 ppHtmlContents logger state odir doctitle _maybe_package
-  themes mathjax_url maybe_index_url
+  themes mathjax_url mathjax_version maybe_index_url
   maybe_source_url maybe_wiki_url packages showPkgs prologue debug pkg qual = withTiming logger (fromString "ppHtmlContents") (const ()) $ do
   let trees =
         [ ( piPackageInfo pinfo
@@ -318,7 +337,7 @@ ppHtmlContents logger state odir doctitle _maybe_package
         | pinfo <- packages
         ]
       html =
-        headHtml doctitle themes mathjax_url Nothing +++
+        headHtml doctitle themes mathjax_url mathjax_version Nothing +++
         bodyHtml doctitle Nothing
           maybe_source_url maybe_wiki_url
           Nothing maybe_index_url << [
@@ -537,6 +556,7 @@ ppHtmlIndex :: FilePath
             -> Maybe String
             -> Themes
             -> Maybe String
+            -> Maybe Int
             -> Maybe String
             -> SourceURLs
             -> WikiURLs
@@ -544,7 +564,8 @@ ppHtmlIndex :: FilePath
             -> Bool
             -> IO ()
 ppHtmlIndex odir doctitle _maybe_package themes
-  maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url ifaces debug = do
+  maybe_mathjax_url maybe_mathjax_version maybe_contents_url maybe_source_url maybe_wiki_url
+  ifaces debug = do
   let html = indexPage split_indices Nothing
               (if split_indices then [] else index)
 
@@ -560,7 +581,8 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
   where
     indexPage showLetters ch items =
-      headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes maybe_mathjax_url Nothing +++
+      headHtml (doctitle ++ " (" ++ indexName ch ++ ")") themes
+        maybe_mathjax_url maybe_mathjax_version Nothing +++
       bodyHtml doctitle Nothing
         maybe_source_url maybe_wiki_url
         maybe_contents_url Nothing << [
@@ -660,11 +682,11 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
 ppHtmlModule
         :: Logger -> FilePath -> String -> Themes
-        -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
+        -> Maybe String -> Maybe Int -> SourceURLs -> WikiURLs -> BaseURL
         -> Maybe String -> Maybe String -> Bool -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
 ppHtmlModule logger odir doctitle themes
-  maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
+  maybe_mathjax_url maybe_mathjax_version maybe_source_url maybe_wiki_url maybe_base_url
   maybe_contents_url maybe_index_url unicode pkg qual debug iface = timed $ do
   let
       mdl = ifaceMod iface
@@ -682,7 +704,7 @@ ppHtmlModule logger odir doctitle themes
         = toHtml mdl_str
       real_qual = makeModuleQual qual aliases mdl
       html =
-        headHtml mdl_str_annot themes maybe_mathjax_url maybe_base_url +++
+        headHtml mdl_str_annot themes maybe_mathjax_url maybe_mathjax_version maybe_base_url +++
         bodyHtml doctitle (Just iface)
           maybe_source_url maybe_wiki_url
           maybe_contents_url maybe_index_url << [
