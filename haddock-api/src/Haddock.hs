@@ -52,13 +52,13 @@ import Control.Monad.IO.Class (MonadIO(..))
 import Data.Bifunctor (second)
 import Data.Foldable (forM_, foldl')
 import Data.Traversable (for)
-import Data.List (find, isPrefixOf, nub)
+import Data.List (find, isPrefixOf)
 import Control.Exception
 import Data.Maybe
 import Data.IORef
 import Data.Map.Strict (Map)
-import Data.Version (makeVersion)
 import qualified Data.Map.Strict as Map
+import Data.Version (makeVersion)
 import System.IO
 import System.Exit
 import System.FilePath
@@ -197,7 +197,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
               | otherwise = withTempOutputDir
 
   -- Output warnings about potential misuse of some flags
-  unless (Flag_NoWarnings `elem` flags || verbosity flags == Silent) $ do
+  unless (Flag_NoWarnings `elem` flags || optVerbosity flags == Silent) $ do
     hypSrcWarnings flags
     mapM_ (hPutStrLn stderr) (optGhcWarnings args)
     when noChecks $
@@ -293,7 +293,7 @@ readPackagesAndProcessModules flags files = do
 
     -- Create the interfaces for the given modules -- this is the core part of Haddock
     let ifaceFiles = map (\(_, _, _, ifaceFile) -> ifaceFile) packages
-    (ifaces, homeLinks) <- processModules (verbosity flags) files flags ifaceFiles
+    (ifaces, homeLinks) <- processModules (optVerbosity flags) files flags ifaceFiles
 
     return (packages, ifaces, homeLinks)
 
@@ -301,22 +301,18 @@ readPackagesAndProcessModules flags files = do
 renderStep :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption
            -> [(DocPaths, Visibility, FilePath, InterfaceFile)] -> [Interface] -> IO ()
 renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = do
-  updateHTMLXRefs (map (\(docPath, _ifaceFilePath, _showModules, ifaceFile) ->
-                          ( case baseUrl flags of
-                              Nothing  -> fst docPath
-                              Just url -> url </> packageName (ifUnitId ifaceFile)
-                          , ifaceFile)) pkgs)
-  let
-    installedIfaces =
-      map
-        (\(_, showModules, ifaceFilePath, ifaceFile)
-          -> (ifaceFilePath, mkPackageInterfaces showModules ifaceFile))
-        pkgs
-    extSrcMap = Map.fromList $ do
-      ((_, Just path), _, _, ifile) <- pkgs
-      iface <- ifInstalledIfaces ifile
-      return (instMod iface, path)
-  render logger dflags unit_state flags sinceQual nameQual interfaces installedIfaces extSrcMap
+    updateHTMLXRefs (map (\(docPath, _ifaceFilePath, _showModules, ifaceFile) ->
+                            ( case baseUrl flags of
+                                Nothing  -> fst docPath
+                                Just url -> url </> packageName (ifUnitId ifaceFile)
+                            , ifaceFile)) pkgs)
+    let
+      installedIfaces = foldl' addPackage Map.empty pkgs
+      extSrcMap = Map.fromList $ do
+        ((_, Just path), _, _, ifile) <- pkgs
+        iface <- ifInstalledIfaces ifile
+        return (instMod iface, path)
+    render logger dflags unit_state flags sinceQual nameQual interfaces installedIfaces extSrcMap
   where
     -- get package name from unit-id
     packageName :: Unit -> String
@@ -325,10 +321,37 @@ renderStep logger dflags unit_state flags sinceQual nameQual pkgs interfaces = d
         Nothing  -> show unit
         Just pkg -> unitPackageNameString pkg
 
+    addPackage :: Map FilePath PackageInterfaces
+               -> (DocPaths, Visibility, FilePath, InterfaceFile)
+               -> Map FilePath PackageInterfaces
+    addPackage ps (_, viz, ifaceFilePath, ifaceFile) =
+      Map.insert ifaceFilePath (mkPackageInterfaces viz ifaceFile) ps
+
 -- | Render the interfaces with whatever backend is specified in the flags.
-render :: Logger -> DynFlags -> UnitState -> [Flag] -> SinceQual -> QualOption -> [Interface]
-       -> [(FilePath, PackageInterfaces)] -> Map Module FilePath -> IO ()
+render :: Logger
+       -> DynFlags
+       -> UnitState
+       -> [Flag]
+       -> SinceQual
+       -> QualOption
+       -> [Interface]
+       -> Map FilePath PackageInterfaces
+       -> Map Module FilePath
+       -> IO ()
 render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = do
+  -- Debug output
+  let verbosity = optVerbosity flags
+  out verbosity Debug $
+       "HADDOCK DEBUG: render\n"
+    ++ "packages:\n"
+    ++ unlines
+         ( map
+             ( \(fp, i) ->
+                  "filepath: " ++ show fp ++ "\n"
+               ++ ppPackageInterfaces i
+             )
+             (Map.toList packages)
+         )
 
   let
     packageInfo = PackageInfo { piPackageName    = fromMaybe (PackageName mempty)
@@ -363,7 +386,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
                          , piVisibility  = Visible
                          , piInstalledInterfaces  = map toInstalledIface ifaces
                          }]
-                    ++ map snd packages
+                    ++ Map.elems packages
 
     -- /All/ visible interfaces including external package modules, grouped by
     -- interface file (package).
@@ -380,7 +403,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
 
     -- /All/ installed interfaces.
     allInstalledIfaces :: [InstalledInterface]
-    allInstalledIfaces = concatMap (piInstalledInterfaces . snd) packages
+    allInstalledIfaces = concatMap piInstalledInterfaces (Map.elems packages)
 
     pkgMod           = fmap ifaceMod (listToMaybe ifaces)
     pkgKey           = fmap moduleUnit pkgMod
@@ -482,9 +505,8 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
             ppJsonIndex odir sourceUrls' opt_wiki_urls
                         unicode Nothing qual
                         ifaces
-                        ( nub
-                        . map fst
-                        . filter ((== Visible) . piVisibility . snd)
+                        ( Map.keys
+                        . Map.filter ((== Visible) . piVisibility)
                         $ packages)
 
   when (Flag_Html `elem` flags) $ do
@@ -533,7 +555,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
   when (Flag_HyperlinkedSource `elem` flags && not (null ifaces)) $ do
     withTiming logger "ppHyperlinkedSource" (const ()) $ do
       _ <- {-# SCC ppHyperlinkedSource #-}
-           ppHyperlinkedSource (verbosity flags) odir libDir opt_source_css pretty srcMap ifaces
+           ppHyperlinkedSource verbosity odir libDir opt_source_css pretty srcMap ifaces
       return ()
 
 

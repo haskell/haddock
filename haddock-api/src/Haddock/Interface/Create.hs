@@ -410,9 +410,7 @@ mkExportItems
             doc <- processDocStringParas dflags pkgName hsDoc'
             pure [ExportDoc doc]
       DsiExports avails ->
-        -- TODO: We probably don't need nubAvails here.
-        -- mkDocStructureFromExportList already uses it.
-        concat <$> traverse availExport (nubAvails avails)
+        concat <$> traverse availExport avails
       DsiModExport mod_names avails -> do
         -- only consider exporting a module if we are sure we are really
         -- exporting the whole module and not some subset.
@@ -463,7 +461,7 @@ unrestrictedModExports dflags thisMod ifaceMap instIfaceMap avails mod_names = d
               pure Nothing
     let unrestricted = filter everythingVisible mods_and_exports
         mod_exps = unionNameSets (map snd unrestricted)
-        remaining = nubAvails (filterAvails (\n -> not (n `elemNameSet` mod_exps)) avails)
+        remaining = filterAvails (\n -> not (n `elemNameSet` mod_exps)) avails
     pure (map fst unrestricted, remaining)
   where
     instIfaceMap' = Map.mapKeys moduleName instIfaceMap

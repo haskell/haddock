@@ -42,7 +42,7 @@ import Haddock.Interface.AttachInstances (attachInstances)
 import Haddock.Interface.Create (createInterface1)
 import Haddock.Interface.Rename (renameInterface)
 import Haddock.InterfaceFile (InterfaceFile, ifInstalledIfaces, ifLinkEnv)
-import Haddock.Options hiding (verbosity)
+import Haddock.Options
 import Haddock.Types
 import Haddock.Utils (out, outMarker)
 

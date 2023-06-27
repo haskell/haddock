@@ -1,6 +1,10 @@
-{-# LANGUAGE CPP, RankNTypes, ScopedTypeVariables #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -----------------------------------------------------------------------------
 -- |
@@ -18,12 +22,13 @@
 module Haddock.InterfaceFile (
   InterfaceFile(..), PackageInfo(..), ifUnitId, ifModule,
   PackageInterfaces(..), mkPackageInterfaces, ppPackageInfo,
-  readInterfaceFile, writeInterfaceFile,
+  ppPackageInterfaces, readInterfaceFile, writeInterfaceFile,
   freshNameCache,
   binaryInterfaceVersion, binaryInterfaceVersionCompatibility
 ) where
 
 
+import Haddock.GhcUtils
 import Haddock.Types
 
 import Data.IORef
@@ -55,21 +60,31 @@ data InterfaceFile = InterfaceFile {
   ifInstalledIfaces :: [InstalledInterface]
 }
 
-data PackageInfo = PackageInfo {
-  piPackageName    :: PackageName,
-  piPackageVersion :: Data.Version.Version
-}
+data PackageInfo = PackageInfo
+    { piPackageName    :: PackageName
+    , piPackageVersion :: Data.Version.Version
+    }
 
 ppPackageInfo :: PackageInfo -> String
 ppPackageInfo (PackageInfo name version) | version == makeVersion []
                                          = unpackFS (unPackageName name)
 ppPackageInfo (PackageInfo name version) = unpackFS (unPackageName name) ++ "-" ++ showVersion version
 
-data PackageInterfaces = PackageInterfaces {
-  piPackageInfo         :: PackageInfo,
-  piVisibility          :: Visibility,
-  piInstalledInterfaces :: [InstalledInterface]
-}
+data PackageInterfaces = PackageInterfaces
+    { piPackageInfo         :: PackageInfo
+    , piVisibility          :: Visibility
+    , piInstalledInterfaces :: [InstalledInterface]
+    }
+
+ppPackageInterfaces :: PackageInterfaces -> String
+ppPackageInterfaces PackageInterfaces{..} =
+    unlines
+      [ "PackageInterfaces:"
+      , "  piPackageInfo         = " ++ ppPackageInfo piPackageInfo
+      , "  piVisibility          = " ++ show piVisibility
+      , "  piInstalledInterfaces = installed interfaces for modules "
+        ++ show (map (moduleString . instMod) piInstalledInterfaces)
+      ]
 
 mkPackageInterfaces :: Visibility -> InterfaceFile -> PackageInterfaces
 mkPackageInterfaces piVisibility
