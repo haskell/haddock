@@ -79,6 +79,11 @@ type FixMap        = Map Name Fixity
 type DocPaths      = (FilePath, Maybe FilePath) -- paths to HTML and sources
 type WarningMap    = Map Name (Doc Name)
 
+-----------------------------------------------------------------------------
+-- * Logging
+-----------------------------------------------------------------------------
+data Verbosity = Silent | Normal | Verbose | Debug
+  deriving (Eq, Ord, Enum, Bounded, Show)
 
 -----------------------------------------------------------------------------
 -- * Interfaces and Interface creation
@@ -232,25 +237,37 @@ data IfEnv m = IfEnv
 
     -- | Names which we have warned about for being ambiguous
   , ifeAmbiguousNames  :: !(Set.Set String)
+
+    -- | Haddock 'Verbosity'
+  , ifeVerbosity :: Verbosity
+
+    -- | Was --no-warnings given?
+  , ifeNoWarnings :: Bool
   }
 
 -- | Run an `IfM` action.
 runIfM
   :: (Monad m)
+  -- | Haddock verbosity
+  => Verbosity
+  -- | Was @--no-warnings@ given?
+  -> Bool
   -- | Lookup a global name in the current session. Used in cases
   -- where declarations don't
-  => (Name -> m (Maybe TyThing))
+  -> (Name -> m (Maybe TyThing))
   -- | The action to run.
   -> IfM m a
   -- | Result and accumulated error/warning messages.
   -> m a
-runIfM lookup_name action = do
+runIfM verbosity no_warnings lookup_name action = do
   let
     if_env = IfEnv
       {
         ifeLookupName      = lookup_name
       , ifeOutOfScopeNames = Set.empty
       , ifeAmbiguousNames  = Set.empty
+      , ifeVerbosity       = verbosity
+      , ifeNoWarnings      = no_warnings
       }
   evalStateT (unIfM action) if_env
 
@@ -259,10 +276,6 @@ lookupName :: Monad m => Name -> IfM m (Maybe TyThing)
 lookupName name = IfM $ do
   lookup_name <- gets ifeLookupName
   lift (lookup_name name)
-
--- | Very basic logging function that simply prints to stdout
-warn :: MonadIO m => String -> IfM m ()
-warn msg = liftIO $ putStrLn msg
 
 -----------------------------------------------------------------------------
 -- * Export items & declarations

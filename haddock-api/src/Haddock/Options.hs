@@ -352,13 +352,16 @@ sinceQualification flags =
       [arg]          -> Left $ "unknown since-qualification type " ++ show arg
       _:_            -> Left "since-qualification option given multiple times"
 
+-- | The last @--verbosity@ value takes precedence, since the user may want to
+-- override verbosity flags passed by wrappers like Cabal.
 verbosity :: [Flag] -> Verbosity
 verbosity flags =
-  case [ str | Flag_Verbosity str <- flags ] of
-    []  -> Normal
-    x:_ -> case parseVerbosity x of
-      Left e -> throwE e
-      Right v -> v
+  case lastMaybe [ str | Flag_Verbosity str <- flags ] of
+    Just x ->
+      case parseVerbosity x of
+        Left e -> throwE e
+        Right v -> v
+    Nothing -> Normal
 
 -- | Get the ignored symbols from the given flags. These are the symbols for
 -- which no link warnings will be generated if their link destinations cannot be

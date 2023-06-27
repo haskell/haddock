@@ -9,7 +9,7 @@ module Haddock.Backends.Hyperlinker
 
 
 import Haddock.Types
-import Haddock.Utils (writeUtf8File, out, verbose, Verbosity)
+import Haddock.Utils (writeUtf8File, out)
 import Haddock.InterfaceFile
 import Haddock.Backends.Hyperlinker.Renderer
 import Haddock.Backends.Hyperlinker.Parser
@@ -76,7 +76,7 @@ ppHyperlinkedModuleSource verbosity srcdir pretty srcs iface = do
         -- Warn if we didn't find an AST, but there were still ASTs
         if M.null asts
           then pure ()
-          else out verbosity verbose $ unwords [ "couldn't find ast for"
+          else out verbosity Verbose $ unwords [ "couldn't find ast for"
                                                , file, show (M.keys asts) ]
 
         -- The C preprocessor can double the backslashes on tokens (see #19236),
