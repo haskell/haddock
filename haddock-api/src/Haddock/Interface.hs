@@ -44,14 +44,13 @@ import Haddock.Interface.Rename (renameInterface)
 import Haddock.InterfaceFile (InterfaceFile, ifInstalledIfaces, ifLinkEnv)
 import Haddock.Options hiding (verbosity)
 import Haddock.Types
-import Haddock.Utils (Verbosity (..), normal, out, verbose)
+import Haddock.Utils (out, outMarker)
 
 import Control.Monad
 import Data.List (foldl', isPrefixOf)
 import Data.Traversable (for)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Debug.Trace (traceMarkerIO)
 import System.Exit (exitFailure ) -- TODO use Haddock's die
 import Text.Printf
 
@@ -65,6 +64,7 @@ import GHC.Driver.Make
 import GHC.Driver.Main
 import GHC.Core.InstEnv
 import GHC.Driver.Session hiding (verbosity)
+import qualified GHC.Driver.Session as DynFlags (DynFlags(..))
 import GHC.HsToCore.Docs (getMainDeclBinder)
 import GHC.Types.Error (mkUnknownDiagnostic)
 import GHC.Types.Name.Occurrence (emptyOccEnv)
@@ -134,7 +134,7 @@ processModules verbosity modules flags extIfaces = do
     withTimingM "renameAllInterfaces" (const ()) $
       for interfaces' $ \i -> do
         withTimingM ("renameInterface: " <+> pprModuleName (moduleName (ifaceMod i))) (const ()) $
-          renameInterface dflags ignoredSymbolSet links warnings (Flag_Hoogle `elem` flags) i
+          renameInterface verbosity dflags ignoredSymbolSet links warnings (Flag_Hoogle `elem` flags) i
 
   return (interfaces'', homeLinks)
 
@@ -159,14 +159,25 @@ createIfaces verbosity modules flags instIfaceMap = do
   setTargets targets
   (_errs, modGraph) <- depanalE [] False
 
-  liftIO $ traceMarkerIO "Load started"
+  ghcVerbosity <- DynFlags.verbosity <$> getSessionDynFlags
+
+  liftIO $ do
+    out verbosity Normal
+      (    "Loading interfaces from GHC"
+        ++ if ghcVerbosity == 0 then
+             " (use --optghc=-v1 to observe progress)"
+           else
+             ""
+      )
+    outMarker verbosity Normal "Load started"
   -- Create (if necessary) and load .hi-files.
   success <- withTimingM "load'" (const ()) $
                load' noIfaceCache LoadAllTargets mkUnknownDiagnostic (Just batchMsg) modGraph
   when (failed success) $ do
-    out verbosity normal "load' failed"
+    out verbosity Normal "load' failed"
     liftIO exitFailure
-  liftIO $ traceMarkerIO "Load ended"
+  liftIO $ do
+    outMarker verbosity Normal "Load ended"
 
       -- We topologically sort the module graph including boot files,
       -- so it should be acylic (hopefully we failed much earlier if this is not the case)
@@ -217,7 +228,7 @@ createIfaces verbosity modules flags instIfaceMap = do
 
       -- Visit modules in that order
       sortedMods = concatMap go $ topSortModuleGraph False modGraph Nothing
-  out verbosity normal "Haddock coverage:"
+  out verbosity Normal "Haddock coverage:"
   (ifaces, _) <- foldM f ([], Map.empty) sortedMods
   return (reverse ifaces)
   where
@@ -237,7 +248,7 @@ dropErr (Failed _) = Nothing
 
 processModule :: Verbosity -> ModSummary -> [Flag] -> IfaceMap -> InstIfaceMap -> Ghc (Maybe Interface)
 processModule verbosity modSummary flags ifaceMap instIfaceMap = do
-  out verbosity verbose $ "Checking module " ++ moduleString (ms_mod modSummary) ++ "..."
+  out verbosity Verbose $ "Checking module " ++ moduleString (ms_mod modSummary) ++ "..."
 
   hsc_env <- getSession
   dflags <- getDynFlags
@@ -257,7 +268,7 @@ processModule verbosity modSummary flags ifaceMap instIfaceMap = do
     logger <- getLogger
     {-# SCC createInterface #-}
       withTiming logger "createInterface" (const ()) $
-        runIfM (liftIO . fmap dropErr . lookupGlobal_maybe hsc_env) $
+        runIfM verbosity (Flag_NoWarnings `elem` flags) (liftIO . fmap dropErr . lookupGlobal_maybe hsc_env) $
           createInterface1 flags unit_state modSummary mod_iface ifaceMap instIfaceMap insts
 
   let
@@ -303,12 +314,12 @@ processModule verbosity modSummary flags ifaceMap instIfaceMap = do
                        else n
 
   when (OptHide `notElem` ifaceOptions interface) $ do
-    out verbosity normal coverageMsg
+    out verbosity Normal coverageMsg
     when (Flag_NoPrintMissingDocs `notElem` flags
           && not (null undocumentedExports && header)) $ do
-      out verbosity normal "  Missing documentation for:"
-      unless header $ out verbosity normal "    Module header"
-      mapM_ (out verbosity normal . ("    " ++)) undocumentedExports
+      out verbosity Normal "  Missing documentation for:"
+      unless header $ out verbosity Normal "    Module header"
+      mapM_ (out verbosity Normal . ("    " ++)) undocumentedExports
 
   return (Just interface)
 

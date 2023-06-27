@@ -448,13 +448,13 @@ The following options are available:
     Output the path to the GHC ``lib`` directory (which Haddock computes
     based on :option:-B) and exit.
 
-.. option:: -v
-            --verbose
+.. option:: -v <verbosity>
+            --verbosity=<verbosity>
 
-    Increase verbosity. Currently this will cause Haddock to emit some
-    extra warnings, in particular about modules which were imported but
-    it had no information about (this is often quite normal; for example
-    when there is no information about the ``Prelude``).
+    Set the verbosity level. The verbosity level may be specified as a number
+    from 0 to 3 in increasing verbosity. It may also be specified as one of the
+    strings ``silent``, ``normal``, ``verbose``, ``debug``; also in order of
+    increasing verbosity. Default verbosity is 1, or ``normal``.
 
 .. option:: --use-contents=<url>
             --use-index=<url>

@@ -97,6 +97,8 @@ handleTopExceptions =
 
 -- | Either returns normally or throws an ExitCode exception;
 -- all other exceptions are turned into exit exceptions.
+--
+-- This function is exempt from verbosity restrictions.
 handleNormalExceptions :: IO a -> IO a
 handleNormalExceptions inner =
   (inner `onException` hFlush stdout)
@@ -159,7 +161,8 @@ haddockWithGhc ghc args = handleTopExceptions $ do
   (flags, files) <- parseHaddockOpts args
   shortcutFlags flags
 
-  -- If argument tracing is enabled, print the arguments we were given
+  -- If argument tracing is enabled, print the arguments we were given, no
+  -- matter the verbosity
   when (Flag_TraceArgs `elem` flags) $ do
     putStrLn $ "haddock received arguments:"
     mapM_ (putStrLn . ("  " ++)) args
@@ -194,7 +197,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
               | otherwise = withTempOutputDir
 
   -- Output warnings about potential misuse of some flags
-  unless (Flag_NoWarnings `elem` flags) $ do
+  unless (Flag_NoWarnings `elem` flags || verbosity flags == Silent) $ do
     hypSrcWarnings flags
     mapM_ (hPutStrLn stderr) (optGhcWarnings args)
     when noChecks $
@@ -568,10 +571,10 @@ withGhc' :: String -> Bool -> [String] -> (DynFlags -> Ghc a) -> IO a
 withGhc' libDir needHieFiles flags ghcActs = runGhc (Just libDir) $ do
     logger <- getLogger
 
-    -- Set default GHC verbosity to 1. This is better for hi-haddock since -v0
+    -- Set GHC verbosity to 0. This may not be desirable for hi-haddock since -v0
     -- creates an awkward silence during the load operation
     default_dflags <- getSessionDynFlags >>= \dflags ->
-      pure dflags { DynFlags.verbosity = 1 }
+      pure dflags { DynFlags.verbosity = 0 }
 
     dynflags' <- parseGhcFlags logger default_dflags
 

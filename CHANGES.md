@@ -12,6 +12,13 @@
 
  * Avoid recompilation due to changes in optimization flags.
 
+ * Remove ``deafening`` verbosity. Verbosities are now 0 (``silent``), 1
+   (``normal``), 2 (``verbose``), or 3 (``debug``).
+
+ * ``silent`` verbosity is much more silent now.
+
+ * Fix the ``--no-warnings`` so that it actually results in no warnings.
+
 ## Changes in 2.24.0
 
  * Reify oversaturated data family instances correctly (#1103)

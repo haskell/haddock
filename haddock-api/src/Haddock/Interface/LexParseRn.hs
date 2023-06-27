@@ -42,6 +42,7 @@ import GHC.Utils.Outputable (Outputable)
 import Haddock.Interface.ParseModuleHeader
 import Haddock.Parser
 import Haddock.Types
+import Haddock.Utils
 import qualified GHC.LanguageExtensions as LangExt
 
 processDocStringsParas
@@ -205,8 +206,12 @@ outOfScope dflags ns x =
 
       -- If we have already warned for this identifier, don't warn again
       firstWarn <- Set.notMember a' <$> gets ifeOutOfScopeNames
-      when firstWarn $ do
-        warn $
+
+      -- If warnings are disabled, do not warn
+      noWarnings <- gets ifeNoWarnings
+
+      when (firstWarn && not noWarnings) $ do
+        outM Normal $
           "Warning: " ++ prefix ++ "'" ++ a' ++ "' is out of scope.\n" ++
           "    If you qualify the identifier, haddock can try to link it anyway."
         modify' (\env -> env { ifeOutOfScopeNames = Set.insert a' (ifeOutOfScopeNames env) })
@@ -243,8 +248,12 @@ ambiguous dflags x names = do
 
     -- If we have already warned for this name, do not warn again
     firstWarn <- Set.notMember nameStr <$> gets ifeAmbiguousNames
-    when (length noChildren > 1 && firstWarn) $ do
-      warn msg
+
+    -- If warnings are disabled, do not warn
+    noWarnings <- gets ifeNoWarnings
+
+    when (length noChildren > 1 && firstWarn && not noWarnings) $ do
+      outM Normal msg
       modify' (\env -> env { ifeAmbiguousNames = Set.insert nameStr (ifeAmbiguousNames env) })
 
     pure (DocIdentifier (x $> dflt))

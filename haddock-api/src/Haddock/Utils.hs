@@ -41,10 +41,11 @@ module Haddock.Utils (
   -- * List utilities
   replace,
   spanWith,
+  lastMaybe,
 
   -- * Logging
-  parseVerbosity, Verbosity(..), silent, normal, verbose, deafening,
-  out,
+  parseVerbosity, Verbosity(..),
+  out, outMarker, outM,
 
   -- * System tools
   getProcessID
@@ -54,23 +55,25 @@ module Haddock.Utils (
 import Documentation.Haddock.Doc (emptyMetaDoc)
 import Haddock.Types
 
-import GHC
+import GHC hiding (verbosity)
 import GHC.Types.Name
 
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
+import Control.Monad.State.Strict (gets)
 import Data.Char ( isAlpha, isAlphaNum, isAscii, ord, chr )
-import Numeric ( showIntAtBase )
-import Data.Map ( Map )
-import qualified Data.Map as Map hiding ( Map )
 import Data.IORef ( IORef, newIORef, readIORef )
-import Data.List ( isSuffixOf )
+import Data.List ( isSuffixOf, foldl' )
+import Data.Map ( Map )
+import qualified Data.Map as Map
+import Debug.Trace (traceMarkerIO)
+import Numeric ( showIntAtBase )
+import System.Directory ( createDirectory, removeDirectoryRecursive )
 import System.Environment ( getProgName )
 import System.Exit
-import System.Directory ( createDirectory, removeDirectoryRecursive )
+import qualified System.FilePath.Posix as HtmlPath
 import System.IO ( hPutStr, hSetEncoding, IOMode(..), utf8, withFile )
 import System.IO.Unsafe ( unsafePerformIO )
-import qualified System.FilePath.Posix as HtmlPath
 
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Internals
@@ -80,26 +83,16 @@ import qualified System.Posix.Internals
 -- * Logging
 --------------------------------------------------------------------------------
 
-data Verbosity = Silent | Normal | Verbose | Deafening
-  deriving (Eq, Ord, Enum, Bounded, Show)
-
-silent, normal, verbose, deafening :: Verbosity
-silent    = Silent
-normal    = Normal
-verbose   = Verbose
-deafening = Deafening
-
 -- | Parse out a verbosity level. Inspired from Cabal's verbosity parsing.
 parseVerbosity :: String -> Either String Verbosity
 parseVerbosity "0" = Right Silent
 parseVerbosity "1" = Right Normal
-parseVerbosity "2" = Right Silent
-parseVerbosity "3" = Right Deafening
-parseVerbosity "silent"    = return Silent
-parseVerbosity "normal"    = return Normal
-parseVerbosity "verbose"   = return Verbose
-parseVerbosity "debug"     = return Deafening
-parseVerbosity "deafening" = return Deafening
+parseVerbosity "2" = Right Verbose
+parseVerbosity "3" = Right Debug
+parseVerbosity "silent"  = return Silent
+parseVerbosity "normal"  = return Normal
+parseVerbosity "verbose" = return Verbose
+parseVerbosity "debug"   = return Debug
 parseVerbosity other = Left ("Can't parse verbosity " ++ other)
 
 -- | Print a message to stdout, if it is not too verbose
@@ -111,6 +104,23 @@ out progVerbosity msgVerbosity msg
   | msgVerbosity <= progVerbosity = liftIO $ putStrLn msg
   | otherwise = return ()
 
+-- | Emit a marker message to the eventlog, if it is not too verbose. Emitted
+-- markers will be visible as markers in, e.g., eventlog2html profiles.
+outMarker :: MonadIO m
+          => Verbosity -- ^ program verbosity
+          -> Verbosity -- ^ message verbosity
+          -> String    -- ^ marker message
+          -> m ()
+outMarker progVerbosity msgVerbosity msg
+  | msgVerbosity <= progVerbosity = liftIO $ traceMarkerIO msg
+  | otherwise = return ()
+
+-- | Print a message to stdout, if it is not too verbose (inside the interface
+-- creation monad)
+outM :: MonadIO m => Verbosity -> String -> IfM m ()
+outM v msg = do
+    verbosity <- gets ifeVerbosity
+    liftIO $ out verbosity v msg
 
 --------------------------------------------------------------------------------
 -- * Some Utilities
@@ -329,6 +339,11 @@ spanWith _ [] = ([],[])
 spanWith p xs@(a:as)
   | Just b <- p a = let (bs,cs) = spanWith p as in (b:bs,cs)
   | otherwise     = ([],xs)
+
+-- | 'Nothing' for empty lists, 'Just' @x@ for non-empty lists whose last
+-- element is @x@.
+lastMaybe :: [a] -> Maybe a
+lastMaybe = foldl' (\_ -> pure) Nothing
 
 -----------------------------------------------------------------------------
 -- * System tools

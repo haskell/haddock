@@ -37,10 +37,11 @@ import Haddock.GhcUtils
 import Haddock.Interface.LexParseRn
 import Haddock.Options (Flag (..), modulePackageInfo)
 import Haddock.Types
-import Haddock.Utils (replace)
+import Haddock.Utils
 import Documentation.Haddock.Doc
 
 import Control.DeepSeq
+import Control.Monad (unless)
 import Control.Monad.State.Strict
 import Data.Foldable
 import Data.IntMap (IntMap)
@@ -142,7 +143,7 @@ createInterface1 flags unit_state mod_sum mod_iface ifaces inst_ifaces (instance
   mod_iface_docs <- case mi_docs mod_iface of
     Just docs -> pure docs
     Nothing -> do
-      warn $ showPpr dflags mdl ++ " has no docs in its .hi file"
+      outM Normal $ showPpr dflags mdl ++ " has no docs in its .hi file"
       pure emptyDocs
   -- Derive final options to use for haddocking this module
   doc_opts <- mkDocOpts (docs_haddock_opts mod_iface_docs) flags mdl
@@ -328,7 +329,9 @@ mkDocOpts :: MonadIO m => Maybe String -> [Flag] -> Module -> IfM m [DocOption]
 mkDocOpts mbOpts flags mdl = do
   opts <- case mbOpts of
     Just opts -> case words $ replace ',' ' ' opts of
-      [] -> warn "No option supplied to DOC_OPTION/doc_option" >> return []
+      [] -> do
+        outM Normal "No option supplied to DOC_OPTION/doc_option"
+        return []
       xs -> fmap catMaybes (mapM parseOption xs)
     Nothing -> return []
   pure (foldl go opts flags)
@@ -348,7 +351,9 @@ parseOption "prune"                       = return (Just OptPrune)
 parseOption "not-home"                    = return (Just OptNotHome)
 parseOption "show-extensions"             = return (Just OptShowExtensions)
 parseOption "print-explicit-runtime-reps" = return (Just OptPrintRuntimeRep)
-parseOption other = warn ("Unrecognised option: " ++ other) >> return Nothing
+parseOption other = do
+    outM Normal ("Unrecognised option: " ++ other)
+    return Nothing
 
 --------------------------------------------------------------------------------
 -- Declarations
@@ -386,8 +391,8 @@ mkExportItems
   -> OccEnv Name
   -> IfM m [ExportItem GhcRn]
 mkExportItems
-  prr modMap pkgName thisMod warnings docMap argMap fixMap namedChunks dsItems
-  instIfaceMap dflags defMeths =
+  prr modMap pkgName thisMod warnings docMap argMap fixMap namedChunks
+  dsItems instIfaceMap dflags defMeths =
     concat <$> traverse lookupExport dsItems
   where
     lookupExport :: MonadIO m => DocStructureItem -> IfM m [ExportItem GhcRn]
@@ -401,7 +406,7 @@ mkExportItems
       DsiNamedChunkRef ref -> do
         case Map.lookup ref namedChunks of
           Nothing -> do
-            warn $ "Cannot find documentation for: $" ++ ref
+            outM Normal $ "Cannot find documentation for: $" ++ ref
             pure []
           Just hsDoc' -> do
             doc <- processDocStringParas dflags pkgName hsDoc'
@@ -413,7 +418,14 @@ mkExportItems
       DsiModExport mod_names avails -> do
         -- only consider exporting a module if we are sure we are really
         -- exporting the whole module and not some subset.
-        (unrestricted_mods, remaining_avails) <- unrestrictedModExports dflags thisMod modMap instIfaceMap avails (NE.toList mod_names)
+        (unrestricted_mods, remaining_avails) <-
+          unrestrictedModExports
+            dflags
+            thisMod
+            modMap
+            instIfaceMap
+            avails
+            (NE.toList mod_names)
         avail_exps <- concat <$> traverse availExport remaining_avails
         pure (map ExportModule unrestricted_mods ++ avail_exps)
 
@@ -445,9 +457,11 @@ unrestrictedModExports dflags thisMod ifaceMap instIfaceMap avails mod_names = d
           case Map.lookup mod_name instIfaceMap' of
             Just iface -> pure $ Just (instMod iface, mkNameSet (instExports iface))
             Nothing -> do
-              warn $
-                "Warning: " ++ pretty dflags thisMod ++ ": Could not find " ++
-                "documentation for exported module: " ++ pretty dflags mod_name
+              noWarnings <- gets ifeNoWarnings
+              unless noWarnings $
+                outM Normal $
+                  "Warning: " ++ pretty dflags thisMod ++ ": Could not find " ++
+                  "documentation for exported module: " ++ pretty dflags mod_name
               pure Nothing
     let unrestricted = filter everythingVisible mods_and_exports
         mod_exps = unionNameSets (map snd unrestricted)
@@ -484,8 +498,8 @@ availExportItem
   -> OccEnv Name       -- Default methods
   -> IfM m [ExportItem GhcRn]
 availExportItem
-    prr modMap thisMod warnings docMap argMap fixMap instIfaceMap dflags
-    availInfo defMeths
+    prr modMap thisMod warnings docMap argMap fixMap instIfaceMap
+    dflags availInfo defMeths
   =
     declWith availInfo
   where
@@ -511,9 +525,11 @@ availExportItem
                 -- with signature inheritance
                 case Map.lookup (nameModule t) instIfaceMap of
                   Nothing -> do
-                    warn $
-                      "Warning: " ++ pretty dflags thisMod ++
-                      ": Couldn't find .haddock for export " ++ pretty dflags t
+                    noWarnings <- gets ifeNoWarnings
+                    unless noWarnings $
+                      outM Normal $
+                        "Warning: " ++ pretty dflags thisMod ++
+                        ": Couldn't find .haddock for export " ++ pretty dflags t
                     let subs_ = availNoDocs avail
                     pure (noDocForDecl, subs_)
                   Just instIface ->
@@ -621,11 +637,11 @@ hiDecl dflags prr t = do
   mayTyThing <- lookupName t
   case mayTyThing of
     Nothing -> do
-      warn $ "Warning: Not found in environment: " ++ pretty dflags t
+      outM Normal $ "Warning: Not found in environment: " ++ pretty dflags t
       return Nothing
     Just x -> case tyThingToLHsDecl prr x of
-      Left m -> (warn $ bugWarn m) >> return Nothing
-      Right (m, t') -> mapM (warn . bugWarn) m >> return (Just $ L (noAnnSrcSpan (nameSrcSpan t)) t')
+      Left m -> (outM Silent $ bugWarn m) >> return Nothing
+      Right (m, t') -> mapM (outM Silent . bugWarn) m >> return (Just $ L (noAnnSrcSpan (nameSrcSpan t)) t')
     where
       warnLine x = O.text "haddock-bug:" O.<+> O.text x O.<>
                    O.comma O.<+> O.quotes (O.ppr t) O.<+>

@@ -50,7 +50,9 @@ import GHC.Types.Basic ( TopLevelFlag(..) )
 -- The renamed output gets written into fields in the Haddock interface record
 -- that were previously left empty.
 renameInterface
-  :: DynFlags
+  :: Verbosity
+  -- ^ Haddock logging verbosity
+  -> DynFlags
   -- ^ GHC session dyn flags
   -> Map.Map (Maybe String) (Set.Set String)
   -- ^ Ignored symbols. A map from module names to unqualified names. Module
@@ -70,7 +72,7 @@ renameInterface
   -- ^ The renamed interface. Note that there is nothing really special about
   -- this being in the 'Ghc' monad. This could very easily be any 'MonadIO' or
   -- even pure, depending on the link warnings are reported.
-renameInterface dflags ignoreSet renamingEnv warnings hoogle iface = do
+renameInterface verbosity dflags ignoreSet renamingEnv warnings hoogle iface = do
     let (iface', warnedNames) =
           runRnM
             dflags
@@ -79,7 +81,12 @@ renameInterface dflags ignoreSet renamingEnv warnings hoogle iface = do
             warnName
             (hoogle && not (OptHide `elem` ifaceOptions iface))
             (renameInterfaceRn iface)
+
+    -- NOTE: Missing links will not be reported with --verbosity=0, since such a
+    -- verbosity will prevent any names from accumulating in `warnedNames` in
+    -- the first place.
     reportMissingLinks mdl warnedNames
+
     return iface'
   where
     -- The current module
@@ -98,6 +105,9 @@ renameInterface dflags ignoreSet renamingEnv warnings hoogle iface = do
     warnName name =
            -- Warnings must be enabled
            warnings
+
+           -- Verbosity must be Normal or greater
+        && verbosity >= Normal
 
            -- Current module must not be hidden from Haddock
         && not (OptHide `elem` ifaceOptions iface)
@@ -132,8 +142,8 @@ reportMissingLinks mdl names
     | Set.null names = return ()
     | otherwise =
         liftIO $ do
-          putStrLn $ "Warning: " ++ moduleString mdl ++ ": could not find link destinations for: "
-          traverse_ (putStrLn . ("\t- " ++) . qualifiedName) names
+          putStrLn $ "Warning: " ++ moduleString mdl ++ ": could not find link destination for: "
+          traverse_ (putStrLn . ("  - " ++) . qualifiedName) names
   where
     qualifiedName :: Name -> String
     qualifiedName name = moduleString (nameModule name) ++ "." ++ getOccString name
@@ -143,8 +153,8 @@ reportMissingLinks mdl names
 --------------------------------------------------------------------------------
 
 -- | A renaming monad which provides 'MonadReader' access to a renaming
--- environment, and 'MonadWriter' access to a 'Set' of names for which link
--- warnings should be generated, based on the renaming environment.
+-- environment, emits warnings for names for which link destinations cannot be
+-- found in the renaming environments.
 newtype RnM a = RnM { unRnM :: ReaderT RnMEnv (Writer (Set.Set Name)) a }
   deriving newtype (Functor, Applicative, Monad, MonadReader RnMEnv, MonadWriter (Set.Set Name))
 
@@ -164,8 +174,8 @@ data RnMEnv = RnMEnv
       -- | Should Hoogle output be generated for this module?
     , rnHoogleOutput :: Bool
 
-      -- | GHC Session DynFlags, necessary for Hoogle output generation
-    , rnDynFlags :: DynFlags
+      -- | GHC Session DynFlags, necessary for eager Hoogle output generation
+    , rnDynFlags     :: DynFlags
     }
 
 -- | Run the renamer action in a renaming environment built using the given
@@ -220,10 +230,10 @@ lookupRn name = RnM $ do
 -- `rnWarnName` predicate is true.
 renameName :: Name -> RnM DocName
 renameName name = do
-    warnName <- asks rnWarnName
     docName <- lookupRn name
     case docName of
       Undocumented _ -> do
+        warnName <- asks rnWarnName
         when (warnName name) $
           tell $ Set.singleton name
         return docName
