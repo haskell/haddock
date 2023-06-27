@@ -33,7 +33,7 @@ module Haddock.Options (
   optMathjax,
   qualification,
   sinceQualification,
-  verbosity,
+  optVerbosity,
   ghcFlags,
   reexportFlags,
   readIfaceArgs,
@@ -354,8 +354,8 @@ sinceQualification flags =
 
 -- | The last @--verbosity@ value takes precedence, since the user may want to
 -- override verbosity flags passed by wrappers like Cabal.
-verbosity :: [Flag] -> Verbosity
-verbosity flags =
+optVerbosity :: [Flag] -> Verbosity
+optVerbosity flags =
   case lastMaybe [ str | Flag_Verbosity str <- flags ] of
     Just x ->
       case parseVerbosity x of

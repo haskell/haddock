@@ -176,7 +176,6 @@ isCssFilePath path = takeExtension path == ".css"
 cssFiles :: Themes -> [String]
 cssFiles ts = nub $ concatMap themeFiles ts
 
-
 styleSheet :: BaseURL -> Themes -> Html
 styleSheet base_url ts = toHtml $ zipWith mkLink rels ts
   where
