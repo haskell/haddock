@@ -329,6 +329,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     opt_latex_style      = optLaTeXStyle     flags
     opt_source_css       = optSourceCssFile  flags
     opt_mathjax          = optMathjax        flags
+    opt_mathjax_version  = optMathjaxVersion flags
     dflags'
       | unicode          = gopt_set dflags Opt_PrintUnicodeSyntax
       | otherwise        = dflags
@@ -440,7 +441,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     withTiming logger "ppHtmlIndex" (const ()) $ do
       _ <- {-# SCC ppHtmlIndex #-}
            ppHtmlIndex odir title pkgStr
-                  themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
+                  themes opt_mathjax opt_mathjax_version opt_contents_url sourceUrls' opt_wiki_urls
                   (concatMap piInstalledInterfaces allVisiblePackages) pretty
       return ()
 
@@ -450,7 +451,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
   when (Flag_GenContents `elem` flags) $ do
     _ <- {-# SCC ppHtmlContents #-}
          ppHtmlContents logger unit_state odir title pkgStr
-                   themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
+                   themes opt_mathjax opt_mathjax_version opt_index_url sourceUrls' opt_wiki_urls
                    allVisiblePackages True prologue pretty
                    sincePkg (makeContentsQual qual)
     return ()
@@ -469,7 +470,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     _ <- {-# SCC ppHtml #-}
          ppHtml logger unit_state title pkgStr visibleIfaces reexportedIfaces odir
                 prologue
-                themes opt_mathjax sourceUrls' opt_wiki_urls opt_base_url
+                themes opt_mathjax opt_mathjax_version sourceUrls' opt_wiki_urls opt_base_url
                 opt_contents_url opt_index_url unicode sincePkg packageInfo
                 qual pretty withQuickjump
     return ()

@@ -31,6 +31,7 @@ module Haddock.Options (
   optShowInterfaceFile,
   optLaTeXStyle,
   optMathjax,
+  optMathjaxVersion,
   qualification,
   sinceQualification,
   verbosity,
@@ -83,6 +84,7 @@ data Flag
   | Flag_HyperlinkedSource
   | Flag_SourceCss String
   | Flag_Mathjax String
+  | Flag_MathjaxVersion Int
   | Flag_Help
   | Flag_Verbosity String
   | Flag_Version
@@ -139,7 +141,8 @@ options backwardsCompat =
       "output in HTML (XHTML 1.0)",
     Option []  ["latex"]  (NoArg Flag_LaTeX) "use experimental LaTeX rendering",
     Option []  ["latex-style"]  (ReqArg Flag_LaTeXStyle "FILE") "provide your own LaTeX style in FILE",
-    Option []  ["mathjax"]  (ReqArg Flag_Mathjax "URL") "URL FOR mathjax",
+    Option []  ["mathjax"]  (ReqArg Flag_Mathjax "URL") "URL for MathJax",
+    Option []  ["mathjax-version"] (ReqArg (Flag_MathjaxVersion . read) "VERSION") "MathJax VERSION",
     Option ['U'] ["use-unicode"] (NoArg Flag_UseUnicode) "use Unicode in HTML output",
     Option []  ["hoogle"]     (NoArg Flag_Hoogle)
       "output for Hoogle; you may want --package-name and --package-version too",
@@ -320,6 +323,9 @@ optLaTeXStyle flags = optLast [ str | Flag_LaTeXStyle str <- flags ]
 
 optMathjax :: [Flag] -> Maybe String
 optMathjax flags = optLast [ str | Flag_Mathjax str <- flags ]
+
+optMathjaxVersion :: [Flag] -> Maybe Int
+optMathjaxVersion flags = optLast [ ver | Flag_MathjaxVersion ver <- flags ]
 
 optParCount :: [Flag] -> Maybe (Maybe Int)
 optParCount flags = optLast [ n | Flag_ParCount n <- flags ]
