@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.DocMarkup
@@ -30,6 +31,7 @@ import Haddock.Doc (combineDocumentation, emptyMetaDoc,
 
 import Text.XHtml hiding ( name, p, quote )
 import Data.Maybe (fromMaybe)
+import qualified Data.Text.Lazy as LText
 
 import GHC hiding (anchor)
 import GHC.Types.Name
@@ -51,7 +53,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
                                      mdl' = case reverse mdl of
                                               '\\':_ -> init mdl
                                               _ -> mdl
-                                 in ppModuleRef lbl (mkModuleName mdl') ref,
+                                 in ppModuleRef lbl (mkModuleName mdl') (LText.pack ref),
   markupWarning              = thediv ! [theclass "warning"],
   markupEmphasis             = emphasize,
   markupBold                 = strong,
@@ -62,14 +64,14 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
   markupCodeBlock            = pre,
   markupHyperlink            = \(Hyperlink url mLabel)
                                -> if insertAnchors
-                                  then anchor ! [href url]
+                                  then anchor ! [href (LText.pack url)]
                                        << fromMaybe (toHtml url) mLabel
                                   else fromMaybe (toHtml url) mLabel,
   markupAName                = \aname
                                -> if insertAnchors
-                                  then namedAnchor aname << ""
+                                  then namedAnchor (LText.pack aname) << LText.empty
                                   else noHtml,
-  markupPic                  = \(Picture uri t) -> image ! ([src uri] ++ fromMaybe [] (return . title <$> t)),
+  markupPic                  = \(Picture uri t) -> image ! ([src (LText.pack uri)] <> fromMaybe [] (return . title . LText.pack <$> t)),
   markupMathInline           = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\(" ++ mathjax ++ "\\)"),
   markupMathDisplay          = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\[" ++ mathjax ++ "\\]"),
   markupProperty             = pre . toHtml,
@@ -109,7 +111,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
     exampleToHtml (Example expression result) = htmlExample
       where
         htmlExample = htmlPrompt +++ htmlExpression +++ toHtml (unlines result)
-        htmlPrompt = (thecode . toHtml $ ">>> ") ! [theclass "prompt"]
+        htmlPrompt = (thecode . textHtml $ ">>> ") ! [theclass "prompt"]
         htmlExpression = (strong . thecode . toHtml $ expression ++ "\n") ! [theclass "userinput"]
 
     makeOrdList :: HTML a => [(Int, a)] -> Html
@@ -185,9 +187,9 @@ hackMarkup fmt' currPkg h' =
     hackMarkup' fmt h = case h of
       UntouchedDoc d -> (markup fmt $ _doc d, [_meta d])
       CollapsingHeader (Header lvl titl) par n nm ->
-        let id_ = makeAnchorId $ "ch:" ++ fromMaybe "noid:" nm ++ show n
+        let id_ = makeAnchorId $ "ch:" <> fromMaybe "noid:" (LText.pack <$> nm) <> LText.pack (show n)
             col' = collapseControl id_ "subheading"
-            summary = thesummary ! [ theclass "hide-when-js-enabled" ] << "Expand"
+            summary = thesummary ! [ theclass "hide-when-js-enabled" ] <<< "Expand"
             instTable contents = collapseDetails id_ DetailsClosed (summary +++ contents)
             lvs = zip [1 .. ] [h1, h2, h3, h4, h5, h6]
             getHeader = fromMaybe caption (lookup lvl lvs)

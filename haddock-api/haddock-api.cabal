@@ -62,6 +62,7 @@ library
                , filepath
                , ghc-boot
                , mtl
+               , text
                , transformers
 
   hs-source-dirs: src

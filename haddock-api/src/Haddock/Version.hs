@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Version
@@ -20,11 +21,14 @@ import Paths_haddock_api ( version )
 #endif
 import Data.Version  ( showVersion )
 
-projectName :: String
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
+
+projectName :: Text
 projectName = "Haddock"
 
-projectUrl :: String
+projectUrl :: Text
 projectUrl  = "http://www.haskell.org/haddock/"
 
-projectVersion :: String
-projectVersion = showVersion version
+projectVersion :: Text
+projectVersion = LText.pack (showVersion version)

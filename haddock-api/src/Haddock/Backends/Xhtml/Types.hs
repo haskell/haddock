@@ -19,8 +19,9 @@ module Haddock.Backends.Xhtml.Types (
   Unicode,
 ) where
 
-
 import Data.Map
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
 import GHC
 import qualified System.FilePath as FilePath
 
@@ -34,9 +35,9 @@ type WikiURLs = (Maybe FilePath, Maybe FilePath, Maybe FilePath)
 type BaseURL = Maybe String
 
 -- TODO: we shouldn't use 'FilePath.</>'
-withBaseURL :: BaseURL -> String -> String
-withBaseURL Nothing        uri = uri
-withBaseURL (Just baseUrl) uri = baseUrl FilePath.</> uri
+withBaseURL :: BaseURL -> String -> Text
+withBaseURL Nothing        uri = LText.pack uri
+withBaseURL (Just baseUrl) uri = LText.pack $ baseUrl FilePath.</> uri
 
 -- The URL for source and wiki links
 type LinksInfo = (SourceURLs, WikiURLs)

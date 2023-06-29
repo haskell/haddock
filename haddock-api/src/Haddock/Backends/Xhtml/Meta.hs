@@ -4,6 +4,7 @@ import Haddock.Utils.Json
 import Haddock.Version
 
 import Data.ByteString.Builder (hPutBuilder)
+import qualified Data.Text.Lazy as LText
 import System.FilePath ((</>))
 import System.IO (withFile, IOMode (WriteMode))
 
@@ -20,7 +21,7 @@ writeHaddockMeta odir withQuickjump = do
   let
     meta_json :: Value
     meta_json = object (concat [
-        [ "haddock_version"   .= String projectVersion ]
+        [ "haddock_version"   .= String (LText.unpack projectVersion) ]
       , [ "quickjump_version" .= quickjumpVersion | withQuickjump ]
       ])
 

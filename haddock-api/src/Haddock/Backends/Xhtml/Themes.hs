@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Themes
@@ -24,6 +26,7 @@ import Data.Char (toLower)
 import Data.Either (lefts, rights)
 import Data.List (nub)
 import Data.Maybe (isJust, listToMaybe)
+import qualified Data.Text.Lazy as LText
 
 import System.Directory
 import System.FilePath
@@ -176,6 +179,7 @@ isCssFilePath path = takeExtension path == ".css"
 cssFiles :: Themes -> [String]
 cssFiles ts = nub $ concatMap themeFiles ts
 
+
 styleSheet :: BaseURL -> Themes -> Html
 styleSheet base_url ts = toHtml $ zipWith mkLink rels ts
   where
@@ -183,7 +187,7 @@ styleSheet base_url ts = toHtml $ zipWith mkLink rels ts
     mkLink aRel t =
       thelink
         ! [ href (withBaseURL base_url (themeHref t)),  rel aRel, thetype "text/css",
-            XHtml.title (themeName t)
+            XHtml.title (LText.pack (themeName t))
           ]
         << noHtml
 
