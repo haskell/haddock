@@ -74,7 +74,8 @@ import GHC.Unit.State
 -- * Generating HTML documentation
 --------------------------------------------------------------------------------
 
-ppHtml :: UnitState
+ppHtml :: Verbosity
+       -> UnitState
        -> String                       -- ^ Title
        -> Maybe String                 -- ^ Package
        -> [Interface]
@@ -95,17 +96,16 @@ ppHtml :: UnitState
        -> Bool                         -- ^ Output pretty html (newlines and indenting)
        -> Bool                         -- ^ Also write Quickjump index
        -> IO ()
-
-ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
-        themes maybe_mathjax_url maybe_source_url maybe_wiki_url
-        maybe_base_url maybe_contents_url maybe_index_url unicode
-        pkg packageInfo qual debug withQuickjump = do
+ppHtml verbosity state doctitle maybe_package ifaces reexported_ifaces odir
+       prologue themes maybe_mathjax_url maybe_source_url maybe_wiki_url
+       maybe_base_url maybe_contents_url maybe_index_url unicode
+       pkg packageInfo qual debug withQuickjump = do
   let visible_ifaces = filter visible ifaces
         where visible i = OptHide `notElem` ifaceOptions i
 
   -- If no pre-made contents file is being used, generate new contents
   when (isNothing maybe_contents_url) $
-    ppHtmlContents state odir doctitle maybe_package
+    ppHtmlContents verbosity state odir doctitle maybe_package
         themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
         withQuickjump
         [ PackageInterfaces
@@ -128,7 +128,7 @@ ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
     ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
       visible_ifaces []
 
-  mapM_ (ppHtmlModule odir doctitle themes
+  mapM_ (ppHtmlModule verbosity odir doctitle themes
            maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
            maybe_contents_url maybe_index_url withQuickjump
            unicode pkg qual debug) visible_ifaces
@@ -303,7 +303,8 @@ moduleInfo iface =
 
 
 ppHtmlContents
-   :: UnitState
+   :: Verbosity
+   -> UnitState
    -> FilePath
    -> String
    -> Maybe String
@@ -318,10 +319,10 @@ ppHtmlContents
    -> Maybe Package  -- ^ Current package
    -> Qualification  -- ^ How to qualify names
    -> IO ()
-ppHtmlContents state odir doctitle _maybe_package
-  themes mathjax_url maybe_index_url
-  maybe_source_url maybe_wiki_url withQuickjump
-  packages showPkgs prologue debug pkg qual = do
+ppHtmlContents verbosity state odir doctitle _maybe_package themes mathjax_url
+  maybe_index_url maybe_source_url maybe_wiki_url withQuickjump packages
+  showPkgs prologue debug pkg qual = do
+  out verbosity Debug "beginning ppHtmlContents"
   let trees =
         [ ( piPackageInfo pinfo
           , mkModuleTree state showPkgs
@@ -353,6 +354,7 @@ ppHtmlContents state odir doctitle _maybe_package
           ]
   createDirectoryIfMissing True odir
   writeUtf8File' (joinPath [odir, contentsHtmlFile]) (renderToBuilder debug html)
+  out verbosity Debug "completed ppHtmlContents"
   where
     -- Extract a module's short description.
     toInstalledDescription :: InstalledInterface -> Maybe (MDoc Name)
@@ -697,41 +699,45 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
 
 ppHtmlModule
-        :: FilePath -> String -> Themes
+        :: Verbosity
+        -> FilePath -> String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
         -> Maybe String -> Maybe String
         -> Bool  -- ^ With Quick Jump?
         -> Bool -> Maybe Package -> QualOption
         -> Bool -> Interface -> IO ()
-ppHtmlModule odir doctitle themes
-  maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-  maybe_contents_url maybe_index_url withQuickjump
-  unicode pkg qual debug iface = do
+ppHtmlModule verbosity odir doctitle themes maybe_mathjax_url maybe_source_url
+             maybe_wiki_url maybe_base_url maybe_contents_url maybe_index_url
+             withQuickjump unicode pkg qual debug iface = do
   let
-      mdl = ifaceMod iface
-      mdl_str = moduleString mdl
-      mdl_str_annot = mdl_str ++ if ifaceIsSig iface
-                                    then " (signature)"
-                                    else ""
-      mdl_str_linked
-        | ifaceIsSig iface
-        = mdl_str +++ textHtml " (signature" +++
-                       sup << (textHtml "[" +++ anchor ! [href signatureDocURL] <<< "?" +++ textHtml "]" ) +++
-                       textHtml ")"
-        | otherwise
-        = toHtml mdl_str
-      real_qual = makeModuleQual qual mdl
-      html =
-        headHtml mdl_str_annot themes maybe_mathjax_url maybe_base_url +++
-        bodyHtml doctitle (Just iface)
-          maybe_source_url maybe_wiki_url
-          maybe_contents_url maybe_index_url withQuickjump << [
-            divModuleHeader << (moduleInfo iface +++ (sectionName << mdl_str_linked)),
-            ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
-          ]
+    mdl = ifaceMod iface
+    mdl_str = moduleString mdl
+    mdl_str_annot = mdl_str ++ if ifaceIsSig iface
+                                  then " (signature)"
+                                  else ""
+    mdl_str_linked
+      | ifaceIsSig iface
+      = mdl_str +++ textHtml " (signature" +++
+                     sup << (textHtml "[" +++ anchor ! [href signatureDocURL] <<< "?" +++ textHtml "]" ) +++
+                     textHtml ")"
+      | otherwise
+      = toHtml mdl_str
+    real_qual = makeModuleQual qual mdl
+    html =
+      headHtml mdl_str_annot themes maybe_mathjax_url maybe_base_url +++
+      bodyHtml doctitle (Just iface)
+        maybe_source_url maybe_wiki_url
+        maybe_contents_url maybe_index_url withQuickjump << [
+          divModuleHeader << (moduleInfo iface +++ (sectionName << mdl_str_linked)),
+          ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
+        ]
+
+  out verbosity Debug $ "beginning ppHtmlModule: " <> mdl_str
 
   createDirectoryIfMissing True odir
   writeUtf8File' (joinPath [odir, moduleHtmlFile mdl]) (renderToBuilder debug html)
+
+  out verbosity Debug $ "completed ppHtmlModule: " <> mdl_str
 
 signatureDocURL :: Text
 signatureDocURL = "https://wiki.haskell.org/Module_signature"

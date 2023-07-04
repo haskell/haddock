@@ -104,8 +104,13 @@ out :: MonadIO m
     -> Verbosity -- ^ message verbosity
     -> String -> m ()
 out progVerbosity msgVerbosity msg
-  | msgVerbosity <= progVerbosity = liftIO $ putStrLn msg
-  | otherwise = return ()
+    | msgVerbosity <= progVerbosity = liftIO $ putStrLn msg'
+    | otherwise = return ()
+  where
+    msg' =
+      case msgVerbosity of
+        Debug -> "HADDOCK DEBUG: " <> msg
+        _ -> msg
 
 -- | Emit a marker message to the eventlog, if it is not too verbose. Emitted
 -- markers will be visible as markers in, e.g., eventlog2html profiles.
