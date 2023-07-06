@@ -80,7 +80,7 @@ executable haddock
       deepseq,
       exceptions,
       array,
-      xhtml >= 3000.2 && < 3000.3,
+      xhtml >= 3000.3 && < 3000.4,
       ghc-boot,
       ghc-boot-th,
       ghc == 9.9.*,

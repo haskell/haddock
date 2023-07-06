@@ -9,13 +9,13 @@ module Haddock.Backends.Hyperlinker
 
 
 import Haddock.Types
-import Haddock.Utils (writeUtf8File, out)
+import Haddock.Utils (writeUtf8File', out)
 import Haddock.InterfaceFile
 import Haddock.Backends.Hyperlinker.Renderer
 import Haddock.Backends.Hyperlinker.Parser
 import Haddock.Backends.Hyperlinker.Types
 import Haddock.Backends.Hyperlinker.Utils
-import Haddock.Backends.Xhtml.Utils ( renderToString )
+import Haddock.Backends.Xhtml.Utils ( renderToBuilder )
 
 import Data.Maybe
 import System.Directory
@@ -88,7 +88,7 @@ ppHyperlinkedModuleSource verbosity srcdir pretty srcs iface = do
         let tokens = fmap (\tk -> tk {tkSpan = (tkSpan tk){srcSpanFile = srcSpanFile $ nodeSpan fullAst}}) tokens'
 
         -- Produce and write out the hyperlinked sources
-        writeUtf8File path . renderToString pretty . render' fullAst $ tokens
+        writeUtf8File' path . renderToBuilder pretty . render' fullAst $ tokens
   where
     df = ifaceDynFlags iface
     render' = render (Just srcCssFile) (Just highlightScript) srcs

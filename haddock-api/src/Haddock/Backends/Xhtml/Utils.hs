@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Util
@@ -11,7 +13,9 @@
 -- Portability :  portable
 -----------------------------------------------------------------------------
 module Haddock.Backends.Xhtml.Utils (
-  renderToString,
+  renderToBuilder,
+
+  textHtml, (<<<),
 
   namedAnchor, linkedAnchor,
   spliceURL, spliceURL',
@@ -34,6 +38,9 @@ module Haddock.Backends.Xhtml.Utils (
 
 import Haddock.Utils
 
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
+import Data.ByteString.Builder
 import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 
@@ -41,6 +48,17 @@ import GHC              ( SrcSpan(..), srcSpanStartLine, Name )
 import GHC.Unit.Module ( Module, ModuleName, moduleName, moduleNameString )
 import GHC.Types.Name   ( getOccString, nameOccName, isValOcc )
 
+--
+-- 'Html' functions specialised to 'Text'
+--
+
+textHtml :: Text -> Html
+textHtml = toHtml
+
+(<<<) :: (Html -> a) -> Text -> a
+(<<<) = (<<)
+
+infixr 7 <<<
 
 -- | Replace placeholder string elements with provided values.
 --
@@ -96,8 +114,8 @@ spliceURL' maybe_mod maybe_name maybe_loc = run
   run (c:rest) = c : run rest
 
 
-renderToString :: Bool -> Html -> String
-renderToString debug html
+renderToBuilder :: Bool -> Html -> Builder
+renderToBuilder debug html
   | debug = renderHtml html
   | otherwise = showHtml html
 
@@ -114,9 +132,10 @@ vcat htmls = foldr1 (\a b -> a+++br+++b) htmls
 
 infixr 8 <+>
 (<+>) :: Html -> Html -> Html
-a <+> b = a +++ sep +++ b
-  where
-    sep = if isNoHtml a || isNoHtml b then noHtml else toHtml " "
+a <+> b
+  | isNoHtml a = b
+  | isNoHtml b = a
+  | otherwise = a +++ textHtml " " +++ b
 
 -- | Join two 'Html' values together with a linebreak in between.
 --   Has 'noHtml' as left identity.
@@ -152,7 +171,7 @@ promoQuote h = char '\'' +++ h
 parens, brackets, pabrackets, braces :: Html -> Html
 parens h        = char '(' +++ h +++ char ')'
 brackets h      = char '[' +++ h +++ char ']'
-pabrackets h    = toHtml "[:" +++ h +++ toHtml ":]"
+pabrackets h    = textHtml "[:" +++ h +++ textHtml ":]"
 braces h        = char '{' +++ h +++ char '}'
 
 
@@ -173,42 +192,42 @@ ubxParenList = ubxparens . hsep . punctuate comma
 
 
 ubxSumList :: [Html]  -> Html
-ubxSumList = ubxparens . hsep . punctuate (toHtml " | ")
+ubxSumList = ubxparens . hsep . punctuate (textHtml " | ")
 
 
 ubxparens :: Html -> Html
-ubxparens h = toHtml "(#" <+> h <+> toHtml "#)"
+ubxparens h = textHtml "(#" <+> h <+> textHtml "#)"
 
 
 dcolon, arrow, lollipop, darrow, forallSymbol :: Bool -> Html
-dcolon unicode = toHtml (if unicode then "∷" else "::")
-arrow  unicode = toHtml (if unicode then "→" else "->")
-lollipop unicode = toHtml (if unicode then "⊸" else "%1 ->")
-darrow unicode = toHtml (if unicode then "⇒" else "=>")
-forallSymbol unicode = if unicode then toHtml "∀" else keyword "forall"
+dcolon unicode = textHtml (if unicode then "∷" else "::")
+arrow  unicode = textHtml (if unicode then "→" else "->")
+lollipop unicode = textHtml (if unicode then "⊸" else "%1 ->")
+darrow unicode = textHtml (if unicode then "⇒" else "=>")
+forallSymbol unicode = if unicode then textHtml "∀" else keyword "forall"
 
 atSign :: Html
-atSign = toHtml "@"
+atSign = textHtml "@"
 
 multAnnotation :: Html
-multAnnotation = toHtml "%"
+multAnnotation = textHtml "%"
 
 dot :: Html
-dot = toHtml "."
+dot = textHtml "."
 
 
 -- | Generate a named anchor
-namedAnchor :: String -> Html -> Html
+namedAnchor :: Text -> Html -> Html
 namedAnchor n = anchor ! [XHtml.identifier n]
 
 
-linkedAnchor :: String -> Html -> Html
-linkedAnchor n = anchor ! [href ('#':n)]
+linkedAnchor :: Text -> Html -> Html
+linkedAnchor n = anchor ! [href ('#' `LText.cons` n)]
 
 
 -- | generate an anchor identifier for a group
-groupId :: String -> String
-groupId g = makeAnchorId ("g:" ++ g)
+groupId :: Text -> Text
+groupId g = makeAnchorId ("g:" <> g)
 
 --
 -- A section of HTML which is collapsible.
@@ -216,7 +235,7 @@ groupId g = makeAnchorId ("g:" ++ g)
 
 data DetailsState = DetailsOpen | DetailsClosed
 
-collapseDetails :: String -> DetailsState -> Html -> Html
+collapseDetails :: Text -> DetailsState -> Html -> Html
 collapseDetails id_ state = tag "details" ! (identifier id_ : openAttrs)
   where openAttrs = case state of { DetailsOpen -> [emptyAttr "open"]; DetailsClosed -> [] }
 
@@ -224,12 +243,12 @@ thesummary :: Html -> Html
 thesummary = tag "summary"
 
 -- | Attributes for an area that toggles a collapsed area
-collapseToggle :: String -> String -> [HtmlAttr]
+collapseToggle :: Text -> Text -> [HtmlAttr]
 collapseToggle id_ classes = [ theclass cs, strAttr "data-details-id" id_ ]
-  where cs = unwords (words classes ++ ["details-toggle"])
+  where cs = LText.unwords (LText.words classes <> ["details-toggle"])
 
 -- | Attributes for an area that toggles a collapsed area,
 -- and displays a control.
-collapseControl :: String -> String -> [HtmlAttr]
+collapseControl :: Text -> Text -> [HtmlAttr]
 collapseControl id_ classes = collapseToggle id_ cs
-  where cs = unwords (words classes ++ ["details-toggle-control"])
+  where cs = LText.unwords (LText.words classes <> ["details-toggle-control"])

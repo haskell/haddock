@@ -24,6 +24,8 @@ import System.FilePath.Posix ((</>))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
 
 import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
@@ -54,12 +56,12 @@ header mcss mjs = Html.header $ css mcss <> js mjs
     css (Just cssFile) = Html.thelink Html.noHtml !
         [ Html.rel "stylesheet"
         , Html.thetype "text/css"
-        , Html.href cssFile
+        , Html.href (LText.pack cssFile)
         ]
     js Nothing = Html.noHtml
     js (Just scriptFile) = Html.script Html.noHtml !
         [ Html.thetype "text/javascript"
-        , Html.src scriptFile
+        , Html.src (LText.pack scriptFile)
         ]
 
 
@@ -210,7 +212,7 @@ tokenStyle TkPragma = ["hs-pragma"]
 tokenStyle TkUnknown = []
 
 multiclass :: [StyleClass] -> HtmlAttr
-multiclass = Html.theclass . unwords
+multiclass = Html.theclass . LText.pack . unwords
 
 externalAnchor :: Identifier -> Set.Set ContextInfo -> Html -> Html
 externalAnchor (Right name) contexts content
@@ -235,11 +237,11 @@ internalAnchor (Right name) contexts content
   = Html.thespan content ! [ Html.identifier $ internalAnchorIdent name ]
 internalAnchor _ _ content = content
 
-externalAnchorIdent :: Name -> String
-externalAnchorIdent = hypSrcNameUrl
+externalAnchorIdent :: Name -> Text
+externalAnchorIdent = LText.pack . hypSrcNameUrl
 
-internalAnchorIdent :: Name -> String
-internalAnchorIdent = ("local-" ++) . show . getKey . nameUnique
+internalAnchorIdent :: Name -> Text
+internalAnchorIdent = LText.pack . ("local-" ++) . show . getKey . nameUnique
 
 -- | Generate the HTML hyperlink for an identifier
 hyperlink :: SrcMaps -> Identifier -> Html -> Html
@@ -254,15 +256,15 @@ hyperlink (srcs, srcs') ident = case ident of
     makeHyperlinkUrl url = ".." </> url
 
     internalHyperlink name content =
-        Html.anchor content ! [ Html.href $ "#" ++ internalAnchorIdent name ]
+        Html.anchor content ! [ Html.href $ "#" <> internalAnchorIdent name ]
 
     externalNameHyperlink name content = case Map.lookup mdl srcs of
         Just SrcLocal -> Html.anchor content !
-            [ Html.href $ hypSrcModuleNameUrl mdl name ]
+            [ Html.href . LText.pack $ hypSrcModuleNameUrl mdl name ]
         Just (SrcExternal path) ->
           let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleNameUrl mdl name
            in Html.anchor content !
-                [ Html.href $ spliceURL (Just mdl) (Just name) Nothing hyperlinkUrl ]
+                [ Html.href . LText.pack $ spliceURL (Just mdl) (Just name) Nothing hyperlinkUrl ]
         Nothing -> content
       where
         mdl = nameModule name
@@ -270,11 +272,11 @@ hyperlink (srcs, srcs') ident = case ident of
     externalModHyperlink moduleName content =
         case Map.lookup moduleName srcs' of
           Just SrcLocal -> Html.anchor content !
-            [ Html.href $ hypSrcModuleUrl' moduleName ]
+            [ Html.href . LText.pack $ hypSrcModuleUrl' moduleName ]
           Just (SrcExternal path) ->
             let hyperlinkUrl = makeHyperlinkUrl path </> hypSrcModuleUrl' moduleName
              in Html.anchor content !
-                  [ Html.href $ spliceURL' (Just moduleName) Nothing Nothing hyperlinkUrl ]
+                  [ Html.href . LText.pack $ spliceURL' (Just moduleName) Nothing Nothing hyperlinkUrl ]
           Nothing -> content
 
 
@@ -291,4 +293,4 @@ renderSpace line space =
 
 
 lineAnchor :: Int -> Html
-lineAnchor line = Html.thespan Html.noHtml ! [ Html.identifier $ hypSrcLineUrl line ]
+lineAnchor line = Html.thespan Html.noHtml ! [ Html.identifier . LText.pack $ hypSrcLineUrl line ]

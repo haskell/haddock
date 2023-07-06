@@ -84,32 +84,30 @@ processModuleHeader
   -> Maybe (HsDoc GhcRn)
   -> IfM m (HaddockModInfo Name, Maybe (MDoc Name))
 processModuleHeader dflags pkgName safety mayLang extSet mayStr = do
-  (hmi, doc) <-
-    case mayStr of
-      Nothing -> return failure
-      Just hsDoc -> do
-        let str = renderHsDocString $ hsDocString hsDoc
-            (hmi, doc) = parseModuleHeader dflags pkgName str
-            renamer = hsDocRenamer hsDoc
-        !descr <- case hmi_description hmi of
-                    Just hmi_descr -> Just <$> rename dflags renamer hmi_descr
-                    Nothing        -> pure Nothing
-        let hmi' = hmi { hmi_description = descr }
-        doc'  <- overDocF (rename dflags renamer) doc
-        return (hmi', Just doc')
+    (hmi, doc) <-
+      case mayStr of
+        Nothing -> return (emptyHaddockModInfo, Nothing)
+        Just hsDoc -> do
+          let str = renderHsDocString $ hsDocString hsDoc
+              (hmi, doc) = parseModuleHeader dflags pkgName str
+              renamer = hsDocRenamer hsDoc
+          !descr <- case hmi_description hmi of
+                      Just hmi_descr -> Just <$> rename dflags renamer hmi_descr
+                      Nothing        -> pure Nothing
+          let hmi' = hmi { hmi_description = descr }
+          doc'  <- overDocF (rename dflags renamer) doc
+          return (hmi', Just doc')
 
-  let flags :: [LangExt.Extension]
-      -- We remove the flags implied by the language setting and we display the language instead
-      flags = EnumSet.toList extSet \\ languageExtensions mayLang
-  return
-    (hmi { hmi_safety = Just $ showPpr dflags safety
-         , hmi_language = language dflags
-         , hmi_extensions = flags
-         }
-    , doc
-    )
-  where
-    failure = (emptyHaddockModInfo, Nothing)
+    let flags :: [LangExt.Extension]
+        -- We remove the flags implied by the language setting and we display the language instead
+        flags = EnumSet.toList extSet \\ languageExtensions mayLang
+    return
+      (hmi { hmi_safety = Just $ showPpr dflags safety
+          , hmi_language = language dflags
+          , hmi_extensions = flags
+          }
+      , doc
+      )
 
 traverseSnd :: (Traversable t, Applicative f) => (a -> f b) -> t (x, a) -> f (t (x, b))
 traverseSnd f = traverse (\(x, a) ->

@@ -24,13 +24,13 @@ module Haddock.Utils (
   quickJumpCssFile,
 
   -- * Anchor and URL utilities
-  moduleNameUrl, moduleNameUrl', moduleUrl,
+  moduleNameUrl, moduleNameUrl', moduleUrl, moduleUrl',
   nameAnchorId,
   makeAnchorId,
 
   -- * Miscellaneous utilities
   getProgramName, bye, die, escapeStr,
-  writeUtf8File, withTempDir,
+  writeUtf8File, writeUtf8File', withTempDir, builderToString,
 
   -- * HTML cross reference mapping
   html_xrefs_ref, html_xrefs_ref',
@@ -61,11 +61,15 @@ import GHC.Types.Name
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
 import Control.Monad.State.Strict (gets)
+import Data.ByteString.Builder
 import Data.Char ( isAlpha, isAlphaNum, isAscii, ord, chr )
 import Data.IORef ( IORef, newIORef, readIORef )
 import Data.List ( isSuffixOf, foldl' )
 import Data.Map ( Map )
 import qualified Data.Map as Map
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.Encoding as LText
 import Debug.Trace (traceMarkerIO)
 import Numeric ( showIntAtBase )
 import System.Directory ( createDirectory, removeDirectoryRecursive )
@@ -181,38 +185,52 @@ subIndexHtmlFile ls = "doc-index-" ++ b ++ ".html"
 -------------------------------------------------------------------------------
 
 
-moduleUrl :: Module -> String
-moduleUrl = moduleHtmlFile
+moduleUrl :: Module -> Text
+moduleUrl = LText.pack . moduleHtmlFile
+
+moduleUrl' :: ModuleName -> Text
+moduleUrl' = LText.pack . moduleHtmlFile'
+
+moduleNameUrl :: Module -> OccName -> Text
+moduleNameUrl mdl n = moduleUrl mdl <> ('#' `LText.cons` nameAnchorId n)
+
+moduleNameUrl' :: ModuleName -> OccName -> Text
+moduleNameUrl' mdl n = moduleUrl' mdl <> ('#' `LText.cons` nameAnchorId n)
 
 
-moduleNameUrl :: Module -> OccName -> String
-moduleNameUrl mdl n = moduleUrl mdl ++ '#' : nameAnchorId n
-
-
-moduleNameUrl' :: ModuleName -> OccName -> String
-moduleNameUrl' mdl n = moduleHtmlFile' mdl ++ '#' : nameAnchorId n
-
-
-nameAnchorId :: OccName -> String
-nameAnchorId name = makeAnchorId (prefix : ':' : occNameString name)
- where prefix | isValOcc name = 'v'
-              | otherwise     = 't'
-
+nameAnchorId :: OccName -> Text
+nameAnchorId name =
+    makeAnchorId
+      (              prefix
+        `LText.cons` ':'
+        `LText.cons` LText.pack (occNameString name)
+      )
+  where
+    prefix
+      | isValOcc name = 'v'
+      | otherwise     = 't'
 
 -- | Takes an arbitrary string and makes it a valid anchor ID. The mapping is
 -- identity preserving.
-makeAnchorId :: String -> String
-makeAnchorId [] = []
-makeAnchorId (f:r) = escape isAlpha f ++ concatMap (escape isLegal) r
+--
+-- The 'Text' is first unpacked to a 'String' to avoid the O(n) cons operations.
+makeAnchorId :: Text -> Text
+makeAnchorId xs = LText.pack $
+    case LText.unpack xs of
+      ""     -> ""
+      (y:ys) -> escape isAlpha y (foldr (escape isLegal) [] ys)
   where
-    escape p c | p c = [c]
-               | otherwise = '-' : show (ord c) ++ "-"
+    escape :: (Char -> Bool) -> Char -> String -> String
+    escape p c acc
+      | p c       = c : acc
+      | otherwise = ('-' : show (ord c)) ++ ('-' : acc)
+
+    isLegal :: Char -> Bool
     isLegal ':' = True
     isLegal '_' = True
     isLegal '.' = True
     isLegal c = isAscii c && isAlphaNum c
-       -- NB: '-' is legal in IDs, but we use it as the escape char
-
+    -- NB: '-' is legal in IDs, but we use it as the escape char
 
 -------------------------------------------------------------------------------
 -- * Files we need to copy from our $libdir
@@ -279,19 +297,28 @@ isAlphaChar c    = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 isDigitChar c    = c >= '0' && c <= '9'
 isAlphaNumChar c = isAlphaChar c || isDigitChar c
 
--- | Utility to write output to UTF-8 encoded files.
---
--- The problem with 'writeFile' is that it picks up its 'TextEncoding' from
--- 'getLocaleEncoding', and on some platforms (like Windows) this default
--- encoding isn't enough for the characters we want to write.
 writeUtf8File :: FilePath -> String -> IO ()
 writeUtf8File filepath contents = withFile filepath WriteMode $ \h -> do
     hSetEncoding h utf8
     hPutStr h contents
 
+-- | Utility to write output to UTF-8 encoded files.
+--
+-- The problem with 'writeFile' is that it picks up its 'TextEncoding' from
+-- 'getLocaleEncoding', and on some platforms (like Windows) this default
+-- encoding isn't enough for the characters we want to write.
+writeUtf8File' :: FilePath -> Builder -> IO ()
+writeUtf8File' filepath contents = withFile filepath WriteMode $ \h -> do
+    hSetEncoding h utf8
+    hPutBuilder h contents
+
 withTempDir :: (MonadIO m, MonadMask m) => FilePath -> m a -> m a
 withTempDir dir = bracket_ (liftIO $ createDirectory dir)
                            (liftIO $ removeDirectoryRecursive dir)
+
+builderToString :: Builder -> String
+builderToString =
+    LText.unpack . LText.decodeUtf8 . toLazyByteString
 
 -----------------------------------------------------------------------------
 -- * HTML cross references

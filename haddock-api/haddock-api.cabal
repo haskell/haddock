@@ -47,7 +47,7 @@ library
                , ghc             ^>= 9.7
                , ghc-paths       ^>= 0.1.0.12
                , haddock-library ^>= 1.11
-               , xhtml           ^>= 3000.2.2
+               , xhtml           ^>= 3000.3.0
                , parsec          ^>= 3.1.13.0
 
   -- Versions for the dependencies below are transitively pinned by
@@ -62,6 +62,7 @@ library
                , filepath
                , ghc-boot
                , mtl
+               , text
                , transformers
 
   hs-source-dirs: src
@@ -180,7 +181,7 @@ test-suite spec
   build-depends: ghc             ^>= 9.7
                , ghc-paths       ^>= 0.1.0.12
                , haddock-library ^>= 1.11
-               , xhtml           ^>= 3000.2.2
+               , xhtml           ^>= 3000.3.0
                , hspec           ^>= 2.9
                , parsec          ^>= 3.1.13.0
                , QuickCheck      >= 2.11  && ^>= 2.14

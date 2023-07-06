@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Haddock.Backends.Html.Names
@@ -25,6 +26,8 @@ import Haddock.Utils
 
 import Text.XHtml hiding ( name, p, quote )
 import Data.List ( stripPrefix )
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as LText
 
 import GHC hiding (LexicalFixity(..), anchor)
 import GHC.Types.Name
@@ -121,10 +124,13 @@ ppBinder = ppBinderWith Prefix
 ppBinderInfix :: Bool -> OccName -> Html
 ppBinderInfix = ppBinderWith Infix
 
-ppBinderWith :: Notation -> Bool -> OccName -> Html
--- 'isRef' indicates whether this is merely a reference from another part of
--- the documentation or is the actual definition; in the latter case, we also
--- set the 'id' and 'class' attributes.
+ppBinderWith :: Notation
+             -> Bool
+             -- ^ Indicates whether this is merely a reference from another part
+             -- of the documentation or is the actual definition; in the latter
+             -- case, we also set the 'id' and 'class' attributes.
+             -> OccName
+             -> Html
 ppBinderWith notation isRef n =
   makeAnchor << ppBinder' notation n
   where
@@ -153,7 +159,7 @@ linkIdOcc mdl mbName insertAnchors =
   then anchor ! [href url, title ttl]
   else id
   where
-    ttl = moduleNameString (moduleName mdl)
+    ttl = LText.pack (moduleNameString (moduleName mdl))
     url = case mbName of
       Nothing   -> moduleUrl mdl
       Just name -> moduleNameUrl mdl name
@@ -162,9 +168,9 @@ linkIdOcc mdl mbName insertAnchors =
 linkIdOcc' :: ModuleName -> Maybe OccName -> Html -> Html
 linkIdOcc' mdl mbName = anchor ! [href url, title ttl]
   where
-    ttl = moduleNameString mdl
+    ttl = LText.pack (moduleNameString mdl)
     url = case mbName of
-      Nothing   -> moduleHtmlFile' mdl
+      Nothing   -> moduleUrl' mdl
       Just name -> moduleNameUrl' mdl name
 
 
@@ -173,10 +179,10 @@ ppModule mdl = anchor ! [href (moduleUrl mdl)]
                << toHtml (moduleString mdl)
 
 
-ppModuleRef :: Maybe Html -> ModuleName -> String -> Html
-ppModuleRef Nothing mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
+ppModuleRef :: Maybe Html -> ModuleName -> Text -> Html
+ppModuleRef Nothing mdl ref = anchor ! [href (moduleUrl' mdl <> ref)]
                               << toHtml (moduleNameString mdl)
-ppModuleRef (Just lbl) mdl ref = anchor ! [href (moduleHtmlFile' mdl ++ ref)]
+ppModuleRef (Just lbl) mdl ref = anchor ! [href (moduleUrl' mdl <> ref)]
                                  << lbl
 
     -- NB: The ref parameter already includes the '#'.
