@@ -66,7 +66,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set hiding ( Set )
 import Data.Ord              ( comparing )
 
-import GHC hiding ( NoLink, moduleInfo,LexicalFixity(..), anchor )
+import GHC hiding ( NoLink, moduleInfo, LexicalFixity(..), anchor )
+import GHC.Conc.Sync
 import GHC.Types.Name
 import GHC.Unit.State
 
@@ -100,38 +101,63 @@ ppHtml verbosity state doctitle maybe_package ifaces reexported_ifaces odir
        prologue themes maybe_mathjax_url maybe_source_url maybe_wiki_url
        maybe_base_url maybe_contents_url maybe_index_url unicode
        pkg packageInfo qual debug withQuickjump = do
-  let visible_ifaces = filter visible ifaces
-        where visible i = OptHide `notElem` ifaceOptions i
+    let visible_ifaces :: [Interface]
+        visible_ifaces = filter visible ifaces
+          where visible i = OptHide `notElem` ifaceOptions i
 
-  -- If no pre-made contents file is being used, generate new contents
-  when (isNothing maybe_contents_url) $
-    ppHtmlContents verbosity state odir doctitle maybe_package
-        themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
+        ifaceHtml :: [(FilePath, Html)]
+        ifaceHtml = parMap mkIfaceHtml visible_ifaces
+
+    -- If no pre-made contents file is being used, generate new contents
+    when (isNothing maybe_contents_url) $
+      ppHtmlContents verbosity state odir doctitle maybe_package
+          themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
+          withQuickjump
+          [ PackageInterfaces
+              { piPackageInfo = packageInfo
+              , piVisibility  = Visible
+              , piInstalledInterfaces = map toInstalledIface visible_ifaces
+                                    ++ reexported_ifaces
+              }
+          ]
+          False -- we don't want to display the packages in a single-package contents
+          prologue debug pkg (makeContentsQual qual)
+
+    when (isNothing maybe_index_url) $ do
+      ppHtmlIndex odir doctitle maybe_package
+        themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
         withQuickjump
-        [ PackageInterfaces
-            { piPackageInfo = packageInfo
-            , piVisibility  = Visible
-            , piInstalledInterfaces = map toInstalledIface visible_ifaces
-                                  ++ reexported_ifaces
-            }
-        ]
-        False -- we don't want to display the packages in a single-package contents
-        prologue debug pkg (makeContentsQual qual)
+        (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
-  when (isNothing maybe_index_url) $ do
-    ppHtmlIndex odir doctitle maybe_package
-      themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
-      withQuickjump
-      (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
+    when withQuickjump $
+      ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
+        visible_ifaces []
 
-  when withQuickjump $
-    ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
-      visible_ifaces []
+    createDirectoryIfMissing True odir
+    mapM_ (uncurry printHtml) ifaceHtml
 
-  mapM_ (ppHtmlModule verbosity odir doctitle themes
-           maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-           maybe_contents_url maybe_index_url withQuickjump
-           unicode pkg qual debug) visible_ifaces
+  where
+    mkIfaceHtml :: Interface -> (FilePath, Html)
+    mkIfaceHtml iface =
+      ( joinPath [odir, moduleHtmlFile (ifaceMod iface)]
+      , ppHtmlModule doctitle themes maybe_mathjax_url maybe_source_url
+                     maybe_wiki_url maybe_base_url maybe_contents_url
+                     maybe_index_url withQuickjump unicode pkg qual iface
+      )
+
+    printHtml
+      :: FilePath -- HTML output file path
+      -> Html -- HTML content
+      -> IO ()
+    printHtml ofile html =
+      writeUtf8File' ofile (renderToBuilder debug html)
+
+    -- Copied from GHC.Runtime.Interpreter:
+    -- We don't have the parallel package, so roll our own simple parMap
+    parMap _ [] = []
+    parMap f (x:xs) = fx `par` (fxs `pseq` (fx : fxs))
+      where fx = f x; fxs = parMap f xs
+
 
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> Bool -> IO ()
@@ -489,7 +515,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
       <$> traverse
             (\ifaceFile -> do
               let indexFile = takeDirectory ifaceFile
-                    FilePath.</> "doc-index.json"
+                    FilePath.</> indexJsonFile
               a <- doesFileExist indexFile
               if a then
                     bimap (indexFile,) (map (fixLink ifaceFile))
@@ -694,21 +720,20 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
 
 --------------------------------------------------------------------------------
--- * Generate the HTML page for a module
+-- * Generate the HTML content for a module
 --------------------------------------------------------------------------------
 
 
 ppHtmlModule
-        :: Verbosity
-        -> FilePath -> String -> Themes
+        :: String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
         -> Maybe String -> Maybe String
         -> Bool  -- ^ With Quick Jump?
         -> Bool -> Maybe Package -> QualOption
-        -> Bool -> Interface -> IO ()
-ppHtmlModule verbosity odir doctitle themes maybe_mathjax_url maybe_source_url
+        -> Interface -> Html
+ppHtmlModule doctitle themes maybe_mathjax_url maybe_source_url
              maybe_wiki_url maybe_base_url maybe_contents_url maybe_index_url
-             withQuickjump unicode pkg qual debug iface = do
+             withQuickjump unicode pkg qual iface =
   let
     mdl = ifaceMod iface
     mdl_str = moduleString mdl
@@ -731,13 +756,8 @@ ppHtmlModule verbosity odir doctitle themes maybe_mathjax_url maybe_source_url
           divModuleHeader << (moduleInfo iface +++ (sectionName << mdl_str_linked)),
           ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
         ]
-
-  out verbosity Debug $ "beginning ppHtmlModule: " <> mdl_str
-
-  createDirectoryIfMissing True odir
-  writeUtf8File' (joinPath [odir, moduleHtmlFile mdl]) (renderToBuilder debug html)
-
-  out verbosity Debug $ "completed ppHtmlModule: " <> mdl_str
+  in
+    html
 
 signatureDocURL :: Text
 signatureDocURL = "https://wiki.haskell.org/Module_signature"

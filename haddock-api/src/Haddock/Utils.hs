@@ -163,10 +163,11 @@ moduleHtmlFile' mdl =
     Just fp0 -> HtmlPath.joinPath [fp0, baseName mdl ++ ".html"]
 
 
-contentsHtmlFile, indexHtmlFile, indexJsonFile :: String
+contentsHtmlFile, indexHtmlFile, indexJsonFile, indexJsonContentsFile :: String
 contentsHtmlFile = "index.html"
 indexHtmlFile = "doc-index.html"
 indexJsonFile = "doc-index.json"
+indexJsonContentsFile = "doc-index-contents.txt"
 
 
 subIndexHtmlFile :: String -> String
