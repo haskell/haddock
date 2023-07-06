@@ -46,7 +46,7 @@ import Text.XHtml hiding ( name, title, p, quote )
 import qualified Text.XHtml as XHtml
 import Haddock.GhcUtils
 
-import Control.DeepSeq       (force)
+import Control.DeepSeq       (force, rnf)
 import Control.Monad         ( when, unless )
 import Data.Bifunctor        ( bimap )
 import qualified Data.ByteString.Builder as Builder
@@ -70,6 +70,8 @@ import GHC hiding ( NoLink, moduleInfo, LexicalFixity(..), anchor )
 import GHC.Conc.Sync
 import GHC.Types.Name
 import GHC.Unit.State
+import Debug.Trace
+import qualified Data.ByteString as B
 
 --------------------------------------------------------------------------------
 -- * Generating HTML documentation
@@ -101,11 +103,12 @@ ppHtml verbosity state doctitle maybe_package ifaces reexported_ifaces odir
        prologue themes maybe_mathjax_url maybe_source_url maybe_wiki_url
        maybe_base_url maybe_contents_url maybe_index_url unicode
        pkg packageInfo qual debug withQuickjump = do
+    traceMarkerIO "ppHtml"
     let visible_ifaces :: [Interface]
         visible_ifaces = filter visible ifaces
           where visible i = OptHide `notElem` ifaceOptions i
 
-        ifaceHtml :: [(FilePath, Html)]
+        ifaceHtml :: [(FilePath, B.ByteString)]
         ifaceHtml = parMap mkIfaceHtml visible_ifaces
 
     -- If no pre-made contents file is being used, generate new contents
@@ -134,23 +137,26 @@ ppHtml verbosity state doctitle maybe_package ifaces reexported_ifaces odir
         visible_ifaces []
 
     createDirectoryIfMissing True odir
+    --mapM_ (forkIO . uncurry printHtml . mkIfaceHtml) visible_ifaces
     mapM_ (uncurry printHtml) ifaceHtml
 
   where
-    mkIfaceHtml :: Interface -> (FilePath, Html)
+    mkIfaceHtml :: Interface -> (FilePath, B.ByteString)
     mkIfaceHtml iface =
-      ( joinPath [odir, moduleHtmlFile (ifaceMod iface)]
-      , ppHtmlModule doctitle themes maybe_mathjax_url maybe_source_url
+      let !x = joinPath [odir, moduleHtmlFile (ifaceMod iface)]
+          !y = ppHtmlModule doctitle themes maybe_mathjax_url maybe_source_url
                      maybe_wiki_url maybe_base_url maybe_contents_url
                      maybe_index_url withQuickjump unicode pkg qual iface
-      )
+          !z = renderToBuilder debug y
+          !a = B.toStrict (Builder.toLazyByteString z)
+      in (x,  a)
 
     printHtml
       :: FilePath -- HTML output file path
-      -> Html -- HTML content
+      -> B.ByteString -- HTML content
       -> IO ()
     printHtml ofile html =
-      writeUtf8File' ofile (renderToBuilder debug html)
+      writeUtf8File'' ofile html
 
     -- Copied from GHC.Runtime.Interpreter:
     -- We don't have the parallel package, so roll our own simple parMap

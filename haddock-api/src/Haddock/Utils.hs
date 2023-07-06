@@ -30,7 +30,7 @@ module Haddock.Utils (
 
   -- * Miscellaneous utilities
   getProgramName, bye, die, escapeStr,
-  writeUtf8File, writeUtf8File', withTempDir,
+  writeUtf8File, writeUtf8File', writeUtf8File'', withTempDir,
 
   -- * HTML cross reference mapping
   html_xrefs_ref, html_xrefs_ref',
@@ -77,6 +77,7 @@ import System.Exit
 import qualified System.FilePath.Posix as HtmlPath
 import System.IO ( hPutStr, hSetEncoding, IOMode(..), utf8, withFile )
 import System.IO.Unsafe ( unsafePerformIO )
+import qualified Data.ByteString as B
 
 #ifndef mingw32_HOST_OS
 import qualified System.Posix.Internals
@@ -316,6 +317,11 @@ writeUtf8File' :: FilePath -> Builder -> IO ()
 writeUtf8File' filepath contents = withFile filepath WriteMode $ \h -> do
     hSetEncoding h utf8
     hPutBuilder h contents
+
+writeUtf8File'' :: FilePath -> B.ByteString -> IO ()
+writeUtf8File'' filepath contents = withFile filepath WriteMode $ \h -> do
+  hSetEncoding h utf8
+  B.hPutStr h contents
 
 withTempDir :: (MonadIO m, MonadMask m) => FilePath -> m a -> m a
 withTempDir dir = bracket_ (liftIO $ createDirectory dir)
