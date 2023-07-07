@@ -178,7 +178,7 @@ pp_sig dflags names (L _ typ)  =
 
 -- note: does not yet output documentation for class methods
 ppClass :: DynFlags -> TyClDecl GhcRn -> [(Name, DocForDecl Name)] -> [String]
-ppClass dflags decl subdocs =
+ppClass dflags decl@(ClassDecl {}) subdocs =
   (out dflags decl{tcdSigs=[], tcdATs=[], tcdATDefs=[], tcdMeths=emptyLHsBinds}
     ++ ppTyFams) :  ppMethods
     where
@@ -204,7 +204,7 @@ ppClass dflags decl subdocs =
             , nest 4 . vcat . map (Outputable.<> semi) $ elems
             , rbrace
             ]
-
+ppClass _ _non_cls_decl _ = []
 ppFam :: DynFlags -> FamilyDecl GhcRn -> [String]
 ppFam dflags decl@(FamilyDecl { fdInfo = info })
   = [out dflags decl']
