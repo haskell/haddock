@@ -128,6 +128,8 @@ ppHtml verbosity state doctitle maybe_package ifaces reexported_ifaces odir
         withQuickjump
         (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
+    -- Generate JSON index for the visible modules passed as arguments, not
+    -- those from packages passed via `--read-interface`.
     when withQuickjump $
       ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
         visible_ifaces []
@@ -510,7 +512,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
   createDirectoryIfMissing True odir
   (errors, installedIndexes) <-
     partitionEithers
-      <$> traverse
+      <$> mapConcurrentlyM
             (\ifaceFile -> do
               let indexFile = takeDirectory ifaceFile
                     FilePath.</> indexJsonFile

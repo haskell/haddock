@@ -505,7 +505,20 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       return ()
     copyHtmlBits odir libDir themes withQuickjump
 
-  when withQuickjump $ void $
+  -- This ppJsonIndex call is only intended to build a quickjump index for
+  -- multi-component documentation as documented here:
+  -- https://haskell-haddock.readthedocs.io/en/latest/multi-components.html
+  --
+  -- In particular, when generating this index we expect haddock to have been
+  -- called directly with no `--html` flag and only our project's local
+  -- components passed via `--read-interface` flags.
+  --
+  -- Generating this index when `--html` is passed is /pointless/, as `ppHtml`
+  -- will simply overwrite this index with one that does not merge JSON indices
+  -- from the given packages. What's worse is that Cabal passes all dependencies
+  -- to Haddock with `--read-interface` flags, which can result in this call
+  -- doing a bunch of expensive and pointless parsing of existing JSON indices.
+  when (withQuickjump && Flag_Html `notElem` flags) $ void $
     ppJsonIndex odir sourceUrls' opt_wiki_urls
                 unicode Nothing qual
                 ifaces
