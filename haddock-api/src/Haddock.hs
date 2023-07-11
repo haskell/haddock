@@ -343,16 +343,19 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
   -- Debug output
   let verbosity = optVerbosity flags
   out verbosity Debug $
-       "HADDOCK DEBUG: render\n"
-    ++ "packages:\n"
-    ++ unlines
-         ( map
-             ( \(fp, i) ->
-                  "filepath: " ++ show fp ++ "\n"
-               ++ ppPackageInterfaces i
-             )
-             (Map.toList packages)
-         )
+       "beginning render\n"
+    ++ "packages: "
+    ++ if Map.null packages then
+         "none\n"
+       else
+         unlines
+           ( map
+               ( \(fp, i) ->
+                     "filepath: " ++ show fp ++ "\n"
+                 ++ ppPackageInterfaces i
+               )
+               (Map.toList packages)
+           )
 
   let
     packageInfo = PackageInfo { piPackageName    = fromMaybe (PackageName mempty)
@@ -494,7 +497,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
   when (Flag_GenContents `elem` flags) $ do
     withTiming logger "ppHtmlContents" (const ()) $ do
       _ <- {-# SCC ppHtmlContents #-}
-           ppHtmlContents unit_state odir title pkgStr
+           ppHtmlContents verbosity unit_state odir title pkgStr
                      themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
                      withQuickjump
                      allVisiblePackages True prologue pretty
@@ -503,17 +506,17 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     copyHtmlBits odir libDir themes withQuickjump
 
   when withQuickjump $ void $
-            ppJsonIndex odir sourceUrls' opt_wiki_urls
-                        unicode Nothing qual
-                        ifaces
-                        ( Map.keys
-                        . Map.filter ((== Visible) . piVisibility)
-                        $ packages)
+    ppJsonIndex odir sourceUrls' opt_wiki_urls
+                unicode Nothing qual
+                ifaces
+                ( Map.keys
+                . Map.filter ((== Visible) . piVisibility)
+                $ packages)
 
   when (Flag_Html `elem` flags) $ do
     withTiming logger "ppHtml" (const ()) $ do
       _ <- {-# SCC ppHtml #-}
-           ppHtml unit_state title pkgStr visibleIfaces reexportedIfaces odir
+           ppHtml verbosity unit_state title pkgStr visibleIfaces reexportedIfaces odir
                   prologue
                   themes opt_mathjax sourceUrls' opt_wiki_urls opt_base_url
                   opt_contents_url opt_index_url unicode sincePkg packageInfo
@@ -559,6 +562,7 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
            ppHyperlinkedSource verbosity odir libDir opt_source_css pretty srcMap ifaces
       return ()
 
+  out verbosity Debug "completed render"
 
 -------------------------------------------------------------------------------
 -- * Reading and dumping interface files

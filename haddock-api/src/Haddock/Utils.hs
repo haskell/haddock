@@ -30,7 +30,7 @@ module Haddock.Utils (
 
   -- * Miscellaneous utilities
   getProgramName, bye, die, escapeStr,
-  writeUtf8File, writeUtf8File', withTempDir, builderToString,
+  writeUtf8File, writeUtf8File', writeUtf8File'', withTempDir, builderToString,
 
   -- * HTML cross reference mapping
   html_xrefs_ref, html_xrefs_ref',
@@ -61,6 +61,8 @@ import GHC.Types.Name
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
 import Control.Monad.State.Strict (gets)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import Data.Char ( isAlpha, isAlphaNum, isAscii, ord, chr )
 import Data.IORef ( IORef, newIORef, readIORef )
@@ -105,8 +107,13 @@ out :: MonadIO m
     -> Verbosity -- ^ message verbosity
     -> String -> m ()
 out progVerbosity msgVerbosity msg
-  | msgVerbosity <= progVerbosity = liftIO $ putStrLn msg
-  | otherwise = return ()
+    | msgVerbosity <= progVerbosity = liftIO $ putStrLn msg'
+    | otherwise = return ()
+  where
+    msg' =
+      case msgVerbosity of
+        Debug -> "HADDOCK DEBUG: " <> msg
+        _ -> msg
 
 -- | Emit a marker message to the eventlog, if it is not too verbose. Emitted
 -- markers will be visible as markers in, e.g., eventlog2html profiles.
@@ -311,6 +318,11 @@ writeUtf8File' :: FilePath -> Builder -> IO ()
 writeUtf8File' filepath contents = withFile filepath WriteMode $ \h -> do
     hSetEncoding h utf8
     hPutBuilder h contents
+
+writeUtf8File'' :: FilePath -> ByteString -> IO ()
+writeUtf8File'' filepath contents = withFile filepath WriteMode $ \h -> do
+  hSetEncoding h utf8
+  BS.hPutStr h contents
 
 withTempDir :: (MonadIO m, MonadMask m) => FilePath -> m a -> m a
 withTempDir dir = bracket_ (liftIO $ createDirectory dir)

@@ -50,6 +50,8 @@ import Haddock.GhcUtils
 import Control.DeepSeq       (force)
 import Control.Monad         ( when, unless )
 import Data.Bifunctor        ( bimap )
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as Builder
 import Data.Char             ( toUpper, isSpace )
 import Data.Either           ( partitionEithers )
@@ -67,7 +69,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set hiding ( Set )
 import Data.Ord              ( comparing )
 
-import GHC hiding ( NoLink, moduleInfo,LexicalFixity(..), anchor )
+import GHC hiding ( NoLink, moduleInfo, LexicalFixity(..), anchor )
 import GHC.Types.Name
 import GHC.Unit.State
 
@@ -75,7 +77,8 @@ import GHC.Unit.State
 -- * Generating HTML documentation
 --------------------------------------------------------------------------------
 
-ppHtml :: UnitState
+ppHtml :: Verbosity
+       -> UnitState
        -> String                       -- ^ Title
        -> Maybe String                 -- ^ Package
        -> [Interface]
@@ -96,43 +99,60 @@ ppHtml :: UnitState
        -> Bool                         -- ^ Output pretty html (newlines and indenting)
        -> Bool                         -- ^ Also write Quickjump index
        -> IO ()
+ppHtml verbosity state doctitle maybe_package ifaces reexported_ifaces odir
+       prologue themes maybe_mathjax_url maybe_source_url maybe_wiki_url
+       maybe_base_url maybe_contents_url maybe_index_url unicode
+       pkg packageInfo qual debug withQuickjump = do
+    let visible_ifaces :: [Interface]
+        visible_ifaces = filter visible ifaces
+          where visible i = OptHide `notElem` ifaceOptions i
 
-ppHtml state doctitle maybe_package ifaces reexported_ifaces odir prologue
-        themes maybe_mathjax_url maybe_source_url maybe_wiki_url
-        maybe_base_url maybe_contents_url maybe_index_url unicode
-        pkg packageInfo qual debug withQuickjump = do
-  let visible_ifaces = filter visible ifaces
-        where visible i = OptHide `notElem` ifaceOptions i
+    -- If no pre-made contents file is being used, generate new contents
+    when (isNothing maybe_contents_url) $
+      ppHtmlContents verbosity state odir doctitle maybe_package
+          themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
+          withQuickjump
+          [ PackageInterfaces
+              { piPackageInfo = packageInfo
+              , piVisibility  = Visible
+              , piInstalledInterfaces = map toInstalledIface visible_ifaces
+                                    ++ reexported_ifaces
+              }
+          ]
+          False -- we don't want to display the packages in a single-package contents
+          prologue debug pkg (makeContentsQual qual)
 
-  -- If no pre-made contents file is being used, generate new contents
-  when (isNothing maybe_contents_url) $
-    ppHtmlContents state odir doctitle maybe_package
-        themes maybe_mathjax_url maybe_index_url maybe_source_url maybe_wiki_url
+    when (isNothing maybe_index_url) $ do
+      ppHtmlIndex odir doctitle maybe_package
+        themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
         withQuickjump
-        [ PackageInterfaces
-            { piPackageInfo = packageInfo
-            , piVisibility  = Visible
-            , piInstalledInterfaces = map toInstalledIface visible_ifaces
-                                  ++ reexported_ifaces
-            }
-        ]
-        False -- we don't want to display the packages in a single-package contents
-        prologue debug pkg (makeContentsQual qual)
+        (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
 
-  when (isNothing maybe_index_url) $ do
-    ppHtmlIndex odir doctitle maybe_package
-      themes maybe_mathjax_url maybe_contents_url maybe_source_url maybe_wiki_url
-      withQuickjump
-      (map toInstalledIface visible_ifaces ++ reexported_ifaces) debug
+    when withQuickjump $
+      ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
+        visible_ifaces []
 
-  when withQuickjump $
-    ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual
-      visible_ifaces []
+    createDirectoryIfMissing True odir
 
-  mapM_ (ppHtmlModule odir doctitle themes
-           maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-           maybe_contents_url maybe_index_url withQuickjump
-           unicode pkg qual debug) visible_ifaces
+    mapM_ (uncurry printHtml . mkIfaceHtml) visible_ifaces
+  where
+    mkIfaceHtml :: Interface -> (FilePath, ByteString)
+    mkIfaceHtml iface =
+      let !ofile     = joinPath [odir, moduleHtmlFile (ifaceMod iface)]
+          !html      = ppHtmlModule
+                         doctitle themes maybe_mathjax_url maybe_source_url
+                         maybe_wiki_url maybe_base_url maybe_contents_url
+                         maybe_index_url withQuickjump unicode pkg qual iface
+          !builder   = renderToBuilder debug html
+          !htmlBytes = BS.toStrict (Builder.toLazyByteString builder)
+      in (ofile, htmlBytes)
+
+    printHtml
+      :: FilePath -- HTML output file path
+      -> ByteString -- HTML content
+      -> IO ()
+    printHtml ofile html =
+      writeUtf8File'' ofile html
 
 
 copyHtmlBits :: FilePath -> FilePath -> Themes -> Bool -> IO ()
@@ -304,7 +324,8 @@ moduleInfo iface =
 
 
 ppHtmlContents
-   :: UnitState
+   :: Verbosity
+   -> UnitState
    -> FilePath
    -> String
    -> Maybe String
@@ -319,10 +340,10 @@ ppHtmlContents
    -> Maybe Package  -- ^ Current package
    -> Qualification  -- ^ How to qualify names
    -> IO ()
-ppHtmlContents state odir doctitle _maybe_package
-  themes mathjax_url maybe_index_url
-  maybe_source_url maybe_wiki_url withQuickjump
-  packages showPkgs prologue debug pkg qual = do
+ppHtmlContents verbosity state odir doctitle _maybe_package themes mathjax_url
+  maybe_index_url maybe_source_url maybe_wiki_url withQuickjump packages
+  showPkgs prologue debug pkg qual = do
+  out verbosity Debug "beginning ppHtmlContents"
   let trees =
         [ ( piPackageInfo pinfo
           , mkModuleTree state showPkgs
@@ -354,6 +375,7 @@ ppHtmlContents state odir doctitle _maybe_package
           ]
   createDirectoryIfMissing True odir
   writeUtf8File' (joinPath [odir, contentsHtmlFile]) (renderToBuilder debug html)
+  out verbosity Debug "completed ppHtmlContents"
   where
     -- Extract a module's short description.
     toInstalledDescription :: InstalledInterface -> Maybe (MDoc Name)
@@ -488,7 +510,7 @@ ppJsonIndex odir maybe_source_url maybe_wiki_url unicode pkg qual_opt ifaces ins
       <$> traverse
             (\ifaceFile -> do
               let indexFile = takeDirectory ifaceFile
-                    FilePath.</> "doc-index.json"
+                    FilePath.</> indexJsonFile
               a <- doesFileExist indexFile
               if a then
                     bimap (indexFile,) (map (fixLink ifaceFile))
@@ -693,46 +715,44 @@ ppHtmlIndex odir doctitle _maybe_package themes
 
 
 --------------------------------------------------------------------------------
--- * Generate the HTML page for a module
+-- * Generate the HTML content for a module
 --------------------------------------------------------------------------------
 
 
 ppHtmlModule
-        :: FilePath -> String -> Themes
+        :: String -> Themes
         -> Maybe String -> SourceURLs -> WikiURLs -> BaseURL
         -> Maybe String -> Maybe String
         -> Bool  -- ^ With Quick Jump?
         -> Bool -> Maybe Package -> QualOption
-        -> Bool -> Interface -> IO ()
-ppHtmlModule odir doctitle themes
-  maybe_mathjax_url maybe_source_url maybe_wiki_url maybe_base_url
-  maybe_contents_url maybe_index_url withQuickjump
-  unicode pkg qual debug iface = do
+        -> Interface -> Html
+ppHtmlModule doctitle themes maybe_mathjax_url maybe_source_url
+             maybe_wiki_url maybe_base_url maybe_contents_url maybe_index_url
+             withQuickjump unicode pkg qual iface =
   let
-      mdl = ifaceMod iface
-      mdl_str = moduleString mdl
-      mdl_str_annot = mdl_str ++ if ifaceIsSig iface
-                                    then " (signature)"
-                                    else ""
-      mdl_str_linked
-        | ifaceIsSig iface
-        = mdl_str +++ textHtml " (signature" +++
-                       sup << (textHtml "[" +++ anchor ! [href signatureDocURL] <<< "?" +++ textHtml "]" ) +++
-                       textHtml ")"
-        | otherwise
-        = toHtml mdl_str
-      real_qual = makeModuleQual qual mdl
-      html =
-        headHtml mdl_str_annot themes maybe_mathjax_url maybe_base_url +++
-        bodyHtml doctitle (Just iface)
-          maybe_source_url maybe_wiki_url
-          maybe_contents_url maybe_index_url withQuickjump << [
-            divModuleHeader << (moduleInfo iface +++ (sectionName << mdl_str_linked)),
-            ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
-          ]
-
-  createDirectoryIfMissing True odir
-  writeUtf8File' (joinPath [odir, moduleHtmlFile mdl]) (renderToBuilder debug html)
+    mdl = ifaceMod iface
+    mdl_str = moduleString mdl
+    mdl_str_annot = mdl_str ++ if ifaceIsSig iface
+                                  then " (signature)"
+                                  else ""
+    mdl_str_linked
+      | ifaceIsSig iface
+      = mdl_str +++ textHtml " (signature" +++
+                     sup << (textHtml "[" +++ anchor ! [href signatureDocURL] <<< "?" +++ textHtml "]" ) +++
+                     textHtml ")"
+      | otherwise
+      = toHtml mdl_str
+    real_qual = makeModuleQual qual mdl
+    html =
+      headHtml mdl_str_annot themes maybe_mathjax_url maybe_base_url +++
+      bodyHtml doctitle (Just iface)
+        maybe_source_url maybe_wiki_url
+        maybe_contents_url maybe_index_url withQuickjump << [
+          divModuleHeader << (moduleInfo iface +++ (sectionName << mdl_str_linked)),
+          ifaceToHtml maybe_source_url maybe_wiki_url iface unicode pkg real_qual
+        ]
+  in
+    html
 
 signatureDocURL :: Text
 signatureDocURL = "https://wiki.haskell.org/Module_signature"
