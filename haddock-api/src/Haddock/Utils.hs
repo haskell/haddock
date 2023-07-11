@@ -48,7 +48,11 @@ module Haddock.Utils (
   out, outMarker, outM,
 
   -- * System tools
-  getProcessID
+  getProcessID,
+
+  -- * Concurrency tools
+  forkThread,
+  mapConcurrentlyM, mapConcurrentlyM_
  ) where
 
 
@@ -56,8 +60,11 @@ import Documentation.Haddock.Doc (emptyMetaDoc)
 import Haddock.Types
 
 import GHC hiding (verbosity)
+import GHC.Exception
+import GHC.MVar
 import GHC.Types.Name
 
+import Control.Concurrent
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
 import Control.Monad.State.Strict (gets)
@@ -395,3 +402,33 @@ foreign import ccall unsafe "_getpid" getProcessID :: IO Int -- relies on Int ==
 getProcessID :: IO Int
 getProcessID = fmap fromIntegral System.Posix.Internals.c_getpid
 #endif
+
+-----------------------------------------------------------------------------
+-- * Concurrency tools
+-----------------------------------------------------------------------------
+
+-- | Run the given action in a forked thread, and give back an 'MVar' which will
+-- contain the result of the action.
+forkThread :: IO a -> IO (MVar a)
+forkThread act = do
+    handle <- newEmptyMVar
+    _ <- act `forkFinally` putResultOrError handle
+    return handle
+  where
+    putResultOrError :: MVar a -> Either SomeException a -> IO ()
+    putResultOrError handle res =
+      case res of
+        Right v  -> putMVar handle v
+        Left err -> die $ displayException err
+
+-- | Fork an apply a function for each element of a list. Accumulate and return
+-- the results in a list.
+mapConcurrentlyM :: (a -> IO b) -> [a] -> IO [b]
+mapConcurrentlyM f xs = do
+    handles <- mapM (forkThread . f) xs
+    mapM takeMVar handles
+
+-- | Fork an apply a function for each element of a list, disregarding the
+-- results.
+mapConcurrentlyM_ :: (a -> IO ()) -> [a] -> IO ()
+mapConcurrentlyM_ f xs = mapConcurrentlyM f xs >> pure ()

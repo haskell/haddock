@@ -134,7 +134,10 @@ ppHtml verbosity state doctitle maybe_package ifaces reexported_ifaces odir
 
     createDirectoryIfMissing True odir
 
-    mapM_ (uncurry printHtml . mkIfaceHtml) visible_ifaces
+    -- Write the HTML files in parallel. Note that mapConcurrentlyM_ will wait
+    -- for each forked thread to complete before continuing, which prevents
+    -- exiting before all HTML is written.
+    mapConcurrentlyM_ (uncurry printHtml . mkIfaceHtml) visible_ifaces
   where
     mkIfaceHtml :: Interface -> (FilePath, ByteString)
     mkIfaceHtml iface =
