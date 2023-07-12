@@ -17,7 +17,6 @@ import GHC.Unit.Module ( ModuleName, moduleNameString )
 import GHC.Types.Name   ( getOccString, isInternalName, Name, nameModule, nameUnique )
 import GHC.Types.SrcLoc
 import GHC.Types.Unique ( getKey )
-import GHC.Utils.Encoding ( utf8DecodeByteString )
 
 import System.FilePath.Posix ((</>))
 
@@ -26,10 +25,10 @@ import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Lazy.Encoding as LText
 
 import Text.XHtml (Html, HtmlAttr, (!))
 import qualified Text.XHtml as Html
-
 
 type StyleClass = String
 
@@ -125,7 +124,7 @@ renderToken Token{..}
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
     | otherwise = tokenSpan ! [ multiclass style ]
   where
-    tkValue' = filterCRLF $ utf8DecodeByteString tkValue
+    tkValue' = filterCRLF . LText.decodeUtf8 $ BS.fromStrict tkValue
     style = tokenStyle tkType
     tokenSpan = Html.thespan (Html.toHtml tkValue')
 
@@ -136,7 +135,7 @@ richToken srcs details Token{..}
     | tkType == TkSpace = renderSpace (srcSpanStartLine tkSpan) tkValue'
     | otherwise = annotate details $ linked content
   where
-    tkValue' = filterCRLF $ utf8DecodeByteString tkValue
+    tkValue' = filterCRLF . LText.decodeUtf8 $ BS.fromStrict tkValue
     content = tokenSpan ! [ multiclass style ]
     tokenSpan = Html.thespan (Html.toHtml tkValue')
     style = tokenStyle tkType ++ concatMap (richTokenStyle (null (nodeType details))) contexts
@@ -153,10 +152,14 @@ richToken srcs details Token{..}
       Nothing -> id
 
 -- | Remove CRLFs from source
-filterCRLF :: String -> String
-filterCRLF ('\r':'\n':cs) = '\n' : filterCRLF cs
-filterCRLF (c:cs) = c : filterCRLF cs
-filterCRLF [] = []
+filterCRLF :: Text -> Text
+filterCRLF = fst . LText.foldr f (LText.empty, '\NUL')
+  where
+    f :: Char
+      -> (Text, Char)
+      -> (Text, Char)
+    f '\r' (acc, '\n') = ('\n' `LText.cons` acc, '\NUL')
+    f c    (acc, _   ) = (c    `LText.cons` acc, c)
 
 annotate :: NodeInfo PrintedType -> Html -> Html
 annotate  ni content =
@@ -280,17 +283,19 @@ hyperlink (srcs, srcs') ident = case ident of
           Nothing -> content
 
 
-renderSpace :: Int -> String -> Html
-renderSpace !_ "" = Html.noHtml
-renderSpace !line ('\n':rest) = mconcat
-    [ Html.thespan (Html.toHtml '\n')
-    , lineAnchor (line + 1)
-    , renderSpace (line + 1) rest
-    ]
-renderSpace line space =
-    let (hspace, rest) = span (/= '\n') space
-    in (Html.thespan . Html.toHtml) hspace <> renderSpace line rest
-
+renderSpace :: Int -> Text -> Html
+renderSpace !line space =
+    case LText.uncons space of
+      Just ('\n', rest) ->
+        mconcat
+          [ Html.thespan (Html.toHtml '\n')
+          , lineAnchor (line + 1)
+          , renderSpace (line + 1) rest
+          ]
+      Just _ ->
+        let (hspace, rest) = LText.span (/= '\n') space
+        in (Html.thespan . Html.toHtml) hspace <> renderSpace line rest
+      Nothing -> Html.noHtml
 
 lineAnchor :: Int -> Html
 lineAnchor line = Html.thespan Html.noHtml ! [ Html.identifier . LText.pack $ hypSrcLineUrl line ]

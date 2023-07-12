@@ -28,7 +28,6 @@ import Data.Map as M
 import GHC.Data.FastString     ( mkFastString )
 import GHC.Unit.Module         ( Module, moduleName )
 
-
 -- | Generate hyperlinked source for given interfaces.
 --
 -- Note that list of interfaces should also contain interfaces normally hidden
