@@ -9,7 +9,7 @@ module Haddock.Backends.Hyperlinker
 
 
 import Haddock.Types
-import Haddock.Utils (writeUtf8File', out)
+import Haddock.Utils (writeUtf8File', out, mapConcurrentlyM_)
 import Haddock.InterfaceFile
 import Haddock.Backends.Hyperlinker.Renderer
 import Haddock.Backends.Hyperlinker.Parser
@@ -48,7 +48,7 @@ ppHyperlinkedSource verbosity outdir libdir mstyle pretty srcs' ifaces = do
     copyFile cssFile $ srcdir </> srcCssFile
     copyFile (libdir </> "html" </> highlightScript) $
         srcdir </> highlightScript
-    mapM_ (ppHyperlinkedModuleSource verbosity srcdir pretty srcs) ifaces
+    mapConcurrentlyM_ (ppHyperlinkedModuleSource verbosity srcdir pretty srcs) ifaces
   where
     srcdir = outdir </> hypSrcDir
     srcs = (srcs', M.mapKeys moduleName srcs')
