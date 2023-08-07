@@ -355,12 +355,12 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
     -- /All/ interfaces including external package modules, grouped by
     -- interface file (package).
     allPackages      :: [PackageInterfaces]
-    allPackages      = [PackageInterfaces
+    allPackages      = PackageInterfaces
                          { piPackageInfo = packageInfo
                          , piVisibility  = Visible
                          , piInstalledInterfaces  = map toInstalledIface ifaces
-                         }]
-                    ++ map snd packages
+                         }
+                    : map snd packages
 
     -- /All/ visible interfaces including external package modules, grouped by
     -- interface file (package).
@@ -457,7 +457,6 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       _ <- {-# SCC ppHtmlIndex #-}
            ppHtmlIndex odir title pkgStr
                   themes opt_mathjax opt_contents_url sourceUrls' opt_wiki_urls
-                  withQuickjump
                   (concatMap piInstalledInterfaces allVisiblePackages) pretty
       return ()
 
@@ -469,7 +468,6 @@ render log' dflags unit_state flags sinceQual qual ifaces packages extSrcMap = d
       _ <- {-# SCC ppHtmlContents #-}
            ppHtmlContents unit_state odir title pkgStr
                      themes opt_mathjax opt_index_url sourceUrls' opt_wiki_urls
-                     withQuickjump
                      allVisiblePackages True prologue pretty
                      sincePkg (makeContentsQual qual)
       return ()
@@ -655,7 +653,7 @@ getHaddockLibDir flags =
       -- under @data-files@ in the Cabal file) will have been copied to a
       -- special directory.
       data_dir <- getDataDir      -- Provided by Cabal
-      let res_dirs = [ data_dir ] ++
+      let res_dirs = data_dir :
 
 #endif
 

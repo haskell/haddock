@@ -211,8 +211,8 @@ ppFixities fs qual = foldr1 (+++) (map ppFix uniq_fs) +++ rightEdge
     ppDir InfixN = "infix"
 
     ppNames = case fs of
-      _:[] -> const noHtml -- Don't display names for fixities on single names
-      _    -> concatHtml . intersperse (stringToHtml ", ") . map (ppDocName qual Infix False)
+      [_] -> const noHtml -- Don't display names for fixities on single names
+      _   -> concatHtml . intersperse (stringToHtml ", ") . map (ppDocName qual Infix False)
 
     uniq_fs = [ (n, the p, the d') | (n, Fixity _ p d) <- fs
                                    , let d' = ppDir d

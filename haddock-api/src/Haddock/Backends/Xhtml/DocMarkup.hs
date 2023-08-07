@@ -69,7 +69,7 @@ parHtmlMarkup qual insertAnchors ppId = Markup {
                                -> if insertAnchors
                                   then namedAnchor aname << ""
                                   else noHtml,
-  markupPic                  = \(Picture uri t) -> image ! ([src uri] ++ fromMaybe [] (return . title <$> t)),
+  markupPic                  = \(Picture uri t) -> image ! (src uri : fromMaybe [] (return . title <$> t)),
   markupMathInline           = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\(" ++ mathjax ++ "\\)"),
   markupMathDisplay          = \mathjax -> thespan ! [theclass "mathjax"] << toHtml ("\\[" ++ mathjax ++ "\\]"),
   markupProperty             = pre . toHtml,
