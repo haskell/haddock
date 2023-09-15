@@ -1,3 +1,6 @@
+## Changes in 2.29.0
+ * Fixes for memory leaks and performance improvements
+
 ## Changes in 2.28.0
  * Support qualified and unqualified names in `--ignore-link-symbol`
 
