@@ -1,3 +1,6 @@
+## Changes in 2.29.1
+ * Fix build on GHC 9.2
+
 ## Changes in 2.29.0
  * Fixes for memory leaks and performance improvements
 
