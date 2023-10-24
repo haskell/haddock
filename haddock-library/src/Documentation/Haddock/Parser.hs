@@ -732,7 +732,7 @@ examples = DocExamples <$> (many (try (skipHorizontalSpace *> "\n")) *> go)
     go :: Parser [Example]
     go = do
       prefix <- takeHorizontalSpace <* ">>>"
-      expr <- takeLine
+      expr <- takeLineOrMultiLine
       (rs, es) <- resultAndMoreExamples
       return (makeExample prefix expr rs : es)
       where
@@ -765,12 +765,22 @@ takeLine = try (takeWhile (/= '\n') <* endOfLine)
 endOfLine :: Parser ()
 endOfLine = void "\n" <|> Parsec.eof
 
+takeMultiLine :: Parser Text
+takeMultiLine =
+  T.unlines <$>
+    (try ":{" *> Parsec.manyTill takeLine (try $ skipHorizontalSpace *> ":}\n"))
+
+takeLineOrMultiLine :: Parser Text
+takeLineOrMultiLine =
+  liftA2 (<>) takeHorizontalSpace $ takeMultiLine <|> takeLine
+
 -- | Property parser.
 --
 -- >>> snd <$> parseOnly property "prop> hello world"
 -- Right (DocProperty "hello world")
 property :: Parser (DocH mod a)
-property = DocProperty . T.unpack . T.strip <$> ("prop>" *> takeWhile1 (/= '\n'))
+property =
+  DocProperty . T.unpack . T.strip <$> ("prop>" *> takeLineOrMultiLine)
 
 -- |
 -- Paragraph level codeblock. Anything between the two delimiting \@ is parsed
