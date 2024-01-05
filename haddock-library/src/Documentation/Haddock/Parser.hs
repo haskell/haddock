@@ -765,10 +765,15 @@ takeLine = try (takeWhile (/= '\n') <* endOfLine)
 endOfLine :: Parser ()
 endOfLine = void "\n" <|> Parsec.eof
 
+
+actualLine :: Parser Text
+actualLine = takeWhile (/= '\n') <* void "\n"
+
 takeMultiLine :: Parser Text
 takeMultiLine =
   T.unlines <$>
-    (try ":{" *> Parsec.manyTill takeLine (try $ skipHorizontalSpace *> ":}\n"))
+    (try ":{" *>
+      Parsec.manyTill actualLine (try $ skipHorizontalSpace *> ":}\n"))
 
 takeLineOrMultiLine :: Parser Text
 takeLineOrMultiLine =
