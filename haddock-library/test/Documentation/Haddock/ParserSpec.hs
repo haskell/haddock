@@ -1134,3 +1134,12 @@ spec = do
         "= /Header/ __1__\nFoo" `shouldParseTo`
           DocHeader (Header 1 (DocEmphasis "Header" <> " " <> DocBold "1"))
           <> DocParagraph "Foo"
+
+      it "parses header then table" $
+        "= Header\n\
+        \\n\
+        \+-------+\n\
+        \| Table |\n\
+        \+-------+" `shouldParseTo`
+          DocHeader (Header 1 "Header")
+          <> DocTable (Table [] [TableRow [TableCell 1 1 "Table"]])
