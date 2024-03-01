@@ -42,8 +42,8 @@ runProcess' path (ProcessConfig { .. }) = runProcess
 
 -- | Wait for a process to finish running. If it ends up failing, print out the
 -- error message.
-waitForSuccess :: String -> Handle -> ProcessHandle -> IO Bool
+waitForSuccess :: IO String -> Handle -> ProcessHandle -> IO Bool
 waitForSuccess msg out handle = do
     succeeded <- fmap (== ExitSuccess) $ waitForProcess handle
-    unless succeeded $ hPutStrLn out msg
+    unless succeeded $ msg >>= hPutStrLn out
     pure succeeded
