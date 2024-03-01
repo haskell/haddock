@@ -59,7 +59,7 @@ import GHC.Types.Name
 
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Catch ( MonadMask, bracket_ )
-import Data.Char ( isAlpha, isAlphaNum, isAscii, ord, chr )
+import Data.Char ( isAlpha, isAlphaNum, isAscii, isAsciiUpper, isAsciiLower, isDigit, ord, chr )
 import Numeric ( showIntAtBase )
 import Data.Map ( Map )
 import qualified Data.Map as Map hiding ( Map )
@@ -265,8 +265,8 @@ isUnreserved c = isAlphaNumChar c || (c `elem` "-_.~")
 
 
 isAlphaChar, isDigitChar, isAlphaNumChar :: Char -> Bool
-isAlphaChar c    = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-isDigitChar c    = c >= '0' && c <= '9'
+isAlphaChar c    = isAsciiUpper c || isAsciiLower c
+isDigitChar c    = isDigit c
 isAlphaNumChar c = isAlphaChar c || isDigitChar c
 
 -- | Utility to write output to UTF-8 encoded files.
