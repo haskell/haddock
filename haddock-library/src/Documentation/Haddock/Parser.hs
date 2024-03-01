@@ -833,7 +833,7 @@ markdownLinkTarget = whitespace *> url
     url = rejectWhitespace (decode <$> ("(" *> takeUntil ")"))
 
     rejectWhitespace :: MonadPlus m => m String -> m String
-    rejectWhitespace = mfilter (all (not . isSpace))
+    rejectWhitespace = mfilter (not . any isSpace)
 
     decode :: Text -> String
     decode = T.unpack . removeEscapes
