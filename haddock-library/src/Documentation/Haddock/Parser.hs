@@ -263,7 +263,7 @@ moduleNameString = modid `maybeFollowedBy` anchor_
 
     conChar = Parsec.alphaNum <|> Parsec.char '_'
 
--- | A labeled link to an indentifier, module or url using markdown
+-- | A labeled link to an identifier, module or url using markdown
 -- syntax.
 markdownLink :: Parser (DocH mod Identifier)
 markdownLink = do
@@ -406,7 +406,7 @@ table = do
             | c == '\n' = Nothing
             | otherwise = Just (n - 1)
 
--- Second step searchs for row of '+' and '=' characters, records it's index
+-- Second step searches for row of '+' and '=' characters, records it's index
 -- and changes to '=' to '-'.
 tableStepTwo
     :: Int              -- ^ width

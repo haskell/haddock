@@ -172,7 +172,7 @@ haddockWithGhc ghc args = handleTopExceptions $ do
     Just (Just n) -> Flag_OptGhc ("-j" ++ show n) : flags''
 
   -- bypass the interface version check
-  let noChecks = Flag_BypassInterfaceVersonCheck `elem` flags
+  let noChecks = Flag_BypassInterfaceVersionCheck `elem` flags
 
   -- Create a temporary directory and redirect GHC output there (unless user
   -- requested otherwise).
@@ -268,7 +268,7 @@ readPackagesAndProcessModules :: [Flag] -> [String]
                               -> Ghc ([(DocPaths, Visibility, FilePath, InterfaceFile)], [Interface], LinkEnv)
 readPackagesAndProcessModules flags files = do
     -- Get packages supplied with --read-interface.
-    let noChecks = Flag_BypassInterfaceVersonCheck `elem` flags
+    let noChecks = Flag_BypassInterfaceVersionCheck `elem` flags
     name_cache <- hsc_NC <$> getSession
     packages <- liftIO $ readInterfaceFiles name_cache (readIfaceArgs flags) noChecks
 

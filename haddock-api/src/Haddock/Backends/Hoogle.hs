@@ -332,7 +332,7 @@ str a = [Str a]
 -- and things like \n and \t converted away
 -- much like blogger in HTML mode
 -- everything else wants to be included as tags, neatly nested for some (ul,li,ol)
--- or inlne for others (a,i,tt)
+-- or inline for others (a,i,tt)
 -- entities (&,>,<) should always be appropriately escaped
 
 markupTag :: Outputable o => DynFlags -> DocMarkup o [Tag]

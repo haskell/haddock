@@ -70,7 +70,7 @@ spec = do
           '\r' -> "\\\r" `shouldParseTo` DocString "\\"
           x -> ['\\', x] `shouldParseTo` DocString [x]
 
-      context "when parsing strings contaning numeric character references" $ do
+      context "when parsing strings containing numeric character references" $ do
         it "will implicitly convert digits to characters" $ do
           "&#65;&#65;&#65;&#65;" `shouldParseTo` "AAAA"
 
@@ -575,7 +575,7 @@ spec = do
           , "bar"
           ] `shouldParseTo` DocParagraph "foo" <> DocParagraph "bar"
 
-      context "when a pragraph only contains monospaced text" $ do
+      context "when a paragraph only contains monospaced text" $ do
         it "turns it into a code block" $ do
           "@foo@" `shouldParseTo` DocCodeBlock "foo"
 

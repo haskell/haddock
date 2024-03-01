@@ -45,7 +45,7 @@ jsonHaddockModInfo HaddockModInfo{..} =
              , ("copyright"   , jsonMaybe jsonString hmi_copyright)
              , ("maintainer"  , jsonMaybe jsonString hmi_maintainer)
              , ("stability"   , jsonMaybe jsonString hmi_stability)
-             , ("protability" , jsonMaybe jsonString hmi_portability)
+             , ("portability" , jsonMaybe jsonString hmi_portability)
              , ("safety"      , jsonMaybe jsonString hmi_safety)
              , ("language"    , jsonMaybe (jsonString . show) hmi_language)
              , ("extensions"  , jsonArray (map (jsonString . show) hmi_extensions))

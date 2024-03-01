@@ -11,7 +11,7 @@ test2 :: Bool
 test2 = False
 
 -- | Should show up on the page for both modules A and B
-data X = X -- ^ Doc for consructor
+data X = X -- ^ Doc for constructor
 
 -- | Should show up on the page for both modules A and B
 reExport :: Int
