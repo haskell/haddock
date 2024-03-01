@@ -129,7 +129,9 @@ binaryInterfaceVersion = 41
 binaryInterfaceVersionCompatibility :: [Word16]
 binaryInterfaceVersionCompatibility = [binaryInterfaceVersion]
 #else
+#ifndef __HLINT__
 #error Unsupported GHC version
+#endif
 #endif
 
 

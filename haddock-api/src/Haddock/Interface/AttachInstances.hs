@@ -158,14 +158,14 @@ attachToExportItem index expInfo getInstDoc getFixity export =
 
 -- | Lookup the doc associated with a certain instance
 findInstDoc :: Interface -> IfaceMap -> InstIfaceMap -> Name -> Maybe (MDoc Name)
-findInstDoc iface ifaceMap instIfaceMap = \name ->
+findInstDoc iface ifaceMap instIfaceMap name =
   (Map.lookup name . ifaceDocMap $ iface) <|>
   (Map.lookup name . ifaceDocMap =<< Map.lookup (nameModule name) ifaceMap) <|>
   (Map.lookup name . instDocMap =<< Map.lookup (nameModule name) instIfaceMap)
 
 -- | Lookup the fixity associated with a certain name
 findFixity :: Interface -> IfaceMap -> InstIfaceMap -> Name -> Maybe Fixity
-findFixity iface ifaceMap instIfaceMap = \name ->
+findFixity iface ifaceMap instIfaceMap name =
   (Map.lookup name . ifaceFixMap $ iface) <|>
   (Map.lookup name . ifaceFixMap =<< Map.lookup (nameModule name) ifaceMap) <|>
   (Map.lookup name . instFixMap =<< Map.lookup (nameModule name) instIfaceMap)
